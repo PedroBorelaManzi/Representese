@@ -368,12 +368,11 @@ export default function Checkout() {
                   </div>
 
                   <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm space-y-8">
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className={`grid gap-3 ${billingCycle === 'ANNUAL' ? 'grid-cols-2' : 'grid-cols-1'}`}>
                       {[
-                        { id: 'CREDIT_CARD', icon: CreditCard, label: 'Cartão' },
-                        { id: 'PIX', icon: QrCode, label: 'Pix' },
-                        { id: 'BOLETO', icon: FileText, label: 'Boleto' }
-                      ].map((m) => (
+  { id: 'CREDIT_CARD', icon: CreditCard, label: 'Cartão' },
+  ...(billingCycle === 'ANNUAL' ? [{ id: 'PIX', icon: QrCode, label: 'Pix' }] : [])
+].map((m) => (
                         <button key={m.id} type="button" onClick={() => setPaymentMethod(m.id as any)} className={cn("flex flex-col items-center gap-2 py-4 rounded-xl border-2 transition-all relative", paymentMethod === m.id ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-slate-100 bg-white text-slate-500 hover:border-slate-200")}>
                           {m.id === 'PIX' && <span className="absolute -top-2 -right-2 px-2 py-0.5 bg-emerald-500 text-white text-[10px] font-bold rounded-full">5% OFF</span>}
                           <m.icon className="w-6 h-6" />
@@ -427,17 +426,7 @@ export default function Checkout() {
                       </div>
                     )}
 
-                    {paymentMethod === 'BOLETO' && (
-                      <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl animate-in fade-in duration-200">
-                        <div className="flex gap-4 items-start">
-                          <FileText className="w-8 h-8 text-slate-500 shrink-0" />
-                          <div>
-                            <h4 className="font-bold text-slate-900">Boleto Bancário</h4>
-                            <p className="text-sm text-slate-600 mt-1">O boleto será gerado no próximo passo. A compensação e liberação do sistema leva até 3 dias úteis após o pagamento.</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                    
                   </div>
                   
                   <button type="button" onClick={() => setStep(1)} className="text-sm font-medium text-slate-500 hover:text-slate-700 flex items-center justify-center w-full">
