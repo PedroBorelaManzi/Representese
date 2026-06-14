@@ -185,6 +185,7 @@ export default function Checkout() {
       const codeUpper = couponCode.trim().toUpperCase();
       if (codeUpper === "REPRESENTE95") { setAppliedCoupon({ code: "REPRESENTE95", discount: 95 }); toast.success("Cupom aplicado!"); }
       else if (codeUpper === "TESTE") { setAppliedCoupon({ code: "TESTE", discount: 50 }); toast.success("Cupom aplicado!"); }
+      else if (codeUpper === "GRATIS100") { setAppliedCoupon({ code: "GRATIS100", discount: 100 }); toast.success("Cupom aplicado!"); }
       else toast.error("Cupom inválido");
       setIsApplyingCoupon(false);
     }, 800);
