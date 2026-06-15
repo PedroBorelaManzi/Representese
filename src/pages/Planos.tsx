@@ -171,7 +171,7 @@ export default function Planos() {
             >
               Ir para o Master <ArrowUpRight className="w-4 h-4" />
             </button>
-                  <p className="mt-4 text-center text-[12px] text-slate-500 dark:text-zinc-500 leading-snug">Após os 7 dias, a cobrança é automática conforme o plano escolhido. Cancele quando quiser, sem multa.</p>
+                  
                 </motion.div>
         )}
 
@@ -213,6 +213,7 @@ export default function Planos() {
                 -10% OFF
               </span>
             </div>
+            <p className="mt-4 text-center text-[12px] text-slate-500 dark:text-zinc-500 leading-snug font-medium">Após os 7 dias, a cobrança é automática conforme o plano escolhido. Cancele quando quiser, sem multa.</p>
           </div>
 
           {/* 7-Day Guarantee Banner Prominently at the Top */}
@@ -304,7 +305,7 @@ export default function Planos() {
                     isCurrent 
                       ? "bg-slate-50 dark:bg-zinc-800 text-slate-400 cursor-not-allowed"
                       : plan.popular
-                        ? "bg-white text-[#1A6B3C] hover:bg-slate-50 shadow-xl shadow-black/10"
+                        ? "bg-white text-emerald-950 dark:bg-white dark:text-emerald-950 hover:bg-slate-50 shadow-xl shadow-black/10"
                         : "bg-slate-900 dark:bg-slate-50 text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-200 shadow-xl"
                   )}
                 >
@@ -315,7 +316,7 @@ export default function Planos() {
                     </>
                   )}
                 </button>
-                  <p className="mt-4 text-center text-[12px] text-slate-500 dark:text-zinc-500 leading-snug">Após os 7 dias, a cobrança é automática conforme o plano escolhido. Cancele quando quiser, sem multa.</p>
+                  
                 </motion.div>
             );
           })}

@@ -160,9 +160,12 @@ export const SettingsSubscription = React.memo(function SettingsSubscription({ o
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {tierId === 'exclusivo' && [
                   { text: '1 Empresa cadastrada', icon: Building2 },
+                  { text: '1 Usuário Simultâneo', icon: Check },
+                  { text: 'Acesso ao App Mobile', icon: Check },
+                  { text: 'Suporte por e-mail (até 24h)', icon: Check },
+                  { text: 'Histórico de 30 dias', icon: Check },
                   { text: 'Mapa Territorial Básico', icon: MapIcon },
                   { text: 'CRM Essencial', icon: Check },
-                  { text: 'Suporte por E-mail', icon: Mail }
                 ].map((b, i) => (
                   <div key={i} className="flex items-center gap-3 text-slate-600 dark:text-zinc-300">
                     <b.icon className="w-3.5 h-3.5" />
