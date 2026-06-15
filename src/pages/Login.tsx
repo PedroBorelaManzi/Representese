@@ -327,7 +327,7 @@ export default function Login() {
 
         <div className="mt-auto pt-16 pb-8 text-center">
            <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.5em] whitespace-nowrap">
-              Representese — Tecnologia de Ponta
+              
            </p>
         </div>
       </div>

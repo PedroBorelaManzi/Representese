@@ -185,7 +185,7 @@ export default function LandingPitch() {
               ✨ A revolução tecnológica do representante
             </span>
             <h1 className="text-3xl sm:text-5xl md:text-8xl font-black tracking-tight text-slate-900 mb-6 md:mb-8 leading-[1.1] md:leading-[0.9] text-balance">
-              Domine suas vendas com <span className="text-transparent bg-clip-text bg-gradient-to-br from-emerald-600 via-emerald-500 to-emerald-400">inteligencia</span>
+              Domine suas vendas com <span className="text-transparent bg-clip-text bg-gradient-to-br from-emerald-600 via-emerald-500 to-emerald-400">inteligência</span>
             </h1>
             <p className="text-lg text-slate-500 font-medium leading-relaxed max-w-2xl mx-auto mb-12">
               Domine sua carteira de clientes e recupere horas preciosas do seu dia. Nossa inteligência avançada gerencia a memória da sua operação, antecipando necessidades e garantindo controle total para que nenhum pedido ou cliente fique para trás — além de diversas outras ferramentas que te ajudarão a vender mais e vender melhor!

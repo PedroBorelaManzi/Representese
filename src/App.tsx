@@ -9,6 +9,7 @@ import { UploadProvider } from "./contexts/UploadContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { Toaster } from "sonner";
 import Layout from "./components/Layout";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 // Lazy Loaded Pages
 const Landing = React.lazy(() => import("./pages/LandingPitch"));
@@ -118,6 +119,7 @@ export default function App() {
             </UploadProvider>
           </SettingsProvider>
         </SyncProvider>
+        <SpeedInsights />
       </BrowserRouter>
     </AuthProvider>
   );

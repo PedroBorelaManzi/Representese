@@ -309,7 +309,7 @@ export default function Recovery() {
 
         <div className="text-center pt-4">
           <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.5em] whitespace-nowrap">
-            Representese — Tecnologia de Ponta
+            
           </p>
         </div>
       </div>

@@ -167,7 +167,8 @@ export default function Planos() {
             >
               Ir para o Master <ArrowUpRight className="w-4 h-4" />
             </button>
-          </motion.div>
+                  <p className="mt-4 text-center text-[10px] text-slate-500 dark:text-zinc-500 font-bold uppercase tracking-widest leading-relaxed">Cancele a qualquer momento nos primeiros 7 dias sem custo.</p>
+                </motion.div>
         )}
 
         <div className="text-center mb-16">
@@ -265,7 +266,7 @@ export default function Planos() {
                 <div className="mb-8 flex flex-col gap-1 text-left min-h-[70px]">
                   {plan.originalPrice ? (
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-slate-400 line-through">De R$ {plan.originalPrice}</span>
+                      <span className="text-xs font-bold text-slate-400 line-through decoration-red-500/50">De R$ {plan.originalPrice}</span>
                       <span className="px-3 py-1 bg-amber-500 text-white text-[10px] font-black uppercase rounded-lg tracking-widest shadow-sm shadow-amber-500/20">
                         {plan.id === 'exclusivo' ? '25' : plan.id === 'profissional' ? '30' : '35'}% DE DESCONTO LANÇAMENTO
                       </span>
@@ -300,17 +301,18 @@ export default function Planos() {
                       ? "bg-slate-50 dark:bg-zinc-800 text-slate-400 cursor-not-allowed"
                       : plan.popular
                         ? "bg-emerald-600 text-white hover:bg-emerald-700 shadow-xl shadow-emerald-500/20"
-                        : "bg-slate-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-slate-800 dark:hover:bg-zinc-200 shadow-xl shadow-slate-900/10"
+                        : "bg-slate-900 dark:bg-slate-50 text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-200 shadow-xl"
                   )}
                 >
                   {isCurrent ? "Plano Atual" : (
                     <>
-                      Assinar Plano
+                      Teste 7 Dias Grátis
                       <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
                     </>
                   )}
                 </button>
-              </motion.div>
+                  <p className="mt-4 text-center text-[10px] text-slate-500 dark:text-zinc-500 font-bold uppercase tracking-widest leading-relaxed">Cancele a qualquer momento nos primeiros 7 dias sem custo.</p>
+                </motion.div>
             );
           })}
         </div>
