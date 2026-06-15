@@ -40,12 +40,16 @@ const LoadingSpinner = () => (
 
 function LandingOrRedirect() {
   const { user, loading } = useAuth();
+  const hasLoggedInOnce = localStorage.getItem("rm_has_logged_in_once") === "true";
 
-  if (loading) {
+  if (loading && hasLoggedInOnce) {
     return <LoadingSpinner />;
   }
+  if (loading && !hasLoggedInOnce) {
+    return <Landing />;
+  }
 
-  const hasLoggedInOnce = localStorage.getItem("rm_has_logged_in_once") === "true";
+  
   const isMobile = Capacitor.isNativePlatform();
 
   if (isMobile && hasLoggedInOnce) {
