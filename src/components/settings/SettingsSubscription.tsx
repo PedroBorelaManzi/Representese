@@ -1,6 +1,8 @@
 import React from 'react';
 import { Trophy, Crown, Gem, CheckCircle2, Clock, TrendingUp, Building2, Map as MapIcon, Plus, MessageCircle, ChevronRight, Sparkles, Zap, Check, Mail, BarChart3, Star, Infinity } from 'lucide-react';
 import { useSettings } from '../../contexts/SettingsContext';
+import { supabase } from '../../lib/supabase';
+import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../../lib/utils';
 
@@ -44,10 +46,33 @@ const tierSequence = ['exclusivo', 'profissional', 'master'];
 export const SettingsSubscription = React.memo(function SettingsSubscription({ onClose }: SettingsSubscriptionProps) {
   const { settings } = useSettings();
   const navigate = useNavigate();
+  const [isCanceling, setIsCanceling] = React.useState(false);
 
   const currentPlan = planInfo[settings.plan_id as keyof typeof planInfo] || planInfo.exclusivo;
   const tierId = settings.plan_id ? (settings.plan_id === 'premium' ? 'profissional' : settings.plan_id) : 'exclusivo';
   const currentIndex = tierSequence.indexOf(tierId) !== -1 ? tierSequence.indexOf(tierId) : 0;
+
+  
+  const handleCancel = async () => {
+    if (!window.confirm("Tem certeza que deseja cancelar sua assinatura? Você perderá o acesso ao fim do período pago.")) return;
+    
+    setIsCanceling(true);
+    const toastId = toast.loading('Processando cancelamento...');
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('cancel-subscription');
+      
+      if (error) throw new Error(error.message);
+      
+      toast.success(data.message || 'Assinatura cancelada com sucesso.', { id: toastId });
+      setTimeout(() => window.location.reload(), 2000);
+    } catch (err) {
+      toast.error('Erro ao cancelar assinatura. Entre em contato com o suporte.', { id: toastId });
+      console.error(err);
+    } finally {
+      setIsCanceling(false);
+    }
+  };
 
   return (
     <div className="space-y-10">
@@ -204,7 +229,7 @@ export const SettingsSubscription = React.memo(function SettingsSubscription({ o
               Ver Todos os Planos
             </button>
             <button 
-              onClick={() => window.open('https://wa.me/5515997472785', '_blank')}
+              onClick={handleCancel} disabled={isCanceling}
               className="flex-1 py-4 rounded-[20px] bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 text-red-600 font-black uppercase text-[10px] tracking-widest hover:bg-red-100 dark:hover:bg-red-900/40 transition-all flex items-center justify-center gap-2"
             >
               <MessageCircle className="w-4 h-4" />
@@ -239,7 +264,7 @@ export const SettingsSubscription = React.memo(function SettingsSubscription({ o
               Ver Todos os Planos
             </button>
             <button 
-              onClick={() => window.open('https://wa.me/5515997472785', '_blank')}
+              onClick={handleCancel} disabled={isCanceling}
               className="flex-1 py-4 rounded-[20px] bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 text-red-600 font-black uppercase text-[10px] tracking-widest hover:bg-red-100 dark:hover:bg-red-900/40 transition-all flex items-center justify-center gap-2"
             >
               <MessageCircle className="w-4 h-4" />
