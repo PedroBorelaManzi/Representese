@@ -315,7 +315,7 @@ const Register = () => {
                     </div>
                     <button className={cn(
                       "w-full py-4 rounded-2xl font-black uppercase text-[9px] tracking-widest transition-all",
-                      plan.featured ? "bg-white text-emerald-600" : "bg-slate-900 text-white"
+                      plan.featured ? "bg-white hover:bg-slate-50" : "bg-slate-900 text-white"
                     )}>
                       Selecionar
                     </button>

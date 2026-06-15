@@ -230,6 +230,7 @@ export default function Planos() {
                 </p>
               </div>
             </div>
+            <p className="mt-4 text-center text-[12px] text-slate-500 dark:text-zinc-500 leading-snug font-medium">Após os 7 dias, a cobrança é automática conforme o plano escolhido. Cancele quando quiser, sem multa.</p>
           </div>
         </div>
 
@@ -305,9 +306,10 @@ export default function Planos() {
                     isCurrent 
                       ? "bg-slate-50 dark:bg-zinc-800 text-slate-400 cursor-not-allowed"
                       : plan.popular
-                        ? "bg-white text-emerald-950 dark:bg-white dark:text-emerald-950 hover:bg-slate-50 shadow-xl shadow-black/10"
+                        ? "bg-white hover:bg-slate-50 shadow-xl shadow-black/10"
                         : "bg-slate-900 dark:bg-slate-50 text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-200 shadow-xl"
                   )}
+                  style={plan.popular ? { color: "#1A6B3C" } : undefined}
                 >
                   {isCurrent ? "Plano Atual" : (
                     <>
