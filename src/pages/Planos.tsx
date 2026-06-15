@@ -41,6 +41,10 @@ const plans = [
     justification: 'Ideal para validar sua operação com baixo investimento e organização básica.',
     features: [
       { text: '1 Empresa cadastrada', icon: Building2 },
+        { text: '1 Usuário Simultâneo', icon: Check },
+        { text: 'Acesso ao App Mobile', icon: Check },
+        { text: 'Suporte por e-mail (até 24h)', icon: Check },
+        { text: 'Histórico de 30 dias', icon: Check },
       { text: 'Mapa Territorial Básico', icon: MapIcon },
       { text: 'CRM Essencial', icon: Check },
       { text: 'Suporte por E-mail', icon: Mail }
@@ -167,7 +171,7 @@ export default function Planos() {
             >
               Ir para o Master <ArrowUpRight className="w-4 h-4" />
             </button>
-                  <p className="mt-4 text-center text-[10px] text-slate-500 dark:text-zinc-500 font-bold uppercase tracking-widest leading-relaxed">Cancele a qualquer momento nos primeiros 7 dias sem custo.</p>
+                  <p className="mt-4 text-center text-[12px] text-slate-500 dark:text-zinc-500 leading-snug">Após os 7 dias, a cobrança é automática conforme o plano escolhido. Cancele quando quiser, sem multa.</p>
                 </motion.div>
         )}
 
@@ -300,7 +304,7 @@ export default function Planos() {
                     isCurrent 
                       ? "bg-slate-50 dark:bg-zinc-800 text-slate-400 cursor-not-allowed"
                       : plan.popular
-                        ? "bg-emerald-600 text-white hover:bg-emerald-700 shadow-xl shadow-emerald-500/20"
+                        ? "bg-white text-[#1A6B3C] hover:bg-slate-50 shadow-xl shadow-black/10"
                         : "bg-slate-900 dark:bg-slate-50 text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-200 shadow-xl"
                   )}
                 >
@@ -311,7 +315,7 @@ export default function Planos() {
                     </>
                   )}
                 </button>
-                  <p className="mt-4 text-center text-[10px] text-slate-500 dark:text-zinc-500 font-bold uppercase tracking-widest leading-relaxed">Cancele a qualquer momento nos primeiros 7 dias sem custo.</p>
+                  <p className="mt-4 text-center text-[12px] text-slate-500 dark:text-zinc-500 leading-snug">Após os 7 dias, a cobrança é automática conforme o plano escolhido. Cancele quando quiser, sem multa.</p>
                 </motion.div>
             );
           })}
