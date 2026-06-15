@@ -232,8 +232,8 @@ export const SettingsSubscription = React.memo(function SettingsSubscription({ o
               Ver Todos os Planos
             </button>
             <button 
-              onClick={handleCancel} disabled={isCanceling}
-              className="flex-1 py-4 rounded-[20px] bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 text-red-600 font-black uppercase text-[10px] tracking-widest hover:bg-red-100 dark:hover:bg-red-900/40 transition-all flex items-center justify-center gap-2"
+              onClick={() => window.open('https://wa.me/5515997472785?text=Ol%C3%A1%2C%20gostaria%20de%20conversar%20sobre%20o%20cancelamento%20do%20meu%20plano...', '_blank')}
+                className="flex-1 py-4 rounded-[20px] bg-red-50 dark:bg-zinc-800 border border-red-100 dark:border-zinc-700 text-red-600 dark:text-red-400 font-black uppercase text-[10px] tracking-widest hover:bg-red-100 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2"
             >
               <MessageCircle className="w-4 h-4" />
               Gerenciar / Cancelar
@@ -267,8 +267,8 @@ export const SettingsSubscription = React.memo(function SettingsSubscription({ o
               Ver Todos os Planos
             </button>
             <button 
-              onClick={handleCancel} disabled={isCanceling}
-              className="flex-1 py-4 rounded-[20px] bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 text-red-600 font-black uppercase text-[10px] tracking-widest hover:bg-red-100 dark:hover:bg-red-900/40 transition-all flex items-center justify-center gap-2"
+              onClick={() => window.open('https://wa.me/5515997472785?text=Ol%C3%A1%2C%20gostaria%20de%20conversar%20sobre%20o%20cancelamento%20do%20meu%20plano...', '_blank')}
+                className="flex-1 py-4 rounded-[20px] bg-red-50 dark:bg-zinc-800 border border-red-100 dark:border-zinc-700 text-red-600 dark:text-red-400 font-black uppercase text-[10px] tracking-widest hover:bg-red-100 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2"
             >
               <MessageCircle className="w-4 h-4" />
               Gerenciar / Cancelar

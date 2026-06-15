@@ -28,79 +28,10 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
+import { plans } from "../lib/plansData";
+import { PlanCards } from "../components/plans/PlanCards";
 
-const plans = [
-  {
-    id: 'exclusivo',
-    name: 'Exclusivo',
-    price: '97',
-    annualPrice: '87',
-    originalPrice: '134',
-    period: '/mês',
-    description: 'Para quem está começando.',
-    justification: 'Ideal para validar sua operação com baixo investimento e organização básica.',
-    features: [
-      { text: '1 Empresa cadastrada', icon: Building2 },
-        { text: '1 Usuário Simultâneo', icon: Check },
-        { text: 'Acesso ao App Mobile', icon: Check },
-        { text: 'Suporte por e-mail (até 24h)', icon: Check },
-        { text: 'Histórico de 30 dias', icon: Check },
-      { text: 'Mapa Territorial Básico', icon: MapIcon },
-      { text: 'CRM Essencial', icon: Check },
-      { text: 'Suporte por E-mail', icon: Mail }
-    ],
-    popular: false,
-    color: 'from-slate-500 to-slate-600',
-    icon: Trophy
-  },
-  {
-    id: 'profissional',
-    name: 'Profissional',
-    price: '147',
-    annualPrice: '132',
-    originalPrice: '210',
-    period: '/mês',
-    description: 'Ideal para equipes em crescimento.',
-    justification: 'A automação de busca de CNPJ economiza cerca de 10 horas de trabalho manual por mês.',
-    features: [
-      { text: 'Até 5 Empresas', icon: Building2 },
-      { text: 'Mapa Territorial Básico', icon: MapIcon },
-      { text: 'CRM Essencial', icon: Check },
-      { text: 'Busca CNPJ Automática', icon: Zap },
-      { text: 'Dashboard de Faturamento', icon: BarChart3 },
-      { text: 'Exportação de Relatórios', icon: Check },
-      { text: 'Suporte via WhatsApp', icon: Star }
-    ],
-    popular: true,
-    color: 'from-emerald-500 to-emerald-600',
-    icon: Gem
-  },
-  {
-    id: 'master',
-    name: 'Master',
-    price: '197',
-    annualPrice: '177',
-    originalPrice: '303',
-    period: '/mês',
-    description: 'Para grandes volumes e IA.',
-    justification: 'Potencializado por Inteligência Artificial para processar pedidos e analisar mercado em tempo real.',
-    features: [
-      { text: 'Empresas Ilimitadas', icon: Infinity },
-      { text: 'Radar Territorial Avançado', icon: MapIcon },
-      { text: 'CRM Essencial', icon: Check },
-      { text: 'Busca CNPJ Automática', icon: Zap },
-      { text: 'BI & Analytics Avançado', icon: BarChart3 },
-      { text: 'Exportação de Relatórios', icon: Check },
-      { text: 'Lançamento via IA (Gemini)', icon: Sparkles },
-      { text: 'Automação de Pedidos', icon: Zap },
-      { text: 'Integração com Inbox', icon: Mail },
-      { text: 'Suporte via WhatsApp Prioritário', icon: Star }
-    ],
-    popular: false,
-    color: 'from-emerald-600 to-emerald-700',
-    icon: Crown
-  },
-];
+
 
 export default function Planos() {
   const [billingCycle, setBillingCycle] = useState<'MONTHLY' | 'ANNUAL'>('MONTHLY');
@@ -234,95 +165,11 @@ export default function Planos() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-20">
-          {plans.map((plan, idx) => {
-            const isCurrent = currentSubscription?.subscription_plan?.toLowerCase().includes(plan.id.toLowerCase());
-
-            return (
-              <motion.div
-                key={plan.name}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.1 }}
-                className={cn(
-                  "relative bg-white dark:bg-zinc-900 rounded-[48px] p-10 border transition-all duration-500 group overflow-hidden flex flex-col h-full",
-                  plan.popular ? "border-emerald-500 shadow-[0_32px_64px_-16px_rgba(16,185,129,0.15)] ring-4 ring-emerald-500/5" : "border-slate-100 dark:border-zinc-800 hover:border-slate-200 dark:hover:border-zinc-700"
-                )}
-              >
-                {plan.popular && (
-                  <div className="absolute top-8 right-8">
-                    <div className="px-4 py-1.5 bg-emerald-500 text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-lg shadow-emerald-500/20">
-                      Recomendado
-                    </div>
-                  </div>
-                )}
-
-                <div className={cn(
-                  "w-14 h-14 md:w-16 md:h-16 rounded-[24px] bg-gradient-to-br flex items-center justify-center mb-8 shadow-lg transition-transform group-hover:scale-110 duration-500",
-                  plan.color
-                )}>
-                  <plan.icon className="w-6 h-6 md:w-8 md:h-8 text-white" />
-                </div>
-
-                <div className="mb-8">
-                  <h3 className="text-2xl font-black text-slate-900 dark:text-zinc-100 uppercase tracking-tighter mb-2">{plan.name}</h3>
-                  <p className="text-sm text-slate-500 dark:text-zinc-400 font-medium leading-tight">{plan.description}</p>
-                </div>
-
-                <div className="mb-8 flex flex-col gap-1 text-left min-h-[70px]">
-                  {plan.originalPrice ? (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-slate-400 line-through decoration-red-500/50">De R$ {plan.originalPrice}</span>
-                      <span className="px-3 py-1 bg-amber-500 text-white text-[10px] font-black uppercase rounded-lg tracking-widest shadow-sm shadow-amber-500/20">
-                        {plan.id === 'exclusivo' ? '25' : plan.id === 'profissional' ? '30' : '35'}% DE DESCONTO LANÇAMENTO
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Preço Regular</span>
-                  )}
-                  <div className="flex items-baseline gap-1 mt-1">
-                    <span className="text-sm font-black text-slate-400">R$</span>
-                    <span className="text-5xl md:text-6xl font-black text-slate-900 dark:text-zinc-100 tracking-tighter">{billingCycle === 'ANNUAL' ? plan.annualPrice : plan.price}</span>
-                    <span className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">/mês</span>
-                  </div>
-                </div>
-
-                <div className="space-y-4 mb-10 flex-grow">
-                  {plan.features.map((feature, i) => (
-                    <div key={i} className="flex items-center gap-3">
-                      <div className="w-5 h-5 rounded-full bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
-                        <Check className="w-3 h-3 text-emerald-600" />
-                      </div>
-                      <span className="text-xs md:text-sm font-bold text-slate-600 dark:text-zinc-300">{feature.text}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <button
-                  onClick={() => handleSubscribe(plan)}
-                  disabled={isCurrent}
-                  className={cn(
-                    "w-full py-6 rounded-[28px] font-black uppercase text-xs tracking-[0.2em] transition-all flex items-center justify-center gap-3 active:scale-[0.98] group/btn",
-                    isCurrent 
-                      ? "bg-slate-50 dark:bg-zinc-800 text-slate-400 cursor-not-allowed"
-                      : plan.popular
-                        ? "bg-white hover:bg-slate-50 shadow-xl shadow-black/10"
-                        : "bg-slate-900 dark:bg-slate-50 text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-200 shadow-xl"
-                  )}
-                  style={plan.popular ? { color: "#1A6B3C" } : undefined}
-                >
-                  {isCurrent ? "Plano Atual" : (
-                    <>
-                      Teste 7 Dias Grátis
-                      <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
-                    </>
-                  )}
-                </button>
-                  
-                </motion.div>
-            );
-          })}
-        </div>
+        <PlanCards 
+          billingCycle={billingCycle} 
+          currentSubscriptionPlan={currentSubscription?.subscription_plan} 
+          onSubscribe={handleSubscribe} 
+        />
 
         {/* Cancellation Section Refined */}
         <div className="max-w-4xl mx-auto p-12 bg-white dark:bg-zinc-900 rounded-[56px] border border-slate-100 dark:border-zinc-800 text-center relative overflow-hidden group">

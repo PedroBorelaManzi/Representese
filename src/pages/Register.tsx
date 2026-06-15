@@ -26,76 +26,10 @@ import {
 import { supabase } from "../lib/supabase";
 import { toast } from "sonner";
 import { Logo } from '../components/Logo';
-import { cn } from '../lib/utils';
+import { cn } from "../lib/utils";
+import { plans } from "../lib/plansData";
+import { PlanCards } from "../components/plans/PlanCards";
 
-const plans = [
-  {
-    id: 'exclusivo',
-    name: 'Exclusivo',
-    price: '97',
-    annualPrice: '87',
-    originalPrice: '134',
-    period: '/mês',
-    description: 'Para quem está começando.',
-    justification: 'Ideal para validar sua operação com baixo investimento e organização básica.',
-    features: [
-      { text: '1 Empresa cadastrada', icon: Building2 },
-      { text: 'Mapa Territorial Básico', icon: MapIcon },
-      { text: 'CRM Essencial', icon: Check },
-      { text: 'Suporte por E-mail', icon: Mail }
-    ],
-    featured: false,
-    color: 'slate',
-    icon: Trophy
-  },
-  {
-    id: 'profissional',
-    name: 'Profissional',
-    price: '147',
-    annualPrice: '132',
-    originalPrice: '210',
-    period: '/mês',
-    description: 'Ideal para equipes em crescimento.',
-    justification: 'A automação de busca de CNPJ economiza cerca de 10 horas de trabalho manual por mês.',
-    features: [
-      { text: 'Até 5 Empresas', icon: Building2 },
-      { text: 'Mapa Territorial Básico', icon: MapIcon },
-      { text: 'CRM Essencial', icon: Check },
-      { text: 'Busca CNPJ Automática', icon: Zap },
-      { text: 'Dashboard de Faturamento', icon: BarChart3 },
-      { text: 'Exportação de Relatórios', icon: Check },
-      { text: 'Suporte via WhatsApp', icon: Star }
-    ],
-    featured: true,
-    color: 'emerald',
-    icon: Gem
-  },
-  {
-    id: 'master',
-    name: 'Master',
-    price: '197',
-    annualPrice: '177',
-    originalPrice: '303',
-    period: '/mês',
-    description: 'Para grandes volumes e IA.',
-    justification: 'Potencializado por Inteligência Artificial para processar pedidos e analisar mercado em tempo real.',
-    features: [
-      { text: 'Empresas Ilimitadas', icon: Infinity },
-      { text: 'Radar Territorial Avançado', icon: MapIcon },
-      { text: 'CRM Essencial', icon: Check },
-      { text: 'Busca CNPJ Automática', icon: Zap },
-      { text: 'BI & Analytics Avançado', icon: BarChart3 },
-      { text: 'Exportação de Relatórios', icon: Check },
-      { text: 'Lançamento via IA (Gemini)', icon: Sparkles },
-      { text: 'Automação de Pedidos', icon: Zap },
-      { text: 'Integração com Inbox', icon: Mail },
-      { text: 'Suporte via WhatsApp Prioritário', icon: Star }
-    ],
-    featured: false,
-    color: 'zinc',
-    icon: Crown
-  },
-];
 
 
 const PasswordRequirementsDisplay = ({ requirements }: { requirements: any }) => {
@@ -257,72 +191,15 @@ const Register = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-                {plans.map((plan) => (
-                  <motion.div
-                    key={plan.id}
-                    whileHover={{ y: -8 }}
-                    onClick={() => navigate(`/checkout?plan=${plan.id}&period=${billingCycle}`)}
-                    className={cn(
-                      "relative flex flex-col p-6 rounded-[40px] border transition-all duration-500 cursor-pointer",
-                      plan.featured 
-                        ? "bg-emerald-600 border-emerald-500 shadow-2xl text-white scale-105 z-10" 
-                        : "bg-white dark:bg-zinc-900 border-slate-100 dark:border-zinc-800 shadow-xl"
-                    )}
-                    
-                  >
-                    {plan.featured && (
-                      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 px-6 py-2 bg-amber-400 text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-lg whitespace-nowrap">
-                        Mais escolhido!
-                      </div>
-                    )}
-                    <div className="mb-6">
-                      <h3 className="text-lg font-black uppercase tracking-tight mb-2">{plan.name}</h3>
-                      <p className={cn("text-[9px] font-bold uppercase opacity-70 leading-tight", plan.featured ? "text-emerald-50" : "text-slate-400")}>
-                        {plan.description}
-                      </p>
-                    </div>
-                    <div className="mb-2 flex flex-col gap-1 min-h-[30px]">
-                      {plan.originalPrice && (
-                        <div className="flex items-center gap-2">
-                          <span className={cn("text-xs font-bold line-through", plan.featured ? "text-emerald-100/70" : "text-slate-400")}>De R$ {plan.originalPrice}</span>
-                          <span className="px-3 py-1 bg-amber-500 text-white text-[10px] font-black uppercase rounded-lg tracking-widest shadow-sm shadow-amber-500/20">
-                            {plan.id === 'exclusivo' ? '25' : plan.id === 'profissional' ? '30' : '35'}% DE DESCONTO LANÇAMENTO
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-baseline gap-1 mb-6">
-                      <span className="text-xs font-black opacity-50">R$</span>
-                      <span className="text-4xl font-black tracking-tighter">{billingCycle === 'ANNUAL' ? plan.annualPrice : plan.price}</span>
-                      <span className="text-[10px] font-black uppercase opacity-50">{plan.period}</span>
-                    </div>
-                    
-                    <div className={cn("p-4 rounded-2xl mb-6 text-[10px] font-bold leading-relaxed", plan.featured ? "bg-white/10" : "bg-slate-50 dark:bg-zinc-800")}>
-                      <Sparkles className="w-4 h-4 mb-2 inline-block mr-2" />
-                      {plan.justification}
-                    </div>
-
-                    <div className="space-y-3 flex-1 mb-6">
-                      {plan.features.map((feat, i) => (
-                        <div key={i} className="flex items-center gap-3">
-                          <div className={cn("p-1.5 rounded-lg shrink-0", plan.featured ? "bg-white/20" : "bg-emerald-50 dark:bg-emerald-950/30")}>
-                            <feat.icon className={cn("w-3 h-3", plan.featured ? "text-white" : "text-emerald-600")} />
-                          </div>
-                          <span className="text-[9px] font-black uppercase tracking-tight leading-none">{feat.text}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <button className={cn(
-                      "w-full py-4 rounded-2xl font-black uppercase text-[9px] tracking-widest transition-all",
-                      plan.featured ? "bg-white hover:bg-slate-50" : "bg-slate-900 text-white"
-                    )}>
-                      Selecionar
-                    </button>
-                  </motion.div>
-                ))}
-              </div>
-</motion.div>
+                <PlanCards 
+                  billingCycle={billingCycle} 
+                  onSubscribe={(plan) => {
+                    setSelectedPlan(plan.id);
+                    setStep(2);
+                  }} 
+                  buttonLabel="Selecionar"
+                />
+              </motion.div>
           )}
 
           {step === 2 && (
