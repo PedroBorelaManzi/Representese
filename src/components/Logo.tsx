@@ -1,6 +1,6 @@
 import React from 'react';
 import { cn } from '../lib/utils';
-import logoUrl from '../assets/logo.png';
+import logoUrl from '../assets/logo.webp';
 
 interface LogoProps {
   className?: string;

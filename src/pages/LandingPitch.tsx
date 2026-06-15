@@ -35,45 +35,45 @@ const industries = [
     name: "Materiais de Construção", 
     icon: Building2, 
     color: "bg-orange-50 text-orange-600",
-    image: "/assets/setor_materiais.png"
+    image: "/assets/setor_materiais.webp"
   },
   { 
     name: "Supermercados", 
     icon: ShoppingCart, 
     color: "bg-emerald-50 text-emerald-600",
-    image: "/assets/setor_supermercado.png"
+    image: "/assets/setor_supermercado.webp"
   },
   { 
     name: "Farmácias", 
     icon: PlusIcon, 
     color: "bg-red-50 text-red-600",
-    image: "/assets/setor_farmacia.png",
+    image: "/assets/setor_farmacia.webp",
     objectPosition: "50% 20%"
   },
   { 
     name: "Distribuidoras", 
     icon: Store, 
     color: "bg-blue-50 text-blue-600",
-    image: "/assets/setor_distribuidora.png"
+    image: "/assets/setor_distribuidora.webp"
   },
   { 
     name: "Serviços", 
     icon: Briefcase, 
     color: "bg-emerald-50 text-emerald-600",
-    image: "/assets/setor_servicos.png",
+    image: "/assets/setor_servicos.webp",
     objectPosition: "50% 15%"
   },
   { 
     name: "Agronegócio", 
     icon: Wheat, 
     color: "bg-amber-50 text-amber-700",
-    image: "/assets/setor_agro.png"
+    image: "/assets/setor_agro.webp"
   },
   { 
     name: "Outros", 
     icon: Zap, 
     color: "bg-slate-50 text-slate-600",
-    image: "/assets/setor_outros.png"
+    image: "/assets/setor_outros.webp"
   },
 ];
 
@@ -312,7 +312,7 @@ export default function LandingPitch() {
             >
               <div className="absolute inset-0 bg-emerald-600/5 blur-[120px] rounded-full group-hover:bg-emerald-600/10 transition-all pointer-events-none" />
               <div className="relative transform lg:rotate-2 hover:rotate-0 transition-transform duration-700">
-                <img src="/assets/dashboard_mockup.png" alt="Dashboard" className="rounded-[32px] shadow-2xl border border-white/20" />
+                <img src="/assets/dashboard_mockup.webp" alt="Dashboard" className="rounded-[32px] shadow-2xl border border-white/20" />
               </div>
             </motion.div>
           </div>
