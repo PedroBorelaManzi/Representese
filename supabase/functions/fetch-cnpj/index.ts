@@ -1,4 +1,4 @@
-﻿import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
@@ -26,6 +26,11 @@ serve(async (req) => {
     
     if (authError || !user) {
       return new Response(JSON.stringify({ error: 'Token inválido' }), { status: 401, headers: corsHeaders })
+    }
+
+    const { data: ent } = await supabase.from('user_entitlements').select('plan_id').eq('user_id', user.id).maybeSingle();
+    if (!ent || (ent.plan_id !== 'profissional' && ent.plan_id !== 'master' && ent.plan_id !== 'exclusivo')) {
+       return new Response(JSON.stringify({ error: 'Upgrade required' }), { status: 403, headers: corsHeaders })
     }
 
     const { cnpj } = await req.json()

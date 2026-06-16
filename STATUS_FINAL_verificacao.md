@@ -1,3 +1,14 @@
+> ## 🔄 ATUALIZAÇÃO PÓS-PUSH (commit a785e47 publicado)
+> O Antigravity deu o push e o **deploy do Vercel está READY** (commit `a785e477`, branch main). Então o frontend novo **JÁ ESTÁ NO AR** — o que estava "faltando" abaixo por falta de deploy agora deve aparecer (agenda, gráfico, enforcement, ficha). Confirmado também: **`increment_coupon` ENTROU no arquivo de migração** (estava no commit; minha leitura anterior pegou um working tree defasado).
+>
+> **Mas 2 itens continuam pendentes mesmo após o deploy:**
+> 1. **Landing CTA/hero** — `LandingPitch.tsx` NÃO foi tocado em nenhum commit. Confirmei ao vivo pós-deploy: o "TESTE GRÁTIS" segue lavado. **Essa correção nunca foi feita.**
+> 2. **`fetch-cnpj` sem gating de plano** — a regressão persiste no commit publicado (qualquer logado usa CNPJ).
+>
+> Pendente de reconfirmação visual logado (a sessão caiu): agenda/gráfico/ficha — código está no deploy, falta olhar com a conta logada.
+
+---
+
 # Verificação Final — o que foi para produção (15/06/2026)
 
 Conferi **código + banco + site ao vivo**. Resumo direto: o **backend/Supabase está aplicado e verificado em produção**, mas o **frontend novo (UI/UX) NÃO está no ar** — o site em produção ainda roda a versão antiga da interface.
