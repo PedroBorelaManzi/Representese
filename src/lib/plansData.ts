@@ -1,4 +1,4 @@
-import { Building2, Check, Map as MapIcon, Mail, Zap, BarChart3, Star, Infinity, Sparkles, Trophy, Gem, Crown } from 'lucide-react';
+import { Building2, Check, Zap, Map as MapIcon, Mail, BarChart3, Star, Infinity, Sparkles, Trophy, Gem, Crown } from 'lucide-react';
 
 export const plans = [
   {
@@ -18,6 +18,7 @@ export const plans = [
       { text: 'Histórico de 30 dias', icon: Check },
       { text: 'Mapa Territorial Básico', icon: MapIcon },
       { text: 'CRM Essencial', icon: Check },
+      { text: 'Busca CNPJ Automática', icon: Zap },
       { text: 'Suporte por E-mail', icon: Mail }
     ],
     popular: false,

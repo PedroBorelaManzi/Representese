@@ -152,7 +152,7 @@ export default function Agenda() {
   const handleSync = async () => {
     if (!user) return;
     setIsSyncing(true);
-    const toastId = toast.loading("Sincronizando com o CalendÃ¡rio Google...");
+    const toastId = toast.loading("Sincronizando com o Calendário Google...");
     const res = await syncGoogleEvents(user.id);
     if (res.success) {
       toast.success(res.message, { id: toastId });
@@ -276,7 +276,7 @@ export default function Agenda() {
   const handleGoogleConnect = () => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     if (!clientId) {
-      toast.error("Google Client ID nÃ£o configurado.");
+      toast.error("Google Client ID não configurado.");
       return;
     }
     const redirectUri = `${window.location.origin}/auth/callback/google`;
@@ -364,7 +364,7 @@ export default function Agenda() {
             </div>
             AGENDA
           </h1>
-          <p className="text-sm text-slate-500 dark:text-zinc-400 mt-2 font-medium">OrquestraÃ§Ã£o de visitas e monitoramento de feriados locais.</p>
+          <p className="text-sm text-slate-500 dark:text-zinc-400 mt-2 font-medium">Orquestração de visitas e monitoramento de feriados locais.</p>
         </div>
         
         <div className="flex flex-col sm:flex-row items-center gap-4">
@@ -396,7 +396,7 @@ export default function Agenda() {
                 )}
                >
                 <Globe className="w-5 h-5 text-emerald-600" />
-                <span className="truncate">{googleConnected ? "Google Calendar Ativo" : "Conectar CalendÃ¡rio"}</span>
+                <span className="truncate">{googleConnected ? "Google Calendar Ativo" : "Conectar Calendário"}</span>
                </button>
             </div>
             <button 
@@ -433,7 +433,7 @@ export default function Agenda() {
           {/* Desktop View */}
           <div className="hidden lg:flex flex-1 flex-col overflow-x-auto lg:overflow-x-visible custom-scrollbar">
             <div className="grid grid-cols-7 border-b border-slate-300/60 dark:border-zinc-800 bg-white dark:bg-zinc-900 sticky top-0 z-20 min-w-[1000px] lg:min-w-0">
-              {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'SÃ¡b'].map(day => (
+              {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
                 <div key={day} className="py-6 text-center text-[10px] font-black text-slate-500 dark:text-zinc-400 uppercase tracking-[0.2em]">{day}</div>
               ))}
             </div>
@@ -477,7 +477,7 @@ export default function Agenda() {
                                   : "bg-slate-50 dark:bg-zinc-800 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
                               )}
                             >
-                              AnotaÃ§Ãµes
+                              Anotações
                             </button>
                           </div>
                           {dayHolidays.length > 0 && (
@@ -615,7 +615,7 @@ export default function Agenda() {
                               <CalendarIcon className="w-10 h-10 text-slate-200 dark:text-zinc-700" />
                           </div>
                           <h4 className="text-lg font-black text-slate-900 dark:text-zinc-100 uppercase tracking-tighter">Agenda Livre</h4>
-                          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-2 max-w-[220px] font-medium">NÃ£o encontramos nenhum compromisso orquestrado para este dia.</p>
+                          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-2 max-w-[220px] font-medium">Não encontramos nenhum compromisso orquestrado para este dia.</p>
                           <button 
                               onClick={() => { setEditingEvent({ id: '', title: '', date: formatDateLocal(selectedMobileDate), time: '09:00 - 10:00' }); setIsModalOpen(true); }}
                               className="mt-8 px-8 py-4 bg-emerald-600 text-white rounded-3xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-100 active:scale-95 transition-all"
@@ -692,10 +692,10 @@ export default function Agenda() {
                    <div className="p-6 bg-slate-50 dark:bg-zinc-800/10 rounded-[32px] border border-slate-100 dark:border-zinc-800 mb-8">
                       <div className="flex items-center gap-3 mb-4 text-slate-400">
                          <Navigation className="w-4 h-4" />
-                         <span className="text-[10px] font-black uppercase tracking-widest">{selectedHoliday.city || "TerritÃ³rio Nacional"}</span>
+                         <span className="text-[10px] font-black uppercase tracking-widest">{selectedHoliday.city || "Território Nacional"}</span>
                       </div>
                       <p className="text-sm font-medium text-slate-600 dark:text-zinc-400 leading-relaxed">
-                        Este Ã© um feriado oficial. Fique atento Ã s alteraÃ§Ãµes nos seus compromissos e planeje-se com antecedÃªncia para otimizar suas visitas a clientes nesta regiÃ£o.
+                        Este é um feriado oficial. Fique atento às alterações nos seus compromissos e planeje-se com antecedência para otimizar suas visitas a clientes nesta região.
                       </p>
                    </div>
 

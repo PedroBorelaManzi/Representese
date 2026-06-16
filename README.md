@@ -1,20 +1,40 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Represente-Me!
 
-# Run and deploy your AI Studio app
+Represente-Me! é uma plataforma SaaS para Representantes Comerciais, projetada para gerenciar carteiras de clientes, orquestrar visitas territoriais com mapas interativos, buscar CNPJs automaticamente, processar pedidos com IA e fornecer um dashboard financeiro completo.
 
-This contains everything you need to run your app locally.
+## Funcionalidades Principais
 
-View your app in AI Studio: https://ai.studio/apps/77d3b471-29a7-4658-8c2e-38558bd73e8b
+- **Gestão de Clientes e CRM**: Base unificada com mapa territorial, histórico e roteirização.
+- **Busca de CNPJ Automática**: Enriquecimento de dados de CNPJ para empresas.
+- **Leitura Inteligente de Pedidos**: Processamento em nuvem usando IA (Gemini) para extrair SKUs e valores.
+- **Dashboard Financeiro**: Gráficos dinâmicos de faturamento por empresa.
+- **Agenda Inteligente**: Sincronização bidirecional com Google Calendar.
 
-## Run Locally
+## Stack Tecnológico
 
-**Prerequisites:**  Node.js
+- **Frontend**: React (Vite), Tailwind CSS, Framer Motion, Lucide React, React Query.
+- **Backend**: Supabase (PostgreSQL, Auth, Edge Functions).
+- **Mapas**: Leaflet, React-Leaflet.
+- **Inteligência Artificial**: Google Gemini API.
+- **Pagamentos**: Asaas.
 
+## Como Executar Localmente
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+**Pré-requisitos:** Node.js (v18+)
+
+1. Clone o repositório e instale as dependências:
+   `ash
+   npm install
+   `
+2. Configure as variáveis de ambiente baseadas no .env.example.
+3. Inicie o servidor de desenvolvimento:
+   `ash
+   npm run dev
+   `
+
+## Deploy
+
+As Edge Functions devem ser deployadas no Supabase via:
+`ash
+npx supabase functions deploy
+`

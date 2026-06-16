@@ -32,7 +32,7 @@ const planDetails = {
     color: "text-slate-500",
     bg: "bg-slate-50 dark:bg-zinc-800/50",
     border: "border-slate-100 dark:border-zinc-700/50",
-    features: ["1 Empresa cadastrada", "Mapa Territorial BÃ¡sico", "CRM Essencial", "Suporte por E-mail"]
+    features: ["1 Empresa cadastrada", "Mapa Territorial Básico", "CRM Essencial", "Suporte por E-mail"]
   },
   profissional: {
     name: "Profissional",
@@ -44,12 +44,12 @@ const planDetails = {
     bg: "bg-emerald-50 dark:bg-emerald-950/20",
     border: "border-emerald-100 dark:border-emerald-900/30",
     features: [
-      "AtÃ© 5 Empresas",
-      "Mapa Territorial BÃ¡sico",
+      "Até 5 Empresas",
+      "Mapa Territorial Básico",
       "CRM Essencial",
-      "Busca CNPJ AutomÃ¡tica",
+      "Busca CNPJ Automática",
       "Dashboard de Faturamento",
-      "ExportaÃ§Ã£o de RelatÃ³rios",
+      "Exportação de Relatórios",
       "Suporte via WhatsApp"
     ]
   },
@@ -64,15 +64,15 @@ const planDetails = {
     border: "border-amber-100 dark:border-amber-900/30",
     features: [
       "Empresas Ilimitadas",
-      "Radar Territorial AvanÃ§ado",
+      "Radar Territorial Avançado",
       "CRM Essencial",
-      "Busca CNPJ AutomÃ¡tica",
-      "BI & Analytics AvanÃ§ado",
-      "ExportaÃ§Ã£o de RelatÃ³rios",
-      "LanÃ§amento via IA (Gemini)",
-      "AutomaÃ§Ã£o de Pedidos",
-      "IntegraÃ§Ã£o com Inbox",
-      "Suporte via WhatsApp PrioritÃ¡rio"
+      "Busca CNPJ Automática",
+      "BI & Analytics Avançado",
+      "Exportação de Relatórios",
+      "Lançamento via IA (Gemini)",
+      "Automação de Pedidos",
+      "Integração com Inbox",
+      "Suporte via WhatsApp Prioritário"
     ]
   }
 };
@@ -119,12 +119,12 @@ export default function OrderBump() {
 
   const validateCard = () => {
     if (!cardHolder.trim() || cardHolder.trim().length < 3) {
-      toast.error("Por favor, insira o nome completo do titular do cartÃ£o.");
+      toast.error("Por favor, insira o nome completo do titular do cartão.");
       return false;
     }
     const cleanNum = cardNumber.replace(/\D/g, '');
     if (cleanNum.length !== 16) {
-      toast.error("O nÃºmero do cartÃ£o de crÃ©dito deve conter exatamente 16 dÃ­gitos.");
+      toast.error("O número do cartão de crédito deve conter exatamente 16 dígitos.");
       return false;
     }
     const expiryMatch = cardExpiry.match(/^(\d{2})\/(\d{2})$/);
@@ -135,18 +135,18 @@ export default function OrderBump() {
     const month = parseInt(expiryMatch[1], 10);
     const year = parseInt("20" + expiryMatch[2], 10);
     if (month < 1 || month > 12) {
-      toast.error("MÃªs de validade invÃ¡lido. Deve ser entre 01 e 12.");
+      toast.error("Mês de validade inválido. Deve ser entre 01 e 12.");
       return false;
     }
     const now = new Date();
     const currentMonth = now.getMonth() + 1;
     const currentYear = now.getFullYear();
     if (year < currentYear || (year === currentYear && month < currentMonth)) {
-      toast.error("O cartÃ£o informado estÃ¡ vencido.");
+      toast.error("O cartão informado está vencido.");
       return false;
     }
     if (cardCvv.length !== 3) {
-      toast.error("O cÃ³digo de seguranÃ§a CVV deve conter exatamente 3 dÃ­gitos.");
+      toast.error("O código de segurança CVV deve conter exatamente 3 dígitos.");
       return false;
     }
     return true;
@@ -160,15 +160,15 @@ export default function OrderBump() {
           <div className="w-20 h-20 rounded-full bg-amber-500/10 flex items-center justify-center mx-auto text-amber-500">
             <Crown className="w-10 h-10 animate-bounce" />
           </div>
-          <h2 className="text-2xl font-black text-slate-800 dark:text-zinc-100 uppercase tracking-wider">VocÃª Ã© NÃ­vel Master!</h2>
+          <h2 className="text-2xl font-black text-slate-800 dark:text-zinc-100 uppercase tracking-wider">Você é Nível Master!</h2>
           <p className="text-sm text-slate-500 dark:text-zinc-400 leading-relaxed font-medium">
-            Sua assinatura jÃ¡ estÃ¡ no nÃ­vel mÃ¡ximo com todos os recursos premium, IA avanÃ§ada e suporte ultra priorizado habilitados.
+            Sua assinatura já está no nível máximo com todos os recursos premium, IA avançada e suporte ultra priorizado habilitados.
           </p>
           <button 
             onClick={() => navigate('/dashboard')}
             className="w-full py-5 bg-slate-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-2xl font-black uppercase text-xs tracking-widest active:scale-[0.98] transition-all flex items-center justify-center gap-2"
           >
-            <Home className="w-4 h-4" /> Ir para o InÃ­cio
+            <Home className="w-4 h-4" /> Ir para o Início
           </button>
         </div>
       </div>
@@ -206,9 +206,9 @@ export default function OrderBump() {
         setActiveCoupon('TESTE');
         toast.success("Cupom aplicado com sucesso!");
       } else if (couponCode === "") {
-      setCouponError("Insira um cÃ³digo vÃ¡lido.");
+      setCouponError("Insira um código válido.");
     } else {
-      setCouponError("Cupom invÃ¡lido ou expirado.");
+      setCouponError("Cupom inválido ou expirado.");
     }
   };
 
@@ -237,7 +237,7 @@ export default function OrderBump() {
         localStorage.setItem('rm_expiration_date', expDate);
         
         setIsSuccess(true);
-        toast.success("ParabÃ©ns! Seu upgrade para o plano " + nextPlan.name + " foi processado!");
+        toast.success("Parabéns! Seu upgrade para o plano " + nextPlan.name + " foi processado!");
       } catch (e) {
         toast.error("Erro ao processar o seu upgrade de assinatura. Tente novamente.");
       } finally {
@@ -263,15 +263,15 @@ export default function OrderBump() {
           </div>
           
           <div className="space-y-3">
-            <h2 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Upgrade ConcluÃ­do!</h2>
+            <h2 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Upgrade Concluído!</h2>
             <p className="text-slate-500 dark:text-zinc-400 font-bold uppercase tracking-wider text-[10px]">
               Assinatura atualizada com sucesso para {nextPlan.name}
             </p>
             <p className="text-slate-400 dark:text-zinc-500 text-xs leading-relaxed font-medium">
-              Todos os benefÃ­cios e recursos de inteligÃªncia do plano **{nextPlan.name}** jÃ¡ estÃ£o ativos e liberados em sua conta. Nosso motor neural jÃ¡ reconfigurou seus limites de acesso.
+              Todos os benefícios e recursos de inteligência do plano **{nextPlan.name}** já estão ativos e liberados em sua conta. Nosso motor neural já reconfigurou seus limites de acesso.
               <br />
               <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest block mt-3 bg-emerald-500/10 py-2 px-4 rounded-xl border border-emerald-500/20">
-                ðŸ“… VÃ¡lido atÃ© {localStorage.getItem('rm_expiration_date') || "N/A"} (Ciclo {localStorage.getItem('rm_billing_cycle') || 'Mensal'})
+                ðŸ“… Válido até {localStorage.getItem('rm_expiration_date') || "N/A"} (Ciclo {localStorage.getItem('rm_billing_cycle') || 'Mensal'})
               </span>
             </p>
           </div>
@@ -287,7 +287,7 @@ export default function OrderBump() {
               </div>
             </div>
             <div className="text-right">
-              <p className="text-xs font-black text-emerald-600 dark:text-emerald-400">R$ {billingCycle === 'Anual' ? nextPlan.annualPrice : nextPlan.price}/mÃªs</p>
+              <p className="text-xs font-black text-emerald-600 dark:text-emerald-400">R$ {billingCycle === 'Anual' ? nextPlan.annualPrice : nextPlan.price}/mês</p>
               <p className="text-[8px] font-bold text-slate-400 uppercase">Faturamento {localStorage.getItem('rm_billing_cycle') || 'Mensal'}</p>
             </div>
           </div>
@@ -312,7 +312,7 @@ export default function OrderBump() {
           onClick={() => navigate('/dashboard')}
           className="mb-8 inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-emerald-600 transition-colors"
         >
-          <ArrowLeft className="w-3.5 h-3.5" /> Voltar ao InÃ­cio
+          <ArrowLeft className="w-3.5 h-3.5" /> Voltar ao Início
         </button>
 
         {/* Title Block */}
@@ -322,10 +322,10 @@ export default function OrderBump() {
             Upgrade de Assinatura Exclusivo
           </div>
           <h1 className="text-4xl md:text-5xl font-black text-slate-900 dark:text-white uppercase tracking-tighter leading-none mb-4">
-            Desbloqueie o prÃ³ximo nÃ­vel com <span className="text-emerald-600">{nextPlan.name}</span>
+            Desbloqueie o próximo nível com <span className="text-emerald-600">{nextPlan.name}</span>
           </h1>
           <p className="text-slate-500 dark:text-zinc-400 font-medium max-w-xl mx-auto text-sm leading-relaxed">
-            Turbine o seu dia a dia de vendas com limites maiores, inteligÃªncia artificial integrada e relatÃ³rios exclusivos criados para alta conversÃ£o.
+            Turbine o seu dia a dia de vendas com limites maiores, inteligência artificial integrada e relatórios exclusivos criados para alta conversão.
           </p>
         </div>
 
@@ -348,7 +348,7 @@ export default function OrderBump() {
                   <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider border border-slate-100 dark:border-zinc-800 px-2 py-0.5 rounded-full">Plano Atual</span>
                 </div>
                 <h3 className="text-sm font-black text-slate-400 uppercase tracking-tight leading-none mb-1">{currentPlan.name}</h3>
-                <p className="text-lg font-black text-slate-500">R$ {billingCycle === 'Anual' ? currentPlan.annualPrice : currentPlan.price}<span className="text-[9px] font-bold">/mÃªs</span></p>
+                <p className="text-lg font-black text-slate-500">R$ {billingCycle === 'Anual' ? currentPlan.annualPrice : currentPlan.price}<span className="text-[9px] font-bold">/mês</span></p>
               </div>
 
               {/* Next Plan Upsell Mini Box */}
@@ -376,7 +376,7 @@ export default function OrderBump() {
             {/* Premium Benefits Checklist */}
             <div className="p-8 bg-white dark:bg-zinc-900 rounded-[32px] border-2 border-emerald-500/20 dark:border-zinc-800 text-left space-y-6 shadow-xl">
               <h3 className="text-xs font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-emerald-500 animate-pulse" /> O que vocÃª estÃ¡ desbloqueando:
+                <Sparkles className="w-4 h-4 text-emerald-500 animate-pulse" /> O que você está desbloqueando:
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {nextPlan.features.map((feature, i) => (
@@ -411,11 +411,11 @@ export default function OrderBump() {
                 <div className="p-5 rounded-2xl bg-emerald-500/10 dark:bg-emerald-500/5 border-2 border-emerald-500/30 dark:border-emerald-900/20 text-left shadow-lg shadow-emerald-500/5">
                   <span className="text-[8px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider bg-emerald-500/15 px-2 py-0.5 rounded-full mb-2 inline-block">Valor Adicional</span>
                   <div className="flex justify-between items-baseline mt-1">
-                    <p className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">A partir deste mÃªs:</p>
+                    <p className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">A partir deste mês:</p>
                     <div className="text-right">
                       <span className="text-xs font-black text-slate-400">R$</span>
                       <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 tracking-tighter"> {finalDiff}</span>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase">/mÃªs a mais</span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">/mês a mais</span>
                     </div>
                   </div>
                 </div>
@@ -425,23 +425,23 @@ export default function OrderBump() {
                   {/* Dynamic Expiration Wording */}
                   <div className="p-4 bg-amber-500/10 dark:bg-amber-500/5 border-2 border-amber-500/30 dark:border-amber-500/20 rounded-2xl space-y-2 shadow-lg shadow-amber-500/5 ring-1 ring-amber-500/10">
                     <p className="text-[10px] text-amber-700 dark:text-amber-400 font-black uppercase tracking-tight">
-                      â„¹ï¸ O seu plano atual encerra no mÃªs de <span className="underline">{getExpirationMonthName(billingCycle)}</span>.
+                      â„¹ï¸ O seu plano atual encerra no mês de <span className="underline">{getExpirationMonthName(billingCycle)}</span>.
                     </p>
                     <p className="text-[9px] text-amber-600 dark:text-amber-500 font-bold leading-relaxed">
-                      VocÃª estÃ¡ contratando o upgrade para o plano {nextPlan.name} atÃ© o final do seu plano anterior.
+                      Você está contratando o upgrade para o plano {nextPlan.name} até o final do seu plano anterior.
                     </p>
                   </div>
                 </div>
 
                 {/* Simulated Payment Form */}
                 <div className="space-y-4">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">InformaÃ§Ãµes de Pagamento</p>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Informações de Pagamento</p>
                   
                   <div className="space-y-3">
                     <div>
                       <input 
                         type="text" 
-                        placeholder="Nome no CartÃ£o" 
+                        placeholder="Nome no Cartão" 
                         value={cardHolder}
                         onChange={(e) => setCardHolder(e.target.value)}
                         className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-100 dark:border-zinc-850 rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-widest outline-none focus:border-emerald-500 focus:bg-white dark:focus:bg-zinc-900 transition-all placeholder:text-slate-400 placeholder:normal-case placeholder:tracking-normal"
@@ -451,7 +451,7 @@ export default function OrderBump() {
                     <div>
                       <input 
                         type="text" 
-                        placeholder="NÃºmero do CartÃ£o" 
+                        placeholder="Número do Cartão" 
                         value={cardNumber}
                         onChange={(e) => {
                           const val = e.target.value.replace(/\D/g, '').substring(0, 16);
@@ -528,11 +528,11 @@ export default function OrderBump() {
                 <div className="space-y-4">
                   <div className="flex justify-between text-xs font-bold text-slate-500">
                     <span>Novo Plano ({nextPlan.name})</span>
-                    <span>R$ {billingCycle === 'Anual' ? nextPlan.annualPrice : nextPlan.price}/mÃªs</span>
+                    <span>R$ {billingCycle === 'Anual' ? nextPlan.annualPrice : nextPlan.price}/mês</span>
                   </div>
                   <div className="flex justify-between text-xs font-bold text-slate-400">
-                    <span>CrÃ©dito do Plano Atual ({currentPlan.name})</span>
-                    <span>-R$ {billingCycle === 'Anual' ? currentPlan.annualPrice : currentPlan.price}/mÃªs</span>
+                    <span>Crédito do Plano Atual ({currentPlan.name})</span>
+                    <span>-R$ {billingCycle === 'Anual' ? currentPlan.annualPrice : currentPlan.price}/mês</span>
                   </div>
                   
                   {activeCoupon && (
@@ -541,19 +541,19 @@ export default function OrderBump() {
                         <Ticket className="w-3.5 h-3.5" />
                         <span>Cupom {activeCoupon?.code}</span>
                       </div>
-                      <span>-R$ {discountAmount}/mÃªs</span>
+                      <span>-R$ {discountAmount}/mês</span>
                     </div>
                   )}
 
                   <div className="p-5 bg-slate-50 dark:bg-zinc-950 border-2 border-slate-100 dark:border-zinc-800/80 rounded-2xl flex justify-between items-center shadow-inner">
                     <div>
-                      <h4 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">DiferenÃ§a Mensal</h4>
+                      <h4 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Diferença Mensal</h4>
                       <p className="text-[8px] font-bold text-slate-400 uppercase mt-1">Cobrado apenas o delta proporcional</p>
                     </div>
                     <div className="text-right">
                       <span className="text-xs font-black text-slate-400">R$</span>
                       <span className="text-3xl font-black text-emerald-600 dark:text-emerald-400 tracking-tighter">{finalDiff}</span>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase">/mÃªs</span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">/mês</span>
                     </div>
                   </div>
                 </div>
@@ -566,7 +566,7 @@ export default function OrderBump() {
                     <form onSubmit={handleApplyCoupon} className="flex gap-2">
                       <input 
                         type="text" 
-                        placeholder="CÃ³digo do cupom (opcional)" 
+                        placeholder="Código do cupom (opcional)" 
                         value={couponCode}
                         onChange={(e) => { setCouponCode(e.target.value); setCouponError(""); }}
                         className="flex-1 bg-slate-50 dark:bg-zinc-950 border border-slate-100 dark:border-zinc-850 rounded-2xl px-4 py-3.5 text-xs font-bold uppercase tracking-widest outline-none focus:border-emerald-500 focus:bg-white dark:focus:bg-zinc-900 transition-all placeholder:text-slate-400 placeholder:normal-case placeholder:tracking-normal"
@@ -629,9 +629,9 @@ export default function OrderBump() {
             <div className="p-6 bg-emerald-500/10 dark:bg-emerald-500/5 border-2 border-emerald-500/30 dark:border-emerald-500/20 rounded-[28px] text-left flex items-start gap-4 shadow-lg shadow-emerald-500/5 ring-1 ring-emerald-500/10">
               <Clock className="w-5 h-5 text-emerald-600 mt-0.5 shrink-0 animate-pulse" />
               <div>
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-900 dark:text-emerald-400">MigraÃ§Ã£o Proporcional</h4>
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-900 dark:text-emerald-400">Migração Proporcional</h4>
                 <p className="text-[10px] text-emerald-700 dark:text-emerald-500 font-bold leading-relaxed mt-1">
-                  Seu faturamento Ã© recalculado proporcionalmente aos dias restantes no ciclo de cobranÃ§a. Nenhum centavo Ã© desperdiÃ§ado.
+                  Seu faturamento é recalculado proporcionalmente aos dias restantes no ciclo de cobrança. Nenhum centavo é desperdiçado.
                 </p>
               </div>
             </div>

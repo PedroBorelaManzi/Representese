@@ -138,19 +138,22 @@ export default function Dashboard() {
   }, [dashboardData, isQueryLoading]);
 
   const revenueChartData = useMemo(() => {
-    if (!monthlyOrders || monthlyOrders.length === 0) {
-      return (allTimeCategories || []).slice(0, 5).map(c => ({ name: c, value: 0 }));
-    }
-    const grouped = monthlyOrders.reduce((acc, order) => {
+    const grouped = (monthlyOrders || []).reduce((acc, order) => {
       const cat = order.category || 'Outros';
       acc[cat] = (acc[cat] || 0) + (Number(order.value) || 0);
       return acc;
     }, {} as Record<string, number>);
 
-    return Object.entries(grouped)
-      .map(([name, value]) => ({ name, value: Number(value) }))
-      .sort((a, b) => Number(b.value) - Number(a.value))
-      .slice(0, 10);
+    const baseCategories = allTimeCategories && allTimeCategories.length > 0 
+      ? allTimeCategories 
+      : ['Sua Empresa'];
+
+    const sortedCategories = [...baseCategories].sort((a, b) => a.localeCompare(b));
+
+    return sortedCategories.map(cat => ({
+      name: cat,
+      value: grouped[cat] || 0
+    }));
   }, [monthlyOrders, allTimeCategories]);
 
   const handlePrevMonth = () => {
