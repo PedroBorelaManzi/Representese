@@ -365,7 +365,7 @@ export default function OrderBump() {
                   <span>R$ {nextPlan.price}<span className="text-[9px] font-bold">/mï¿½s</span></span>
                   {nextPlan.originalPrice && (
                     <span className="px-3 py-1 bg-amber-500 text-white text-[10px] font-black uppercase rounded-lg tracking-widest shadow-sm shadow-amber-500/20">
-                      {nextTier === 'profissional' ? '30' : '35'}% DE DESCONTO LANÃ‡AMENTO
+                      {nextTier === 'profissional' ? '30' : '35'}% DE DESCONTO LANÇAMENTO
                     </span>
                   )}
                 </p>

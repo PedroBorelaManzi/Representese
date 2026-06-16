@@ -139,7 +139,7 @@ export default function Dashboard() {
 
   const revenueChartData = useMemo(() => {
     const grouped = (monthlyOrders || []).reduce((acc, order) => {
-      const cat = order.category || 'Outros';
+      const cat = (order.category || 'Outros').trim().toUpperCase();
       acc[cat] = (acc[cat] || 0) + (Number(order.value) || 0);
       return acc;
     }, {} as Record<string, number>);
@@ -152,7 +152,7 @@ export default function Dashboard() {
 
     return sortedCategories.map(cat => ({
       name: cat,
-      value: grouped[cat] || 0
+      value: grouped[cat.trim().toUpperCase()] || 0
     }));
   }, [monthlyOrders, allTimeCategories]);
 
