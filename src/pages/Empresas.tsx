@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+﻿import React, { useState, useEffect, useMemo } from "react";
 import { processOrderFile } from "../lib/orderProcessor";
 import { getHighPrecisionCoordinates } from "../lib/geminiGeocoding";
 import { 
@@ -29,7 +29,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { cn } from "../lib/utils";
 import { SearchableClientPicker } from "../components/SearchableClientPicker";
 import { syncQueue } from "../lib/syncQueue";
-import { offlineCache, CacheKeys } from "../lib/offlineCache"; // Motor Híbrido V2
+import { offlineCache, CacheKeys } from "../lib/offlineCache"; // Motor HÃ­brido V2
 
 export default function EmpresasPage() {
   const { user } = useAuth();
@@ -163,7 +163,7 @@ export default function EmpresasPage() {
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (selectedFiles.length + files.length > 10) {
-      toast.error("Você pode enviar no máximo 10 pedidos por vez.");
+      toast.error("VocÃª pode enviar no mÃ¡ximo 10 pedidos por vez.");
       return;
     }
 
@@ -243,7 +243,7 @@ export default function EmpresasPage() {
           if (n) cid = n.id;
         }
 
-        if (!cid) throw new Error("Não foi possível identificar ou cadastrar o cliente.");
+        if (!cid) throw new Error("NÃ£o foi possÃ­vel identificar ou cadastrar o cliente.");
 
         const cleanName = item.file.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w\s.-]/g, "").replace(/\s+/g, "_");
         const formattedName = (item.category || 'GERAL') + "___VALOR_" + item.value + "___" + cleanName;
@@ -337,7 +337,7 @@ export default function EmpresasPage() {
 
   const catTotals = useMemo(() => {
     // Garantir que estamos calculando APENAS sobre pedidos que realmente existem no banco
-    // e têm arquivos válidos (já filtrados no loadOrders)
+    // e tÃªm arquivos vÃ¡lidos (jÃ¡ filtrados no loadOrders)
     const currentMonthly = monthlyOrders || [];
     return combinedCategories.reduce((acc: any, cat: string) => {
       acc[cat] = currentMonthly
@@ -404,7 +404,7 @@ export default function EmpresasPage() {
     try {
       const currentCategories = settings.categories || [];
       if (currentCategories.some((c: string) => c.toLowerCase() === trimmedCat.toLowerCase())) {
-        toast.error("Empresa \"" + trimmedCat + "\" já está cadastrada.");
+        toast.error("Empresa \"" + trimmedCat + "\" jÃ¡ estÃ¡ cadastrada.");
         return;
       }
       await updateSettings({ categories: [...currentCategories, trimmedCat] });
@@ -457,8 +457,8 @@ export default function EmpresasPage() {
               <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-emerald-600" />
             </div>
             <div className="min-w-0">
-              <p className="text-[7px] sm:text-[9px] lg:text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Faturamento Mês</p>
-              <h2 className="text-base sm:text-lg lg:text-2xl font-black text-slate-900 dark:text-zinc-100 tracking-tight truncate">{formatCurrency(totalGeral)}</h2>
+              <p className="text-[7px] sm:text-[9px] lg:text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Faturamento MÃªs</p>
+              <h2 className="text-base sm:text-lg lg:text-2xl font-black text-slate-900 dark:text-zinc-100 tracking-tight truncate">{totalGeral === 0 ? <span className="text-slate-400 font-medium text-lg">Aguardando vendas</span> : formatCurrency(totalGeral)}</h2>
             </div>
           </div>
         </div>
@@ -469,7 +469,7 @@ export default function EmpresasPage() {
               <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-emerald-600" />
             </div>
             <div className="min-w-0">
-              <p className="text-[7px] sm:text-[9px] lg:text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Pedidos Mês</p>
+              <p className="text-[7px] sm:text-[9px] lg:text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Pedidos MÃªs</p>
               <h2 className="text-base sm:text-lg lg:text-2xl font-black text-slate-900 dark:text-zinc-100 tracking-tight">{monthlyOrders.length}</h2>
             </div>
           </div>
@@ -491,7 +491,7 @@ export default function EmpresasPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-10">
         <div className="lg:col-span-4 flex flex-col gap-3 sm:gap-4 w-full">
           <div className="flex items-center justify-between px-2 md:px-4">
-             <h3 className="text-[9px] md:text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Seleção Estratégica</h3>
+             <h3 className="text-[9px] md:text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">SeleÃ§Ã£o EstratÃ©gica</h3>
           </div>
           
           <div className="grid grid-cols-2 lg:flex lg:flex-col gap-3 w-full">
@@ -509,7 +509,7 @@ export default function EmpresasPage() {
               )}
             >
               <div className="flex items-center justify-between mb-2">
-                <h4 className="text-[9px] sm:text-[11px] lg:text-[12px] font-black uppercase tracking-widest text-emerald-500">Visão Consolidada</h4>
+                <h4 className="text-[9px] sm:text-[11px] lg:text-[12px] font-black uppercase tracking-widest text-emerald-500">VisÃ£o Consolidada</h4>
                 <LayoutGrid className="w-4 h-4 md:w-5 md:h-5 opacity-40 group-hover:scale-110 transition-transform" />
               </div>
               <div className="flex items-end justify-between">
@@ -541,7 +541,7 @@ export default function EmpresasPage() {
                       <Settings className="w-3.5 h-3.5 md:w-4 md:h-4 opacity-30 group-hover:rotate-45 transition-transform" />
                     </button>
                   </div>
-                  <p className="text-sm sm:text-base lg:text-lg font-black tracking-tighter">{formatCurrency(catTotals[cat] || 0)}</p>
+                  <p className="text-sm sm:text-base lg:text-lg font-black tracking-tighter">{(catTotals[cat] || 0) === 0 ? <span className="text-slate-400 font-medium text-sm">Sem vendas</span> : formatCurrency(catTotals[cat] || 0)}</p>
                 </div>
               ))}
             </div>
@@ -555,7 +555,7 @@ export default function EmpresasPage() {
               ) : filteredOrders.length === 0 ? (
                 <div className="col-span-full h-60 md:h-80 border-4 border-dashed border-slate-100 dark:border-zinc-800 rounded-[32px] md:rounded-[48px] flex flex-col items-center justify-center text-slate-300">
                   <ShoppingBag className="w-12 h-12 md:w-20 md:h-20 mb-4 md:mb-6 opacity-5" />
-                  <p className="font-black uppercase text-[9px] md:text-[11px] tracking-[0.3em] text-center opacity-40 leading-relaxed px-6">Nenhum Pedido <br/> Identificado Neste Período</p>
+                  <p className="font-black uppercase text-[9px] md:text-[11px] tracking-[0.3em] text-center opacity-40 leading-relaxed px-6">Nenhum Pedido <br/> Identificado Neste PerÃ­odo</p>
                 </div>
               ) : (
                 filteredOrders.map(order => (
@@ -568,7 +568,7 @@ export default function EmpresasPage() {
                         <span className="text-[10px] md:text-xs font-black text-slate-900 dark:text-zinc-100">{order.created_at ? new Date(order.created_at).toLocaleDateString("pt-BR") : "---"}</span>
                       </div>
                       <div className="text-right">
-                        <span className="text-[7px] md:text-[8px] font-black text-emerald-500 uppercase tracking-[0.2em] mb-1 block">Valor Líquido</span>
+                        <span className="text-[7px] md:text-[8px] font-black text-emerald-500 uppercase tracking-[0.2em] mb-1 block">Valor LÃ­quido</span>
                         <span className="text-lg md:text-xl font-black text-slate-900 dark:text-zinc-100 tracking-tighter tabular-nums">{formatCurrency(order.value)}</span>
                       </div>
                     </div>
@@ -610,8 +610,8 @@ export default function EmpresasPage() {
                  <h3 className="text-xl md:text-2xl font-black uppercase text-slate-900 dark:text-zinc-100 tracking-tighter">Limite de Empresas</h3>
                  <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed font-bold uppercase tracking-wider">
                     {currentPlan === 'exclusivo' 
-                      ? "Você já atingiu o limite de suas empresas com o seu plano Exclusivo (limite: 1 empresa). Para cadastrar mais empresas, você deve fazer o upgrade para o plano Profissional." 
-                      : "Você já atingiu o limite de suas empresas com o seu plano Profissional (limite: 5 empresas). Para cadastrar mais empresas, você deve fazer o upgrade para o plano Master."
+                      ? "VocÃª jÃ¡ atingiu o limite de suas empresas com o seu plano Exclusivo (limite: 1 empresa). Para cadastrar mais empresas, vocÃª deve fazer o upgrade para o plano Profissional." 
+                      : "VocÃª jÃ¡ atingiu o limite de suas empresas com o seu plano Profissional (limite: 5 empresas). Para cadastrar mais empresas, vocÃª deve fazer o upgrade para o plano Master."
                     }
                  </p>
                  <div className="space-y-3 pt-2">
@@ -619,7 +619,7 @@ export default function EmpresasPage() {
                        onClick={() => { setShowUpsellModal(false); navigate('/dashboard/order-bump'); }} 
                        className="w-full py-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-[24px] font-black uppercase tracking-widest text-[10px] md:text-xs shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2"
                     >
-                       <Sparkles className="w-4 h-4" /> Dê um Upgrade no seu Plano
+                       <Sparkles className="w-4 h-4" /> DÃª um Upgrade no seu Plano
                     </button>
                     <button 
                        onClick={() => setShowUpsellModal(false)} 
@@ -641,7 +641,7 @@ export default function EmpresasPage() {
                 </div>
                 <div className="space-y-6">
                    <div>
-                     <label className="text-[8px] md:text-[9px] font-black uppercase text-slate-400 tracking-widest mb-2 block">Razão Social / Fantasia</label>
+                     <label className="text-[8px] md:text-[9px] font-black uppercase text-slate-400 tracking-widest mb-2 block">RazÃ£o Social / Fantasia</label>
                      <input placeholder="EX: COZIMAX" value={newCat} onChange={e => setNewCat(e.target.value)} className="w-full p-5 md:p-6 bg-slate-50 dark:bg-zinc-850 rounded-[24px] md:rounded-[28px] font-black uppercase text-sm outline-none border border-slate-100 dark:border-zinc-800 focus:border-emerald-500 transition-all shadow-inner" />
                    </div>
                    <button onClick={addCategory} className="w-full py-5 md:py-6 bg-emerald-600 text-white rounded-[24px] md:rounded-[32px] font-black uppercase tracking-widest text-[10px] md:text-xs shadow-xl hover:bg-emerald-700 transition-all active:scale-95">Efetivar Cadastro</button>
@@ -681,7 +681,7 @@ export default function EmpresasPage() {
                       </div>
                       <h4 className="text-xl md:text-2xl font-black uppercase text-slate-900 dark:text-zinc-100 mb-2 md:mb-4 tracking-tight">ENVIAR PEDIDOS</h4>
                       <p className="text-slate-400 text-sm md:text-lg max-w-sm font-medium leading-relaxed italic mx-auto">
-                        arraste ou selecione os seus pedidos aqui, para enviarmos para o sistema, você pode enviar até 10 pedidos por vez.
+                        arraste ou selecione os seus pedidos aqui, para enviarmos para o sistema, vocÃª pode enviar atÃ© 10 pedidos por vez.
                       </p>
                     </div>
                   ) : (
@@ -819,7 +819,7 @@ export default function EmpresasPage() {
                      <input value={editName} onChange={e => setEditName(e.target.value)} className="w-full p-4 md:p-5 bg-slate-50 dark:bg-zinc-850 rounded-2xl md:rounded-3xl font-black uppercase text-sm outline-none border border-slate-100 dark:border-zinc-800" />
                    </div>
                    <div className="flex flex-col gap-3">
-                     <button onClick={handleUpdateCompany} className="w-full py-4 md:py-5 bg-emerald-600 text-white rounded-[20px] md:rounded-[24px] font-black uppercase tracking-widest text-[9px] md:text-[10px]">Salvar Alterações</button>
+                     <button onClick={handleUpdateCompany} className="w-full py-4 md:py-5 bg-emerald-600 text-white rounded-[20px] md:rounded-[24px] font-black uppercase tracking-widest text-[9px] md:text-[10px]">Salvar AlteraÃ§Ãµes</button>
                      <button onClick={() => handleDeleteCompany(managingCompany)} className="w-full py-4 md:py-5 bg-red-50 text-red-600 hover:bg-red-100 rounded-[20px] md:rounded-[24px] font-black uppercase tracking-widest text-[9px] md:text-[10px]">Excluir Empresa</button>
                    </div>
                 </div>
@@ -830,3 +830,4 @@ export default function EmpresasPage() {
     </div>
   );
 }
+

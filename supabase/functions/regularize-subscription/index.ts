@@ -1,4 +1,4 @@
-// supabase/functions/regularize-subscription/index.ts
+﻿// supabase/functions/regularize-subscription/index.ts
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -16,9 +16,9 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 const PLAN_PRICES: Record<string, number> = {
   'exclusivo': 97,
   'profissional': 147,
-  'corporativo': 197,
+  'master': 197,
   'default': 147
-};
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -28,14 +28,14 @@ serve(async (req) => {
     if (!userId) throw new Error('ID do usuário não fornecido.')
 
     console.log(`Regularização v1.0.4 - Iniciando para: ${userId}`)
-    const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!)
 
+    const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!)
     const { data: { user }, error: authError } = await supabase.auth.admin.getUserById(userId)
     if (authError || !user) throw new Error('Usuário não encontrado.')
 
     const { data: settings } = await supabase
       .from('user_settings')
-      .select('*')
+      .select('plan_id')
       .eq('user_id', userId)
       .single()
 
@@ -87,10 +87,10 @@ serve(async (req) => {
       status: 200
     })
 
-  } catch (error) {
+  } catch (error: any) {
     return new Response(JSON.stringify({ success: false, message: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200
+      status: 400
     })
   }
 })

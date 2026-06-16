@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+﻿import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { 
   User, 
@@ -48,6 +48,7 @@ export default function ClientDetails() {
   const [files, setFiles] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
+  const [isFetchingCnpj, setIsFetchingCnpj] = useState(false);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
   
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
@@ -88,6 +89,39 @@ export default function ClientDetails() {
   const handleUpdateCategory = (cat: string) => {
     setUploadCategory(cat);
     setDraft(id || "", { category: cat });
+  };
+
+    const fetchCnpjData = async () => {
+    if (!client?.cnpj || !user) return;
+    setIsFetchingCnpj(true);
+    try {
+      const authData = await supabase.auth.getSession();
+      const token = authData.data.session?.access_token;
+      
+      const res = await fetch("https://wdtftftwdqtihupbtlxk.supabase.co/functions/v1/fetch-cnpj", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': "Bearer " },
+        body: JSON.stringify({ cnpj: client.cnpj })
+      });
+      if (res.status === 403) {
+         toast.error("Upgrade necessário para buscar dados automáticos do CNPJ.");
+         setIsFetchingCnpj(false);
+         return;
+      }
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      
+      const newPhone = data.telefone || client.phone;
+      const newEmail = data.email || client.email;
+      
+      await supabase.from('clients').update({ phone: newPhone, email: newEmail }).eq('id', client.id);
+      setClient({ ...client, phone: newPhone, email: newEmail });
+      toast.success("Dados atualizados pelo CNPJ com sucesso!");
+    } catch (e) {
+      toast.error("Erro ao buscar CNPJ.");
+    } finally {
+      setIsFetchingCnpj(false);
+    }
   };
 
   const loadClientData = async () => {
@@ -220,7 +254,7 @@ export default function ClientDetails() {
   const submitUpload = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!currentFile || !user || !id || !uploadCategory) {
-        toast.error("Preencha todos os campos obrigatórios");
+        toast.error("Preencha todos os campos obrigatÃ³rios");
         return;
     }
 
@@ -352,7 +386,7 @@ export default function ClientDetails() {
               cachedClients[clientIndex].notes = notes;
               offlineCache.set(CacheKeys.CLIENTS, cachedClients);
           }
-          toast.success("Observações salvas offline!");
+          toast.success("ObservaÃ§Ãµes salvas offline!");
           return;
       }
 
@@ -362,7 +396,7 @@ export default function ClientDetails() {
         .eq('id', id);
       
       if (error) throw error;
-      toast.success("Observações salvas!");
+      toast.success("ObservaÃ§Ãµes salvas!");
     } catch (err) {
       toast.error("Erro ao salvar.");
     } finally {
@@ -398,7 +432,7 @@ export default function ClientDetails() {
     return (
       <div className="h-screen flex flex-col items-center justify-center gap-6">
         <AlertCircle className="w-16 h-16 text-red-500 opacity-20" />
-        <h2 className="text-xl font-black uppercase text-slate-400 tracking-widest">Cliente não encontrado</h2>
+        <h2 className="text-xl font-black uppercase text-slate-400 tracking-widest">Cliente nÃ£o encontrado</h2>
         <Link to="/dashboard/clientes" className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs">Voltar para Carteira</Link>
       </div>
     );
@@ -435,14 +469,14 @@ export default function ClientDetails() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-1 space-y-8">
           <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-sm p-8 space-y-6">
-            <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 border-b border-slate-50 dark:border-zinc-800 pb-4">Informações de Contato</h3>
+            <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 border-b border-slate-50 dark:border-zinc-800 pb-4">InformaÃ§Ãµes de Contato</h3>
             
             <div className="space-y-4">
               <div className="flex items-start gap-4">
                 <div className="p-2 bg-slate-50 dark:bg-zinc-800 rounded-lg text-slate-400"><MapPin className="w-4 h-4" /></div>
                 <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase">Localização</p>
-                  <p className="text-xs font-bold text-slate-700 dark:text-zinc-300 leading-relaxed">{client.address || "Não informado"}</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase">LocalizaÃ§Ã£o</p>
+                  <p className="text-xs font-bold text-slate-700 dark:text-zinc-300 leading-relaxed">{client.address || "NÃ£o informado"}</p>
                 </div>
               </div>
 
@@ -450,7 +484,7 @@ export default function ClientDetails() {
                 <div className="p-2 bg-slate-50 dark:bg-zinc-800 rounded-lg text-slate-400"><Phone className="w-4 h-4" /></div>
                 <div>
                   <p className="text-[10px] font-black text-slate-400 uppercase">Telefone</p>
-                  <p className="text-xs font-bold text-slate-700 dark:text-zinc-300">{client.cnpj ? "Disponível no CNPJ" : "(---) ---- ----"}</p>
+                  <p className="text-xs font-bold text-slate-700 dark:text-zinc-300">{client.cnpj ? "DisponÃ­vel no CNPJ" : "(---) ---- ----"}</p>
                 </div>
               </div>
 
@@ -458,7 +492,7 @@ export default function ClientDetails() {
                 <div className="p-2 bg-slate-50 dark:bg-zinc-800 rounded-lg text-slate-400"><Mail className="w-4 h-4" /></div>
                 <div>
                   <p className="text-[10px] font-black text-slate-400 uppercase">E-mail Comercial</p>
-                  <p className="text-xs font-bold text-slate-700 dark:text-zinc-300">Não configurado</p>
+                  <p className="text-xs font-bold text-slate-700 dark:text-zinc-300">NÃ£o configurado</p>
                 </div>
               </div>
             </div>
@@ -466,13 +500,13 @@ export default function ClientDetails() {
 
           <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-sm p-8 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Observações Estratégicas</h3>
+              <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">ObservaÃ§Ãµes EstratÃ©gicas</h3>
               {isSavingNotes && <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />}
             </div>
             <textarea 
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Histórico, preferências e notas de negociação..."
+              placeholder="HistÃ³rico, preferÃªncias e notas de negociaÃ§Ã£o..."
               className="w-full h-40 bg-slate-50 dark:bg-zinc-950 border border-slate-100 dark:border-zinc-800 rounded-2xl p-4 text-xs font-medium outline-none focus:ring-4 focus:ring-emerald-500/5 resize-none transition-all dark:text-zinc-200"
             />
             <button 
@@ -480,7 +514,7 @@ export default function ClientDetails() {
               disabled={isSavingNotes}
               className="w-full py-4 bg-slate-900 dark:bg-zinc-800 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all disabled:opacity-50"
             >
-              Atualizar Dossiê
+              Atualizar DossiÃª
             </button>
           </div>
         </div>
@@ -493,7 +527,7 @@ export default function ClientDetails() {
                     <div className="p-2 bg-emerald-50 dark:bg-emerald-500/10 rounded-xl"><HardDrive className="w-6 h-6 text-emerald-600" /></div>
                     Nuvem de Documentos
                   </h2>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Repositório Privado de Pedidos e Contratos</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">RepositÃ³rio Privado de Pedidos e Contratos</p>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -673,3 +707,4 @@ export default function ClientDetails() {
     </div>
   );
 }
+

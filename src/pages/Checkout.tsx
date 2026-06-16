@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -186,7 +186,7 @@ export default function Checkout() {
       if (codeUpper === "REPRESENTE95") { setAppliedCoupon({ code: "REPRESENTE95", discount: 95 }); toast.success("Cupom aplicado!"); }
       else if (codeUpper === "TESTE") { setAppliedCoupon({ code: "TESTE", discount: 50 }); toast.success("Cupom aplicado!"); }
       else if (codeUpper === "GRATIS100") { setAppliedCoupon({ code: "GRATIS100", discount: 100 }); toast.success("Cupom aplicado!"); }
-      else toast.error("Cupom inválido");
+      else toast.error("Cupom invÃ¡lido");
       setIsApplyingCoupon(false);
     }, 800);
   };
@@ -223,7 +223,7 @@ export default function Checkout() {
         const msg = data.message.toLowerCase();
         if (msg.includes('e-mail') || msg.includes('email')) field = 'email';
         else if (msg.includes('cpf') || msg.includes('cnpj')) field = 'cpfCnpj';
-        else if (msg.includes('whatsapp') || msg.includes('número')) field = 'phone';
+        else if (msg.includes('whatsapp') || msg.includes('nÃºmero')) field = 'phone';
         else if (msg.includes('nome')) field = 'name';
         
         setFormErrors(prev => ({ ...prev, [field]: data.message }));
@@ -241,7 +241,7 @@ export default function Checkout() {
 
   const handleProcessPayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isPasswordValid) return toast.error("Senha não atende aos requisitos.");
+    if (!isPasswordValid) return toast.error("Senha nÃ£o atende aos requisitos.");
     setLoading(true);
     
     try {
@@ -250,7 +250,7 @@ export default function Checkout() {
         options: { data: { full_name: formData.name, phone: formData.phone, cpf_cnpj: formData.cpfCnpj } }
       });
 
-      if (authError) throw new Error(authError.message.includes("already") ? "E-mail já cadastrado." : `Erro: ${authError.message}`);
+      if (authError) throw new Error(authError.message.includes("already") ? "E-mail jÃ¡ cadastrado." : `Erro: ${authError.message}`);
 
       const { data, error } = await supabase.functions.invoke('process-checkout', {
         body: {
@@ -271,7 +271,7 @@ export default function Checkout() {
         else navigate("/login");
       } else toast.error(data.message || "Erro no processamento");
     } catch (err: any) {
-      toast.error(err.message || "Erro na comunicação");
+      toast.error(err.message || "Erro na comunicaÃ§Ã£o");
     } finally {
       setLoading(false);
     }
@@ -317,17 +317,17 @@ export default function Checkout() {
                     <div className="space-y-2">
                       <label className="text-sm font-semibold text-slate-700">Crie uma Senha Forte</label>
                       <div className="relative">
-                        <input required type={showPassword ? "text" : "password"} autoComplete="new-password" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} placeholder="••••••••" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all" />
+                        <input required type={showPassword ? "text" : "password"} autoComplete="new-password" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all" />
                         <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                           {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                         </button>
                       </div>
                       <div className="grid grid-cols-2 gap-3 pt-3">
-                        <Requirement label="Mín. 8 caracteres" met={passwordRequirements.length} />
-                        <Requirement label="Letra Maiúscula" met={passwordRequirements.upper} />
-                        <Requirement label="Letra Minúscula" met={passwordRequirements.lower} />
-                        <Requirement label="Número" met={passwordRequirements.number} />
-                        <Requirement label="Símbolo Especial" met={passwordRequirements.special} />
+                        <Requirement label="MÃ­n. 8 caracteres" met={passwordRequirements.length} />
+                        <Requirement label="Letra MaiÃºscula" met={passwordRequirements.upper} />
+                        <Requirement label="Letra MinÃºscula" met={passwordRequirements.lower} />
+                        <Requirement label="NÃºmero" met={passwordRequirements.number} />
+                        <Requirement label="SÃ­mbolo Especial" met={passwordRequirements.special} />
                       </div>
                     </div>
 
@@ -365,13 +365,13 @@ export default function Checkout() {
                 <motion.div key="step2" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} className="space-y-8">
                   <div>
                     <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Pagamento</h2>
-                    <p className="text-slate-500 mt-2 flex items-center gap-2"><Lock className="w-4 h-4 text-emerald-600"/> Criptografia bancária Ativada.</p>
+                    <p className="text-slate-500 mt-2 flex items-center gap-2"><Lock className="w-4 h-4 text-emerald-600"/> Criptografia bancÃ¡ria Ativada.</p>
                   </div>
 
                   <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm space-y-8">
                     <div className={`grid gap-3 ${billingCycle === 'ANNUAL' ? 'grid-cols-2' : 'grid-cols-1'}`}>
                       {[
-  { id: 'CREDIT_CARD', icon: CreditCard, label: 'Cartão' },
+  { id: 'CREDIT_CARD', icon: CreditCard, label: 'CartÃ£o' },
   ...(billingCycle === 'ANNUAL' ? [{ id: 'PIX', icon: QrCode, label: 'Pix' }] : [])
 ].map((m) => (
                         <button key={m.id} type="button" onClick={() => setPaymentMethod(m.id as any)} className={cn("flex flex-col items-center gap-2 py-4 rounded-xl border-2 transition-all relative", paymentMethod === m.id ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-slate-100 bg-white text-slate-500 hover:border-slate-200")}>
@@ -385,7 +385,7 @@ export default function Checkout() {
                     {paymentMethod === 'CREDIT_CARD' && (
                       <div className="space-y-5 animate-in fade-in zoom-in-95 duration-200">
                         <div className="space-y-2">
-                          <label className="text-sm font-semibold text-slate-700">Número do Cartão</label>
+                          <label className="text-sm font-semibold text-slate-700">NÃºmero do CartÃ£o</label>
                           <input type="text" value={formData.cardNumber} onChange={(e) => setFormData({...formData, cardNumber: formatCardNumber(e.target.value)})} placeholder="0000 0000 0000 0000" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" />
                         </div>
                         <div className="grid grid-cols-2 gap-5">
@@ -400,7 +400,7 @@ export default function Checkout() {
                         </div>
                         <div className="space-y-2">
                           <label className="text-sm font-semibold text-slate-700">Nome do Titular</label>
-                          <input type="text" value={formData.holderName} onChange={(e) => setFormData({...formData, holderName: e.target.value})} placeholder="Como no cartão" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 uppercase" />
+                          <input type="text" value={formData.holderName} onChange={(e) => setFormData({...formData, holderName: e.target.value})} placeholder="Como no cartÃ£o" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 uppercase" />
                         </div>
                         {billingCycle === 'ANNUAL' && (
       <div className="space-y-2">
@@ -420,8 +420,8 @@ export default function Checkout() {
                         <div className="flex gap-4 items-start">
                           <QrCode className="w-8 h-8 text-emerald-600 shrink-0" />
                           <div>
-                            <h4 className="font-bold text-slate-900">Pagamento Instantâneo via PIX</h4>
-                            <p className="text-sm text-slate-600 mt-1">Ao finalizar, o QR Code será gerado para você pagar e liberar o acesso na mesma hora com 5% de desconto.</p>
+                            <h4 className="font-bold text-slate-900">Pagamento InstantÃ¢neo via PIX</h4>
+                            <p className="text-sm text-slate-600 mt-1">Ao finalizar, o QR Code serÃ¡ gerado para vocÃª pagar e liberar o acesso na mesma hora com 5% de desconto.</p>
                           </div>
                         </div>
                       </div>
@@ -455,17 +455,17 @@ export default function Checkout() {
                     <div className="flex items-baseline gap-2">
                       <span className="text-2xl font-medium text-slate-400">{installments}x</span>
                       <span className="text-5xl font-extrabold tracking-tighter text-white">R$ {(finalPrice / installments).toFixed(2).replace('.', ',')}</span>
-                      <span className="text-lg text-slate-400">/mês</span>
+                      <span className="text-lg text-slate-400">/mÃªs</span>
                     </div>
                   ) : paymentMethod === 'CREDIT_CARD' && billingCycle === 'MONTHLY' ? (
                     <div className="flex items-baseline gap-2">
                       <span className="text-5xl font-extrabold tracking-tighter text-white">R$ {finalPrice.toFixed(2).replace('.', ',')}</span>
-                      <span className="text-lg text-slate-400">/mês</span>
+                      <span className="text-lg text-slate-400">/mÃªs</span>
                     </div>
                   ) : (
                     <div className="flex items-baseline gap-2">
                       <span className="text-5xl font-extrabold tracking-tighter text-white">R$ {finalPrice.toFixed(2).replace('.', ',')}</span>
-                      <span className="text-lg text-slate-400 text-emerald-400"> à vista</span>
+                      <span className="text-lg text-slate-400 text-emerald-400"> Ã  vista</span>
                     </div>
                   )}
                 </div>
@@ -489,7 +489,7 @@ export default function Checkout() {
                 <div className="space-y-3 pt-6 border-t border-white/10 text-sm font-medium text-slate-300">
                   <div className="flex justify-between items-center text-lg text-white font-bold">
                     <span>{billingCycle === 'ANNUAL' ? 'Acesso Anual (12 meses)' : 'Assinatura Mensal'}</span>
-                    <span>{paymentMethod === 'CREDIT_CARD' && billingCycle === 'ANNUAL' ? `${installments}x R$ ${(finalPrice / installments).toFixed(2).replace('.', ',')}` : `R$ ${finalPrice.toFixed(2).replace('.', ',')}${billingCycle === 'MONTHLY' ? '/mês' : ' à vista'}`}</span>
+                    <span>{paymentMethod === 'CREDIT_CARD' && billingCycle === 'ANNUAL' ? `${installments}x R$ ${(finalPrice / installments).toFixed(2).replace('.', ',')}` : `R$ ${finalPrice.toFixed(2).replace('.', ',')}${billingCycle === 'MONTHLY' ? '/mÃªs' : ' Ã  vista'}`}</span>
                   </div>
                   {appliedCoupon && (
                     <div className="flex justify-between text-emerald-400">
@@ -506,12 +506,12 @@ export default function Checkout() {
                   {paymentMethod === 'CREDIT_CARD' && (
                     billingCycle === 'ANNUAL' ? (
       <p className="text-[11px] text-slate-400 leading-relaxed text-center pt-4 border-t border-white/10 mt-4">
-        Acesso liberado por 1 ano. Cobrança de {installments}x de R$ {(finalPrice / installments).toFixed(2).replace('.', ',')} no cartão.
+        Acesso liberado por 1 ano. CobranÃ§a de {installments}x de R$ {(finalPrice / installments).toFixed(2).replace('.', ',')} no cartÃ£o.
       </p>
     ) : (
       <p className="text-[11px] text-slate-400 leading-relaxed text-center pt-4 border-t border-white/10 mt-4">
-        Renovação automática todo mês. Cancele quando quiser.<br/>
-        <span className="opacity-50 text-emerald-400">Não compromete o limite total do seu cartão.</span>
+        RenovaÃ§Ã£o automÃ¡tica todo mÃªs. Cancele quando quiser.<br/>
+        <span className="opacity-50 text-emerald-400">NÃ£o compromete o limite total do seu cartÃ£o.</span>
       </p>
     )
                   )}
@@ -525,7 +525,7 @@ export default function Checkout() {
 
                 <div className="flex items-start gap-3 mt-4 text-slate-400">
                   <ShieldAlert className="w-5 h-5 shrink-0 text-emerald-500" />
-                  <p className="text-xs leading-relaxed">Você tem 7 dias de garantia incondicional. Se não gostar da plataforma, devolvemos 100% do seu dinheiro.</p>
+                  <p className="text-xs leading-relaxed">VocÃª tem 7 dias de garantia incondicional. Se nÃ£o gostar da plataforma, devolvemos 100% do seu dinheiro.</p>
                 </div>
               </div>
             </div>
@@ -536,3 +536,4 @@ export default function Checkout() {
     </div>
   );
 }
+

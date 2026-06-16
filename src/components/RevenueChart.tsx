@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+﻿import React, { useMemo, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
 import { Settings, TrendingUp, X, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -86,6 +86,13 @@ const RevenueChart = ({ data, loading, currentDate, onPrevMonth, onNextMonth }) 
              <span key={i} className="text-[9px] font-black text-slate-500">{formatShortCurrency(Math.round((MAX_REVENUE/4)*i))}</span>
            ))}
         </div>
+        {MAX_REVENUE === 1 ? (
+          <div className="flex-1 flex flex-col items-center justify-center h-full pb-10 opacity-60">
+             <TrendingUp className="w-8 h-8 text-slate-300 mb-2" />
+             <p className="text-sm font-black text-slate-400 uppercase tracking-widest text-center">Nenhum faturamento registrado</p>
+             <p className="text-[10px] font-bold text-slate-400 text-center max-w-[200px] mt-1">Seus ganhos mensais aparecerão aqui</p>
+          </div>
+        ) : (
         <div className={cn(
           "flex-1 flex items-stretch px-4 relative pb-2",
           data.length > 10 ? "gap-1" : data.length > 6 ? "gap-2" : "gap-4"
@@ -132,6 +139,7 @@ const RevenueChart = ({ data, loading, currentDate, onPrevMonth, onNextMonth }) 
             );
           })}
         </div>
+        )}
       </div>
     </div>
   </div>
@@ -139,3 +147,4 @@ const RevenueChart = ({ data, loading, currentDate, onPrevMonth, onNextMonth }) 
 };
 
 export default RevenueChart;
+

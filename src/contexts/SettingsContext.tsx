@@ -1,9 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+﻿import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { supabase } from "../lib/supabase";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import { offlineCache, CacheKeys } from "../lib/offlineCache";
-import { syncQueue } from "../lib/syncQueue";
 
 export type SubscriptionStatus = 'active' | 'past_due' | 'inactive' | 'trialing';
 
@@ -19,6 +18,8 @@ interface Settings {
   subscription_status: SubscriptionStatus;
   plan_id: string;
   avatar_url?: string;
+  trial_ends_at?: string;
+  current_period_end?: string;
 }
 
 const defaultSettings: Settings = {
@@ -30,7 +31,7 @@ const defaultSettings: Settings = {
   has_completed_onboarding: false,
   categories: [],
   revenue_ceiling: 1000000,
-  subscription_status: 'active', // Default to active to avoid locking out offline users
+  subscription_status: 'active', // Grace period default
   plan_id: 'exclusivo',
   avatar_url: undefined,
 };
@@ -54,7 +55,6 @@ export const useSettings = () => {
 export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const [settings, setSettings] = useState<Settings>(() => {
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
-    
     return {
       ...defaultSettings,
       theme: savedTheme || defaultSettings.theme,
@@ -63,7 +63,6 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const location = useLocation();
-  const isDashboard = location.pathname.startsWith("/dashboard");
 
   useEffect(() => {
     async function loadSettings() {
@@ -79,7 +78,6 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       
       setLoading(true);
       
-      // Try to load cached settings immediately to prevent blocking offline users
       const cached = offlineCache.get(CacheKeys.USER_SETTINGS) as any;
       if (cached) {
         setSettings({
@@ -94,9 +92,18 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           subscription_status: (cached.subscription_status as SubscriptionStatus) || 'active',
           plan_id: cached.plan_id || 'exclusivo',
           avatar_url: cached.avatar_url,
+          trial_ends_at: cached.trial_ends_at,
+          current_period_end: cached.current_period_end,
         });
       }
 
+      // 1. Fetch Entitlements (Secure)
+      const { data: entData, error: entError } = await supabase.from('user_entitlements')
+         .select('plan_id, subscription_status, trial_ends_at, current_period_end')
+         .eq('user_id', user.id)
+         .maybeSingle();
+      
+      // 2. Fetch User Settings
       const { data, error } = await supabase
         .from("user_settings")
         .select("*")
@@ -106,37 +113,41 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       if (!error && data) {
         let hasCompleted = data.has_completed_onboarding ?? defaultSettings.has_completed_onboarding;
         let categories = data.categories || [];
-        const subStatus = (data.subscription_status as SubscriptionStatus) || 'active';
 
         if (!hasCompleted) {
-          const { count } = await supabase
-            .from("clients")
-            .select("*", { count: 'exact', head: true })
-            .eq("user_id", user.id);
-
+          const { count } = await supabase.from("clients").select("*", { count: 'exact', head: true }).eq("user_id", user.id);
           if (count && count > 0) {
             hasCompleted = true;
-            await supabase.from("user_settings").upsert({
-              user_id: user.id,
-              has_completed_onboarding: true,
-              updated_at: new Date().toISOString()
-            });
+            await supabase.from("user_settings").upsert({ user_id: user.id, has_completed_onboarding: true, updated_at: new Date().toISOString() });
           }
         }
-
-        // Not overwriting localStorage theme with DB theme to respect device preference
 
         const finalAvatar = localStorage.getItem('avatar_' + user.id) || user?.user_metadata?.avatar_url || data.avatar_url;
         if (finalAvatar && finalAvatar.startsWith('data:') && !localStorage.getItem('avatar_' + user.id)) {
           localStorage.setItem('avatar_' + user.id, finalAvatar);
         }
 
+        let effectiveStatus: SubscriptionStatus = 'inactive';
         let planId = 'exclusivo';
-        if (data.subscription_plan) {
-          const planStr = data.subscription_plan.toLowerCase();
-          if (planStr.includes('master')) planId = 'master';
-          else if (planStr.includes('profissional') || planStr.includes('premium')) planId = 'profissional';
-          else planId = 'exclusivo';
+
+        if (entError) {
+          // Fallback to cache if network fails (Grace period)
+          effectiveStatus = (cached?.subscription_status as SubscriptionStatus) || 'active';
+          planId = cached?.plan_id || 'exclusivo';
+        } else if (entData) {
+          effectiveStatus = entData.subscription_status as SubscriptionStatus;
+          planId = entData.plan_id || 'exclusivo';
+          
+          const now = new Date();
+          if (effectiveStatus === 'trialing' && entData.trial_ends_at) {
+             if (new Date(entData.trial_ends_at) < now) {
+                effectiveStatus = 'past_due';
+             }
+          } else if (effectiveStatus === 'active' && entData.current_period_end) {
+             if (new Date(entData.current_period_end) < now) {
+                effectiveStatus = 'past_due';
+             }
+          }
         }
 
         const freshSettings = {
@@ -148,18 +159,17 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           has_completed_onboarding: hasCompleted,
           categories: categories,
           revenue_ceiling: parseFloat(data.revenue_ceiling?.toString() || "1000000") ?? defaultSettings.revenue_ceiling,
-          subscription_status: subStatus,
+          subscription_status: effectiveStatus,
           plan_id: planId,
           avatar_url: finalAvatar,
+          trial_ends_at: entData?.trial_ends_at,
+          current_period_end: entData?.current_period_end,
         };
 
         setSettings(freshSettings);
         offlineCache.set(CacheKeys.USER_SETTINGS, freshSettings);
       } else {
-        // Fallback to cache or defaults
-        if (!cached) {
-          setSettings(defaultSettings);
-        }
+        if (!cached) setSettings(defaultSettings);
       }
       setLoading(false);
     }
@@ -171,16 +181,11 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     if (!user) return;
     
     let avatarUrl = newSettings.avatar_url;
-
     if (avatarUrl && avatarUrl.startsWith('data:')) {
       try {
         localStorage.setItem("avatar_" + user.id, avatarUrl);
-        await supabase.auth.updateUser({
-          data: { avatar_url: avatarUrl }
-        });
-      } catch (e) {
-        console.error("Error saving avatar:", e);
-      }
+        await supabase.auth.updateUser({ data: { avatar_url: avatarUrl } });
+      } catch (e) { }
     }
 
     const updated = { 
@@ -189,44 +194,21 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       ...(avatarUrl ? { avatar_url: avatarUrl } : {})
     };
     setSettings(updated);
-    
-    // Save immediately to local offline cache
     offlineCache.set(CacheKeys.USER_SETTINGS, updated);
     
     if (newSettings.theme) {
       localStorage.setItem('theme', newSettings.theme);
     }
 
-    const { avatar_url, plan_id, ...dbSettings } = updated;
+    // Do NOT write plan_id, subscription_status, trial_ends_at to DB from client
+    const { avatar_url, plan_id, subscription_status, trial_ends_at, current_period_end, ...dbSettings } = updated;
 
-    let subscription_plan = 'Acesso Exclusivo';
-    if (plan_id === 'master') subscription_plan = 'Master';
-    else if (plan_id === 'profissional' || plan_id === 'premium') subscription_plan = 'Profissional';
-
-    const { error } = await supabase
-      .from("user_settings")
-      .upsert({
-        user_id: user.id,
-        ...dbSettings,
-        subscription_plan,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'user_id' });
-
-    if (error) {
-      console.error("Error updating settings:", error);
-    }
+    await supabase.from("user_settings").upsert({
+      user_id: user.id,
+      ...dbSettings,
+      updated_at: new Date().toISOString(),
+    });
   };
-
-    useEffect(() => {
-    const root = document.documentElement;
-    if (settings.theme === 'dark' && isDashboard) {
-      root.classList.add('dark');
-      root.style.colorScheme = 'dark';
-    } else {
-      root.classList.remove('dark');
-      root.style.colorScheme = 'light';
-    }
-  }, [settings.theme, isDashboard]);
 
   return (
     <SettingsContext.Provider value={{ settings, loading, updateSettings }}>
@@ -234,3 +216,4 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     </SettingsContext.Provider>
   );
 };
+

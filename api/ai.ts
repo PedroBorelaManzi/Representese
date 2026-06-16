@@ -1,4 +1,4 @@
-import express from 'express';
+﻿import express from 'express';
 import cors from 'cors';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
@@ -23,13 +23,13 @@ app.use(cors({
 
 app.use(express.json());
 
-const limiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 10,
-  message: { error: 'Rate limit exceeded. Try again later.' }
-});
-
-app.use(limiter);
+let ratelimit: Ratelimit | null = null;
+if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+  ratelimit = new Ratelimit({
+    redis: Redis.fromEnv(),
+    limiter: Ratelimit.slidingWindow(10, '60 s')
+  });
+}
 
 app.use(async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -55,6 +55,16 @@ app.use(async (req, res, next) => {
 
     if (!authRes.ok) {
       return res.status(401).json({ error: 'Invalid token' });
+    }
+    
+    const { user } = await authRes.json();
+    (req as any).user = user;
+
+    if (ratelimit) {
+      const { success } = await ratelimit.limit(user.id);
+      if (!success) {
+        return res.status(429).json({ error: 'Rate limit exceeded. Try again later.' });
+      }
     }
     
     next();
