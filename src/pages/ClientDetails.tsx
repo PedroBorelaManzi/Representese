@@ -462,7 +462,7 @@ export default function ClientDetails() {
         </div>
 
         <div className="flex gap-3">
-          <button onClick={() => navigate(`/dashboard/clientes`)} className="px-8 py-4 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl font-black uppercase text-[10px] tracking-widest text-slate-600 dark:text-zinc-400 hover:border-emerald-500 transition-all active:scale-95">Editar Cadastro</button>
+          <button onClick={() => navigate(`/dashboard/clientes/${id}/editar`)} className="px-8 py-4 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl font-black uppercase text-[10px] tracking-widest text-slate-600 dark:text-zinc-400 hover:border-emerald-500 transition-all active:scale-95">Editar Cadastro</button>
         </div>
       </div>
 
@@ -484,7 +484,7 @@ export default function ClientDetails() {
                 <div className="p-2 bg-slate-50 dark:bg-zinc-800 rounded-lg text-slate-400"><Phone className="w-4 h-4" /></div>
                 <div>
                   <p className="text-[10px] font-black text-slate-400 uppercase">Telefone</p>
-                  <p className="text-xs font-bold text-slate-700 dark:text-zinc-300">{client.cnpj ? "Disponível no CNPJ" : "(---) ---- ----"}</p>
+                  <p className="text-xs font-bold text-slate-700 dark:text-zinc-300">{client.phone || "Não informado"}</p>
                 </div>
               </div>
 

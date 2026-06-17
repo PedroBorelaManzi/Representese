@@ -21,6 +21,7 @@ import { SettingsSubscription } from './settings/SettingsSubscription';
 import { SettingsNotifications } from './settings/SettingsNotifications';
 import { SettingsSecurity } from './settings/SettingsSecurity';
 import { SettingsMobile } from './settings/SettingsMobile';
+import { useModalEsc } from '../hooks/useModalEsc';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -42,6 +43,8 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { settings } = useSettings();
   const [tempAvatar, setTempAvatar] = useState<string | null>(null);
   const [miniAvatarError, setMiniAvatarError] = useState(false);
+
+  useModalEsc(onClose, isOpen);
 
   useEffect(() => {
     if (settings.avatar_url) {
@@ -66,6 +69,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        onClick={(e) => e.stopPropagation()}
         className="relative w-full max-w-5xl h-[90vh] md:h-[85vh] bg-white dark:bg-zinc-900 rounded-[32px] md:rounded-[40px] shadow-2xl overflow-hidden border border-slate-200/50 dark:border-zinc-800/50 flex flex-col md:flex-row"
       >
         {/* Mobile Horizontal Menu (Icons Only & Centered Layout) */}
@@ -153,71 +157,20 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         <div className="flex-1 p-5 md:p-12 overflow-y-auto custom-scrollbar">
           <div className="max-w-2xl mx-auto space-y-12">
             <AnimatePresence mode="wait">
-              {activeTab === 'profile' && (
-                <motion.div
-                  key="profile"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                >
-                  <SettingsAccount />
-                </motion.div>
-              )}
-
-              {activeTab === 'appearance' && (
-                <motion.div
-                  key="appearance"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                >
-                  <SettingsAppearance />
-                </motion.div>
-              )}
-
-              {activeTab === 'notifications' && (
-                <motion.div
-                  key="notifications"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                >
-                  <SettingsNotifications />
-                </motion.div>
-              )}
-
-              {activeTab === 'security' && (
-                <motion.div
-                  key="security"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                >
-                  <SettingsSecurity />
-                </motion.div>
-              )}
-
-              {activeTab === 'subscription' && (
-                <motion.div
-                  key="subscription"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                >
-                  <SettingsSubscription onClose={onClose} />
-                </motion.div>
-              )}
-
-              {activeTab === 'mobile' && (
-                <motion.div
-                  key="mobile"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                >
-                  <SettingsMobile />
-                </motion.div>
-              )}
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.2 }}
+              >
+                {activeTab === 'profile' && <SettingsAccount />}
+                {activeTab === 'appearance' && <SettingsAppearance />}
+                {activeTab === 'notifications' && <SettingsNotifications />}
+                {activeTab === 'security' && <SettingsSecurity />}
+                {activeTab === 'subscription' && <SettingsSubscription onClose={onClose} />}
+                {activeTab === 'mobile' && <SettingsMobile />}
+              </motion.div>
             </AnimatePresence>
           </div>
         </div>

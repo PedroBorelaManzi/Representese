@@ -161,8 +161,8 @@ export default function LandingPitch() {
           <div className="hidden lg:flex items-center gap-10">
             <a href="#industrias" className="text-[11px] font-black uppercase tracking-widest text-slate-700 hover:text-slate-900 dark:text-white transition-colors">Setores</a>
             <a href="#tecnologia" className="text-[11px] font-black uppercase tracking-widest text-slate-700 hover:text-slate-900 dark:text-white transition-colors">Tecnologia</a>
-            <Link to="/register" className="text-[11px] font-black uppercase tracking-widest text-slate-700 hover:text-slate-900 dark:text-white transition-colors">Planos</Link>
-            <a href="#faq" className="text-[11px] font-black uppercase tracking-widest text-slate-700 hover:text-slate-900 dark:text-white transition-colors">Dúvidas</a>
+            <a href="#planos" className="text-[11px] font-black uppercase tracking-widest text-slate-700 hover:text-slate-900 dark:text-white transition-colors">Planos</a>
+            <a href="#duvidas" className="text-[11px] font-black uppercase tracking-widest text-slate-700 hover:text-slate-900 dark:text-white transition-colors">Dúvidas</a>
           </div>
 
           <div className="flex items-center gap-4">
@@ -320,7 +320,7 @@ export default function LandingPitch() {
       </section>
 
       {/* FAQ Section Moved Here */}
-      <section id="faq" className="py-32 bg-white relative overflow-hidden">
+      <section id="duvidas" className="py-32 bg-white relative overflow-hidden">
         <div className="max-w-4xl mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-6xl font-black text-slate-900 dark:text-white uppercase tracking-tighter mb-4">
@@ -429,7 +429,7 @@ export default function LandingPitch() {
       </section>
 
       {/* Final CTA */}
-      <section className="py-32 px-6">
+      <section id="planos" className="py-32 px-6">
         <div className="max-w-5xl mx-auto rounded-[64px] bg-slate-900 p-12 md:p-24 text-center relative overflow-hidden group">
           <div className="absolute inset-0 bg-emerald-600/10 blur-[100px] group-hover:bg-emerald-600/20 transition-all" />
           <motion.div initial={{ opacity: 1, y: 20 }} whileInView={{ opacity: 1, y: 0 }} className="relative">

@@ -15,7 +15,10 @@ export function PlanCards({ billingCycle, currentSubscriptionPlan, onSubscribe, 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-20">
       {plans.map((plan, idx) => {
-        const isCurrent = currentSubscriptionPlan?.toLowerCase().includes(plan.id.toLowerCase());
+        const isCurrent = currentSubscriptionPlan?.toLowerCase() === plan.id.toLowerCase();
+        const isUserMaster = currentSubscriptionPlan?.toLowerCase() === 'master';
+        const isCardMaster = plan.id === 'master';
+        const showAlreadyBestPlan = isUserMaster && isCardMaster;
 
         return (
           <motion.div
@@ -53,7 +56,7 @@ export function PlanCards({ billingCycle, currentSubscriptionPlan, onSubscribe, 
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-slate-400 line-through decoration-red-500/50">De R$ {plan.originalPrice}</span>
                   <span className="px-3 py-1 bg-amber-500 text-white text-[10px] font-black uppercase rounded-lg tracking-widest shadow-sm shadow-amber-500/20">
-                    {plan.id === 'exclusivo' ? '25' : plan.id === 'profissional' ? '30' : '35'}% DE DESCONTO LANÇAMENTO
+                    {billingCycle === 'ANNUAL' ? (plan.id === 'exclusivo' ? '35' : plan.id === 'profissional' ? '40' : '45') : (plan.id === 'exclusivo' ? '25' : plan.id === 'profissional' ? '30' : '35')}% DE DESCONTO
                   </span>
                 </div>
               ) : (
@@ -90,7 +93,7 @@ export function PlanCards({ billingCycle, currentSubscriptionPlan, onSubscribe, 
               )}
               style={plan.popular ? { color: "#1A6B3C" } : undefined}
             >
-              {isCurrent ? "Plano Atual" : (
+              {isCurrent ? (showAlreadyBestPlan ? "Você já está no melhor plano!" : "Plano Atual") : (
                 <>
                   {buttonLabel || "Teste 7 Dias Grátis"}
                   <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />

@@ -2,6 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Crown, Check, ArrowRight, Building2, Upload, BarChart3 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useModalEsc } from '../hooks/useModalEsc';
 
 interface UpgradeModalProps {
   isOpen: boolean;
@@ -44,15 +45,19 @@ export default function UpgradeModal({ isOpen, onClose, feature = 'empresas' }: 
   const info = (features as any)[feature || 'empresas'];
   const Icon = info.icon;
 
+  useModalEsc(onClose, isOpen);
+
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={onClose}>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/60 backdrop-blur-md" />
           <motion.div
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="bg-white dark:bg-zinc-900 rounded-[32px] w-full max-w-lg overflow-hidden shadow-2xl relative border border-slate-100 dark:border-zinc-800"
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-zinc-900 rounded-[32px] w-full max-w-lg overflow-hidden shadow-2xl relative border border-slate-100 dark:border-zinc-800 z-10"
           >
             <div className="h-32 bg-gradient-to-br from-emerald-600 via-violet-600 to-purple-600 relative overflow-hidden">
                <button 
