@@ -347,18 +347,20 @@ export default function EmpresasPage() {
     }, {});
   }, [combinedCategories, monthlyOrders]);
 
+  const filteredOrders = useMemo(() => {
+    const currentMonthly = monthlyOrders || [];
+    if (selectedCategory === "all") return currentMonthly;
+    return currentMonthly.filter(o => o && o.category && o.category.toLowerCase() === selectedCategory.toLowerCase());
+  }, [selectedCategory, monthlyOrders]);
+
+
+
   const totalGeral = useMemo(() => (filteredOrders || []).reduce((sum, o) => sum + (Number(o.value) || 0), 0), [filteredOrders]);
 
   const ordersToday = useMemo(() => {
     const today = new Date().toLocaleDateString("en-CA");
     return (allOrders || []).filter(o => o && o.created_at && o.created_at.startsWith(today)).length;
   }, [allOrders]);
-
-  const filteredOrders = useMemo(() => {
-    const currentMonthly = monthlyOrders || [];
-    if (selectedCategory === "all") return currentMonthly;
-    return currentMonthly.filter(o => o && o.category && o.category.toLowerCase() === selectedCategory.toLowerCase());
-  }, [selectedCategory, monthlyOrders]);
 
   const handleUpdateCompany = async () => {
     if (!managingCompany || !editName.trim()) return;
