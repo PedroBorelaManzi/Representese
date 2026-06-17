@@ -1,1 +1,1 @@
-﻿node scripts/check-secrets.cjs 
+node scripts/check-secrets.cjs 
