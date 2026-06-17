@@ -15,8 +15,8 @@ export function PlanCards({ billingCycle, currentSubscriptionPlan, onSubscribe, 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-20">
       {plans.map((plan, idx) => {
-        const isCurrent = currentSubscriptionPlan?.toLowerCase() === plan.id.toLowerCase();
-        const isUserMaster = currentSubscriptionPlan?.toLowerCase() === 'master';
+        const isCurrent = currentSubscriptionPlan?.toLowerCase().includes(plan.id.toLowerCase());
+        const isUserMaster = currentSubscriptionPlan?.toLowerCase().includes('master');
         const isCardMaster = plan.id === 'master';
         const showAlreadyBestPlan = isUserMaster && isCardMaster;
 
