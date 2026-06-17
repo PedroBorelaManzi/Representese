@@ -347,7 +347,7 @@ export default function EmpresasPage() {
     }, {});
   }, [combinedCategories, monthlyOrders]);
 
-  const totalGeral = useMemo(() => (monthlyOrders || []).reduce((sum, o) => sum + (Number(o.value) || 0), 0), [monthlyOrders]);
+  const totalGeral = useMemo(() => (filteredOrders || []).reduce((sum, o) => sum + (Number(o.value) || 0), 0), [filteredOrders]);
 
   const ordersToday = useMemo(() => {
     const today = new Date().toLocaleDateString("en-CA");
@@ -470,7 +470,7 @@ export default function EmpresasPage() {
             </div>
             <div className="min-w-0">
               <p className="text-[7px] sm:text-[9px] lg:text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Pedidos Mês</p>
-              <h2 className="text-base sm:text-lg lg:text-2xl font-black text-slate-900 dark:text-zinc-100 tracking-tight">{monthlyOrders.length}</h2>
+              <h2 className="text-base sm:text-lg lg:text-2xl font-black text-slate-900 dark:text-zinc-100 tracking-tight">{filteredOrders.length}</h2>
             </div>
           </div>
         </div>

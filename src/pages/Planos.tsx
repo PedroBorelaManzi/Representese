@@ -51,6 +51,7 @@ export default function Planos() {
   }, [user]);
 
   useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
     const fetchSubscription = async () => {
       if (!user) return;
       const { data } = await supabase

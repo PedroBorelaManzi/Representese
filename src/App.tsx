@@ -23,6 +23,7 @@ const MapPage = React.lazy(() => import("./pages/Map"));
 const LinksPage = React.lazy(() => import("./pages/Links"));
 const CRMPage = React.lazy(() => import("./pages/CRM"));
 const ClientDetailsPage = React.lazy(() => import("./pages/ClientDetails"));
+const ClientEditPage = React.lazy(() => import("./pages/ClientEdit"));
 const EmpresasPage = React.lazy(() => import("./pages/Empresas"));
 const AgendaPage = React.lazy(() => import("./pages/Agenda"));
 const EmailClient = React.lazy(() => import("./pages/EmailClient"));
@@ -97,6 +98,7 @@ export default function App() {
                       <Route path="links" element={<LinksPage />} />
                       <Route path="clientes" element={<CRMPage />} />
                       <Route path="clientes/:id" element={<ClientDetailsPage />} />
+                      <Route path="clientes/:id/editar" element={<ClientEditPage />} />
                       <Route path="empresas" element={<EmpresasPage />} />
                       <Route path="agenda" element={<AgendaPage />} />
                       <Route path="email" element={<EmailClient />} />

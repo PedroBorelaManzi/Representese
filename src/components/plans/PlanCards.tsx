@@ -56,7 +56,7 @@ export function PlanCards({ billingCycle, currentSubscriptionPlan, onSubscribe, 
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-slate-400 line-through decoration-red-500/50">De R$ {plan.originalPrice}</span>
                   <span className="px-3 py-1 bg-amber-500 text-white text-[10px] font-black uppercase rounded-lg tracking-widest shadow-sm shadow-amber-500/20">
-                    {billingCycle === 'ANNUAL' ? (plan.id === 'exclusivo' ? '35' : plan.id === 'profissional' ? '40' : '45') : (plan.id === 'exclusivo' ? '25' : plan.id === 'profissional' ? '30' : '35')}% DE DESCONTO
+                    {billingCycle === 'ANNUAL' ? (plan.id === 'exclusivo' ? '35' : plan.id === 'profissional' ? '40' : '45') : (plan.id === 'exclusivo' ? '25' : plan.id === 'profissional' ? '30' : '35')}% {billingCycle === 'ANNUAL' ? 'OFF NO ANUAL' : 'OFF (LANÇAMENTO)'}
                   </span>
                 </div>
               ) : (
