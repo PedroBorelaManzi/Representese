@@ -17,6 +17,7 @@ test.describe('Etapa 2: Revisão Frontend (Mobile + Responsivo)', () => {
   });
 
   test('Deve renderizar a tela de login otimizada para toque (mobile)', async ({ page }) => {
+    test.skip(!!process.env.CI, 'Requer Supabase Auth ao vivo — roda apenas local');
     await page.goto('/login');
     await page.waitForLoadState('networkidle');
     const emailInput = page.locator('input[type="email"]');
