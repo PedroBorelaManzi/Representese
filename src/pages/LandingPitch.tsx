@@ -351,7 +351,7 @@ export default function LandingPitch() {
                     "p-2 rounded-xl bg-white text-slate-600 transition-all",
                     openFaq === idx && "bg-emerald-50 text-emerald-600 rotate-180"
                   )}>
-                    <ChevronDown className="w-5 h-5" />
+                    <ChevronDown className="w-5 h-5 shrink-0 ml-4" />
                   </div>
                 </button>
                 <AnimatePresence>
@@ -361,6 +361,7 @@ export default function LandingPitch() {
                       animate={{ height: "auto", opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
                       transition={{ duration: 0.3, ease: "easeInOut" }}
+                      style={{ overflow: "hidden" }}
                     >
                       <div className="px-8 pb-8 text-sm md:text-base text-slate-700 font-medium leading-relaxed border-t border-slate-50 pt-6">
                         {faq.answer}

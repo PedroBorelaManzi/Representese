@@ -77,6 +77,10 @@ const Register = () => {
   });
 
   useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [step]);
+
+  useEffect(() => {
     setPasswordRequirements({
       length: password.length >= 8,
       uppercase: /[A-Z]/.test(password),
