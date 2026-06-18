@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { 
   User, 
@@ -33,6 +33,9 @@ import { Client, Order } from "../types";
 function cn(...classes: (string | boolean | undefined)[]) {
   return classes.filter(Boolean).join(" ");
 }
+
+const toTitleCase = (str: string) =>
+  str.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
 
 export default function ClientDetails() {
   const { id } = useParams();
@@ -450,7 +453,7 @@ export default function ClientDetails() {
               <User className="w-10 h-10" />
             </div>
             <div>
-              <h1 className="text-3xl md:text-5xl font-black text-slate-900 dark:text-zinc-100 uppercase tracking-tighter leading-none">{client.name}</h1>
+              <h1 className="text-3xl md:text-5xl font-black text-slate-900 dark:text-zinc-100 normal-case tracking-tighter leading-none">{toTitleCase(client.name || "")}</h1>
               <div className="flex items-center gap-4 mt-3">
                 <span className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 text-[10px] font-black uppercase rounded-full">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Ativo no Radar
@@ -500,7 +503,7 @@ export default function ClientDetails() {
 
           <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-sm p-8 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Observações Estratégicas</h3>
+              <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Anotações</h3>
               {isSavingNotes && <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />}
             </div>
             <textarea 
@@ -512,7 +515,7 @@ export default function ClientDetails() {
             <button 
               onClick={handleSaveNotes}
               disabled={isSavingNotes}
-              className="w-full py-4 bg-slate-900 dark:bg-zinc-800 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all disabled:opacity-50"
+              className="w-full py-4 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all disabled:opacity-50"
             >
               Atualizar Dossiê
             </button>
@@ -525,9 +528,9 @@ export default function ClientDetails() {
                 <div>
                   <h2 className="text-xl font-black text-slate-900 dark:text-zinc-100 flex items-center gap-3 uppercase tracking-tight">
                     <div className="p-2 bg-emerald-50 dark:bg-emerald-500/10 rounded-xl"><HardDrive className="w-6 h-6 text-emerald-600" /></div>
-                    Nuvem de Documentos
+                    Documentos
                   </h2>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Repositório Privado de Pedidos e Contratos</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Pedidos e arquivos do cliente</p>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -557,7 +560,7 @@ export default function ClientDetails() {
                 {files.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center opacity-20 py-20">
                     <FileText className="w-20 h-20 mb-6 stroke-[1]" />
-                    <p className="font-black uppercase text-xs tracking-[0.2em]">Cofre Digital Vazio</p>
+                    <p className="font-black uppercase text-xs tracking-[0.2em]">Nenhum arquivo ainda</p>
                   </div>
                 ) : (
                   files.map((file) => {

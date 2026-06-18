@@ -1,8 +1,10 @@
-﻿import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
 import { Settings, TrendingUp, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useSettings } from '../contexts/SettingsContext';
+
+const CHART_COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
 
 const RevenueChart = ({ data, loading, currentDate, onPrevMonth, onNextMonth }) => {
   const [selectedIdx, setSelectedIdx] = React.useState(null);
@@ -109,8 +111,9 @@ const RevenueChart = ({ data, loading, currentDate, onPrevMonth, onNextMonth }) 
                   className={cn(
                     "w-full rounded-t-xl transition-all relative flex flex-col items-center justify-start pt-2", 
                     data.length < 5 ? "max-w-[80px]" : "max-w-full",
-                    isSelected ? "bg-emerald-600 shadow-[0_0_20px_rgba(79,70,229,0.3)]" : "bg-emerald-500/80"
+                    isSelected && "shadow-[0_0_20px_rgba(79,70,229,0.3)]"
                   )}
+                  style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length], opacity: isSelected ? 1 : 0.8 }}
                 >
                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-t-xl" />
                    
@@ -133,7 +136,10 @@ const RevenueChart = ({ data, loading, currentDate, onPrevMonth, onNextMonth }) 
                    </AnimatePresence>
                 </motion.div>
                 <div className="absolute bottom-0 left-0 right-0 h-8 flex items-center justify-center">
-                  <p className={cn("font-black uppercase truncate px-1", data.length > 6 ? "text-[7px]" : "text-[8px]", isSelected ? "text-emerald-600" : "text-slate-900 dark:text-zinc-100")}>{item.name}</p>
+                  <p 
+                    className={cn("font-black uppercase truncate px-1", data.length > 6 ? "text-[7px]" : "text-[8px]", !isSelected && "text-slate-900 dark:text-zinc-100")}
+                    style={isSelected ? { color: CHART_COLORS[idx % CHART_COLORS.length] } : undefined}
+                  >{item.name}</p>
                 </div>
               </div>
             );

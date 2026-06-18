@@ -256,10 +256,10 @@ export default function Layout() {
 
   const menuItems = [
     { icon: LayoutDashboard, label: 'Início', path: '/dashboard' },
-    { icon: MapIcon, label: 'Mapa de Clientes', path: '/dashboard/map' },
-    { icon: Users, label: 'Meus Clientes', path: '/dashboard/clientes' },
-    { icon: Building2, label: 'Empresas & Pedidos', path: '/dashboard/empresas' },
-    { icon: Calendar, label: 'Minha Agenda', path: '/dashboard/agenda' },
+    { icon: MapIcon, label: 'Mapa', path: '/dashboard/map' },
+    { icon: Users, label: 'Clientes', path: '/dashboard/clientes' },
+    { icon: Building2, label: 'Empresas', path: '/dashboard/empresas' },
+    { icon: Calendar, label: 'Agenda', path: '/dashboard/agenda' },
     { icon: Mail, label: 'E-mails', path: '/dashboard/email' },
   ];
 

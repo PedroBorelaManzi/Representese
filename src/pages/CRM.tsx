@@ -15,6 +15,9 @@ import { getHighPrecisionCoordinates } from '../lib/geminiGeocoding';
 import { Client, Alert, Order } from '../types';
 import { useQueryClient } from '@tanstack/react-query';
 
+const toTitleCase = (str: string) =>
+  str.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+
 export default function CRMPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -336,7 +339,7 @@ export default function CRMPage() {
                        </div>
                        <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                             <p className="text-sm font-black text-slate-900 dark:text-zinc-100 uppercase truncate pr-1">{client.name}</p>
+                             <p className="text-sm font-black text-slate-900 dark:text-zinc-100 normal-case truncate pr-1">{toTitleCase(client.name || "")}</p>
                              {client.alerts && client.alerts.length > 0 && (
                                <span className="flex gap-1 shrink-0">
                                  {client.alerts.filter((a: Alert) => activeTab === 'Todos' ? true : a.type === activeTab).slice(0, 1).map((a: Alert, i: number) => (
@@ -354,6 +357,16 @@ export default function CRMPage() {
                              <p className="text-[10px] text-slate-400 dark:text-zinc-500 truncate uppercase font-bold tracking-tight">
                                 {client.city ? `📍 ${client.city}` : 'Cidade não informada'}
                              </p>
+                             {client.alerts && client.alerts.length > 0 && (
+                               <span className={cn(
+                                 "text-[10px] font-black uppercase tracking-tight px-2 py-0.5 rounded-full shrink-0",
+                                 client.alerts[0].type === 'Crítico' ? "bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-500" :
+                                 client.alerts[0].type === 'Inativo' ? "bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400" :
+                                 "bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-500"
+                               )}>
+                                 {client.alerts[0].days}d sem contato
+                               </span>
+                             )}
                           </div>
                        </div>
                        <div className="flex items-center gap-2 shrink-0">

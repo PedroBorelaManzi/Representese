@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { processOrderFile } from "../lib/orderProcessor";
 import { getHighPrecisionCoordinates } from "../lib/geminiGeocoding";
 import { 
@@ -493,7 +493,7 @@ export default function EmpresasPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-10">
         <div className="lg:col-span-4 flex flex-col gap-3 sm:gap-4 w-full">
           <div className="flex items-center justify-between px-2 md:px-4">
-             <h3 className="text-[9px] md:text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Seleção Estratégica</h3>
+             <h3 className="text-[9px] md:text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Suas empresas</h3>
           </div>
           
           <div className="grid grid-cols-2 lg:flex lg:flex-col gap-3 w-full">
@@ -511,7 +511,7 @@ export default function EmpresasPage() {
               )}
             >
               <div className="flex items-center justify-between mb-2">
-                <h4 className="text-[9px] sm:text-[11px] lg:text-[12px] font-black uppercase tracking-widest text-emerald-500">Visão Consolidada</h4>
+                <h4 className="text-[9px] sm:text-[11px] lg:text-[12px] font-black uppercase tracking-widest text-emerald-500">Todas</h4>
                 <LayoutGrid className="w-4 h-4 md:w-5 md:h-5 opacity-40 group-hover:scale-110 transition-transform" />
               </div>
               <div className="flex items-end justify-between">

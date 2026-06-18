@@ -444,7 +444,7 @@ export default function Map() {
               </div>
               Mapa de <span className="text-emerald-600">Clientes</span>
             </h1>
-            <p className="text-xs lg:text-sm text-slate-500 dark:text-zinc-400 mt-2 font-medium">Visualização geo-estratégica da sua carteira de clientes.</p>
+            <p className="text-xs lg:text-sm text-slate-500 dark:text-zinc-400 mt-2 font-medium">Onde estão seus clientes.</p>
           </div>
           
           {!offlineCache.isOnline() && (

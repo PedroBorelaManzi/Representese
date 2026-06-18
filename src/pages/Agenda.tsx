@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Plus,
   ChevronLeft,
@@ -364,7 +364,7 @@ export default function Agenda() {
             </div>
             AGENDA
           </h1>
-          <p className="text-sm text-slate-500 dark:text-zinc-400 mt-2 font-medium">Orquestração de visitas e monitoramento de feriados locais.</p>
+          <p className="text-sm text-slate-500 dark:text-zinc-400 mt-2 font-medium">Visitas e feriados do mês.</p>
         </div>
         
         <div className="flex flex-col sm:flex-row items-center gap-4">

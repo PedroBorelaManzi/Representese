@@ -551,7 +551,7 @@ export default function Dashboard() {
               <Home className="w-6 h-6 text-emerald-600" />
               Início
             </h1>
-            <p className="text-sm text-slate-500 dark:text-zinc-400 mt-1 font-medium">Sua agenda semanal sincronizada e faturamento.</p>
+            <p className="text-sm text-slate-500 dark:text-zinc-400 mt-1 font-medium">Semana de {new Date().toLocaleString('pt-BR', { month: 'long' })}</p>
           </div>
           
           {!offlineCache.isOnline() && (

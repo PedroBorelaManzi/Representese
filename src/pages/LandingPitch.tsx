@@ -23,7 +23,8 @@ import {
   Sparkles,
   ChevronRight,
   ChevronDown,
-  Wheat
+  Wheat,
+  Play
 } from "lucide-react";
 import { Logo } from "../components/Logo";
 import { Link, useNavigate } from "react-router-dom";
@@ -32,7 +33,7 @@ import { cn } from "../lib/utils";
 
 const industries = [
   { 
-    name: "Materiais de Construção", 
+    name: "Construção", 
     icon: Building2, 
     color: "bg-orange-50 text-orange-600",
     image: "/assets/setor_materiais.webp"
@@ -195,7 +196,7 @@ export default function LandingPitch() {
                 TESTE GRÁTIS POR 7 DIAS
               </Link>
               <button className='w-full sm:w-auto px-10 h-[58px] rounded-2xl bg-white border border-slate-200 text-slate-600 font-black text-xs uppercase tracking-widest hover:border-slate-300 hover:bg-slate-50 transition-all hover:-translate-y-1 flex items-center justify-center'>
-                Ver Vídeo Explicativo
+                <Play className="w-4 h-4 mr-2 inline" /> VER VÍDEO EXPLICATIVO
               </button>
             </div>
           </motion.div>
@@ -203,7 +204,7 @@ export default function LandingPitch() {
       </section>
 
       {/* Industry Selection */}
-      <section id="industrias" className="min-h-[80vh] py-32 bg-white border-y border-slate-100 relative overflow-hidden transition-all duration-700 flex items-center">
+      <section id="industrias" className="min-h-[80vh] py-16 bg-white border-y border-slate-100 relative overflow-hidden transition-all duration-700 flex items-center">
         <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_30%_30%,rgba(16,185,129,0.03),transparent)] pointer-events-none z-10" />
         
         {/* Background Photo Overlay */}
@@ -270,7 +271,7 @@ export default function LandingPitch() {
       </section>
 
       {/* Technology Section Refined */}
-      <section id="tecnologia" className="py-32 bg-slate-50 relative overflow-hidden">
+      <section id="tecnologia" className="py-16 bg-slate-50 relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex flex-col lg:flex-row items-center gap-20">
             <motion.div 
