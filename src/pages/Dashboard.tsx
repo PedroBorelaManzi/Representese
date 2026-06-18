@@ -119,7 +119,7 @@ export default function Dashboard() {
       };
     },
     enabled: !!user && offlineCache.isOnline(),
-    staleTime: 0,
+    staleTime: 5 * 60 * 1000,
   });
 
   // Sync state with React Query Data
@@ -339,14 +339,15 @@ export default function Dashboard() {
     // Real-time monitor: sync instantly when user focuses the tab or window
     const handleFocus = () => silentSync();
     
-    window.addEventListener('focus', handleFocus);
-    window.addEventListener('visibilitychange', () => {
+    const handleVisibility = () => {
       if (document.visibilityState === 'visible') silentSync();
-    });
+    };
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
       window.removeEventListener('focus', handleFocus);
-      window.removeEventListener('visibilitychange', handleFocus);
+      window.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [user, googleConnected]);
 

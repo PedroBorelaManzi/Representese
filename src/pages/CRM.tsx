@@ -13,8 +13,10 @@ import { toast } from 'sonner';
 import { parseFileForCnpjs } from '../lib/clientImport';
 import { getHighPrecisionCoordinates } from '../lib/geminiGeocoding';
 import { Client, Alert, Order } from '../types';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function CRMPage() {
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const { settings } = useSettings();
   const { isOnline } = useSync();
@@ -79,6 +81,7 @@ export default function CRMPage() {
     
     if (!isOnline) {
         syncQueue.enqueue('clients', 'DELETE', null, id);
+        queryClient.invalidateQueries({ queryKey: ['clients'] });
         toast.success('Cliente removido offline.');
         return;
     }
@@ -86,6 +89,7 @@ export default function CRMPage() {
     try {
       const { error } = await supabase.from('clients').delete().eq('id', id).eq('user_id', user?.id);
       if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
       toast.success('Cliente removido com sucesso.');
     } catch (err) {
       console.error('Delete Error:', err);

@@ -82,7 +82,7 @@ export const syncQueue = {
           const { error } = await supabase.from(op.table).delete().eq('id', op.recordId);
           if (error) throw error;
         } else if (op.action === 'UPSERT') {
-          const { error } = await supabase.from(op.table).upsert(op.payload, op.recordId ? { onConflict: op.recordId } : undefined);
+          const { error } = await supabase.from(op.table).upsert(op.payload, { onConflict: 'id' });
           if (error) throw error;
         }
         processedIds.push(op.id);
