@@ -114,8 +114,8 @@ export default function LandingPitch() {
         className={cn(
           "fixed top-0 w-full z-50 transition-all duration-300",
           scrolled
-            ? "bg-white/80 backdrop-blur-xl border-b border-slate-200/60 shadow-sm"
-            : "bg-transparent"
+            ? "bg-white/90 backdrop-blur-xl border-b border-slate-200/60 shadow-sm"
+            : "bg-white/60 backdrop-blur-md"
         )}
       >
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
@@ -136,7 +136,7 @@ export default function LandingPitch() {
 
           <div className="flex items-center gap-3">
             <Link to="/login"    className="text-[13px] font-semibold text-slate-600 hover:text-slate-900 transition-colors px-4 py-2">Entrar</Link>
-            <Link to="/register" className="text-[13px] font-black text-white bg-slate-900 hover:bg-emerald-600 transition-all px-5 py-2.5 rounded-xl shadow-sm">
+            <Link to="/register" className="text-[13px] font-black text-white bg-emerald-600 hover:bg-emerald-500 transition-all px-5 py-2.5 rounded-xl shadow-sm">
               Teste grátis
             </Link>
           </div>
@@ -144,18 +144,21 @@ export default function LandingPitch() {
       </motion.nav>
 
       {/* ── HERO ────────────────────────────────────────────── */}
-      <section className="relative min-h-screen flex flex-col items-center justify-center pt-24 pb-16 px-6 bg-slate-950 overflow-hidden">
-        {/* glows */}
+      <section className="relative min-h-screen flex flex-col items-center justify-center pt-28 pb-16 px-6 bg-white overflow-hidden">
+        {/* soft emerald glow */}
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-emerald-500/10 blur-[140px] rounded-full" />
-          <div className="absolute top-1/3 left-1/4 w-[400px] h-[400px] bg-teal-500/6 blur-[100px] rounded-full" />
-          <div className="absolute top-1/3 right-1/4 w-[300px] h-[300px] bg-emerald-600/8 blur-[80px] rounded-full" />
-          {/* grid */}
           <div
-            className="absolute inset-0 opacity-[0.04]"
+            className="absolute inset-0"
+            style={{ background: "radial-gradient(ellipse 80% 60% at 50% -10%, rgba(16,185,129,0.10) 0%, transparent 70%)" }}
+          />
+          <div className="absolute top-1/2 left-0 w-96 h-96 bg-emerald-100/40 blur-[120px] rounded-full -translate-y-1/2" />
+          <div className="absolute top-1/2 right-0 w-80 h-80 bg-teal-100/40 blur-[100px] rounded-full -translate-y-1/2" />
+          {/* subtle dot grid */}
+          <div
+            className="absolute inset-0 opacity-[0.35]"
             style={{
-              backgroundImage: `linear-gradient(rgba(255,255,255,.3) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.3) 1px, transparent 1px)`,
-              backgroundSize: "60px 60px",
+              backgroundImage: `radial-gradient(circle, #d1fae5 1px, transparent 1px)`,
+              backgroundSize: "36px 36px",
             }}
           />
         </div>
@@ -166,9 +169,9 @@ export default function LandingPitch() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-[11px] font-black uppercase tracking-widest mb-8"
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 text-[11px] font-black uppercase tracking-widest mb-8"
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             Neural Engine 2026 · Nova versão disponível
           </motion.div>
 
@@ -177,10 +180,10 @@ export default function LandingPitch() {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-            className="text-4xl sm:text-6xl md:text-[82px] font-black tracking-[-0.03em] leading-[1.0] text-white mb-6"
+            className="text-4xl sm:text-6xl md:text-[80px] font-black tracking-[-0.03em] leading-[1.0] text-slate-900 mb-6"
           >
             Sua operação{" "}
-            <span className="bg-gradient-to-br from-emerald-400 to-teal-300 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-br from-emerald-500 to-teal-400 bg-clip-text text-transparent">
               comercial
             </span>
             ,<br />centralizada e inteligente.
@@ -191,7 +194,7 @@ export default function LandingPitch() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.25 }}
-            className="text-lg sm:text-xl text-slate-400 font-medium leading-relaxed max-w-2xl mx-auto mb-10"
+            className="text-lg sm:text-xl text-slate-500 font-medium leading-relaxed max-w-2xl mx-auto mb-10"
           >
             CRM, agenda, e-mail, WhatsApp e IA em um único lugar.
             Nunca mais perca um cliente, um pedido ou uma oportunidade.
@@ -206,13 +209,13 @@ export default function LandingPitch() {
           >
             <Link
               to="/register"
-              className="group flex items-center gap-2 px-8 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-sm transition-all shadow-[0_0_40px_rgba(16,185,129,0.3)] hover:shadow-[0_0_60px_rgba(16,185,129,0.45)] hover:-translate-y-0.5"
+              className="group flex items-center gap-2 px-8 py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm transition-all shadow-lg shadow-emerald-200 hover:shadow-xl hover:shadow-emerald-200 hover:-translate-y-0.5"
             >
               Começar gratuitamente
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
-            <button className="flex items-center gap-2 px-8 py-4 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 text-white font-semibold text-sm transition-all">
-              <Play className="w-4 h-4 text-emerald-400" />
+            <button className="flex items-center gap-2 px-8 py-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-sm transition-all shadow-sm">
+              <Play className="w-4 h-4 text-emerald-500" />
               Ver demonstração
             </button>
           </motion.div>
@@ -226,13 +229,13 @@ export default function LandingPitch() {
           >
             <div className="flex -space-x-2.5">
               {avatars.map((a) => (
-                <div key={a} className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 border-2 border-slate-950 flex items-center justify-center text-white text-[9px] font-black">
+                <div key={a} className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 border-2 border-white flex items-center justify-center text-white text-[9px] font-black shadow-sm">
                   {a}
                 </div>
               ))}
             </div>
             <p className="text-slate-500 text-[13px] font-medium">
-              Mais de <span className="text-white font-semibold">2.000 representantes</span> já confiam na plataforma
+              Mais de <span className="text-slate-800 font-semibold">2.000 representantes</span> já confiam na plataforma
             </p>
           </motion.div>
         </div>
@@ -245,15 +248,14 @@ export default function LandingPitch() {
           className="relative z-10 mt-16 max-w-5xl mx-auto w-full px-4"
         >
           <div className="relative">
-            <div className="absolute inset-0 bg-emerald-500/10 blur-[80px] rounded-3xl -z-10 scale-95" />
-            <div className="rounded-2xl overflow-hidden border border-white/10 shadow-[0_40px_120px_rgba(0,0,0,0.8)]">
+            <div className="absolute -inset-4 bg-gradient-to-b from-emerald-100/60 to-transparent blur-2xl rounded-3xl -z-10" />
+            <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-[0_24px_80px_rgba(0,0,0,0.12),0_4px_16px_rgba(0,0,0,0.06)]">
               <img
                 src="/assets/dashboard_mockup.webp"
                 alt="Dashboard Represente-Se"
                 className="w-full"
               />
             </div>
-            <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-slate-950 to-transparent rounded-b-2xl" />
           </div>
         </motion.div>
       </section>
@@ -357,23 +359,23 @@ export default function LandingPitch() {
       </section>
 
       {/* ── FEATURE SHOWCASE 2 — IA ─────────────────────────── */}
-      <section className="py-24 px-6 bg-slate-950 overflow-hidden relative">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] bg-emerald-500/8 blur-[120px] rounded-full" />
-        </div>
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-center relative z-10">
+      <section className="py-24 px-6 bg-emerald-50 overflow-hidden relative">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
           <FadeUp delay={0.1} className="order-2 lg:order-1">
-            <div className="bg-slate-900 rounded-3xl border border-white/10 p-8 shadow-2xl">
-              <div className="flex items-center gap-2 mb-6 pb-4 border-b border-white/10">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
+            <div className="bg-white rounded-3xl border border-slate-200 p-8 shadow-lg shadow-slate-100">
+              <div className="flex items-center gap-3 mb-6 pb-5 border-b border-slate-100">
+                <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-sm">
                   <Brain className="w-4 h-4 text-white" />
                 </div>
                 <div>
-                  <p className="text-white text-[13px] font-black">Neural Engine</p>
-                  <p className="text-emerald-400 text-[10px] font-medium">● Online</p>
+                  <p className="text-slate-900 text-[13px] font-black">Neural Engine</p>
+                  <p className="text-emerald-600 text-[10px] font-semibold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
+                    Online
+                  </p>
                 </div>
               </div>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {[
                   { role: "user", text: "Gere o dossiê do cliente CAETANO TIETE" },
                   { role: "ai",   text: "📋 Analisando histórico de 47 interações... Cliente ativo há 14 meses. Última compra: R$ 8.200 em novembro. Pedido pendente de follow-up. Recomendo contato esta semana." },
@@ -385,8 +387,8 @@ export default function LandingPitch() {
                       className={cn(
                         "max-w-[85%] px-4 py-3 rounded-2xl text-[12px] font-medium leading-relaxed",
                         msg.role === "user"
-                          ? "bg-emerald-600 text-white rounded-br-sm"
-                          : "bg-white/8 text-slate-300 rounded-bl-sm border border-white/10"
+                          ? "bg-emerald-600 text-white rounded-br-sm shadow-sm"
+                          : "bg-slate-50 text-slate-700 rounded-bl-sm border border-slate-200"
                       )}
                     >
                       {msg.text}
@@ -398,12 +400,12 @@ export default function LandingPitch() {
           </FadeUp>
 
           <FadeUp className="order-1 lg:order-2">
-            <p className="text-[11px] font-black uppercase tracking-widest text-emerald-400 mb-4">Inteligência artificial</p>
-            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-white mb-6 leading-tight">
+            <p className="text-[11px] font-black uppercase tracking-widest text-emerald-600 mb-4">Inteligência artificial</p>
+            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 mb-6 leading-tight">
               O Gemini trabalha<br />
-              <span className="text-emerald-400">enquanto você vende.</span>
+              <span className="text-emerald-600">enquanto você vende.</span>
             </h2>
-            <p className="text-slate-400 font-medium leading-relaxed mb-8 max-w-md">
+            <p className="text-slate-500 font-medium leading-relaxed mb-8 max-w-md">
               O Neural Engine analisa sua carteira, gera dossiês, categoriza e-mails e antecipa qual cliente precisa de atenção — antes que ele vá para o concorrente.
             </p>
             <ul className="space-y-3">
@@ -413,9 +415,9 @@ export default function LandingPitch() {
                 "Alertas proativos de inatividade",
                 "Sugestão de pauta para visitas",
               ].map((item) => (
-                <li key={item} className="flex items-center gap-3 text-[13px] text-slate-400 font-medium">
-                  <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                    <Check className="w-3 h-3 text-emerald-400" />
+                <li key={item} className="flex items-center gap-3 text-[13px] text-slate-700 font-medium">
+                  <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                    <Check className="w-3 h-3 text-emerald-600" />
                   </div>
                   {item}
                 </li>
@@ -580,36 +582,40 @@ export default function LandingPitch() {
       </section>
 
       {/* ── CTA FINAL ───────────────────────────────────────── */}
-      <section id="planos" className="py-24 px-6">
+      <section id="planos" className="py-24 px-6 bg-white">
         <div className="max-w-5xl mx-auto">
           <FadeUp>
-            <div className="relative rounded-[48px] overflow-hidden bg-slate-950 px-10 md:px-20 py-20 text-center shadow-[0_40px_120px_rgba(0,0,0,0.3)]">
-              <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-emerald-500/15 blur-[100px] rounded-full" />
-                <div className="absolute bottom-0 left-1/4 w-[300px] h-[200px] bg-teal-500/10 blur-[80px] rounded-full" />
-              </div>
+            <div className="relative rounded-[48px] overflow-hidden px-10 md:px-20 py-20 text-center"
+              style={{ background: "linear-gradient(135deg, #059669 0%, #0d9488 50%, #10b981 100%)" }}
+            >
+              {/* texture overlay */}
+              <div className="absolute inset-0 pointer-events-none opacity-10"
+                style={{
+                  backgroundImage: `radial-gradient(circle, white 1px, transparent 1px)`,
+                  backgroundSize: "28px 28px",
+                }}
+              />
+              <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 blur-[80px] rounded-full" />
+              <div className="absolute bottom-0 left-0 w-60 h-60 bg-white/10 blur-[60px] rounded-full" />
 
               <div className="relative z-10">
-                <p className="text-[11px] font-black uppercase tracking-widest text-emerald-400 mb-5">Comece hoje</p>
+                <p className="text-[11px] font-black uppercase tracking-widest text-emerald-100 mb-5">Comece hoje</p>
                 <h2 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight text-white mb-6 leading-tight">
-                  Pronto para transformar<br />
-                  <span className="bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent">
-                    sua operação comercial?
-                  </span>
+                  Pronto para transformar<br />sua operação comercial?
                 </h2>
-                <p className="text-slate-400 font-medium text-lg max-w-lg mx-auto mb-10">
+                <p className="text-emerald-100 font-medium text-lg max-w-lg mx-auto mb-10">
                   Junte-se a mais de 2.000 representantes que já alavancaram seus resultados com a Represente-Se.
                 </p>
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                   <Link
                     to="/register"
-                    className="group flex items-center gap-2 px-10 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-[14px] transition-all shadow-[0_0_40px_rgba(16,185,129,0.35)] hover:shadow-[0_0_60px_rgba(16,185,129,0.5)] hover:-translate-y-0.5"
+                    className="group flex items-center gap-2 px-10 py-4 rounded-2xl bg-white hover:bg-emerald-50 text-emerald-700 font-black text-[14px] transition-all shadow-xl hover:-translate-y-0.5"
                   >
                     Teste grátis por 7 dias
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </Link>
                 </div>
-                <p className="text-slate-600 text-[11px] font-medium uppercase tracking-widest mt-5">
+                <p className="text-emerald-200/70 text-[11px] font-medium uppercase tracking-widest mt-5">
                   Satisfação garantida · Sem compromisso · Cancele quando quiser
                 </p>
               </div>
