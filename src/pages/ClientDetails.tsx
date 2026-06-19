@@ -520,7 +520,7 @@ export default function ClientDetails() {
               disabled={isSavingNotes}
               className="w-full py-4 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all disabled:opacity-50"
             >
-              Atualizar Dossiê
+              Atualizar Resumo
             </button>
           </div>
         </div>

@@ -506,7 +506,7 @@ export default function PedidosPage() {
                  <div className="p-8 md:p-12 border-b dark:border-zinc-850 flex items-center justify-between bg-slate-50/50 dark:bg-zinc-950/20">
                     <div>
                        <h3 className="text-xl md:text-3xl font-black uppercase tracking-tighter">Processamento Lote</h3>
-                       <p className="text-[8px] md:text-[10px] font-black text-emerald-600 uppercase tracking-widest mt-1">IA Gemini Ativa</p>
+                       <p className="text-[8px] md:text-[10px] font-black text-emerald-600 uppercase tracking-widest mt-1">IA Ativa</p>
                     </div>
                     <button onClick={() => setIsBatchModalOpen(false)} className="p-4 md:p-6 bg-white dark:bg-zinc-900 rounded-xl md:rounded-2xl text-slate-300 hover:text-red-500 transition-all"><X className="w-6 h-6 md:w-8 md:h-8" /></button>
                  </div>
@@ -568,7 +568,7 @@ export default function PedidosPage() {
                     <div className="p-6 md:p-10 bg-emerald-600 flex items-center justify-center gap-4 md:gap-6">
                        <Loader2 className="w-6 h-6 md:w-8 md:h-8 text-white animate-spin" />
                        <div className="flex flex-col">
-                          <p className="text-white font-black uppercase tracking-widest text-[10px] md:text-sm">IA Gemini Digitalizando...</p>
+                          <p className="text-white font-black uppercase tracking-widest text-[10px] md:text-sm">IA Digitalizando...</p>
                        </div>
                     </div>
                  )}

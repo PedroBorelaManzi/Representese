@@ -63,8 +63,8 @@ export const plans = [
       { text: 'Busca CNPJ Automática', icon: Zap },
       { text: 'BI & Analytics Avançado', icon: BarChart3 },
       { text: 'Exportação de Relatórios', icon: Check },
-      { text: 'Lançamento via IA (Gemini)', icon: Sparkles },
-      { text: 'Automação de Pedidos', icon: Zap },
+      { text: 'Assistente IA para clientes', icon: Sparkles },
+      { text: 'Digitalização de Pedidos por IA', icon: Zap },
       { text: 'Integração com Inbox', icon: Mail },
       { text: 'Suporte via WhatsApp Prioritário', icon: Star }
     ],

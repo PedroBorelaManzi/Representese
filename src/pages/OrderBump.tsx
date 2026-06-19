@@ -69,8 +69,8 @@ const planDetails = {
       "Busca CNPJ Automática",
       "BI & Analytics Avançado",
       "Exportação de Relatórios",
-      "Lançamento via IA (Gemini)",
-      "Automação de Pedidos",
+      "Assistente IA para clientes",
+      "Digitalização de Pedidos por IA",
       "Integração com Inbox",
       "Suporte via WhatsApp Prioritário"
     ]

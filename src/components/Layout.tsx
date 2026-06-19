@@ -16,7 +16,8 @@ import {
   Mail,
   Cloud,
   CloudOff,
-  RefreshCw
+  RefreshCw,
+  Sparkles
 } from 'lucide-react';
 import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -256,6 +257,7 @@ export default function Layout() {
 
   const menuItems = [
     { icon: LayoutDashboard, label: 'Início', path: '/dashboard' },
+    { icon: Sparkles, label: 'Assistente IA', path: '/dashboard/assistente' },
     { icon: MapIcon, label: 'Mapa', path: '/dashboard/map' },
     { icon: Users, label: 'Clientes', path: '/dashboard/clientes' },
     { icon: Building2, label: 'Empresas', path: '/dashboard/empresas' },
@@ -521,7 +523,7 @@ export default function Layout() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Versão 2.4.2</p>
-                  <p className="text-[8px] font-medium text-emerald-500 uppercase tracking-widest">Neural Engine 2026</p>
+                  <p className="text-[8px] font-medium text-emerald-500 uppercase tracking-widest">Inteligência Artificial</p>
                 </div>
                 <div className="w-8 h-8 rounded-lg bg-slate-50 dark:bg-zinc-800 flex items-center justify-center">
                    <Shield className="w-4 h-4 text-emerald-600 opacity-20" />
