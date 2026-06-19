@@ -356,15 +356,12 @@ export default function Agenda() {
   return (
     <div className="h-full flex flex-col gap-0 pb-0">
       {/* Premium Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 px-4 lg:px-0">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 px-6 pt-6 pb-5 border-b border-slate-200/70 bg-gradient-to-r from-white to-slate-50/50 mb-6 rounded-t-2xl">
         <div>
-          <h1 className="text-3xl lg:text-4xl font-black text-slate-900 dark:text-zinc-100 flex items-center gap-4 uppercase tracking-tight">
-            <div className="p-3 bg-emerald-600 rounded-[20px] ">
-              <CalendarIcon className="w-6 h-6 lg:w-8 lg:h-8 text-white" />
-            </div>
-            AGENDA
+          <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-zinc-100">
+            Agenda
           </h1>
-          <p className="text-sm text-slate-500 dark:text-zinc-400 mt-2 font-medium">Visitas e feriados do mês.</p>
+          <p className="text-sm text-slate-400 font-medium mt-0.5">Visitas e feriados do mês.</p>
         </div>
         
         <div className="flex flex-col sm:flex-row items-center gap-4">
@@ -468,17 +465,19 @@ export default function Agenda() {
                             )}>
                                 {date.getDate()}
                             </span>
-                            <button 
-                              onClick={(e) => { e.stopPropagation(); setSelectedNoteDate(date); setIsNotesModalOpen(true); }} 
-                              className={cn(
-                                "px-2 py-1 rounded-lg text-[7px] font-black uppercase tracking-widest transition-all",
-                                isSameDay(selectedNoteDate, dateIso || "") 
-                                  ? "bg-emerald-600 text-white shadow-sm scale-105" 
-                                  : "bg-slate-50 dark:bg-zinc-800 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
-                              )}
-                            >
-                              Anotações
-                            </button>
+                            {(dayEvents.length > 0 || dayHolidays.length > 0 || isSameDay(selectedNoteDate, dateIso || "")) && (
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); setSelectedNoteDate(date); setIsNotesModalOpen(true); }} 
+                                className={cn(
+                                  "px-2 py-1 rounded-lg text-[7px] font-black uppercase tracking-widest transition-all",
+                                  isSameDay(selectedNoteDate, dateIso || "") 
+                                    ? "bg-emerald-600 text-white shadow-sm scale-105" 
+                                    : "bg-slate-50 dark:bg-zinc-800 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+                                )}
+                              >
+                                Anotações
+                              </button>
+                            )}
                           </div>
                           {dayHolidays.length > 0 && (
                             <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shadow-sm shadow-amber-200" />

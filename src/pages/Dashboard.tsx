@@ -544,14 +544,13 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 h-full flex flex-col">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-6 pt-6 pb-5 border-b border-slate-200/70 bg-gradient-to-r from-white to-slate-50/50 mb-6 rounded-t-2xl">
         <div className="flex items-center justify-between w-full">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-2 uppercase tracking-tight">
-              <Home className="w-6 h-6 text-emerald-600" />
+            <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-zinc-100">
               Início
             </h1>
-            <p className="text-sm text-slate-500 dark:text-zinc-400 mt-1 font-medium">Semana de {new Date().toLocaleString('pt-BR', { month: 'long' })}</p>
+            <p className="text-sm text-slate-400 font-medium mt-0.5">Semana de {new Date().toLocaleString('pt-BR', { month: 'long' })}</p>
           </div>
           
           {!offlineCache.isOnline() && (
@@ -789,7 +788,7 @@ export default function Dashboard() {
            <div className="h-[400px]">
               <RevenueChart data={revenueChartData} loading={loading} currentDate={currentDate} onPrevMonth={handlePrevMonth} onNextMonth={handleNextMonth} />
            </div>
-           <div className="h-[400px]">
+           <div className="h-[400px] border-t border-slate-100 dark:border-zinc-800 pt-3 mt-3">
                <DailyNotes selectedDate={selectedNoteDate} />
             </div>
         </div>

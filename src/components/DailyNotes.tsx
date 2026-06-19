@@ -209,7 +209,7 @@ export default function DailyNotes({ selectedDate, className }: DailyNotesProps)
         </div>
 
         {/* Coluna de Tarefas */}
-        <div className="flex flex-col h-full min-h-[200px]">
+        <div className="flex flex-col h-full min-h-[200px] xl:border-l xl:border-slate-200 dark:xl:border-zinc-800 xl:pl-6">
           <div className="flex items-center justify-between mb-4 flex-shrink-0">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-emerald-500/10 rounded-xl">

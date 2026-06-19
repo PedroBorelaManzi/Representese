@@ -270,9 +270,9 @@ export default function CRMPage() {
 
   return (
     <div className="h-[calc(100dvh-2rem)] flex flex-col gap-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-6 pt-6 pb-5 border-b border-slate-200/70 bg-gradient-to-r from-white to-slate-50/50 mb-6 rounded-t-2xl">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 dark:text-zinc-100 flex items-center gap-3 uppercase">
+          <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-zinc-100">
              Gestão de Clientes
           </h1>
         </div>
@@ -305,13 +305,13 @@ export default function CRMPage() {
            </button>
          </div>
       </div>
-      <div className="flex-1 bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 flex flex-col min-h-0 shadow-sm overflow-hidden relative">
-        <div className="px-4 pt-4 border-b dark:border-zinc-850 bg-slate-50/50 dark:bg-zinc-950/20 flex items-center gap-4 overflow-x-auto no-scrollbar">
+      <div className="flex-1 bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 flex flex-col min-h-0 ring-1 ring-slate-200/80 shadow-none overflow-hidden relative">
+        <div className="px-4 py-3 border-b dark:border-zinc-850 bg-slate-50/50 dark:bg-zinc-950/20 flex items-center gap-2 overflow-x-auto no-scrollbar">
           {(['Todos', 'Alerta', 'Crítico', 'Inativo'] as const).map(tab => (
             <button 
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`pb-3 px-2 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all whitespace-nowrap ${activeTab === tab ? "border-emerald-600 text-emerald-600" : "border-transparent text-slate-400 hover:text-slate-600"}`}
+              className={`px-4 py-1.5 rounded-full text-xs font-black transition-all whitespace-nowrap ${activeTab === tab ? "bg-slate-900 text-white" : "text-slate-500 hover:bg-slate-100"}`}
             >
               {tab} <span className="ml-1 opacity-50">({clients.filter(c => tab === 'Todos' ? true : c.alerts?.some((a: Alert) => a.type === tab)).length})</span>
             </button>
@@ -327,14 +327,14 @@ export default function CRMPage() {
            {loading ? (
               <div className="flex items-center justify-center h-40"><Loader2 className="w-6 h-6 text-emerald-600 animate-spin" /></div>
            ) : (
-              <div className="divide-y divide-slate-100 dark:divide-zinc-850">
+              <div className="flex flex-col">
                  {displayClients.map((client) => (
                     <div 
                       key={client.id}
                       onClick={() => navigate(`/dashboard/clientes/${client.id}`)}
-                      className="p-4 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-zinc-850/50 flex items-center gap-4 group"
+                      className="p-4 cursor-pointer transition-colors hover:bg-slate-50/80 border-b border-slate-100 flex items-center gap-4 group"
                     >
-                       <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black uppercase bg-slate-100 dark:bg-zinc-850 text-slate-500 dark:text-zinc-400 group-hover:bg-emerald-600 group-hover:text-white transition-colors shrink-0">
+                       <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black uppercase bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 shrink-0">
                           {client.name?.substring(0, 2)}
                        </div>
                        <div className="flex-1 min-w-0">

@@ -23,6 +23,7 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
 import { useUpload } from "../contexts/UploadContext";
+import { Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { processOrderFile } from "../lib/orderProcessor";
@@ -443,7 +444,7 @@ export default function ClientDetails() {
 
   return (
     <div className="flex flex-col gap-8 pb-20 max-w-7xl mx-auto">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 px-6 pt-6 pb-5 border-b border-slate-200/70 bg-gradient-to-r from-white to-slate-50/50 mb-6 rounded-t-2xl">
         <div className="space-y-4">
           <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-emerald-600 transition-colors">
             <ArrowLeft className="w-3 h-3" /> Voltar
@@ -453,7 +454,7 @@ export default function ClientDetails() {
               <User className="w-10 h-10" />
             </div>
             <div>
-              <h1 className="text-3xl md:text-5xl font-black text-slate-900 dark:text-zinc-100 normal-case tracking-tighter leading-none">{toTitleCase(client.name || "")}</h1>
+              <h1 className="text-xl md:text-2xl font-black tracking-tight text-slate-900 dark:text-zinc-100">{toTitleCase(client.name || "")}</h1>
               <div className="flex items-center gap-4 mt-3">
                 <span className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 text-[10px] font-black uppercase rounded-full">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Ativo no Radar
@@ -465,13 +466,15 @@ export default function ClientDetails() {
         </div>
 
         <div className="flex gap-3">
-          <button onClick={() => navigate(`/dashboard/clientes/${id}/editar`)} className="px-8 py-4 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl font-black uppercase text-[10px] tracking-widest text-slate-600 dark:text-zinc-400 hover:border-emerald-500 transition-all active:scale-95">Editar Cadastro</button>
+          <button onClick={() => navigate(`/dashboard/clientes/${id}/editar`)} className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-xs font-black text-slate-600 hover:border-slate-300 hover:bg-slate-50 transition-all">
+            <Pencil className="w-3 h-3" /> Editar
+          </button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-1 space-y-8">
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-sm p-8 space-y-6">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 ring-1 ring-slate-200/80 shadow-none p-8 space-y-6">
             <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 border-b border-slate-50 dark:border-zinc-800 pb-4">Informações de Contato</h3>
             
             <div className="space-y-4">
@@ -501,7 +504,7 @@ export default function ClientDetails() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-sm p-8 space-y-4">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 ring-1 ring-slate-200/80 shadow-none p-8 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Anotações</h3>
               {isSavingNotes && <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />}
@@ -523,7 +526,7 @@ export default function ClientDetails() {
         </div>
 
         <div className="lg:col-span-2 space-y-8">
-           <div className="bg-white dark:bg-zinc-900 rounded-[32px] border border-slate-200 dark:border-zinc-800 shadow-sm p-8 flex flex-col h-full min-h-[600px]">
+           <div className="bg-white dark:bg-zinc-900 rounded-[32px] border border-slate-200 dark:border-zinc-800 ring-1 ring-slate-200/80 shadow-none p-8 flex flex-col h-full min-h-[600px]">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10 pb-6 border-b border-slate-50 dark:border-zinc-850">
                 <div>
                   <h2 className="text-xl font-black text-slate-900 dark:text-zinc-100 flex items-center gap-3 uppercase tracking-tight">

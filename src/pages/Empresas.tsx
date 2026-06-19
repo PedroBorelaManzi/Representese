@@ -421,13 +421,10 @@ export default function EmpresasPage() {
 
   return (
     <div className="flex flex-col gap-4 lg:gap-10 pb-20 overflow-x-hidden">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-6 pt-6 pb-5 border-b border-slate-200/70 bg-gradient-to-r from-white to-slate-50/50 mb-6 rounded-t-2xl">
         <div>
-          <h1 className="text-xl sm:text-2xl lg:text-4xl font-black text-slate-900 dark:text-zinc-100 flex items-center gap-3 md:gap-4 uppercase tracking-tight">
-            <div className="p-2 sm:p-2.5 lg:p-3 bg-emerald-600 rounded-xl lg:rounded-[20px]">
-              <Building2 className="w-5 h-5 sm:w-6 h-6 lg:w-8 lg:h-8 text-white" />
-            </div>
-            <span>Empresas <span className="text-slate-200 ml-1 md:ml-2">/</span> <span className="text-emerald-600">Pedidos</span></span>
+          <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-zinc-100">
+            Empresas
           </h1>
         </div>
         
@@ -453,7 +450,7 @@ export default function EmpresasPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-        <div className="bg-white dark:bg-zinc-900 p-5 sm:p-6 lg:p-8 rounded-[32px] md:rounded-[40px] border border-slate-200 dark:border-zinc-800 shadow-sm group">
+        <div className="bg-white dark:bg-zinc-900 p-5 sm:p-6 lg:p-8 rounded-[32px] md:rounded-[40px] border border-slate-200 dark:border-zinc-800 ring-1 ring-slate-200/80 shadow-none hover:ring-emerald-300 transition-all group">
           <div className="flex items-center gap-4 md:gap-5">
             <div className="p-2 sm:p-2.5 lg:p-3 bg-emerald-50 dark:bg-emerald-950/20 rounded-2xl md:rounded-3xl group-hover:scale-110 transition-transform flex-shrink-0">
               <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-emerald-600" />
@@ -465,7 +462,7 @@ export default function EmpresasPage() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-zinc-900 p-5 sm:p-6 lg:p-8 rounded-[32px] md:rounded-[40px] border border-slate-200 dark:border-zinc-800 shadow-sm group">
+        <div className="bg-white dark:bg-zinc-900 p-5 sm:p-6 lg:p-8 rounded-[32px] md:rounded-[40px] border border-slate-200 dark:border-zinc-800 ring-1 ring-slate-200/80 shadow-none hover:ring-emerald-300 transition-all group">
           <div className="flex items-center gap-4 md:gap-5">
             <div className="p-2 sm:p-2.5 lg:p-3 bg-emerald-50 dark:bg-emerald-950/20 rounded-2xl md:rounded-3xl group-hover:rotate-12 transition-transform flex-shrink-0">
               <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-emerald-600" />
@@ -477,7 +474,7 @@ export default function EmpresasPage() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-zinc-900 p-5 sm:p-6 lg:p-8 rounded-[32px] md:rounded-[40px] border border-slate-200 dark:border-zinc-800 shadow-sm group">
+        <div className="bg-white dark:bg-zinc-900 p-5 sm:p-6 lg:p-8 rounded-[32px] md:rounded-[40px] border border-slate-200 dark:border-zinc-800 ring-1 ring-slate-200/80 shadow-none hover:ring-emerald-300 transition-all group">
           <div className="flex items-center gap-4 md:gap-5">
             <div className="p-2 sm:p-2.5 lg:p-3 bg-amber-50 dark:bg-amber-950/20 rounded-2xl md:rounded-3xl group-hover:scale-90 transition-transform flex-shrink-0">
               <Zap className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-amber-600" />
@@ -506,12 +503,12 @@ export default function EmpresasPage() {
               onClick={() => setSelectedCategory("all")}
               className={cn("w-full text-left p-4 sm:p-5 lg:p-7 rounded-[30px] md:rounded-[35px] border transition-all relative group overflow-hidden active:scale-[0.98] col-span-2 lg:col-span-1",
                 selectedCategory === "all" 
-                  ? "bg-slate-900 dark:bg-zinc-900 border-slate-900 text-white shadow-[0_20px_40px_rgba(0,0,0,0.1)] dark:border-emerald-500/50 dark:shadow-[0_0_20px_rgba(16,185,129,0.3)]" 
-                  : "bg-white dark:bg-zinc-900 border-slate-100 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 hover:border-emerald-200 shadow-sm"
+                  ? "bg-emerald-600 border-emerald-600 text-white shadow-[0_20px_40px_rgba(16,185,129,0.2)] dark:border-emerald-500/50" 
+                  : "bg-white dark:bg-zinc-900 border-slate-100 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 hover:border-emerald-200 ring-1 ring-slate-200/80 shadow-none hover:ring-emerald-300 transition-all"
               )}
             >
               <div className="flex items-center justify-between mb-2">
-                <h4 className="text-[9px] sm:text-[11px] lg:text-[12px] font-black uppercase tracking-widest text-emerald-500">Todas</h4>
+                <h4 className={cn("text-[9px] sm:text-[11px] lg:text-[12px] font-black uppercase tracking-widest", selectedCategory === "all" ? "text-emerald-100" : "text-emerald-500")}>Todas</h4>
                 <LayoutGrid className="w-4 h-4 md:w-5 md:h-5 opacity-40 group-hover:scale-110 transition-transform" />
               </div>
               <div className="flex items-end justify-between">
