@@ -35,45 +35,45 @@ const industries = [
   { 
     name: "Construção", 
     icon: Building2, 
-    color: "bg-orange-50 text-orange-600",
+    color: "bg-emerald-50 text-emerald-700",
     image: "/assets/setor_materiais.webp"
   },
   { 
     name: "Supermercados", 
     icon: ShoppingCart, 
-    color: "bg-emerald-50 text-emerald-600",
+    color: "bg-emerald-50 text-emerald-700",
     image: "/assets/setor_supermercado.webp"
   },
   { 
     name: "Farmácias", 
     icon: PlusIcon, 
-    color: "bg-red-50 text-red-600",
+    color: "bg-emerald-50 text-emerald-700",
     image: "/assets/setor_farmacia.webp",
     objectPosition: "50% 20%"
   },
   { 
     name: "Distribuidoras", 
     icon: Store, 
-    color: "bg-blue-50 text-blue-600",
+    color: "bg-emerald-50 text-emerald-700",
     image: "/assets/setor_distribuidora.webp"
   },
   { 
     name: "Serviços", 
     icon: Briefcase, 
-    color: "bg-emerald-50 text-emerald-600",
+    color: "bg-emerald-50 text-emerald-700",
     image: "/assets/setor_servicos.webp",
     objectPosition: "50% 15%"
   },
   { 
     name: "Agronegócio", 
     icon: Wheat, 
-    color: "bg-amber-50 text-amber-700",
+    color: "bg-emerald-50 text-emerald-700",
     image: "/assets/setor_agro.webp"
   },
   { 
     name: "Outros", 
     icon: Zap, 
-    color: "bg-slate-50 text-slate-600",
+    color: "bg-emerald-50 text-emerald-700",
     image: "/assets/setor_outros.webp"
   },
 ];
@@ -160,10 +160,10 @@ export default function LandingPitch() {
           </Link>
           
           <div className="hidden lg:flex items-center gap-10">
-            <a href="#industrias" className="text-[11px] font-black uppercase tracking-widest text-slate-700 hover:text-slate-900 dark:text-white transition-colors">Setores</a>
-            <a href="#tecnologia" className="text-[11px] font-black uppercase tracking-widest text-slate-700 hover:text-slate-900 dark:text-white transition-colors">Tecnologia</a>
-            <a href="#planos" className="text-[11px] font-black uppercase tracking-widest text-slate-700 hover:text-slate-900 dark:text-white transition-colors">Planos</a>
-            <a href="#duvidas" className="text-[11px] font-black uppercase tracking-widest text-slate-700 hover:text-slate-900 dark:text-white transition-colors">Dúvidas</a>
+            <a href="#industrias" className="text-[11px] font-black uppercase tracking-tight text-slate-700 hover:text-slate-900 dark:text-white transition-colors">Setores</a>
+            <a href="#tecnologia" className="text-[11px] font-black uppercase tracking-tight text-slate-700 hover:text-slate-900 dark:text-white transition-colors">Tecnologia</a>
+            <a href="#planos" className="text-[11px] font-black uppercase tracking-tight text-slate-700 hover:text-slate-900 dark:text-white transition-colors">Planos</a>
+            <a href="#duvidas" className="text-[11px] font-black uppercase tracking-tight text-slate-700 hover:text-slate-900 dark:text-white transition-colors">Dúvidas</a>
           </div>
 
           <div className="flex items-center gap-4">
@@ -175,7 +175,11 @@ export default function LandingPitch() {
       </motion.nav>
 
       {/* Hero Section */}
-      <section className="pt-[calc(env(safe-area-inset-top,0px)+120px)] md:pt-48 pb-20 px-6">
+      <section className="pt-[calc(env(safe-area-inset-top,0px)+120px)] md:pt-48 pb-20 px-6 relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_0%,rgba(16,185,129,0.10),transparent)]" />
+          <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-emerald-400/5 blur-[120px] rounded-full" />
+        </div>
         <div className="max-w-4xl mx-auto text-center">
           <motion.div
             initial={{ opacity: 1, y: 20, scale: 0.95 }}
@@ -189,7 +193,7 @@ export default function LandingPitch() {
               Domine suas vendas com <span className="text-transparent bg-clip-text bg-gradient-to-br from-emerald-600 via-emerald-500 to-emerald-400">inteligência</span>
             </h1>
             <p className="text-lg text-slate-700 font-medium leading-relaxed max-w-2xl mx-auto mb-12">
-              Domine sua carteira de clientes e recupere horas preciosas do seu dia. Nossa inteligência avançada gerencia a memória da sua operação, antecipando necessidades e garantindo controle total para que nenhum pedido ou cliente fique para trás — além de diversas outras ferramentas que te ajudarão a vender mais e vender melhor!
+              Centralize clientes, pedidos e agenda em uma única plataforma. Nunca mais perca um contato, um follow-up ou uma oportunidade de venda.
             </p>
             <div className='flex flex-col sm:flex-row items-center justify-center gap-5'>
               <Link to='/register' className='w-full sm:w-auto px-10 h-[58px] rounded-2xl bg-emerald-600 text-white font-black text-xs uppercase tracking-widest hover:bg-emerald-700 transition-all hover:-translate-y-1 flex items-center justify-center shadow-xl shadow-emerald-500/20'>
@@ -198,6 +202,14 @@ export default function LandingPitch() {
               <button className='w-full sm:w-auto px-10 h-[58px] rounded-2xl bg-white border border-slate-200 text-slate-600 font-black text-xs uppercase tracking-widest hover:border-slate-300 hover:bg-slate-50 transition-all hover:-translate-y-1 flex items-center justify-center'>
                 <Play className="w-4 h-4 mr-2 inline" /> VER VÍDEO EXPLICATIVO
               </button>
+            </div>
+            <div className="flex flex-col items-center gap-2 mt-4 pt-4 border-t border-slate-200/50">
+              <div className="flex -space-x-2">
+                {["RM","JC","AF","PS","LB"].map((i) => (
+                  <div key={i} className="w-8 h-8 rounded-full bg-emerald-600 border-2 border-white flex items-center justify-center text-white text-[8px] font-black">{i}</div>
+                ))}
+              </div>
+              <p className="text-[11px] text-slate-500 font-semibold">+2.000 representantes já usam</p>
             </div>
           </motion.div>
         </div>
@@ -275,7 +287,7 @@ export default function LandingPitch() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex flex-col lg:flex-row items-center gap-20">
             <motion.div 
-              initial={{ opacity: 1, x: -30 }}
+              initial={{ opacity: 0, x: -30 }}
               whileInView={{ opacity: 1, x: 0 }}
               className="lg:w-[40%] text-center lg:text-left"
             >
@@ -307,7 +319,7 @@ export default function LandingPitch() {
             </motion.div>
             
             <motion.div 
-              initial={{ opacity: 1, y: 50 }}
+              initial={{ opacity: 0, y: 50 }}
               whileInView={{ opacity: 1, y: 0 }}
               className="lg:w-[60%] w-full relative group"
             >
@@ -321,11 +333,11 @@ export default function LandingPitch() {
       </section>
 
       {/* FAQ Section Moved Here */}
-      <section id="duvidas" className="py-32 bg-white relative overflow-hidden">
+      <section id="duvidas" className="py-20 bg-white relative overflow-hidden">
         <div className="max-w-4xl mx-auto px-6">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-6xl font-black text-slate-900 dark:text-white uppercase tracking-tighter mb-4">
-              Dúvidas Frequentes
+            <h2 className="text-4xl md:text-6xl font-black text-slate-900 dark:text-white tracking-tighter mb-4">
+              Dúvidas frequentes
             </h2>
             <p className="text-slate-700 font-medium uppercase text-xs tracking-[0.3em]">
               Tudo o que você precisa saber sobre a plataforma
@@ -336,7 +348,7 @@ export default function LandingPitch() {
             {faqs.map((faq, idx) => (
               <motion.div 
                 key={idx}
-                initial={{ opacity: 1, y: 10 }}
+                initial={{ opacity: 0, y: 10 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.05 }}
                 className="bg-slate-50 rounded-[32px] border border-slate-100 overflow-hidden transition-all shadow-sm"
@@ -377,7 +389,7 @@ export default function LandingPitch() {
       </section>
 
       {/* Future Section (From Login Page) */}
-      <section className="py-32 bg-slate-50 relative overflow-hidden">
+      <section className="py-20 bg-slate-50 relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div className="space-y-8">
@@ -389,7 +401,7 @@ export default function LandingPitch() {
                 {features.map((feature, idx) => (
                   <motion.div
                     key={idx}
-                    initial={{ opacity: 1, y: 20 }}
+                    initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.1 }}
                     className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm group hover:-translate-y-1 transition-all duration-500"
@@ -405,7 +417,7 @@ export default function LandingPitch() {
             </div>
 
             <motion.div
-              initial={{ opacity: 1, y: 20, scale: 0.95 }}
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
               whileInView={{ opacity: 1, scale: 1 }}
               className="bg-slate-900 p-12 lg:p-16 rounded-[64px] text-white space-y-8 shadow-2xl relative overflow-hidden group"
             >
@@ -414,7 +426,7 @@ export default function LandingPitch() {
                 <div className="flex gap-1">
                   {[1,2,3,4,5].map(i => <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />)}
                 </div>
-                <p className="text-xl md:text-2xl font-medium italic opacity-90 leading-relaxed">
+                <p className="text-xl md:text-2xl text-white font-medium italic opacity-90 leading-relaxed">
                   "O controle que tenho hoje sobre minha carteira de clientes é algo que eu nunca imaginei ser possível."
                 </p>
                 <div className="flex items-center gap-4">
@@ -431,14 +443,15 @@ export default function LandingPitch() {
       </section>
 
       {/* Final CTA */}
-      <section id="planos" className="py-32 px-6">
+      <section id="planos" className="py-20 px-6">
         <div className="max-w-5xl mx-auto rounded-[64px] bg-slate-900 p-12 md:p-24 text-center relative overflow-hidden group">
           <div className="absolute inset-0 bg-emerald-600/10 blur-[100px] group-hover:bg-emerald-600/20 transition-all" />
-          <motion.div initial={{ opacity: 1, y: 20 }} whileInView={{ opacity: 1, y: 0 }} className="relative">
-            <h2 className="text-2xl sm:text-4xl md:text-6xl font-black text-white uppercase tracking-tighter mb-8 leading-none">
-              Pronto para ser um <br /> <span className="text-emerald-400 text-3xl sm:text-5xl md:text-8xl">SUPER REPRESENTANTE?</span>
+          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} className="relative">
+            <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-white tracking-tighter mb-8 leading-tight">
+              Pronto para transformar <br />
+              <span className="text-emerald-400">sua operação comercial?</span>
             </h2>
-            <p className="text-slate-600 font-medium text-lg max-w-xl mx-auto mb-12">
+            <p className="text-slate-400 font-medium text-lg max-w-xl mx-auto mb-12">
               Junte-se a mais de 2.000 que já alavancaram mais de 150% de suas vendas com a Representese
             </p>
             <div className="flex flex-col items-center gap-4">
