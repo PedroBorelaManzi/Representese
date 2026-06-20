@@ -206,7 +206,7 @@ export async function processOrderFile(file: File, knownClients = [], categories
         let textResult = "";
     try {
         const geminiCall = geminiWithSystem(userPrompt, SYSTEM_INSTRUCTION, {
-          model: "gemini-2.0-flash",
+          model: "gemini-2.5-flash",
           imageData,
           imageMimeType,
           generationConfig: { responseMimeType: "application/json" },

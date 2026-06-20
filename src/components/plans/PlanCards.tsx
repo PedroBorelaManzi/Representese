@@ -85,17 +85,16 @@ export function PlanCards({ billingCycle, currentSubscriptionPlan, onSubscribe, 
               disabled={isCurrent}
               className={cn(
                 "w-full py-6 rounded-[28px] font-black uppercase text-xs tracking-[0.2em] transition-all flex items-center justify-center gap-3 active:scale-[0.98] group/btn",
-                isCurrent 
+                isCurrent
                   ? "bg-slate-50 dark:bg-zinc-800 text-slate-400 cursor-not-allowed"
                   : plan.popular
-                    ? "bg-white hover:bg-slate-50 shadow-xl shadow-black/10"
+                    ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xl shadow-emerald-500/30"
                     : "bg-slate-900 dark:bg-slate-50 text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-200 shadow-xl"
               )}
-              style={plan.popular ? { color: "#1A6B3C" } : undefined}
             >
               {isCurrent ? (showAlreadyBestPlan ? "Você já está no melhor plano!" : "Plano Atual") : (
                 <>
-                  {buttonLabel || "Teste 7 Dias Grátis"}
+                  {buttonLabel || "Assinar Agora"}
                   <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
                 </>
               )}

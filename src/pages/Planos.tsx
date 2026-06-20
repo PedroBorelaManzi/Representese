@@ -65,12 +65,9 @@ export default function Planos() {
   }, [user]);
 
   const handleSubscribe = (plan: typeof plans[0]) => {
-    if (!user) {
-      toast.error("Você precisa estar logado para assinar.");
-      return;
-    }
     setLoading(true);
-    // Navigate to public checkout with query params
+    // Checkout público: cria a conta (passo 1) e processa o pagamento (passo 2).
+    // Não exige login prévio — a pessoa escolhe o plano, se cadastra e paga.
     navigate(`/checkout?plan=${plan.id}&period=${billingCycle}`);
   };
 

@@ -80,7 +80,7 @@ async function processWithGemini(file: File): Promise<string[]> {
 
     const resText = await callGeminiProxy({
       contents: [{ role: "user", parts }],
-      model: "gemini-2.0-flash",
+      model: "gemini-2.5-flash",
     });
     const cleaned = resText.replace(/```json/g, "").replace(/```/g, "").trim();
     const cnpjs = JSON.parse(cleaned);

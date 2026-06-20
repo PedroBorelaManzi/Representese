@@ -44,7 +44,7 @@ export async function callGeminiProxy(request: GeminiProxyRequest): Promise<stri
 /**
  * Simple text-only Gemini call through the proxy.
  */
-export async function geminiText(prompt: string, model = "gemini-2.0-flash"): Promise<string> {
+export async function geminiText(prompt: string, model = "gemini-2.5-flash"): Promise<string> {
   return callGeminiProxy({
     contents: [{ role: "user", parts: [{ text: prompt }] }],
     model,
@@ -76,7 +76,7 @@ export async function geminiWithSystem(
 
   return callGeminiProxy({
     contents: [{ role: "user", parts }],
-    model: options?.model || "gemini-2.0-flash",
+    model: options?.model || "gemini-2.5-flash",
     systemInstruction,
     generationConfig: options?.generationConfig,
   });

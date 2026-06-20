@@ -105,7 +105,7 @@ FORMATO DE RESPOSTA (APENAS JSON):
 
 Nota: Não invente coordenadas. Se não tiver certeza mínima da cidade, retorne null.`;
 
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(prompt);
       const responseText = result.response.text();
       
@@ -126,7 +126,7 @@ Nota: Não invente coordenadas. Se não tiver certeza mínima da cidade, retorne
     
     if (action === 'gemini_proxy') {
       const { contents, model: modelName, systemInstruction, generationConfig } = payload;
-      const modelConfig: any = { model: modelName || 'gemini-2.0-flash' };
+      const modelConfig: any = { model: modelName || 'gemini-2.5-flash' };
       if (systemInstruction) modelConfig.systemInstruction = systemInstruction;
       if (generationConfig) modelConfig.generationConfig = generationConfig;
       const model = genAI.getGenerativeModel(modelConfig);
@@ -136,7 +136,7 @@ Nota: Não invente coordenadas. Se não tiver certeza mínima da cidade, retorne
 
     if (action === 'gemini_text' || action === 'gemini_system') {
       const { prompt, systemInstruction } = payload;
-      const modelName = payload?.model || "gemini-2.0-flash";
+      const modelName = payload?.model || "gemini-2.5-flash";
       
       const modelConfig: any = { model: modelName };
       if (systemInstruction) {
