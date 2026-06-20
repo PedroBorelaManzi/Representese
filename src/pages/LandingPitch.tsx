@@ -35,8 +35,6 @@ import {
   Quote,
   MessageSquare,
   AlertTriangle,
-  FileSpreadsheet,
-  Search,
   Monitor,
   Smartphone,
   Laptop,
@@ -45,10 +43,21 @@ import {
   Wallet,
 } from "lucide-react";
 import { Logo } from "../components/Logo";
+import { BrowserDashboard, PhoneDashboard, CrmListMock } from "../components/LandingMockups";
 import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { cn } from "../lib/utils";
 import { plans } from "../lib/plansData";
+
+/* ─── navegação (ordem = ordem dos capítulos na página) ───────── */
+const NAV = [
+  { id: "diferencial", label: "Diferencial", num: "01" },
+  { id: "recursos",    label: "Recursos",    num: "02" },
+  { id: "industrias",  label: "Setores",     num: "03" },
+  { id: "precos",      label: "Planos",      num: "04" },
+  { id: "duvidas",     label: "Dúvidas",     num: "05" },
+];
+const NAV_IDS = NAV.map((n) => n.id);
 
 /* ─── dados ─────────────────────────────────────────────────── */
 
@@ -74,9 +83,9 @@ const integrations = [
 ];
 
 const painPoints = [
-  { icon: Layers,        title: "Cada representada num canto",          desc: "WhatsApp de uma, tabela de preço de outra, planilha de uma terceira. Você passa o dia costurando, na mão, a informação que deveria estar centralizada." },
-  { icon: BarChart3,     title: "Sem visão de quanto rende cada marca", desc: "Quanto você já faturou de cada representada esse mês? Quem está perto da meta? Sem isso na tela, você não sabe onde focar o esforço." },
-  { icon: AlertTriangle, title: "Cliente e pedido escapando",          desc: "No meio de tantas marcas, o cliente que parou de comprar e o pedido sem follow-up passam batido — e viram faturamento do concorrente." },
+  { icon: Layers,        title: "Cada representada num canto",          desc: "WhatsApp de uma, tabela de preço de outra, planilha de uma terceira. Você passa o dia costurando a mão o que deveria estar centralizado." },
+  { icon: BarChart3,     title: "Sem visão de quanto rende cada marca", desc: "Quanto você faturou de cada representada esse mês? Quem está perto da meta? Sem isso na tela, você não sabe onde focar." },
+  { icon: AlertTriangle, title: "Cliente e pedido escapando",          desc: "No meio de tantas marcas, o pedido sem acompanhamento passa batido — e vira faturamento do concorrente." },
 ];
 
 /* representadas do painel-demonstração (seção diferencial) */
@@ -120,7 +129,7 @@ const bentoFeatures = [
   {
     icon: Calendar,
     title: "Agenda inteligente",
-    desc: "Visitas e compromissos sincronizados ao Google Calendar.",
+    desc: "Importe seus compromissos em um só clique.",
     span: "",
   },
   {
@@ -188,6 +197,61 @@ function FadeUp({
       {children}
     </motion.div>
   );
+}
+
+/* eyebrow/kicker padronizado — dá identidade de "capítulo" a cada seção */
+function Kicker({
+  num,
+  label,
+  dark = false,
+  center = false,
+  tone = "emerald",
+}: {
+  num?: string;
+  label: string;
+  dark?: boolean;
+  center?: boolean;
+  tone?: "emerald" | "rose";
+}) {
+  const text = dark
+    ? "text-emerald-400"
+    : tone === "rose"
+      ? "text-rose-500"
+      : "text-emerald-600";
+  const line = dark ? "bg-emerald-400/30" : tone === "rose" ? "bg-rose-400/40" : "bg-emerald-500/30";
+  const numC = dark ? "text-emerald-400/60" : tone === "rose" ? "text-rose-400/70" : "text-emerald-500/60";
+  return (
+    <div className={cn("inline-flex items-center gap-2.5 mb-4", center && "justify-center")}>
+      {num && <span className={cn("text-[12px] font-black tabular-nums", numC)}>{num}</span>}
+      {num && <span className={cn("h-px w-7", line)} />}
+      <span className={cn("text-[11px] font-black uppercase tracking-widest", text)}>{label}</span>
+    </div>
+  );
+}
+
+/* destaca o item de menu da seção que o usuário está vendo.
+   abordagem por posição de scroll = determinística (sem flicker em saltos) */
+function useActiveSection(ids: string[]) {
+  const [active, setActive] = useState<string>("");
+  useEffect(() => {
+    const onScroll = () => {
+      const line = window.innerHeight * 0.35;
+      let current = "";
+      for (const id of ids) {
+        const el = document.getElementById(id);
+        if (el && el.getBoundingClientRect().top <= line) current = id;
+      }
+      setActive(current);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, [ids]);
+  return active;
 }
 
 /* contador animado que dispara ao entrar na viewport */
@@ -276,6 +340,7 @@ export default function LandingPitch() {
   const [openFaq, setOpenFaq]                 = useState<number | null>(0);
   const [annual, setAnnual]                   = useState(true);
   const { user }                              = useAuth();
+  const active                                = useActiveSection(NAV_IDS);
 
   useMotionValueEvent(scrollY, "change", (v) => setScrolled(v > 40));
 
@@ -303,16 +368,28 @@ export default function LandingPitch() {
       >
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
           <Link to={user ? "/dashboard" : "/"}>
-            <Logo size="lg" showText variant="light" />
+            <Logo size="sm" showText variant="light" />
           </Link>
 
           <div className="hidden lg:flex items-center gap-8">
-            {["#diferencial:Diferencial", "#recursos:Recursos", "#industrias:Setores", "#precos:Planos", "#duvidas:Dúvidas"].map((item) => {
-              const [href, label] = item.split(":");
+            {NAV.map((item) => {
+              const isActive = active === item.id;
               return (
-                <a key={href} href={href} className="text-[13px] font-semibold text-slate-600 hover:text-slate-900 transition-colors relative group">
-                  {label}
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-emerald-500 group-hover:w-full transition-all duration-300" />
+                <a
+                  key={item.id}
+                  href={`#${item.id}`}
+                  className={cn(
+                    "text-[13px] font-semibold transition-colors relative group",
+                    isActive ? "text-emerald-600" : "text-slate-600 hover:text-slate-900"
+                  )}
+                >
+                  {item.label}
+                  <span
+                    className={cn(
+                      "absolute -bottom-1 left-0 h-0.5 bg-emerald-500 transition-all duration-300",
+                      isActive ? "w-full" : "w-0 group-hover:w-full"
+                    )}
+                  />
                 </a>
               );
             })}
@@ -320,8 +397,8 @@ export default function LandingPitch() {
 
           <div className="flex items-center gap-3">
             <Link to="/login" className="text-[13px] font-semibold text-slate-600 hover:text-slate-900 transition-colors px-4 py-2">Entrar</Link>
-            <Link to="/register" className="group text-[13px] font-black text-white bg-emerald-600 hover:bg-emerald-500 transition-all px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-600/20 hover:shadow-emerald-600/30 hover:-translate-y-0.5 flex items-center gap-1.5">
-              Teste grátis
+            <Link to="/register" className="group text-[13px] font-black text-white bg-emerald-600 hover:bg-emerald-500 transition-all px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-600/20 hover:shadow-emerald-600/30 hover:-translate-y-0.5 flex items-center gap-1.5 whitespace-nowrap">
+              Cadastre-se
               <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
             </Link>
           </div>
@@ -329,30 +406,36 @@ export default function LandingPitch() {
       </motion.nav>
 
       {/* ── HERO ────────────────────────────────────────────── */}
-      <section className="relative min-h-screen flex flex-col items-center justify-center pt-32 pb-16 px-6 bg-white overflow-hidden">
-        {/* aurora background */}
+      <section className="relative min-h-screen flex flex-col items-center justify-center pt-32 pb-16 px-6 overflow-hidden bg-white">
+        {/* fundo premium: grade arquitetural + brilho suave */}
         <div className="absolute inset-0 pointer-events-none">
+          {/* grade fina com máscara radial */}
           <div
-            className="absolute inset-0"
-            style={{ background: "radial-gradient(ellipse 80% 60% at 50% -10%, rgba(16,185,129,0.12) 0%, transparent 70%)" }}
-          />
-          <motion.div
-            animate={{ x: [0, 50, 0], y: [0, -30, 0], scale: [1, 1.15, 1] }}
-            transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute top-1/3 left-[8%] w-96 h-96 bg-emerald-200/50 blur-[130px] rounded-full"
-          />
-          <motion.div
-            animate={{ x: [0, -40, 0], y: [0, 40, 0], scale: [1, 1.2, 1] }}
-            transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute top-1/4 right-[8%] w-80 h-80 bg-teal-200/50 blur-[120px] rounded-full"
-          />
-          <div
-            className="absolute inset-0 opacity-[0.4] [mask-image:radial-gradient(ellipse_70%_60%_at_50%_30%,black,transparent)]"
+            className="absolute inset-0 [mask-image:radial-gradient(ellipse_70%_60%_at_50%_0%,black,transparent_80%)]"
             style={{
-              backgroundImage: `radial-gradient(circle, #d1fae5 1px, transparent 1px)`,
-              backgroundSize: "34px 34px",
+              backgroundImage:
+                "linear-gradient(to right, rgba(100,116,139,0.10) 1px, transparent 1px), linear-gradient(to bottom, rgba(100,116,139,0.10) 1px, transparent 1px)",
+              backgroundSize: "56px 56px",
             }}
           />
+          {/* spotlight suave no topo */}
+          <div
+            className="absolute inset-0"
+            style={{ background: "radial-gradient(ellipse 65% 55% at 50% -8%, rgba(16,185,129,0.12) 0%, transparent 60%)" }}
+          />
+          {/* halos discretos */}
+          <motion.div
+            animate={{ x: [0, 40, 0], y: [0, -24, 0], scale: [1, 1.12, 1] }}
+            transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute top-[20%] left-[10%] w-80 h-80 bg-emerald-300/25 blur-[120px] rounded-full"
+          />
+          <motion.div
+            animate={{ x: [0, -34, 0], y: [0, 30, 0], scale: [1, 1.15, 1] }}
+            transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute top-[16%] right-[10%] w-72 h-72 bg-teal-300/25 blur-[120px] rounded-full"
+          />
+          {/* fade para branco embaixo */}
+          <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-white via-white to-transparent" />
         </div>
 
         <div className="relative z-10 max-w-5xl mx-auto text-center">
@@ -378,7 +461,7 @@ export default function LandingPitch() {
             className="text-4xl sm:text-6xl md:text-[76px] font-black tracking-[-0.04em] leading-[1.03] text-slate-900 mb-6"
           >
             <span className="block">
-              Você representa{" "}
+              Você que representa{" "}
               <span className="relative inline-block">
                 <span className="bg-gradient-to-br from-emerald-500 via-emerald-500 to-teal-400 bg-clip-text text-transparent">
                   várias
@@ -430,7 +513,7 @@ export default function LandingPitch() {
               className="group relative flex items-center gap-2 px-8 py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm transition-all shadow-xl shadow-emerald-600/25 hover:shadow-2xl hover:shadow-emerald-600/30 hover:-translate-y-0.5 overflow-hidden"
             >
               <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-              Começar gratuitamente
+              Criar minha conta grátis
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
             <a href="#recursos" className="flex items-center gap-2 px-8 py-4 rounded-2xl border border-slate-200 bg-white/70 backdrop-blur hover:bg-white hover:border-slate-300 text-slate-700 font-semibold text-sm transition-all shadow-sm">
@@ -469,21 +552,17 @@ export default function LandingPitch() {
           </motion.div>
         </div>
 
-        {/* dashboard mockup */}
+        {/* dashboard mockup (codado, janela de navegador) */}
         <motion.div
           initial={{ opacity: 0, y: 60, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 1, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          className="relative z-10 mt-16 max-w-5xl mx-auto w-full px-4"
+          className="relative z-10 mt-16 max-w-3xl mx-auto w-full px-4"
         >
           <div className="relative">
             <div className="absolute -inset-4 bg-gradient-to-b from-emerald-200/50 to-transparent blur-3xl rounded-3xl -z-10" />
             <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-[0_30px_90px_rgba(0,0,0,0.14),0_6px_20px_rgba(0,0,0,0.06)] ring-1 ring-slate-900/5">
-              <img
-                src="/assets/dashboard_mockup.webp"
-                alt="Dashboard Represente-Se"
-                className="w-full"
-              />
+              <BrowserDashboard />
             </div>
 
             {/* floating cards */}
@@ -518,7 +597,7 @@ export default function LandingPitch() {
         </motion.div>
       </section>
 
-      {/* ── INTEGRAÇÕES MARQUEE ─────────────────────────────── */}
+      {/* ── INTEGRAÇÕES MARQUEE (faixa de confiança) ────────── */}
       <section className="bg-white border-y border-slate-100 py-10 overflow-hidden">
         <p className="text-center text-[11px] font-black uppercase tracking-widest text-slate-400 mb-7">
           Integrações nativas com as ferramentas que você já usa
@@ -541,36 +620,23 @@ export default function LandingPitch() {
         </div>
       </section>
 
-      {/* ── STATS ───────────────────────────────────────────── */}
-      <section className="bg-white py-16 px-6">
-        <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8">
-          {stats.map((s, i) => (
-            <FadeUp key={s.label} delay={i * 0.05}>
-              <div className="text-center">
-                <p className="text-4xl md:text-5xl font-black bg-gradient-to-br from-slate-900 to-slate-600 bg-clip-text text-transparent mb-1">
-                  <Counter to={s.to} prefix={s.prefix} suffix={s.suffix} sep={s.sep} />
-                </p>
-                <p className="text-[12px] text-slate-500 font-medium uppercase tracking-wider">{s.label}</p>
-              </div>
-            </FadeUp>
-          ))}
-        </div>
-      </section>
-
-      {/* ── PROBLEMA / AGITAÇÃO ─────────────────────────────── */}
-      <section className="py-24 px-6 bg-slate-50 border-y border-slate-100">
-        <div className="max-w-6xl mx-auto">
-          <FadeUp className="text-center mb-14">
-            <p className="text-[11px] font-black uppercase tracking-widest text-rose-500 mb-3">O problema</p>
-            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 mb-4">
+      {/* ══════════════════════════════════════════════════════
+          CAPÍTULO 01 · DIFERENCIAL (problema → solução juntos)
+          ══════════════════════════════════════════════════════ */}
+      <section id="diferencial" className="relative py-24 px-6 bg-gradient-to-b from-emerald-50/70 via-white to-white scroll-mt-20 overflow-hidden">
+        <div className="max-w-7xl mx-auto">
+          {/* topo: a dor */}
+          <FadeUp className="text-center max-w-2xl mx-auto mb-12">
+            <Kicker num="01" label="O diferencial" center />
+            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 mb-4 leading-[1.08]">
               Você reconhece isso?
             </h2>
-            <p className="text-slate-500 font-medium max-w-xl mx-auto">
-              Cada representada manda de um jeito, num canal diferente. Sem um centro de comando, você vira a "ponte" manual entre todas elas — e é aí que pedido, faturamento e cliente se perdem.
+            <p className="text-slate-500 font-medium">
+              Cada representada manda de um jeito, num canal diferente. Sem um centro de comando, você vira a “ponte” manual entre todas elas — e é aí que pedido, faturamento e cliente se perdem.
             </p>
           </FadeUp>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
             {painPoints.map((p, i) => (
               <FadeUp key={p.title} delay={i * 0.08}>
                 <div className="h-full bg-white rounded-3xl p-7 border border-slate-200/80 shadow-sm">
@@ -584,142 +650,142 @@ export default function LandingPitch() {
             ))}
           </div>
 
-          <FadeUp delay={0.2} className="text-center mt-12">
-            <p className="text-[15px] font-bold text-slate-700">
-              A Represente-Se resolve os três de uma vez.{" "}
-              <a href="#diferencial" className="text-emerald-600 hover:text-emerald-700 inline-flex items-center gap-1">
-                Veja como <ArrowRight className="w-4 h-4" />
-              </a>
+          {/* divisória de transição: dor → solução */}
+          <FadeUp delay={0.1} className="flex items-center justify-center gap-3 mb-16">
+            <span className="h-px w-10 bg-slate-200" />
+            <p className="text-[13px] font-bold text-slate-600 text-center">
+              A Represente-Se resolve os três de uma vez.
             </p>
-          </FadeUp>
-        </div>
-      </section>
-
-      {/* ── DIFERENCIAL · MULTI-REPRESENTADA ────────────────── */}
-      <section id="diferencial" className="py-24 px-6 bg-gradient-to-b from-emerald-50/60 to-white scroll-mt-20 overflow-hidden">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-          {/* copy */}
-          <FadeUp>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-emerald-200 bg-white text-emerald-700 text-[10px] font-black uppercase tracking-widest mb-5 shadow-sm">
-              <Layers className="w-3 h-3" /> O diferencial
-            </div>
-            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 mb-6 leading-[1.08]">
-              Feito para representar,<br />não só para vender.
-            </h2>
-            <p className="text-slate-600 font-medium leading-relaxed mb-5 max-w-md">
-              Um CRM comum enxerga você como <span className="font-bold text-slate-900">uma</span> empresa vendendo para clientes. Mas a sua realidade é outra: você carrega o portfólio de <span className="font-bold text-slate-900">várias representadas ao mesmo tempo</span> — cada uma com seus pedidos, seu faturamento e sua meta.
-            </p>
-            <p className="text-slate-600 font-medium leading-relaxed mb-8 max-w-md">
-              O Represente-Se foi desenhado exatamente para isso: um centro de comando que separa cada marca, sem misturar nada.
-            </p>
-
-            <ul className="space-y-3.5 mb-10">
-              {[
-                { icon: Wallet,    text: "Faturamento e pedidos separados por representada" },
-                { icon: Target,    text: "Meta (teto) configurável para cada marca" },
-                { icon: BarChart3, text: "Veja num relance qual empresa rende mais e onde focar" },
-                { icon: Layers,    text: "Adicione quantas representadas precisar conforme cresce" },
-              ].map((item) => (
-                <li key={item.text} className="flex items-center gap-3.5 text-[14px] text-slate-700 font-semibold">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                    <item.icon className="w-4 h-4 text-emerald-600" />
-                  </div>
-                  {item.text}
-                </li>
-              ))}
-            </ul>
-
-            <Link to="/register" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[13px] transition-all shadow-lg shadow-emerald-600/20 hover:-translate-y-0.5 group">
-              Centralizar minhas representadas
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </Link>
+            <span className="h-px w-10 bg-slate-200" />
           </FadeUp>
 
-          {/* painel de representadas */}
-          <FadeUp delay={0.15}>
-            <div className="relative">
-              <div className="absolute -inset-4 bg-emerald-400/10 blur-[80px] rounded-full -z-10" />
-              <div className="relative bg-white rounded-[28px] border border-slate-200 shadow-xl ring-1 ring-slate-900/5 overflow-hidden">
-                {/* header */}
-                <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Painel de representadas</p>
-                    <p className="text-[15px] font-black text-slate-900">Faturamento de junho</p>
-                  </div>
-                  <div className="w-10 h-10 rounded-2xl bg-emerald-50 flex items-center justify-center">
-                    <Layers className="w-5 h-5 text-emerald-600" />
-                  </div>
-                </div>
-
-                {/* linhas */}
-                <div className="p-5 space-y-3.5">
-                  {representadas.map((r, i) => {
-                    const pct = Math.min(100, Math.round((r.faturamento / r.meta) * 100));
-                    return (
-                      <div key={r.name} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
-                        <div className="flex items-center justify-between mb-2.5">
-                          <div className="flex items-center gap-2.5">
-                            <span className="w-2.5 h-2.5 rounded-full" style={{ background: r.color }} />
-                            <span className="text-[13px] font-black text-slate-800">{r.name}</span>
-                          </div>
-                          <span className="text-[11px] font-bold text-slate-400">{r.pedidos} pedidos</span>
-                        </div>
-                        <div className="flex items-end justify-between mb-2">
-                          <span className="text-[17px] font-black text-slate-900">
-                            R$ {r.faturamento.toLocaleString("pt-BR")}
-                          </span>
-                          <span className="text-[11px] font-bold text-slate-500">
-                            {pct}% da meta
-                          </span>
-                        </div>
-                        <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            whileInView={{ width: `${pct}%` }}
-                            viewport={{ once: true }}
-                            transition={{ duration: 1.1, delay: 0.2 + i * 0.15, ease: [0.22, 1, 0.36, 1] }}
-                            className="h-full rounded-full"
-                            style={{ background: r.color }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* total */}
-                <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-white">
-                  <span className="text-[12px] font-bold text-slate-500 uppercase tracking-wider">Total no mês</span>
-                  <span className="text-[19px] font-black text-emerald-600">
-                    R$ {representadasTotal.toLocaleString("pt-BR")}
-                  </span>
-                </div>
+          {/* solução: o diferencial multi-representada */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            {/* copy */}
+            <FadeUp>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-emerald-200 bg-white text-emerald-700 text-[10px] font-black uppercase tracking-widest mb-5 shadow-sm">
+                <Layers className="w-3 h-3" /> Feito para representar
               </div>
+              <h3 className="text-2xl sm:text-4xl font-black tracking-tight text-slate-900 mb-6 leading-[1.1]">
+                Feito para representar,<br />não só para vender.
+              </h3>
+              <p className="text-slate-600 font-medium leading-relaxed mb-5 max-w-md">
+                Um CRM comum enxerga você como <span className="font-bold text-slate-900">uma</span> empresa vendendo para clientes. Mas a sua realidade é outra: você carrega o portfólio de <span className="font-bold text-slate-900">várias representadas ao mesmo tempo</span> — cada uma com seus pedidos, seu faturamento e sua meta.
+              </p>
+              <p className="text-slate-600 font-medium leading-relaxed mb-8 max-w-md">
+                O Represente-Se foi desenhado exatamente para isso: um centro de comando que separa cada marca, sem misturar nada — tudo isso na palma da sua mão.
+              </p>
 
-              {/* badge flutuante */}
-              <motion.div
-                animate={{ y: [-5, 5, -5] }}
-                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                className="hidden sm:flex absolute -top-5 -right-5 bg-white rounded-2xl shadow-xl border border-slate-100 p-3.5 items-center gap-3"
-              >
-                <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center">
-                  <Building2 className="w-4 h-4 text-emerald-600" />
+              <ul className="space-y-3.5 mb-10">
+                {[
+                  { icon: Wallet,    text: "Faturamento e pedidos separados por representada" },
+                  { icon: Target,    text: "Meta (teto) configurável para cada marca" },
+                  { icon: BarChart3, text: "Veja num relance qual empresa rende mais e onde focar" },
+                  { icon: Layers,    text: "Adicione quantas representadas precisar conforme cresce" },
+                ].map((item) => (
+                  <li key={item.text} className="flex items-center gap-3.5 text-[14px] text-slate-700 font-semibold">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                      <item.icon className="w-4 h-4 text-emerald-600" />
+                    </div>
+                    {item.text}
+                  </li>
+                ))}
+              </ul>
+
+              <Link to="/register" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[13px] transition-all shadow-lg shadow-emerald-600/20 hover:-translate-y-0.5 group">
+                Centralizar minhas representadas
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </FadeUp>
+
+            {/* painel de representadas */}
+            <FadeUp delay={0.15}>
+              <div className="relative">
+                <div className="absolute -inset-4 bg-emerald-400/10 blur-[80px] rounded-full -z-10" />
+                <div className="relative bg-white rounded-[28px] border border-slate-200 shadow-xl ring-1 ring-slate-900/5 overflow-hidden">
+                  {/* header */}
+                  <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Painel de representadas</p>
+                      <p className="text-[15px] font-black text-slate-900">Faturamento de junho</p>
+                    </div>
+                    <div className="w-10 h-10 rounded-2xl bg-emerald-50 flex items-center justify-center">
+                      <Layers className="w-5 h-5 text-emerald-600" />
+                    </div>
+                  </div>
+
+                  {/* linhas */}
+                  <div className="p-5 space-y-3.5">
+                    {representadas.map((r, i) => {
+                      const pct = Math.min(100, Math.round((r.faturamento / r.meta) * 100));
+                      return (
+                        <div key={r.name} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+                          <div className="flex items-center justify-between mb-2.5">
+                            <div className="flex items-center gap-2.5">
+                              <span className="w-2.5 h-2.5 rounded-full" style={{ background: r.color }} />
+                              <span className="text-[13px] font-black text-slate-800">{r.name}</span>
+                            </div>
+                            <span className="text-[11px] font-bold text-slate-400">{r.pedidos} pedidos</span>
+                          </div>
+                          <div className="flex items-end justify-between mb-2">
+                            <span className="text-[17px] font-black text-slate-900">
+                              R$ {r.faturamento.toLocaleString("pt-BR")}
+                            </span>
+                            <span className="text-[11px] font-bold text-slate-500">
+                              {pct}% da meta
+                            </span>
+                          </div>
+                          <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              whileInView={{ width: `${pct}%` }}
+                              viewport={{ once: true }}
+                              transition={{ duration: 1.1, delay: 0.2 + i * 0.15, ease: [0.22, 1, 0.36, 1] }}
+                              className="h-full rounded-full"
+                              style={{ background: r.color }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* total */}
+                  <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-white">
+                    <span className="text-[12px] font-bold text-slate-500 uppercase tracking-wider">Total no mês</span>
+                    <span className="text-[19px] font-black text-emerald-600">
+                      R$ {representadasTotal.toLocaleString("pt-BR")}
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[11px] font-black text-slate-900 leading-none">{representadas.length} representadas</p>
-                  <p className="text-[10px] text-slate-500 font-medium mt-0.5">controladas num lugar</p>
-                </div>
-              </motion.div>
-            </div>
-          </FadeUp>
+
+                {/* badge flutuante */}
+                <motion.div
+                  animate={{ y: [-5, 5, -5] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                  className="hidden sm:flex absolute -top-5 -right-5 bg-white rounded-2xl shadow-xl border border-slate-100 p-3.5 items-center gap-3"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center">
+                    <Building2 className="w-4 h-4 text-emerald-600" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-black text-slate-900 leading-none">{representadas.length} representadas</p>
+                    <p className="text-[10px] text-slate-500 font-medium mt-0.5">controladas num lugar</p>
+                  </div>
+                </motion.div>
+              </div>
+            </FadeUp>
+          </div>
         </div>
       </section>
 
-      {/* ── BENTO FEATURES ──────────────────────────────────── */}
-      <section id="recursos" className="py-24 px-6 bg-white scroll-mt-20">
+      {/* ══════════════════════════════════════════════════════
+          CAPÍTULO 02 · RECURSOS (plataforma completa)
+          ══════════════════════════════════════════════════════ */}
+      <section id="recursos" className="py-24 px-6 bg-white scroll-mt-20 border-t border-slate-100">
         <div className="max-w-7xl mx-auto">
           <FadeUp className="text-center mb-16">
-            <p className="text-[11px] font-black uppercase tracking-widest text-emerald-600 mb-3">Plataforma completa</p>
+            <Kicker num="02" label="A plataforma" center />
             <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 mb-4">
               Tudo que você precisa,<br />em um único lugar.
             </h2>
@@ -781,11 +847,11 @@ export default function LandingPitch() {
         </div>
       </section>
 
-      {/* ── FEATURE SHOWCASE — CRM ──────────────────────────── */}
+      {/* ── RECURSOS · destaque CRM ─────────────────────────── */}
       <section className="py-24 px-6 bg-slate-50 border-y border-slate-100 overflow-hidden">
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
           <FadeUp>
-            <p className="text-[11px] font-black uppercase tracking-widest text-emerald-600 mb-4">Gestão de clientes</p>
+            <Kicker label="Gestão de clientes" />
             <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 mb-6 leading-tight">
               Toda sua carteira,<br />organizada e viva.
             </h2>
@@ -816,7 +882,7 @@ export default function LandingPitch() {
             <div className="relative">
               <div className="absolute inset-0 bg-emerald-400/10 blur-[80px] rounded-full" />
               <div className="relative bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-xl ring-1 ring-slate-900/5">
-                <img src="/assets/dashboard_mockup.webp" alt="CRM" className="w-full" />
+                <CrmListMock />
               </div>
               <motion.div
                 animate={{ y: [-4, 4, -4] }}
@@ -836,7 +902,7 @@ export default function LandingPitch() {
         </div>
       </section>
 
-      {/* ── IA SECTION (DARK) ───────────────────────────────── */}
+      {/* ── RECURSOS · IA (dark) ────────────────────────────── */}
       <section id="tecnologia" className="py-28 px-6 bg-slate-950 overflow-hidden relative scroll-mt-20">
         {/* glow + grid */}
         <div className="absolute inset-0 pointer-events-none">
@@ -856,7 +922,7 @@ export default function LandingPitch() {
             <div className="bg-white/[0.03] backdrop-blur-xl rounded-3xl border border-white/10 p-7 shadow-2xl">
               <div className="flex items-center gap-3 mb-6 pb-5 border-b border-white/10">
                 <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
-                  <Brain className="w-4.5 h-4.5 text-white" />
+                  <Brain className="w-5 h-5 text-white" />
                 </div>
                 <div>
                   <p className="text-white text-[13px] font-black">Assistente IA</p>
@@ -868,10 +934,10 @@ export default function LandingPitch() {
               </div>
               <div className="space-y-3">
                 {[
-                  { role: "user", text: "Gere o resumo do cliente CAETANO TIETE" },
+                  { role: "user", text: "Gere o resumo do cliente MERCADO BOA VISTA" },
                   { role: "ai",   text: "📋 Analisando 47 interações... Cliente ativo há 14 meses. Última compra: R$ 8.200 em novembro. Pedido pendente de follow-up. Recomendo contato esta semana." },
                   { role: "user", text: "Quais clientes não compram há mais de 30 dias?" },
-                  { role: "ai",   text: "Encontrei 12 clientes inativos. Os 3 de maior valor: RIVAIL COZIMAX (R$12k), GRANTEL ONIX (R$9k), SS MATERIAIS (R$7k). Deseja gerar uma lista de visitas?" },
+                  { role: "ai",   text: "Encontrei 12 clientes inativos. Os 3 de maior valor: COMERCIAL VALE VERDE (R$12k), DISTRIBUIDORA HORIZONTE (R$9k), MERCANTIL BANDEIRANTE (R$7k). Deseja gerar uma lista de visitas?" },
                 ].map((msg, i) => (
                   <motion.div
                     key={i}
@@ -898,10 +964,7 @@ export default function LandingPitch() {
           </FadeUp>
 
           <FadeUp className="order-1 lg:order-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase tracking-widest mb-5">
-              <Sparkles className="w-3 h-3" />
-              Inteligência artificial
-            </div>
+            <Kicker label="Inteligência artificial" dark />
             <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-white mb-6 leading-tight">
               A IA trabalha<br />
               <span className="bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent">enquanto você vende.</span>
@@ -928,7 +991,9 @@ export default function LandingPitch() {
         </div>
       </section>
 
-      {/* ── SETORES ─────────────────────────────────────────── */}
+      {/* ══════════════════════════════════════════════════════
+          CAPÍTULO 03 · SETORES
+          ══════════════════════════════════════════════════════ */}
       <section id="industrias" className="min-h-[80vh] py-20 bg-white border-b border-slate-100 relative overflow-hidden flex items-center transition-all duration-700 scroll-mt-20">
         <AnimatePresence>
           {hoveredIndustry !== null && (
@@ -957,9 +1022,9 @@ export default function LandingPitch() {
         <div className="max-w-7xl mx-auto px-6 relative z-20 w-full">
           <div className="text-center mb-14">
             <FadeUp>
-              <p className={cn("text-[11px] font-black uppercase tracking-widest mb-3 transition-colors duration-500", hoveredIndustry !== null ? "text-emerald-300" : "text-emerald-600")}>
-                Setores atendidos
-              </p>
+              <div className="flex justify-center">
+                <Kicker num="03" label="Setores atendidos" dark={hoveredIndustry !== null} />
+              </div>
               <h2 className={cn("text-3xl sm:text-5xl md:text-7xl font-black tracking-tight mb-3 transition-colors duration-500", hoveredIndustry !== null ? "text-white" : "text-slate-900")}>
                 Feito para o seu mercado.
               </h2>
@@ -1004,7 +1069,7 @@ export default function LandingPitch() {
         </div>
       </section>
 
-      {/* ── MULTIPLATAFORMA ─────────────────────────────────── */}
+      {/* ── MULTIPLATAFORMA (dispositivos codados) ──────────── */}
       <section className="relative py-28 px-6 bg-slate-950 overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[500px] bg-emerald-500/15 blur-[150px] rounded-full" />
@@ -1019,9 +1084,9 @@ export default function LandingPitch() {
         </div>
 
         <div className="max-w-6xl mx-auto relative z-10">
-          <FadeUp className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase tracking-widest mb-5">
-              <Smartphone className="w-3 h-3" /> Multiplataforma
+          <FadeUp className="text-center mb-20">
+            <div className="flex justify-center">
+              <Kicker label="Multiplataforma" dark />
             </div>
             <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-white mb-4 leading-tight">
               Onde você estiver,<br />sua operação vai junto.
@@ -1033,38 +1098,41 @@ export default function LandingPitch() {
 
           <FadeUp delay={0.15}>
             <div className="flex items-end justify-center">
-              {/* Monitor — computador */}
+              {/* Monitor — computador (somente desktop) */}
+              <motion.div
+                animate={{ y: [0, -8, 0] }}
+                transition={{ duration: 6.5, repeat: Infinity, ease: "easeInOut" }}
+                className="hidden md:flex flex-col items-center relative z-10 mr-[-44px] lg:mr-[-64px]"
+              >
+                <div className="w-[224px] lg:w-[300px] rounded-xl border-[9px] border-slate-800 bg-slate-800 shadow-2xl ring-1 ring-white/5 overflow-hidden">
+                  <BrowserDashboard />
+                </div>
+                <div className="w-2.5 h-6 bg-slate-800" />
+                <div className="w-24 h-2 bg-slate-800 rounded-full" />
+              </motion.div>
+
+              {/* Notebook — janela do app codada */}
               <motion.div
                 animate={{ y: [0, -8, 0] }}
                 transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-                className="hidden md:flex flex-col items-center relative z-10 mr-[-36px] lg:mr-[-60px]"
+                className="relative z-20 w-[250px] sm:w-[380px] lg:w-[460px]"
               >
-                <div className="w-[260px] lg:w-[300px] rounded-2xl border-[10px] border-slate-800 bg-slate-800 shadow-2xl ring-1 ring-white/5 overflow-hidden">
-                  <img src="/assets/dashboard_mockup.webp" alt="Represente-Se no computador" className="w-full block" />
+                <div className="rounded-t-xl border-[10px] border-b-0 border-slate-800 bg-slate-800 shadow-2xl ring-1 ring-white/5 overflow-hidden">
+                  <BrowserDashboard />
                 </div>
-                <div className="w-2.5 h-7 bg-slate-800" />
-                <div className="w-28 h-2 bg-slate-800 rounded-full" />
+                <div className="relative h-3.5 -mx-6 bg-gradient-to-b from-slate-700 to-slate-800 rounded-b-xl shadow-lg">
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-2 bg-slate-900/60 rounded-b-lg" />
+                </div>
               </motion.div>
 
-              {/* Laptop — notebook */}
-              <div className="relative z-20">
-                <div className="w-[240px] sm:w-[340px] lg:w-[440px] rounded-t-xl border-[10px] border-b-0 border-slate-800 bg-slate-800 shadow-2xl ring-1 ring-white/5 overflow-hidden">
-                  <img src="/assets/dashboard_mockup.webp" alt="Represente-Se no notebook" className="w-full block" />
-                </div>
-                <div className="relative h-3 -mx-5 bg-gradient-to-b from-slate-700 to-slate-800 rounded-b-xl shadow-lg">
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-16 h-1.5 bg-slate-900/60 rounded-b-lg" />
-                </div>
-              </div>
-
-              {/* Phone — celular */}
+              {/* Celular — app mobile codado */}
               <motion.div
                 animate={{ y: [0, -10, 0] }}
                 transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 0.4 }}
-                className="relative z-30 ml-[-26px] sm:ml-[-32px] lg:ml-[-44px] mb-1"
+                className="relative z-30 ml-[-26px] sm:ml-[-44px] lg:ml-[-56px] mb-2 w-[108px] sm:w-[150px] lg:w-[172px]"
               >
-                <div className="relative w-[96px] sm:w-[120px] lg:w-[148px] aspect-[9/19] rounded-[2rem] border-[7px] border-slate-800 bg-slate-800 shadow-2xl ring-1 ring-white/5 overflow-hidden">
-                  <img src="/assets/dashboard_mockup.webp" alt="Represente-Se no celular" className="w-full h-full object-cover object-left-top" />
-                  <div className="absolute top-2 left-1/2 -translate-x-1/2 w-10 h-1.5 bg-slate-900 rounded-full z-10" />
+                <div className="relative rounded-[2.2rem] border-[7px] border-slate-800 bg-slate-800 shadow-2xl ring-1 ring-white/5 overflow-hidden">
+                  <PhoneDashboard />
                 </div>
               </motion.div>
             </div>
@@ -1087,16 +1155,76 @@ export default function LandingPitch() {
         </div>
       </section>
 
-      {/* ── TESTIMONIALS ────────────────────────────────────── */}
+      {/* ── COMO FUNCIONA · 3 passos ────────────────────────── */}
+      <section className="py-24 px-6 bg-white border-b border-slate-100">
+        <div className="max-w-6xl mx-auto">
+          <FadeUp className="text-center mb-16">
+            <div className="flex justify-center">
+              <Kicker label="Como funciona" center />
+            </div>
+            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 mb-4">
+              Do zero ao controle<br />em 3 passos.
+            </h2>
+            <p className="text-slate-500 font-medium max-w-xl mx-auto">
+              Sem migração complicada e sem curva de aprendizado. Em minutos sua operação já está rodando.
+            </p>
+          </FadeUp>
+
+          <div className="relative grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* linha conectora (desktop) */}
+            <div className="hidden md:block absolute top-[52px] left-[16%] right-[16%] h-0.5 bg-gradient-to-r from-emerald-200 via-emerald-300 to-emerald-200" />
+            {[
+              { n: "01", icon: Building2, title: "Cadastre suas representadas", desc: "Adicione as marcas que você representa — cada uma com sua meta e seu espaço, sem misturar nada." },
+              { n: "02", icon: Users,     title: "Importe sua carteira",         desc: "Suba seus clientes por planilha ou cadastre na hora. A IA organiza e enriquece os dados por você." },
+              { n: "03", icon: BarChart3, title: "Comande tudo num painel",      desc: "Pedidos, faturamento, agenda e alertas — separados por marca, num lugar só, em qualquer tela." },
+            ].map((s, i) => (
+              <FadeUp key={s.n} delay={i * 0.1}>
+                <div className="relative h-full bg-white rounded-3xl border border-slate-200/80 shadow-sm p-7 text-center md:text-left overflow-hidden">
+                  <span className="absolute top-5 right-6 text-5xl font-black text-emerald-50 leading-none select-none pointer-events-none">{s.n}</span>
+                  <div className="relative z-10 mx-auto md:mx-0 w-12 h-12 rounded-2xl bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-600/25 mb-5">
+                    <s.icon className="w-5 h-5 text-white" />
+                  </div>
+                  <h3 className="relative z-10 text-[16px] font-black text-slate-900 mb-2">{s.title}</h3>
+                  <p className="relative z-10 text-[13px] text-slate-500 font-medium leading-relaxed">{s.desc}</p>
+                </div>
+              </FadeUp>
+            ))}
+          </div>
+
+          <FadeUp delay={0.3} className="text-center mt-12">
+            <Link to="/register" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[13px] transition-all shadow-lg shadow-emerald-600/20 hover:-translate-y-0.5 group">
+              Criar minha conta grátis
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </FadeUp>
+        </div>
+      </section>
+
+      {/* ── PROVA SOCIAL · números + depoimentos ────────────── */}
       <section className="py-24 px-6 bg-slate-50 border-b border-slate-100">
         <div className="max-w-7xl mx-auto">
+          {/* números */}
           <FadeUp className="text-center mb-14">
-            <p className="text-[11px] font-black uppercase tracking-widest text-emerald-600 mb-3">Quem usa, recomenda</p>
+            <Kicker label="Resultados reais" center />
             <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 mb-4">
               Representantes que<br />mudaram o jogo.
             </h2>
           </FadeUp>
 
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-5xl mx-auto mb-20">
+            {stats.map((s, i) => (
+              <FadeUp key={s.label} delay={i * 0.05}>
+                <div className="text-center">
+                  <p className="text-4xl md:text-5xl font-black bg-gradient-to-br from-slate-900 to-slate-600 bg-clip-text text-transparent mb-1">
+                    <Counter to={s.to} prefix={s.prefix} suffix={s.suffix} sep={s.sep} />
+                  </p>
+                  <p className="text-[12px] text-slate-500 font-medium uppercase tracking-wider">{s.label}</p>
+                </div>
+              </FadeUp>
+            ))}
+          </div>
+
+          {/* depoimentos */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {testimonials.map((t, i) => (
               <FadeUp key={t.name} delay={i * 0.1}>
@@ -1126,11 +1254,13 @@ export default function LandingPitch() {
         </div>
       </section>
 
-      {/* ── PRICING ─────────────────────────────────────────── */}
+      {/* ══════════════════════════════════════════════════════
+          CAPÍTULO 04 · PLANOS
+          ══════════════════════════════════════════════════════ */}
       <section id="precos" className="py-24 px-6 bg-white scroll-mt-20">
         <div className="max-w-6xl mx-auto">
           <FadeUp className="text-center mb-10">
-            <p className="text-[11px] font-black uppercase tracking-widest text-emerald-600 mb-3">Planos & preços</p>
+            <Kicker num="04" label="Planos & preços" center />
             <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 mb-4">
               Planos que crescem com você.
             </h2>
@@ -1260,7 +1390,7 @@ export default function LandingPitch() {
                         {plan.features.map((feat) => (
                           <li key={feat.text} className={cn("flex items-center gap-3 text-[12.5px] font-medium", plan.popular ? "text-slate-300" : "text-slate-600")}>
                             <div className={cn(
-                              "w-4.5 h-4.5 rounded-full flex items-center justify-center flex-shrink-0",
+                              "w-[18px] h-[18px] rounded-full flex items-center justify-center flex-shrink-0",
                               plan.popular ? "bg-emerald-500/20" : "bg-emerald-100"
                             )}>
                               <Check className={cn("w-2.5 h-2.5", plan.popular ? "text-emerald-400" : "text-emerald-600")} />
@@ -1278,11 +1408,13 @@ export default function LandingPitch() {
         </div>
       </section>
 
-      {/* ── FAQ ─────────────────────────────────────────────── */}
+      {/* ══════════════════════════════════════════════════════
+          CAPÍTULO 05 · DÚVIDAS
+          ══════════════════════════════════════════════════════ */}
       <section id="duvidas" className="py-24 px-6 bg-slate-50 border-y border-slate-100 scroll-mt-20">
         <div className="max-w-3xl mx-auto">
           <FadeUp className="text-center mb-12">
-            <p className="text-[11px] font-black uppercase tracking-widest text-emerald-600 mb-3">Perguntas frequentes</p>
+            <Kicker num="05" label="Perguntas frequentes" center />
             <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900">
               Ainda em dúvida?
             </h2>

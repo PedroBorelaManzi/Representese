@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap, Tooltip, ZoomControl } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-import { Search, MapPin, Building2, Phone, Mail, Plus, X, Info, Loader2, ExternalLink, Trash2, Navigation2, Target, Users, FileDown, Maximize2, Minimize2 } from "lucide-react";
+import { Search, MapPin, Building2, Phone, Mail, Plus, X, Info, Loader2, ExternalLink, Trash2, Navigation2, Target, Users, FileDown, Maximize2, Minimize2, Route, CheckCheck, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
@@ -33,6 +33,15 @@ const createCustomIcon = (color: string) => {
 const defaultIcon = createCustomIcon('#10b981'); // Emerald
 const redIcon = createCustomIcon('#ef4444'); // Red
 const inactiveIcon = createCustomIcon('#94a3b8'); // Slate-400 (Gray)
+
+const createRouteIcon = (num: number) => L.divIcon({
+  className: 'custom-pin',
+  html: `<div style="position:relative;width:32px;height:48px;"><svg viewBox="0 0 24 24" fill="#6366f1" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg><span style="position:absolute;top:7px;left:50%;transform:translateX(-50%);font-size:10px;font-weight:900;color:white;line-height:1;">${num}</span></div>`,
+  iconSize: [32, 48],
+  iconAnchor: [16, 48],
+  popupAnchor: [1, -38],
+  tooltipAnchor: [16, -30],
+});
 
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
@@ -166,6 +175,27 @@ export default function Map() {
       // Fallback directly to simulated fullscreen
       setIsPseudoFullscreen(true);
     }
+  };
+
+  const [isRouteMode, setIsRouteMode] = useState(false);
+  const [routeClientIds, setRouteClientIds] = useState<string[]>([]);
+
+  const toggleRouteClient = (id: string) => {
+    setRouteClientIds(prev => {
+      if (prev.includes(id)) return prev.filter(x => x !== id);
+      if (prev.length >= 10) { toast.error("Máximo de 10 paradas por rota."); return prev; }
+      return [...prev, id];
+    });
+  };
+
+  const routeClients = routeClientIds
+    .map(id => companies.find(c => c.id === id))
+    .filter((c): c is (typeof companies)[0] => !!c && !!c.lat && !!c.lng);
+
+  const openInGoogleMaps = () => {
+    if (routeClients.length === 0) return;
+    const stops = routeClients.map(c => `${c.lat},${c.lng}`).join('/');
+    window.open(`https://www.google.com/maps/dir/${stops}`, '_blank');
   };
 
   const [newLocation, setNewLocation] = useState({
@@ -468,7 +498,14 @@ export default function Map() {
               placeholder="Buscar Cliente ou Endereço..."
             />
           </form>
-          <button 
+          <button
+            onClick={() => { setIsRouteMode(m => !m); if (isRouteMode) setRouteClientIds([]); }}
+            className={`w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-3 sm:px-8 sm:py-4 rounded-[24px] font-black uppercase text-[9px] sm:text-[11px] tracking-widest transition-all active:scale-95 group ${isRouteMode ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-[0_20px_40px_-10px_rgba(99,102,241,0.4)]' : 'bg-white border border-slate-200 text-slate-700 hover:border-indigo-300 hover:text-indigo-600 shadow-sm'}`}
+          >
+            <Route className="w-4 h-4" />
+            {isRouteMode ? 'CANCELAR ROTA' : 'PLANEJAR ROTA'}
+          </button>
+          <button
             onClick={() => setIsModalOpen(true)}
             className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-3 sm:px-8 sm:py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-[24px] font-black uppercase text-[9px] sm:text-[11px] tracking-widest transition-all shadow-[0_20px_40px_-10px_rgba(16,185,129,0.4)] active:scale-95 group"
           >
@@ -498,6 +535,57 @@ export default function Map() {
            </div>
         </div>
 
+        {/* Route Mode Banner */}
+        <AnimatePresence>
+          {isRouteMode && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-indigo-600 text-white px-6 py-2.5 rounded-full shadow-xl flex items-center gap-3 text-[10px] font-black uppercase tracking-widest whitespace-nowrap"
+            >
+              <Route className="w-3.5 h-3.5" />
+              Toque nos clientes para montar a rota · {routeClientIds.length}/10 selecionados
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Route Panel */}
+        <AnimatePresence>
+          {isRouteMode && routeClients.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 40 }}
+              className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border border-slate-100 dark:border-zinc-800 p-5 w-[min(420px,calc(100%-32px))]"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Rota otimizada · {routeClients.length} paradas</span>
+                <button onClick={() => setRouteClientIds([])} className="text-[9px] font-black text-red-400 hover:text-red-600 uppercase tracking-wider">Limpar</button>
+              </div>
+              <div className="flex items-center gap-1.5 flex-wrap mb-4">
+                {routeClients.map((c, i) => (
+                  <React.Fragment key={c.id}>
+                    <span className="flex items-center gap-1 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 text-[9px] font-black uppercase px-2.5 py-1 rounded-full">
+                      <span className="bg-indigo-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[8px]">{i + 1}</span>
+                      {c.name.length > 18 ? c.name.slice(0, 18) + '…' : c.name}
+                    </span>
+                    {i < routeClients.length - 1 && <ArrowRight className="w-3 h-3 text-slate-300 shrink-0" />}
+                  </React.Fragment>
+                ))}
+              </div>
+              <button
+                onClick={openInGoogleMaps}
+                className="w-full flex items-center justify-center gap-2.5 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-indigo-500/30"
+              >
+                <CheckCheck className="w-4 h-4" />
+                Abrir rota no Google Maps
+                <ExternalLink className="w-3.5 h-3.5" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Floating Fullscreen Toggle Button */}
         <button 
           type="button"
@@ -526,15 +614,22 @@ export default function Map() {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' 
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" 
           />
-          {mapCompanies.filter(c => c.lat && c.lng).map((company) => (
-            <Marker 
-              key={company.id} 
+          {mapCompanies.filter(c => c.lat && c.lng).map((company) => {
+            const routeIdx = routeClients.findIndex(r => r.id === company.id);
+            const inRoute = routeIdx !== -1;
+            const markerIcon = inRoute
+              ? createRouteIcon(routeIdx + 1)
+              : (!company.lat || !company.lng) ? redIcon : (company.status === 'Inativo' ? inactiveIcon : defaultIcon);
+            return (
+            <Marker
+              key={company.id}
               position={[company.displayLat, company.displayLng]}
-              icon={(!company.lat || !company.lng) ? redIcon : (company.status === 'Inativo' ? inactiveIcon : defaultIcon)}
-              draggable={selectedClientId === company.id}
+              icon={markerIcon}
+              draggable={!isRouteMode && selectedClientId === company.id}
               eventHandlers={{
                 click: () => {
                   triggerLightHaptic();
+                  if (isRouteMode) { toggleRouteClient(company.id); return; }
                   setSelectedClientId(company.id);
                 },
                 dragend: (e: any) => handleMarkerDrag(company.id, e.target.getLatLng())
@@ -543,7 +638,7 @@ export default function Map() {
               <Tooltip direction="top" offset={[0, -25]} opacity={1}>
                 <span className="font-black uppercase tracking-tight text-[10px] px-2 py-1 text-slate-900">{company.name}</span>
               </Tooltip>
-              <Popup className="premium-popup">
+              {!isRouteMode && <Popup className="premium-popup">
                 <div className="p-4 min-w-[280px] bg-white dark:bg-zinc-900">
                   <div className="flex items-center gap-3 mb-4">
                      <div className="p-3 bg-emerald-50 dark:bg-emerald-950/50 rounded-2xl">
@@ -617,14 +712,24 @@ export default function Map() {
                     </button>
                   </div>
                   
-                  <div className="flex items-center gap-2 justify-center py-2 bg-amber-50 dark:bg-amber-900/20 rounded-xl">
-                    <Info className="w-3.5 h-3.5 text-amber-600" />
-                    <span className="text-[9px] font-black uppercase tracking-tighter text-amber-700 dark:text-amber-500">Arraste para ajustar posição exata</span>
-                  </div>
+                  {isRouteMode ? (
+                    <button
+                      onClick={() => toggleRouteClient(company.id)}
+                      className={`w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${inRoute ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}
+                    >
+                      {inRoute ? <><X className="w-3.5 h-3.5" /> Remover da rota (parada {routeIdx + 1})</> : <><Route className="w-3.5 h-3.5" /> Adicionar à rota</>}
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2 justify-center py-2 bg-amber-50 dark:bg-amber-900/20 rounded-xl">
+                      <Info className="w-3.5 h-3.5 text-amber-600" />
+                      <span className="text-[9px] font-black uppercase tracking-tighter text-amber-700 dark:text-amber-500">Arraste para ajustar posição exata</span>
+                    </div>
+                  )}
                 </div>
-              </Popup>
+              </Popup>}
             </Marker>
-          ))}
+            );
+          })}
         </MapContainer>
       </div>
 
