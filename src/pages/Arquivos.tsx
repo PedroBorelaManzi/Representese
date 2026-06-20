@@ -14,6 +14,7 @@ import {
   Loader2,
   HardDrive,
   X,
+  Eye,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
@@ -132,6 +133,23 @@ export default function Arquivos() {
     loadItems();
   };
 
+  // Abre o arquivo para VISUALIZAR (nova aba / visualizador do celular, com compartilhar nativo).
+  // Abrimos a janela de forma síncrona pra não ser bloqueada por popup blocker no mobile.
+  const handleOpen = async (name: string) => {
+    const win = window.open("", "_blank");
+    const { data, error } = await supabase.storage
+      .from(BUCKET)
+      .createSignedUrl(`${prefix}/${name}`, 60 * 60);
+    if (error || !data?.signedUrl) {
+      win?.close();
+      toast.error("Erro ao abrir arquivo.");
+      return;
+    }
+    if (win) win.location.href = data.signedUrl;
+    else window.open(data.signedUrl, "_blank");
+  };
+
+  // Baixa o arquivo (salvar no dispositivo) — ação explícita.
   const handleDownload = async (name: string) => {
     const { data, error } = await supabase.storage.from(BUCKET).download(`${prefix}/${name}`);
     if (error || !data) {
@@ -303,7 +321,7 @@ export default function Arquivos() {
                   className="group flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50/70 dark:hover:bg-zinc-800/40 transition-colors"
                 >
                   <button
-                    onClick={() => item.isFolder ? setPath([...path, item.name]) : handleDownload(item.name)}
+                    onClick={() => item.isFolder ? setPath([...path, item.name]) : handleOpen(item.name)}
                     className="flex items-center gap-4 flex-1 min-w-0 text-left"
                   >
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${iconClass}`}>
@@ -317,15 +335,24 @@ export default function Arquivos() {
                     </div>
                   </button>
 
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                     {!item.isFolder && (
-                      <button
-                        onClick={() => handleDownload(item.name)}
-                        className="p-2 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
-                        title="Baixar"
-                      >
-                        <Download className="w-4 h-4" />
-                      </button>
+                      <>
+                        <button
+                          onClick={() => handleOpen(item.name)}
+                          className="p-2 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
+                          title="Visualizar"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDownload(item.name)}
+                          className="p-2 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
+                          title="Baixar"
+                        >
+                          <Download className="w-4 h-4" />
+                        </button>
+                      </>
                     )}
                     <button
                       onClick={() => handleDelete(item)}
