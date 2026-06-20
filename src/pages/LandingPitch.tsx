@@ -397,7 +397,7 @@ export default function LandingPitch() {
 
           <div className="flex items-center gap-3">
             <Link to="/login" className="text-[13px] font-semibold text-slate-600 hover:text-slate-900 transition-colors px-4 py-2">Entrar</Link>
-            <Link to="/checkout" className="group text-[13px] font-black text-white bg-emerald-600 hover:bg-emerald-500 transition-all px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-600/20 hover:shadow-emerald-600/30 hover:-translate-y-0.5 flex items-center gap-1.5 whitespace-nowrap">
+            <Link to="/planos" className="group text-[13px] font-black text-white bg-emerald-600 hover:bg-emerald-500 transition-all px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-600/20 hover:shadow-emerald-600/30 hover:-translate-y-0.5 flex items-center gap-1.5 whitespace-nowrap">
               Cadastre-se
               <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
             </Link>
@@ -509,11 +509,11 @@ export default function LandingPitch() {
             className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10"
           >
             <Link
-              to="/checkout"
+              to="/planos"
               className="group relative flex items-center gap-2 px-8 py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm transition-all shadow-xl shadow-emerald-600/25 hover:shadow-2xl hover:shadow-emerald-600/30 hover:-translate-y-0.5 overflow-hidden"
             >
               <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-              Criar minha conta grátis
+              Criar minha conta
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
             <a href="#recursos" className="flex items-center gap-2 px-8 py-4 rounded-2xl border border-slate-200 bg-white/70 backdrop-blur hover:bg-white hover:border-slate-300 text-slate-700 font-semibold text-sm transition-all shadow-sm">
@@ -692,7 +692,7 @@ export default function LandingPitch() {
                 ))}
               </ul>
 
-              <Link to="/checkout" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[13px] transition-all shadow-lg shadow-emerald-600/20 hover:-translate-y-0.5 group">
+              <Link to="/planos" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[13px] transition-all shadow-lg shadow-emerald-600/20 hover:-translate-y-0.5 group">
                 Centralizar minhas representadas
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Link>
@@ -873,7 +873,7 @@ export default function LandingPitch() {
                 </li>
               ))}
             </ul>
-            <Link to="/checkout" className="inline-flex items-center gap-2 text-[13px] font-black text-emerald-600 hover:text-emerald-700 transition-colors group">
+            <Link to="/planos" className="inline-flex items-center gap-2 text-[13px] font-black text-emerald-600 hover:text-emerald-700 transition-colors group">
               Começar agora <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
           </FadeUp>
@@ -1192,8 +1192,8 @@ export default function LandingPitch() {
           </div>
 
           <FadeUp delay={0.3} className="text-center mt-12">
-            <Link to="/checkout" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[13px] transition-all shadow-lg shadow-emerald-600/20 hover:-translate-y-0.5 group">
-              Criar minha conta grátis
+            <Link to="/planos" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[13px] transition-all shadow-lg shadow-emerald-600/20 hover:-translate-y-0.5 group">
+              Criar minha conta
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
           </FadeUp>
@@ -1497,10 +1497,10 @@ export default function LandingPitch() {
                 </p>
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                   <Link
-                    to="/checkout"
+                    to="/planos"
                     className="group flex items-center gap-2 px-10 py-4 rounded-2xl bg-white hover:bg-emerald-50 text-emerald-700 font-black text-[14px] transition-all shadow-xl hover:-translate-y-0.5"
                   >
-                    Teste grátis por 7 dias
+                    Escolher meu plano
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </Link>
                   <a href="#precos" className="px-10 py-4 rounded-2xl border border-white/30 bg-white/10 backdrop-blur text-white font-black text-[14px] transition-all hover:bg-white/20">
@@ -1540,7 +1540,7 @@ export default function LandingPitch() {
               <p className="text-[11px] font-black uppercase tracking-widest text-slate-900 mb-4">Conta</p>
               <ul className="space-y-2.5 text-[13px] font-medium">
                 <li><Link to="/login" className="hover:text-emerald-600 transition-colors">Entrar</Link></li>
-                <li><Link to="/checkout" className="hover:text-emerald-600 transition-colors">Criar conta</Link></li>
+                <li><Link to="/planos" className="hover:text-emerald-600 transition-colors">Criar conta</Link></li>
               </ul>
             </div>
             <div>
