@@ -17,7 +17,8 @@ import {
   Cloud,
   CloudOff,
   RefreshCw,
-  Sparkles
+  Sparkles,
+  FolderArchive
 } from 'lucide-react';
 import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -263,6 +264,7 @@ export default function Layout() {
     { icon: Building2, label: 'Empresas', path: '/dashboard/empresas' },
     { icon: Calendar, label: 'Agenda', path: '/dashboard/agenda' },
     { icon: Mail, label: 'E-mails', path: '/dashboard/email' },
+    { icon: FolderArchive, label: 'Arquivos', path: '/dashboard/arquivos' },
   ];
 
   return (

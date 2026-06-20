@@ -30,6 +30,7 @@ const EmailClient = React.lazy(() => import("./pages/EmailClient"));
 const EmailCallback = React.lazy(() => import("./pages/EmailCallback"));
 const PedidosPage = React.lazy(() => import("./pages/Pedidos"));
 const AssistenteIA = React.lazy(() => import("./pages/AssistenteIA"));
+const ArquivosPage = React.lazy(() => import("./pages/Arquivos"));
 const PlanosPage = React.lazy(() => import("./pages/Planos"));
 const GoogleCallback = React.lazy(() => import("./pages/GoogleCallback"));
 const PrivacyPolicy = React.lazy(() => import("./pages/PrivacyPolicy"));
@@ -105,6 +106,7 @@ export default function App() {
                       <Route path="email" element={<EmailClient />} />
                       <Route path="pedidos" element={<PedidosPage />} />
                       <Route path="assistente" element={<AssistenteIA />} />
+                      <Route path="arquivos" element={<ArquivosPage />} />
                     </Route>
                     <Route path="order-bump" element={<OrderBumpPage />} />
                   </Route>
