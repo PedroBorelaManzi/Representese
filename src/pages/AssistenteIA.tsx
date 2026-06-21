@@ -221,12 +221,13 @@ ${context || "Nenhum cliente cadastrado ainda."}`;
         { role: "assistant", content: answer.trim() || "Não consegui gerar uma resposta agora." },
       ]);
       bumpUsage();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Assistente IA error:", err);
-      toast.error("Erro ao falar com o assistente. Tente novamente.");
+      const detail = (err?.message || "").toString().slice(0, 200);
+      toast.error(detail ? `Erro: ${detail}` : "Erro ao falar com o assistente. Tente novamente.");
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: "Ops, tive um problema para responder agora. Tente novamente em instantes." },
+        { role: "assistant", content: `Ops, tive um problema para responder agora.${detail ? `\n\n_Detalhe técnico: ${detail}_` : ""}` },
       ]);
     } finally {
       setThinking(false);

@@ -7,13 +7,22 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 const app = express();
 
 const allowedOrigins = [
+  'https://www.representese.com',
   'https://representese.com',
   'http://localhost:3000'
 ];
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    const ok =
+      !origin ||
+      allowedOrigins.includes(origin) ||
+      /\.representese\.com$/.test(origin) ||   // qualquer subdomínio (www, app, etc.)
+      /\.vercel\.app$/.test(origin) ||         // deploys de preview da Vercel
+      origin.startsWith('capacitor://') ||     // app nativo iOS
+      origin === 'http://localhost' ||         // app nativo Android
+      origin === 'https://localhost';          // app nativo
+    if (ok) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
