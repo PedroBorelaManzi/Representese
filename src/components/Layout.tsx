@@ -91,13 +91,9 @@ export default function Layout() {
     setMobileAvatarError(false);
   }, [settings.avatar_url]);
 
-  // Request browser notification permission on load if enabled by default
-  useEffect(() => {
-    const isPushEnabled = localStorage.getItem("rm_push_notifications") !== "false";
-    if (isPushEnabled && 'Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
-  }, []);
+  // Notificações servem apenas para o app nativo (mobile). No navegador/PC não pedimos
+  // permissão nem disparamos notificações — era isso que ficava "apitando" ao abrir o PC.
+  // A permissão nativa é solicitada no Dashboard (LocalNotifications).
 
   // Background check for notifications (appointments in 1h, client inactivities)
   useEffect(() => {
@@ -107,38 +103,35 @@ export default function Layout() {
       const isPushEnabled = localStorage.getItem("rm_push_notifications") !== "false";
       if (!isPushEnabled) return;
 
+      // Notificações servem apenas para o app (mobile). No computador/web não disparamos.
+      if (!Capacitor.isNativePlatform()) return;
+
       const notifiedTags = JSON.parse(localStorage.getItem("rm_notified_tags") || "[]");
       if (notifiedTags.includes(tag)) return;
 
-      if (Capacitor.isNativePlatform()) {
-        try {
-          const perm = await LocalNotifications.checkPermissions();
-          if (perm.display === 'granted') {
-            const hashCode = (str: string): number => {
-              let hash = 0;
-              for (let i = 0; i < str.length; i++) {
-                hash = str.charCodeAt(i) + ((hash << 5) - hash);
-              }
-              return Math.abs(hash);
-            };
-            
-            await LocalNotifications.schedule({
-              notifications: [{
-                title,
-                body,
-                id: hashCode(tag),
-                schedule: { at: new Date(Date.now() + 1000) },
-                sound: 'default'
-              }]
-            });
-          }
-        } catch (e) {
-          console.error("Local notification scheduling error", e);
+      try {
+        const perm = await LocalNotifications.checkPermissions();
+        if (perm.display === 'granted') {
+          const hashCode = (str: string): number => {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+              hash = str.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            return Math.abs(hash);
+          };
+
+          await LocalNotifications.schedule({
+            notifications: [{
+              title,
+              body,
+              id: hashCode(tag),
+              schedule: { at: new Date(Date.now() + 1000) },
+              sound: 'default'
+            }]
+          });
         }
-      } else {
-        if ('Notification' in window && Notification.permission === "granted") {
-          new Notification(title, { body, icon: "/favicon.ico" });
-        }
+      } catch (e) {
+        console.error("Local notification scheduling error", e);
       }
 
       notifiedTags.push(tag);
@@ -205,10 +198,12 @@ export default function Layout() {
             }
             
             if (stateName) {
+              // Etiqueta por cliente + último contato: alerta de inatividade vai 1x só.
+              // Só volta a alertar se o cliente comprar (last_contact muda) e ficar inativo de novo.
               sendNotification(
                 "Representese 📈 🔔",
                 "Alerta de Inatividade (" + stateName + "): " + client.name + " está há " + daysInactive + " dias sem comprar (limiar: " + targetDays + " dias).",
-                "client_state_" + client.id + "_" + stateName + "_" + targetDays + "_" + client.last_contact
+                "client_inactive_" + client.id + "_" + client.last_contact
               );
             }
           });

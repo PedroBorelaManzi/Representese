@@ -30,7 +30,7 @@ interface SettingsModalProps {
 
 const menuItems = [
   { id: 'profile', label: 'Meu Perfil', icon: User, color: 'text-blue-500' },
-  { id: 'appearance', label: 'Aparência', icon: Moon, color: 'text-indigo-500' },
+  { id: 'appearance', label: 'Personalização', icon: Moon, color: 'text-indigo-500' },
   { id: 'subscription', label: 'Minha Assinatura', icon: CreditCard, color: 'text-emerald-500' },
   { id: 'notifications', label: 'Notificações', icon: Bell, color: 'text-amber-500' },
   { id: 'security', label: 'Segurança', icon: Shield, color: 'text-red-500' },
