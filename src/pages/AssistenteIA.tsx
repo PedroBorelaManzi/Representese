@@ -139,6 +139,31 @@ export default function AssistenteIA() {
     });
   };
 
+  // Carregar histórico de chats ao montar (isolado por user)
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const { data, error } = await supabase
+        .from("ai_chats")
+        .select("id, role, content, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true });
+      if (!error && data) {
+        setMessages(data.map(msg => ({ role: msg.role as "user" | "assistant", content: msg.content })));
+      }
+    })();
+  }, [user]);
+
+  // Salvar mensagem no banco (isolada por user)
+  const saveChat = async (role: "user" | "assistant", content: string) => {
+    if (!user) return;
+    await supabase.from("ai_chats").insert({
+      user_id: user.id,
+      role,
+      content,
+    });
+  };
+
   const { data: clients = [], isLoading: clientsLoading } = useQuery({
     queryKey: ["ai-assistant-clients", user?.id],
     queryFn: async (): Promise<AIClient[]> => {
@@ -205,6 +230,9 @@ ${context || "Nenhum cliente cadastrado ainda."}`;
     setInput("");
     setThinking(true);
 
+    // Salva a mensagem do user no banco
+    await saveChat("user", question);
+
     try {
       const history = nextMessages
         .slice(-6)
@@ -216,19 +244,25 @@ ${context || "Nenhum cliente cadastrado ainda."}`;
         generationConfig: { temperature: 0.3 },
       });
 
+      const assistantMsg = answer.trim() || "Não consegui gerar uma resposta agora.";
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: answer.trim() || "Não consegui gerar uma resposta agora." },
+        { role: "assistant", content: assistantMsg },
       ]);
+      // Salva a resposta da IA no banco
+      await saveChat("assistant", assistantMsg);
       bumpUsage();
     } catch (err: any) {
       console.error("Assistente IA error:", err);
       const detail = (err?.message || "").toString().slice(0, 200);
       toast.error(detail ? `Erro: ${detail}` : "Erro ao falar com o assistente. Tente novamente.");
+      const errMsg = `Ops, tive um problema para responder agora.${detail ? `\n\n_Detalhe técnico: ${detail}_` : ""}`;
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: `Ops, tive um problema para responder agora.${detail ? `\n\n_Detalhe técnico: ${detail}_` : ""}` },
+        { role: "assistant", content: errMsg },
       ]);
+      // Salva o erro também (pro usuário não perder a tentativa)
+      await saveChat("assistant", errMsg);
     } finally {
       setThinking(false);
       inputRef.current?.focus();
@@ -351,6 +385,28 @@ ${context || "Nenhum cliente cadastrado ainda."}`;
                   )}
                 </motion.div>
               ))}
+
+              {/* Sugestões sempre visíveis (abaixo das mensagens quando há histórico) */}
+              {!thinking && messages.length > 0 && (
+                <div className="pt-4 border-t border-slate-100 dark:border-zinc-800">
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Sugestões</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {suggestions.map((s) => (
+                      <button
+                        key={s.text}
+                        onClick={() => send(s.text)}
+                        disabled={clientsLoading || thinking}
+                        className="group flex items-center gap-2 text-left p-2.5 rounded-lg border border-slate-200 dark:border-zinc-800 hover:border-emerald-300 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <span className="w-6 h-6 rounded-lg bg-slate-50 dark:bg-zinc-800 group-hover:bg-emerald-100 flex items-center justify-center flex-shrink-0 transition-colors">
+                          <s.icon className="w-3 h-3 text-emerald-600" />
+                        </span>
+                        <span className="text-[11px] font-semibold text-slate-700 dark:text-zinc-200 leading-snug flex-1 line-clamp-2">{s.text}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <AnimatePresence>
                 {thinking && (
