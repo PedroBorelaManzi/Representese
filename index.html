@@ -26,6 +26,16 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- Aplica o tema salvo antes do React montar, evitando flash de tema errado -->
+    <script>
+      (function () {
+        try {
+          if (localStorage.getItem('theme') === 'dark') {
+            document.documentElement.classList.add('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

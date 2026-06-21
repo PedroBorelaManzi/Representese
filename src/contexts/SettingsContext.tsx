@@ -64,6 +64,13 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const location = useLocation();
 
+  // Aplica o tema no <html> (classe .dark) sempre que mudar. Sem isso o toggle
+  // salvava a preferência mas não alterava nada na tela.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle('dark', settings.theme === 'dark');
+  }, [settings.theme]);
+
   useEffect(() => {
     async function loadSettings() {
       if (!user) {
