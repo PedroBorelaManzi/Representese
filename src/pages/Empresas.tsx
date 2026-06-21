@@ -421,7 +421,7 @@ export default function EmpresasPage() {
 
   return (
     <div className="flex flex-col gap-4 lg:gap-10 pb-20 overflow-x-hidden">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-6 pt-6 pb-5 border-b border-slate-200/70 bg-gradient-to-r from-white to-slate-50/50 mb-6 rounded-t-2xl">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-6 pt-6 pb-5 border-b border-slate-200/70 dark:border-zinc-800/70 bg-gradient-to-r from-white to-slate-50/50 dark:from-zinc-900 dark:to-zinc-950/50 mb-6 rounded-t-2xl">
         <div>
           <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-zinc-100">
             Empresas

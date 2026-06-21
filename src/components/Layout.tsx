@@ -32,6 +32,7 @@ import { LocalNotifications } from '@capacitor/local-notifications';
 import { WhatsAppButton } from './WhatsAppButton';
 import { Logo } from './Logo';
 import { SubscriptionGuard } from './SubscriptionGuard';
+import { ErrorBoundary } from './ErrorBoundary';
 import { toast } from 'sonner';
 
 const SettingsModal = React.lazy(() => import('./SettingsModal'));
@@ -617,7 +618,9 @@ export default function Layout() {
                   exit={{ opacity: 0, y: -12 }}
                   transition={{ duration: 0.15, ease: "easeInOut" }}
                 >
-                  <Outlet />
+                  <ErrorBoundary resetKey={location.pathname}>
+                    <Outlet />
+                  </ErrorBoundary>
                 </motion.div>
               </AnimatePresence>
             </div>
