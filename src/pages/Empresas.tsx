@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { processOrderFile } from "../lib/orderProcessor";
-import { getHighPrecisionCoordinates } from "../lib/geminiGeocoding";
 import { 
   Building2, 
   Plus, 
@@ -125,6 +123,7 @@ export default function EmpresasPage() {
     let lat = -23.5505, lng = -46.6333;
     if (address) {
       try {
+        const { getHighPrecisionCoordinates } = await import("../lib/geminiGeocoding");
         const coords = await getHighPrecisionCoordinates(address, name, cnpj);
         if (coords) { lat = coords.lat; lng = coords.lng; }
       } catch (e) {}
@@ -182,6 +181,7 @@ export default function EmpresasPage() {
     for (let i = 0; i < newFiles.length; i++) {
       const file = newFiles[i].file;
       try {
+        const { processOrderFile } = await import("../lib/orderProcessor");
         const res = await processOrderFile(file, clients.map(c => c.name), settings.categories || []);
         
         // Match client by CNPJ or Name immediately

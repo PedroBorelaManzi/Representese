@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+﻿import React, { useState, useEffect, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap, Tooltip, ZoomControl } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -327,7 +327,9 @@ export default function Map() {
        toast.error(error.code === "23503" ? "Cliente vinculado a pedidos/compromissos." : "Erro ao excluir.");
        return;
     }
-    /* Optimistic delete */
+    queryClient.setQueryData(['clients', user?.id], (old: any[]) =>
+      old ? old.filter(c => c.id !== id) : []
+    );
     toast.success("Cliente removido.");
   };
 
@@ -639,92 +641,80 @@ export default function Map() {
                 <span className="font-black uppercase tracking-tight text-[10px] px-2 py-1 text-slate-900">{company.name}</span>
               </Tooltip>
               {!isRouteMode && <Popup className="premium-popup">
-                <div className="p-4 min-w-[280px] bg-white dark:bg-zinc-900">
-                  <div className="flex items-center gap-3 mb-4">
-                     <div className="p-3 bg-emerald-50 dark:bg-emerald-950/50 rounded-2xl">
-                        <Building2 className="w-6 h-6 text-emerald-600" />
-                     </div>
-                     <div>
-                        <h3 className="font-black text-slate-900 dark:text-zinc-100 text-lg uppercase tracking-tighter leading-none mb-1">{company.name}</h3>
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{company.cnpj || "Sem CNPJ"}</p>
-                     </div>
-                  </div>
-                  
-                  <div className="space-y-3 mb-6">
-                    <div className="flex items-center gap-3 text-xs font-bold text-slate-600 dark:text-zinc-400 bg-slate-50 dark:bg-zinc-800/50 p-3 rounded-2xl">
-                      <MapPin className="w-4 h-4 text-slate-400" />
-                      <span className="truncate">{company.address || "Endereço não informado"}</span>
+                <div className="w-[min(300px,85vw)] bg-white dark:bg-zinc-900">
+                  {/* Header */}
+                  <div className="flex items-center gap-2.5 p-3 border-b border-slate-100 dark:border-zinc-800">
+                    <div className="p-2 bg-emerald-50 dark:bg-emerald-950/50 rounded-xl shrink-0">
+                      <Building2 className="w-5 h-5 text-emerald-600" />
                     </div>
+                    <div className="min-w-0">
+                      <h3 className="font-black text-slate-900 dark:text-zinc-100 text-sm uppercase tracking-tight leading-tight truncate">{company.name}</h3>
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{company.cnpj || "Sem CNPJ"}</p>
+                    </div>
+                  </div>
 
-                    <div className="space-y-2 bg-slate-50 dark:bg-zinc-800/50 p-3 rounded-2xl mt-3">
-                         <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2 border-b border-slate-200 dark:border-zinc-700 pb-1">Últimas Compras</h4>
-                         
-                         {settings.categories && settings.categories.length > 0 ? (
-                           settings.categories.map((cat: string) => {
-                             const normalize = (s) => s?.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim(); const order = company.lastOrdersByCategory?.[normalize(cat)];
-                             return (
-                               <div key={cat} className="flex items-center justify-between text-[10px] font-bold py-1">
-                                 <span className="text-slate-600 dark:text-zinc-400 uppercase">{cat}</span>
-                                 {order ? (
-                                   <div className="flex items-center gap-2">
-                                     <span className="text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-md">
-                                       {new Date(order.created_at).toLocaleDateString('pt-BR')}
-                                     </span>
-                                     {order.file_path && (
-                                       <button 
-                                         onClick={(e) => {
-                                           e.stopPropagation();
-                                           handleDownload(order.file_name || 'pedido.pdf', order.file_path);
-                                         }}
-                                         className="p-1 bg-slate-200 dark:bg-zinc-700 rounded hover:bg-slate-300 dark:hover:bg-zinc-600 transition-colors"
-                                         title="Visualizar Pedido"
-                                       >
-                                         <FileDown className="w-3 h-3 text-slate-600 dark:text-zinc-300" />
-                                       </button>
-                                     )}
-                                   </div>
-                                 ) : (null)}
-                               </div>
-                           );
-                         })
-                       ) : (
-                         <div className="text-[10px] font-bold text-slate-400 text-center py-1">
-                           Nenhuma categoria configurada
-                         </div>
-                       )}
+                  {/* Address */}
+                  <div className="px-3 py-2 flex items-start gap-2 bg-slate-50 dark:bg-zinc-800/60 border-b border-slate-100 dark:border-zinc-800">
+                    <MapPin className="w-3.5 h-3.5 text-slate-400 mt-0.5 shrink-0" />
+                    <span className="text-[10px] font-semibold text-slate-600 dark:text-zinc-400 leading-tight line-clamp-2">{company.address || "Endereço não informado"}</span>
+                  </div>
+
+                  {/* Last orders */}
+                  {settings.categories && settings.categories.length > 0 && (
+                    <div className="px-3 py-2 border-b border-slate-100 dark:border-zinc-800">
+                      <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1.5">Últimas Compras</p>
+                      <div className="space-y-1">
+                        {settings.categories.map((cat: string) => {
+                          const normalize = (s: string) => s?.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().trim();
+                          const order = company.lastOrdersByCategory?.[normalize(cat)];
+                          return (
+                            <div key={cat} className="flex items-center justify-between gap-2">
+                              <span className="text-[10px] font-bold text-slate-600 dark:text-zinc-400 uppercase truncate">{cat}</span>
+                              {order ? (
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded">
+                                    {new Date(order.created_at).toLocaleDateString('pt-BR')}
+                                  </span>
+                                  {order.file_path && (
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); handleDownload(order.file_name || 'pedido.pdf', order.file_path); }}
+                                      className="p-1 bg-slate-200 dark:bg-zinc-700 rounded active:scale-90 transition-transform"
+                                    >
+                                      <FileDown className="w-3 h-3 text-slate-600 dark:text-zinc-300" />
+                                    </button>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-[10px] text-slate-300 dark:text-zinc-600">—</span>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 mb-6">
-                    <Link 
-                      to={`/dashboard/clientes/${company.id}`}
-                      className="flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg  active:scale-95"
-                    >
-                      Perfil
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </Link>
-                    <button 
-                      onClick={() => handleDeleteClient(company.id, company.name)}
-                      className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-900 dark:bg-zinc-800 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 transition-all active:scale-95"
-                    >
-                      Remover
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  
-                  {isRouteMode ? (
-                    <button
-                      onClick={() => toggleRouteClient(company.id)}
-                      className={`w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${inRoute ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}
-                    >
-                      {inRoute ? <><X className="w-3.5 h-3.5" /> Remover da rota (parada {routeIdx + 1})</> : <><Route className="w-3.5 h-3.5" /> Adicionar à rota</>}
-                    </button>
-                  ) : (
-                    <div className="flex items-center gap-2 justify-center py-2 bg-amber-50 dark:bg-amber-900/20 rounded-xl">
-                      <Info className="w-3.5 h-3.5 text-amber-600" />
-                      <span className="text-[9px] font-black uppercase tracking-tighter text-amber-700 dark:text-amber-500">Arraste para ajustar posição exata</span>
                     </div>
                   )}
+
+                  {/* Actions */}
+                  <div className="p-3 flex gap-2">
+                    <Link
+                      to={`/dashboard/clientes/${company.id}`}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider active:scale-95 transition-transform"
+                    >
+                      Perfil <ExternalLink className="w-3 h-3" />
+                    </Link>
+                    <button
+                      onClick={() => handleDeleteClient(company.id, company.name)}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-slate-900 dark:bg-zinc-800 text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-red-600 active:scale-95 transition-all"
+                    >
+                      Excluir <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+
+                  {/* Drag tip */}
+                  <div className="px-3 pb-3 flex items-center justify-center gap-1.5">
+                    <Info className="w-3 h-3 text-amber-500 shrink-0" />
+                    <span className="text-[9px] font-bold uppercase tracking-tight text-amber-600 dark:text-amber-500">Arraste o pin para ajustar posição</span>
+                  </div>
                 </div>
               </Popup>}
             </Marker>
