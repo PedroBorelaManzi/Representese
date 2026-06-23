@@ -24,6 +24,7 @@ import {
   Calendar,
   MapPin,
   MoreHorizontal,
+  Mic,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
@@ -77,6 +78,8 @@ const themes: SuggestionTheme[] = [
       "Como lanço pedidos por foto ou PDF?",
       "O que cada plano oferece?",
       "Como funciona a sincronização offline?",
+      "Como conecto meu Gmail ao sistema?",
+      "Onde vejo meu faturamento por empresa?",
     ],
   },
   {
@@ -89,6 +92,8 @@ const themes: SuggestionTheme[] = [
       "Sugira uma agenda de visitas para os próximos dias.",
       "Como conecto minha Google Agenda?",
       "Quais clientes preciso visitar com prioridade?",
+      "Organize minha semana por região de visita.",
+      "Quais visitas estão marcadas para hoje?",
     ],
   },
   {
@@ -101,6 +106,8 @@ const themes: SuggestionTheme[] = [
       "Trace uma rota pelos meus 5 maiores clientes.",
       "Como funciona o planejamento de rotas no mapa?",
       "Quais clientes estão na mesma região?",
+      "Crie uma rota pelos clientes de uma cidade.",
+      "Quais clientes ainda não têm localização no mapa?",
     ],
   },
   {
@@ -113,6 +120,8 @@ const themes: SuggestionTheme[] = [
       "Gere um relatório PDF da minha carteira.",
       "Qual foi meu último pedido de cada empresa?",
       "Como digitalizar um pedido por foto?",
+      "Quanto vendi este mês por empresa representada?",
+      "Quais clientes não compram há mais tempo?",
     ],
   },
   {
@@ -125,6 +134,8 @@ const themes: SuggestionTheme[] = [
       "Escreva um WhatsApp de reativação para um cliente.",
       "Dê ideias para aumentar meu ticket médio.",
       "Como abordar um cliente que parou de comprar?",
+      "Escreva um e-mail de apresentação de novidade.",
+      "Sugira argumentos para fechar uma venda maior.",
     ],
   },
   {
@@ -137,6 +148,8 @@ const themes: SuggestionTheme[] = [
       "Quais clientes estão há mais tempo sem contato?",
       "Quais clientes estão em risco de inatividade?",
       "Resuma a minha carteira em poucos pontos.",
+      "Quais clientes cresceram em compras recentemente?",
+      "Liste meus clientes de uma cidade específica.",
     ],
   },
 ];
@@ -493,6 +506,11 @@ export default function AssistenteIA() {
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const [listening, setListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+  const voiceSupported =
+    typeof window !== "undefined" &&
+    !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
 
   const isUnlimited =
     settings?.plan_id === "master" && settings?.subscription_status === "active";
@@ -712,6 +730,61 @@ EMPRESAS REPRESENTADAS DO USUÁRIO (use exatamente estes nomes como "category" a
   const cancel = () => {
     abortRef.current?.abort();
   };
+
+  // Ditado por voz: fala vira texto no input (Web Speech API, pt-BR)
+  const toggleVoice = () => {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      toast.error("Seu navegador não suporta ditado por voz.");
+      return;
+    }
+    if (listening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+
+    const rec = new SR();
+    rec.lang = "pt-BR";
+    rec.continuous = true;
+    rec.interimResults = true;
+
+    const base = input.trim() ? input.trim() + " " : "";
+    rec.onresult = (e: any) => {
+      let assembled = "";
+      for (let i = 0; i < e.results.length; i++) {
+        assembled += e.results[i][0].transcript;
+      }
+      setInput(base + assembled);
+    };
+    rec.onerror = (e: any) => {
+      if (e?.error === "not-allowed" || e?.error === "service-not-allowed") {
+        toast.error("Permita o acesso ao microfone para ditar.");
+      }
+      setListening(false);
+    };
+    rec.onend = () => {
+      setListening(false);
+      recognitionRef.current = null;
+      inputRef.current?.focus();
+    };
+
+    recognitionRef.current = rec;
+    try {
+      rec.start();
+      setListening(true);
+    } catch {
+      setListening(false);
+    }
+  };
+
+  // Garante que o reconhecimento pare ao desmontar a página
+  useEffect(() => {
+    return () => {
+      try {
+        recognitionRef.current?.stop();
+      } catch {}
+    };
+  }, []);
 
   // "…" → gera novas frases prontas para o tema, via IA (não conta no limite diário)
   const generateMoreSuggestions = async (
@@ -969,10 +1042,32 @@ Responda APENAS com as 4 frases, uma por linha, sem numeração, sem aspas, sem 
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               rows={1}
-              placeholder={clientsLoading ? "Carregando sua carteira..." : "Pergunte sobre seus clientes..."}
+              placeholder={
+                clientsLoading
+                  ? "Carregando sua carteira..."
+                  : listening
+                    ? "Ouvindo... pode falar"
+                    : "Pergunte sobre seus clientes..."
+              }
               disabled={clientsLoading || limitReached}
               className="flex-1 bg-transparent resize-none outline-none text-[14px] font-medium text-slate-800 dark:text-zinc-100 placeholder:text-slate-400 py-2 max-h-32 disabled:opacity-50"
             />
+            {/* Botão de voz (ditado) */}
+            {voiceSupported && (
+              <button
+                onClick={toggleVoice}
+                disabled={clientsLoading || limitReached || thinking}
+                title={listening ? "Parar ditado" : "Falar (ditado por voz)"}
+                className={cn(
+                  "flex items-center justify-center w-10 h-10 rounded-xl transition-all active:scale-95 flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed",
+                  listening
+                    ? "bg-red-600 text-white animate-pulse"
+                    : "bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700"
+                )}
+              >
+                <Mic className="w-4 h-4" />
+              </button>
+            )}
             {thinking ? (
               <button
                 onClick={cancel}
@@ -994,7 +1089,9 @@ Responda APENAS com as 4 frases, uma por linha, sem numeração, sem aspas, sem 
           <p className="text-[10px] text-slate-400 font-medium text-center mt-2">
             {thinking
               ? "Gerando resposta… toque no quadrado vermelho para cancelar."
-              : "A IA usa apenas os dados da sua carteira. Confira informações importantes antes de agir."}
+              : listening
+                ? "Ouvindo sua fala… toque no microfone para parar, depois envie."
+                : "A IA usa apenas os dados da sua carteira. Confira informações importantes antes de agir."}
           </p>
         </div>
       </div>
