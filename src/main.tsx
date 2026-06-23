@@ -44,6 +44,16 @@ if (typeof window !== 'undefined') {
     const reason = event.reason || 'Rejeição de Promise sem motivo especificado';
     logError(reason, 'global_unhandled_rejection');
   });
+
+  // Falha ao precarregar um chunk após novo deploy (assets antigos sumiram):
+  // recarrega uma vez para pegar o index.html novo. Guard evita loop infinito.
+  window.addEventListener('vite:preloadError', (event) => {
+    event.preventDefault();
+    if (!sessionStorage.getItem('rm_chunk_reload')) {
+      sessionStorage.setItem('rm_chunk_reload', '1');
+      window.location.reload();
+    }
+  });
 }
 
 createRoot(document.getElementById('root')!).render(

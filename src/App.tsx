@@ -10,33 +10,34 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import { Toaster } from "sonner";
 import Layout from "./components/Layout";
 import { SpeedInsights } from "@vercel/speed-insights/react";
+import { lazyWithRetry } from "./lib/lazyWithRetry";
 
-// Lazy Loaded Pages
-const Landing = React.lazy(() => import("./pages/LandingPitch"));
-const Login = React.lazy(() => import('./pages/Login'));
-const Register = React.lazy(() => import('./pages/Register'));
-const Recovery = React.lazy(() => import('./pages/Recovery'));
-const Checkout = React.lazy(() => import('./pages/Checkout'));
-const OrderBumpPage = React.lazy(() => import("./pages/OrderBump"));
-const Dashboard = React.lazy(() => import("./pages/Dashboard"));
-const MapPage = React.lazy(() => import("./pages/Map"));
-const LinksPage = React.lazy(() => import("./pages/Links"));
-const CRMPage = React.lazy(() => import("./pages/CRM"));
-const ClientDetailsPage = React.lazy(() => import("./pages/ClientDetails"));
-const ClientEditPage = React.lazy(() => import("./pages/ClientEdit"));
-const EmpresasPage = React.lazy(() => import("./pages/Empresas"));
-const AgendaPage = React.lazy(() => import("./pages/Agenda"));
-const EmailClient = React.lazy(() => import("./pages/EmailClient"));
-const EmailCallback = React.lazy(() => import("./pages/EmailCallback"));
-const PedidosPage = React.lazy(() => import("./pages/Pedidos"));
-const AssistenteIA = React.lazy(() => import("./pages/AssistenteIA"));
-const ComissoesPage = React.lazy(() => import("./pages/Comissoes"));
-const RankingPage = React.lazy(() => import("./pages/Ranking"));
-const ArquivosPage = React.lazy(() => import("./pages/Arquivos"));
-const PlanosPage = React.lazy(() => import("./pages/Planos"));
-const GoogleCallback = React.lazy(() => import("./pages/GoogleCallback"));
-const PrivacyPolicy = React.lazy(() => import("./pages/PrivacyPolicy"));
-const TermsOfService = React.lazy(() => import("./pages/TermsOfService"));
+// Lazy Loaded Pages (com retry automático em chunk órfão após deploy)
+const Landing = lazyWithRetry(() => import("./pages/LandingPitch"));
+const Login = lazyWithRetry(() => import('./pages/Login'));
+const Register = lazyWithRetry(() => import('./pages/Register'));
+const Recovery = lazyWithRetry(() => import('./pages/Recovery'));
+const Checkout = lazyWithRetry(() => import('./pages/Checkout'));
+const OrderBumpPage = lazyWithRetry(() => import("./pages/OrderBump"));
+const Dashboard = lazyWithRetry(() => import("./pages/Dashboard"));
+const MapPage = lazyWithRetry(() => import("./pages/Map"));
+const LinksPage = lazyWithRetry(() => import("./pages/Links"));
+const CRMPage = lazyWithRetry(() => import("./pages/CRM"));
+const ClientDetailsPage = lazyWithRetry(() => import("./pages/ClientDetails"));
+const ClientEditPage = lazyWithRetry(() => import("./pages/ClientEdit"));
+const EmpresasPage = lazyWithRetry(() => import("./pages/Empresas"));
+const AgendaPage = lazyWithRetry(() => import("./pages/Agenda"));
+const EmailClient = lazyWithRetry(() => import("./pages/EmailClient"));
+const EmailCallback = lazyWithRetry(() => import("./pages/EmailCallback"));
+const PedidosPage = lazyWithRetry(() => import("./pages/Pedidos"));
+const AssistenteIA = lazyWithRetry(() => import("./pages/AssistenteIA"));
+const ComissoesPage = lazyWithRetry(() => import("./pages/Comissoes"));
+const RankingPage = lazyWithRetry(() => import("./pages/Ranking"));
+const ArquivosPage = lazyWithRetry(() => import("./pages/Arquivos"));
+const PlanosPage = lazyWithRetry(() => import("./pages/Planos"));
+const GoogleCallback = lazyWithRetry(() => import("./pages/GoogleCallback"));
+const PrivacyPolicy = lazyWithRetry(() => import("./pages/PrivacyPolicy"));
+const TermsOfService = lazyWithRetry(() => import("./pages/TermsOfService"));
 
 const LoadingSpinner = () => (
   <div className="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-zinc-950">
