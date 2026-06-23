@@ -33,10 +33,22 @@ export async function callGeminiProxy(request: GeminiProxyRequest, signal?: Abor
     signal,
   });
 
-  const data = await response.json();
+  // Lê o corpo como texto primeiro: respostas de erro (413, 502, etc.) podem
+  // não ser JSON, e fazer response.json() direto quebraria com erro confuso
+  // ("The string did not match the expected pattern" no Safari).
+  const rawBody = await response.text();
+  let data: any = {};
+  try {
+    data = rawBody ? JSON.parse(rawBody) : {};
+  } catch {
+    data = {};
+  }
 
   if (!response.ok) {
-    throw new Error(data.error || `Gemini proxy error (${response.status})`);
+    if (response.status === 413) {
+      throw new Error("A imagem é muito grande. Tente uma foto menor ou com menos qualidade.");
+    }
+    throw new Error(data.error || `Erro na IA (${response.status}). Tente novamente.`);
   }
 
   return data.text || "";

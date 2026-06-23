@@ -1190,8 +1190,49 @@ EMPRESAS REPRESENTADAS DO USUÁRIO (use exatamente estes nomes como "category" a
     abortRef.current?.abort();
   };
 
+  // Comprime/redimensiona a imagem para caber no limite do servidor (~4,5MB na Vercel).
+  // Também normaliza HEIC (foto de iPhone) e PNG pesado para JPEG.
+  const compressImage = (
+    file: File,
+    maxDim = 1600,
+    quality = 0.8
+  ): Promise<{ dataUrl: string; base64: string; mime: string }> => {
+    return new Promise((resolve, reject) => {
+      const objectUrl = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        try {
+          let { width, height } = img;
+          if (width > maxDim || height > maxDim) {
+            const scale = Math.min(maxDim / width, maxDim / height);
+            width = Math.round(width * scale);
+            height = Math.round(height * scale);
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) throw new Error("canvas");
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL("image/jpeg", quality);
+          const base64 = dataUrl.split(",")[1] || "";
+          URL.revokeObjectURL(objectUrl);
+          resolve({ dataUrl, base64, mime: "image/jpeg" });
+        } catch (err) {
+          URL.revokeObjectURL(objectUrl);
+          reject(err);
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error("Não consegui ler essa imagem."));
+      };
+      img.src = objectUrl;
+    });
+  };
+
   // Anexar foto (ex.: pedido para a IA ler e lançar)
-  const handlePickImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePickImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = ""; // permite reanexar o mesmo arquivo
     if (!file) return;
@@ -1199,17 +1240,12 @@ EMPRESAS REPRESENTADAS DO USUÁRIO (use exatamente estes nomes como "category" a
       toast.error("Anexe uma imagem (foto do pedido).");
       return;
     }
-    if (file.size > 8 * 1024 * 1024) {
-      toast.error("Imagem muito grande (máx. 8MB).");
-      return;
+    try {
+      const compressed = await compressImage(file);
+      setAttachedImage(compressed);
+    } catch {
+      toast.error("Não consegui processar essa imagem. Tente outra foto.");
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = String(reader.result || "");
-      const base64 = dataUrl.split(",")[1] || "";
-      setAttachedImage({ dataUrl, base64, mime: file.type });
-    };
-    reader.readAsDataURL(file);
   };
 
   // Ditado por voz: fala vira texto no input (Web Speech API, pt-BR)

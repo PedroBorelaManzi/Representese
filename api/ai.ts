@@ -30,7 +30,9 @@ app.use(cors({
   }
 }));
 
-app.use(express.json());
+// Limite elevado para aceitar imagens (pedido por foto) em base64.
+// A Vercel ainda limita o corpo a ~4,5MB; o cliente comprime antes de enviar.
+app.use(express.json({ limit: '10mb' }));
 
 let ratelimit: Ratelimit | null = null;
 if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
