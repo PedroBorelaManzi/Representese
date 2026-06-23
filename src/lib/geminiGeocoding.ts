@@ -7,37 +7,6 @@ type CacheEntry = {
 
 const memoryCache = new Map<string, { lat: number; lng: number } | null>();
 
-/** Centros aproximados das capitais de cada estado brasileiro. */
-const STATE_CENTERS: Record<string, { lat: number; lng: number }> = {
-  AC: { lat: -9.97, lng: -67.81 },
-  AL: { lat: -9.67, lng: -35.74 },
-  AM: { lat: -3.10, lng: -60.03 },
-  AP: { lat: 0.03, lng: -51.07 },
-  BA: { lat: -12.97, lng: -38.50 },
-  CE: { lat: -3.72, lng: -38.54 },
-  DF: { lat: -15.78, lng: -47.93 },
-  ES: { lat: -20.32, lng: -40.34 },
-  GO: { lat: -16.69, lng: -49.25 },
-  MA: { lat: -2.53, lng: -44.30 },
-  MG: { lat: -19.92, lng: -43.94 },
-  MS: { lat: -20.46, lng: -54.62 },
-  MT: { lat: -15.60, lng: -56.10 },
-  PA: { lat: -1.46, lng: -48.50 },
-  PB: { lat: -7.12, lng: -34.86 },
-  PE: { lat: -8.06, lng: -34.87 },
-  PI: { lat: -5.09, lng: -42.80 },
-  PR: { lat: -25.42, lng: -49.27 },
-  RJ: { lat: -22.91, lng: -43.17 },
-  RN: { lat: -5.79, lng: -35.21 },
-  RO: { lat: -8.76, lng: -63.90 },
-  RR: { lat: 2.82, lng: -60.67 },
-  RS: { lat: -30.03, lng: -51.23 },
-  SC: { lat: -27.60, lng: -48.55 },
-  SE: { lat: -10.91, lng: -37.07 },
-  SP: { lat: -23.55, lng: -46.63 },
-  TO: { lat: -10.18, lng: -48.33 },
-};
-
 /** Rejeita coords fora do território brasileiro. */
 function isWithinBrazil(lat: number, lng: number): boolean {
   return lat >= -34 && lat <= 6 && lng >= -74 && lng <= -28;
@@ -103,17 +72,20 @@ export interface GeocodingExtra {
   city?: string;
   /** UF (sigla). */
   state?: string;
+  /** CEP (só dígitos, 8 caracteres). */
+  cep?: string;
 }
 
 /**
- * Geocodifica um endereço de empresa com cascata de 5 tiers:
+ * Geocodifica um endereço de empresa com cascata de 6 tiers:
  *
  * 0. Cache (memória + localStorage 7 dias)
- * 1. Nominatim estruturado — logradouro + número + cidade + estado
- * 2. Gemini com contexto rico — razão social, fantasia, CNPJ, cidade (conhecimento de treinamento)
- * 3. Nominatim por nome da empresa — razão social / fantasia + cidade
- * 4. Nominatim só pela cidade — garante pin na cidade certa
- * 5. Centro do estado (fallback geográfico seguro)
+ * 1. Nominatim por CEP — identifica a rua exata, máxima precisão
+ * 2. Nominatim estruturado — logradouro + número + cidade + estado
+ * 3. Gemini com contexto rico — usa conhecimento de treinamento sobre a empresa
+ * 4. OpenCage — geocodificador profissional, free até 2.500 req/dia
+ * 5. Nominatim por nome da empresa + cidade
+ * 6. Nominatim só pela cidade — mínimo aceitável
  */
 export async function getHighPrecisionCoordinates(
   address: string,
@@ -131,8 +103,22 @@ export async function getHighPrecisionCoordinates(
   const cached = getCachedCoords(cacheKey);
   if (cached !== undefined) return cached;
 
-  // ── Tier 1: Nominatim estruturado ────────────────────────────────
-  // Campos separados da BrasilAPI: mais preciso que texto livre
+  // ── Tier 1: Nominatim por CEP ────────────────────────────────────
+  // CEP identifica o trecho de rua exato no Brasil — mais preciso que texto livre
+  if (extra?.cep && extra.cep.length === 8) {
+    const qs = new URLSearchParams({
+      postalcode: extra.cep,
+      country: "Brazil",
+    }).toString();
+    const coords = await nominatimSearch(qs);
+    if (coords) {
+      setCachedCoords(cacheKey, coords);
+      return coords;
+    }
+  }
+
+  // ── Tier 2: Nominatim estruturado ────────────────────────────────
+  // Campos separados da BrasilAPI: logradouro + número + cidade + estado
   if (extra?.street && extra?.city) {
     const streetWithNum = [extra.street, extra.number].filter(Boolean).join(" ");
     const qs = new URLSearchParams({
@@ -148,19 +134,25 @@ export async function getHighPrecisionCoordinates(
     }
   }
 
-  // ── Tier 2: Gemini com contexto rico ─────────────────────────────
-  // Usa o conhecimento de treinamento sobre a empresa (razão social, fantasia, CNPJ)
-  // antes de tentativas textuais menos confiáveis no Nominatim
-  try {
-    const { data: sessionData } = await supabase.auth.getSession();
-    const token = sessionData?.session?.access_token;
-    if (token) {
-      const response = await fetch("/api/ai", {
+  // helper: pega token de auth uma única vez para os tiers de backend
+  async function getAuthToken(): Promise<string | null> {
+    try {
+      const { data } = await supabase.auth.getSession();
+      return data?.session?.access_token ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  const token = await getAuthToken();
+
+  // ── Tier 3: Gemini com contexto rico ─────────────────────────────
+  // Usa o conhecimento de treinamento do Gemini sobre a empresa pelo nome/CNPJ
+  if (token) {
+    try {
+      const res = await fetch("/api/ai", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           action: "geocode",
           payload: {
@@ -171,11 +163,12 @@ export async function getHighPrecisionCoordinates(
             nomeFantasia: extra?.nomeFantasia,
             city: extra?.city,
             state: extra?.state,
+            cep: extra?.cep,
           },
         }),
       });
-      if (response.ok) {
-        const data = await response.json();
+      if (res.ok) {
+        const data = await res.json();
         if (
           data &&
           typeof data.lat === "number" &&
@@ -186,11 +179,48 @@ export async function getHighPrecisionCoordinates(
           return data;
         }
       }
-    }
-  } catch {}
+    } catch {}
+  }
 
-  // ── Tier 3: Nominatim por nome da empresa ─────────────────────────
-  // Imita busca manual no mapa: "Razão Social Cidade Estado Brasil"
+  // ── Tier 4: OpenCage ─────────────────────────────────────────────
+  // Geocodificador profissional, free até 2.500 req/dia
+  // Requer OPENCAGE_API_KEY nas variáveis de ambiente do Vercel
+  if (token) {
+    try {
+      const query = [
+        extra?.razaoSocial || clientName,
+        extra?.street,
+        extra?.city,
+        extra?.state,
+        "Brasil",
+      ]
+        .filter(Boolean)
+        .join(", ");
+
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          action: "opencage",
+          payload: { query, cep: extra?.cep, city: extra?.city, state: extra?.state },
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (
+          data &&
+          typeof data.lat === "number" &&
+          typeof data.lng === "number" &&
+          isWithinBrazil(data.lat, data.lng)
+        ) {
+          setCachedCoords(cacheKey, data);
+          return data;
+        }
+      }
+    } catch {}
+  }
+
+  // ── Tier 5: Nominatim por nome da empresa ─────────────────────────
   const searchName = extra?.razaoSocial || extra?.nomeFantasia || clientName;
   if (searchName && extra?.city) {
     const q = `${searchName} ${extra.city} ${extra.state || ""} Brasil`.trim();
@@ -201,7 +231,6 @@ export async function getHighPrecisionCoordinates(
     }
   }
 
-  // Tenta também com nome fantasia se diferente da razão social
   if (extra?.nomeFantasia && extra.nomeFantasia !== extra?.razaoSocial && extra?.city) {
     const q = `${extra.nomeFantasia} ${extra.city} ${extra.state || ""} Brasil`.trim();
     const coords = await nominatimSearch(new URLSearchParams({ q }).toString());
@@ -211,8 +240,8 @@ export async function getHighPrecisionCoordinates(
     }
   }
 
-  // ── Tier 4: Nominatim só pela cidade ─────────────────────────────
-  // Garante que, no mínimo, o pin fique na cidade correta
+  // ── Tier 6: Nominatim só pela cidade ─────────────────────────────
+  // Mínimo aceitável: pin na cidade certa, não em outra cidade ou estado
   if (extra?.city) {
     const qs = new URLSearchParams({
       city: extra.city,
@@ -226,7 +255,6 @@ export async function getHighPrecisionCoordinates(
     }
   }
 
-  // Se chegou aqui sem coords, não coloca pin em lugar errado
   setCachedCoords(cacheKey, null);
   return null;
 }

@@ -93,34 +93,33 @@ app.post('/api/ai', async (req, res) => {
 
   try {
     if (action === 'geocode') {
-      const { address, name, cnpj, razaoSocial, nomeFantasia, city, state } = payload;
-      const prompt = `Você é um geocodificador especialista em empresas brasileiras.
-Sua tarefa é retornar as coordenadas geográficas (latitude e longitude) mais precisas possíveis para a empresa abaixo.
+      const { address, name, cnpj, razaoSocial, nomeFantasia, city, state, cep } = payload;
+      const prompt = `Você é um geocodificador especialista em empresas brasileiras. Pense passo a passo antes de responder.
 
 DADOS DA EMPRESA:
 Razão Social: ${razaoSocial || name || "Não informado"}
 Nome Fantasia: ${nomeFantasia || "Não informado"}
 CNPJ: ${cnpj || "Não informado"}
-Endereço completo: ${address || "Não informado"}
+CEP: ${cep || "Não informado"}
+Endereço: ${address || "Não informado"}
 Cidade: ${city || "Não informado"}
 Estado (UF): ${state || "Não informado"}
 
-ESTRATÉGIA (siga nesta ordem de prioridade):
-1. Se conhecer o endereço exato desta empresa pelo CNPJ ou razão social, use-o.
-2. Se não tiver o prédio exato, use o centro da rua + cidade.
-3. Se não tiver a rua, use o centro do bairro ou da cidade informada.
-4. NUNCA use coordenadas de outra cidade que não seja "${city || "a informada"}".
-5. Se não tiver certeza nem da cidade, retorne null.
+RACIOCÍNIO (faça mentalmente antes de responder):
+1. Você conhece esta empresa pelo CNPJ ou razão social no seu treinamento? Se sim, qual é o endereço registrado?
+2. O CEP informado corresponde a qual logradouro? Use-o para confirmar a rua.
+3. Qual a latitude/longitude do endereço identificado?
+4. Esta coordenada está dentro da cidade "${city || "informada"}" e do estado "${state || "informado"}"? Se não, descarte.
 
-REGRAS:
-- Latitude deve estar entre -34 e 6 (território brasileiro).
-- Longitude deve estar entre -74 e -28.
-- Não invente. Incerteza → null.
+REGRAS ABSOLUTAS:
+- Coordenadas DEVEM estar no território brasileiro: lat entre -34 e 6, lng entre -74 e -28.
+- Coordenadas DEVEM pertencer à cidade "${city || "informada"}". Se não tiver certeza da cidade, retorne null.
+- Jamais retorne a coordenada de uma cidade diferente da informada.
+- Prefira retornar null a retornar uma coordenada errada.
 
-RESPOSTA (somente JSON, sem markdown):
+RESPOSTA — somente JSON puro, sem markdown, sem explicação:
 {"lat": -00.00000, "lng": -00.00000}
-ou
-null`;
+ou null`;
 
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(prompt);
@@ -139,8 +138,51 @@ null`;
       } catch (e) {}
 
       return res.status(200).json(null);
-    } 
-    
+    }
+
+    if (action === 'opencage') {
+      const apiKey = process.env.OPENCAGE_API_KEY;
+      if (!apiKey) return res.status(200).json(null); // chave não configurada: pula silenciosamente
+
+      const { query, cep, city, state } = payload;
+
+      // Prefere busca por CEP quando disponível (mais preciso)
+      const searchQuery = cep ? `${cep} Brasil` : query;
+
+      try {
+        const ocRes = await fetch(
+          `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(searchQuery)}&key=${apiKey}&countrycode=br&limit=1&language=pt&no_annotations=1`,
+          { headers: { "User-Agent": "RepresenteSeGeocoding/1.0" } }
+        );
+        if (!ocRes.ok) return res.status(200).json(null);
+
+        const ocData = await ocRes.json();
+        const result = ocData?.results?.[0];
+        if (!result) return res.status(200).json(null);
+
+        const lat = result.geometry?.lat;
+        const lng = result.geometry?.lng;
+
+        if (typeof lat !== "number" || typeof lng !== "number") return res.status(200).json(null);
+
+        // Valida que está dentro do Brasil
+        if (lat < -34 || lat > 6 || lng < -74 || lng > -28) return res.status(200).json(null);
+
+        // Valida que o resultado pertence à cidade esperada (quando disponível)
+        if (city) {
+          const resultCity = (result.components?.city || result.components?.town || result.components?.municipality || "").toLowerCase();
+          const expectedCity = city.toLowerCase();
+          if (resultCity && !resultCity.includes(expectedCity) && !expectedCity.includes(resultCity)) {
+            return res.status(200).json(null);
+          }
+        }
+
+        return res.status(200).json({ lat, lng });
+      } catch {
+        return res.status(200).json(null);
+      }
+    }
+
     if (action === 'gemini_proxy') {
       const { contents, model: modelName, systemInstruction, generationConfig } = payload;
       const modelConfig: any = { model: modelName || 'gemini-2.5-flash' };

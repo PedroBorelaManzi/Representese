@@ -322,6 +322,7 @@ export async function lookupCnpj(cnpj: string): Promise<{
   neighborhood: string;
   city: string;
   state: string;
+  cep: string;
   cnpj: string;
 } | null> {
   const clean = (cnpj || "").replace(/\D/g, "");
@@ -337,6 +338,7 @@ export async function lookupCnpj(cnpj: string): Promise<{
   const neighborhood = d.bairro || "";
   const city = d.municipio || "";
   const state = d.uf || "";
+  const cep = (d.cep || "").replace(/\D/g, "");
 
   const address = `${street}, ${number} - ${neighborhood}, ${city} - ${state}`
     .replace(/\s+/g, " ")
@@ -351,6 +353,7 @@ export async function lookupCnpj(cnpj: string): Promise<{
     neighborhood,
     city,
     state,
+    cep,
     cnpj: clean,
   };
 }
@@ -427,6 +430,7 @@ export async function commitCreateClient(
   let number = "";
   let neighborhood = "";
   let fantasia = "";
+  let cep = "";
 
   if (cnpj) {
     const info = await lookupCnpj(cnpj);
@@ -439,6 +443,7 @@ export async function commitCreateClient(
       neighborhood = info.neighborhood;
       city = info.city;
       state = info.state;
+      cep = info.cep;
     }
   }
 
@@ -467,6 +472,7 @@ export async function commitCreateClient(
       neighborhood,
       city,
       state,
+      cep,
     });
     if (coords) { lat = coords.lat; lng = coords.lng; }
   } catch { /* sem coordenadas — o pin não aparecerá até editar o endereço */ }
