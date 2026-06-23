@@ -303,15 +303,18 @@ export default function Map() {
 
   const handleMarkerDrag = async (id: string, latlng: { lat: number, lng: number }) => {
     triggerLightHaptic();
+    const { data: { user } } = await supabase.auth.getUser();
     const { error } = await supabase
       .from("clients")
       .update({ lat: latlng.lat, lng: latlng.lng })
-      .eq("id", id);
+      .eq("id", id)
+      .eq("user_id", user?.id);
 
     if (!error) {
-      const updated = companies.map(c => c.id === id ? { ...c, lat: latlng.lat, lng: latlng.lng } : c);
-      /* Optimistic update needed */
-      offlineCache.set(CacheKeys.CLIENTS, updated);
+      // Atualiza TanStack Query para que a nova posição persista sem precisar recarregar
+      queryClient.setQueryData(['clients', user?.id], (old: any[]) =>
+        old ? old.map(c => c.id === id ? { ...c, lat: latlng.lat, lng: latlng.lng } : c) : old
+      );
       toast.success("Localização atualizada!");
     } else {
       toast.error("Erro ao salvar localização");
