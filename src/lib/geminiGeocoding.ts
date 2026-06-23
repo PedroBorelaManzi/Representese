@@ -226,13 +226,7 @@ export async function getHighPrecisionCoordinates(
     }
   }
 
-  // ── Tier 5: Centro do estado (fallback geográfico) ────────────────
-  const stateKey = (extra?.state || "").toUpperCase().trim();
-  if (stateKey && STATE_CENTERS[stateKey]) {
-    // Não cacheia: fallback geográfico — tenta novamente na próxima vez
-    return STATE_CENTERS[stateKey];
-  }
-
+  // Se chegou aqui sem coords, não coloca pin em lugar errado
   setCachedCoords(cacheKey, null);
   return null;
 }
