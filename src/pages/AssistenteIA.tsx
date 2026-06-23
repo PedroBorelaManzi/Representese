@@ -1150,9 +1150,29 @@ EMPRESAS REPRESENTADAS DO USUÁRIO (use exatamente estes nomes como "category" a
         return;
       }
       console.error("Assistente IA error:", err);
-      const detail = (err?.message || "").toString().slice(0, 200);
-      toast.error(detail ? `Erro: ${detail}` : "Erro ao falar com o assistente. Tente novamente.");
-      const errMsg = `Ops, tive um problema para responder agora.${detail ? `\n\n_Detalhe técnico: ${detail}_` : ""}`;
+      const detail = (err?.message || "").toString();
+
+      // Sobrecarga temporária da IA (503/overloaded): mensagem amigável, sem stack técnico.
+      // Não salva no histórico — é transitório, o usuário só precisa tentar de novo.
+      const isOverloaded =
+        /\b503\b|sobrecarregad|overloaded|currently experiencing|unavailable/i.test(detail);
+
+      if (isOverloaded) {
+        toast.error("A IA está sobrecarregada. Tente novamente em alguns segundos.");
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content:
+              "A IA está com muita demanda neste momento. 😕\n\nIsso é temporário e do lado do provedor — **tente enviar de novo em alguns segundos**.",
+          },
+        ]);
+        return;
+      }
+
+      const shortDetail = detail.slice(0, 200);
+      toast.error(shortDetail ? `Erro: ${shortDetail}` : "Erro ao falar com o assistente. Tente novamente.");
+      const errMsg = `Ops, tive um problema para responder agora.${shortDetail ? `\n\n_Detalhe técnico: ${shortDetail}_` : ""}`;
       setMessages((prev) => [
         ...prev,
         { role: "assistant", content: errMsg },

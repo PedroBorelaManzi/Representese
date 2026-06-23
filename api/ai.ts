@@ -82,6 +82,39 @@ app.use(async (req, res, next) => {
   }
 });
 
+/**
+ * Detecta erros transitórios do Gemini que valem a pena repetir:
+ * 503 (sobrecarga), 429 (rate limit do Google) e 500 (erro interno momentâneo).
+ */
+function isTransientGeminiError(error: any): boolean {
+  const msg = String(error?.message || error || '');
+  return /\b(503|429|500)\b/.test(msg) ||
+    /service unavailable|overloaded|currently experiencing|try again|internal error/i.test(msg);
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Executa uma chamada ao Gemini com tentativas automáticas.
+ * Em erros transitórios (503/429/500), espera com backoff exponencial e tenta de novo.
+ * Erros definitivos (400, chave inválida, etc.) sobem na hora.
+ */
+async function withGeminiRetry<T>(fn: () => Promise<T>, maxAttempts = 4): Promise<T> {
+  let lastError: any;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      lastError = error;
+      if (attempt === maxAttempts || !isTransientGeminiError(error)) throw error;
+      // backoff: 500ms, 1s, 2s (+ jitter) — dá tempo do modelo desafogar
+      const delay = 500 * 2 ** (attempt - 1) + Math.random() * 300;
+      await sleep(delay);
+    }
+  }
+  throw lastError;
+}
+
 app.post('/api/ai', async (req, res) => {
   const { action, payload } = req.body;
 
@@ -122,9 +155,9 @@ RESPOSTA — somente JSON puro, sem markdown, sem explicação:
 ou null`;
 
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-      const result = await model.generateContent(prompt);
+      const result = await withGeminiRetry(() => model.generateContent(prompt));
       const responseText = result.response.text();
-      
+
       let cleanJson = responseText.trim();
       if (responseText.includes("{")) {
          cleanJson = responseText.substring(responseText.indexOf("{"), responseText.lastIndexOf("}") + 1);
@@ -189,7 +222,7 @@ ou null`;
       if (systemInstruction) modelConfig.systemInstruction = systemInstruction;
       if (generationConfig) modelConfig.generationConfig = generationConfig;
       const model = genAI.getGenerativeModel(modelConfig);
-      const result = await model.generateContent({ contents });
+      const result = await withGeminiRetry(() => model.generateContent({ contents }));
       return res.status(200).json({ text: result.response.text() });
     }
 
@@ -203,12 +236,18 @@ ou null`;
       }
       
       const model = genAI.getGenerativeModel(modelConfig);
-      const result = await model.generateContent(prompt);
+      const result = await withGeminiRetry(() => model.generateContent(prompt));
       return res.status(200).json({ text: result.response.text() });
     }
 
     return res.status(400).json({ error: 'Invalid action' });
   } catch (error: any) {
+    // Erro transitório que sobreviveu às tentativas → 503 + mensagem amigável
+    if (isTransientGeminiError(error)) {
+      return res.status(503).json({
+        error: 'A IA está sobrecarregada no momento. Tente novamente em alguns segundos.',
+      });
+    }
     return res.status(500).json({ error: error.message });
   }
 });
