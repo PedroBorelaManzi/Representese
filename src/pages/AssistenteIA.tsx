@@ -765,18 +765,65 @@ function daysSince(dateStr: string | null): number | null {
   return Math.floor((Date.now() - t) / 86_400_000);
 }
 
-function buildClientContext(clients: AIClient[]): { context: string; total: number; truncated: boolean } {
+interface RecentOrder {
+  id: string;
+  client_id: string;
+  category: string;
+  value: number;
+  created_at: string;
+}
+
+function buildClientContext(
+  clients: AIClient[],
+  recentOrders: RecentOrder[] = []
+): { context: string; total: number; truncated: boolean } {
   const total = clients.length;
-  // Prioriza por faturamento ao truncar, para manter os clientes mais relevantes
   const ordered = [...clients].sort((a, b) => totalFaturamento(b.faturamento) - totalFaturamento(a.faturamento));
   const slice = ordered.slice(0, MAX_CLIENTS_IN_CONTEXT);
+
+  // Agrupa pedidos por cliente para acesso rápido
+  const ordersByClient = new Map<string, RecentOrder[]>();
+  recentOrders.forEach((o) => {
+    if (!ordersByClient.has(o.client_id)) ordersByClient.set(o.client_id, []);
+    ordersByClient.get(o.client_id)!.push(o);
+  });
 
   const lines = slice.map((c, i) => {
     const fat = totalFaturamento(c.faturamento);
     const inactive = daysSince(c.last_contact);
     const local = [c.city, c.state].filter(Boolean).join("/") || "?";
-    const notes = c.notes ? ` | notas: ${c.notes.replace(/\s+/g, " ").slice(0, 140)}` : "";
-    return `${i + 1}. ${c.name} | local: ${local} | status: ${c.status || "ativo"} | faturamento total: R$${fat.toLocaleString("pt-BR")} | dias sem contato: ${inactive ?? "sem registro"}${notes}`;
+
+    const cnpj = c.cnpj ? ` | CNPJ: ${c.cnpj}` : "";
+    const phone = c.phone ? ` | tel: ${c.phone}` : "";
+    const email = c.email ? ` | email: ${c.email}` : "";
+    const address = c.address ? ` | end: ${c.address.slice(0, 80)}` : "";
+
+    // Faturamento acumulado por empresa representada
+    const fatBreakdown =
+      c.faturamento && Object.keys(c.faturamento).length > 1
+        ? ` (${Object.entries(c.faturamento)
+            .sort((a, b) => Number(b[1]) - Number(a[1]))
+            .map(([k, v]) => `${k}: R$${Number(v).toLocaleString("pt-BR")}`)
+            .join(" | ")})`
+        : "";
+
+    // Últimos 3 pedidos deste cliente (dos pedidos recentes carregados)
+    const clientOrders = ordersByClient.get(c.id) || [];
+    const ordersStr =
+      clientOrders.length > 0
+        ? ` | pedidos recentes: ${clientOrders
+            .slice(0, 3)
+            .map((o) => `${o.category} R$${Number(o.value).toLocaleString("pt-BR")} em ${o.created_at.slice(0, 10)}`)
+            .join("; ")}`
+        : "";
+
+    const notes = c.notes ? ` | notas: ${c.notes.replace(/\s+/g, " ").slice(0, 120)}` : "";
+
+    return (
+      `${i + 1}. ${c.name}${cnpj}${phone}${email} | local: ${local}${address}` +
+      ` | status: ${c.status || "ativo"} | fat total: R$${fat.toLocaleString("pt-BR")}${fatBreakdown}` +
+      ` | sem contato: ${inactive != null ? `${inactive}d` : "sem registro"}${ordersStr}${notes}`
+    );
   });
 
   return { context: lines.join("\n"), total, truncated: total > MAX_CLIENTS_IN_CONTEXT };
@@ -889,8 +936,27 @@ export default function AssistenteIA() {
     staleTime: 60_000,
   });
 
+  // Pedidos dos últimos 90 dias para enriquecer o contexto da IA
+  const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const { data: recentOrders = [] } = useQuery({
+    queryKey: ["ai-assistant-orders", user?.id],
+    queryFn: async (): Promise<RecentOrder[]> => {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("id, client_id, category, value, created_at")
+        .eq("user_id", user!.id)
+        .gte("created_at", ninetyDaysAgo)
+        .order("created_at", { ascending: false })
+        .limit(300);
+      if (error) throw error;
+      return (data || []) as RecentOrder[];
+    },
+    enabled: !!user,
+    staleTime: 60_000,
+  });
+
   const { systemInstruction, total, truncated } = useMemo(() => {
-    const { context, total, truncated } = buildClientContext(clients);
+    const { context, total, truncated } = buildClientContext(clients, recentOrders);
     const categoriesLine =
       settings?.categories && settings.categories.length > 0
         ? settings.categories.join(", ")
@@ -904,6 +970,14 @@ export default function AssistenteIA() {
         return `- id:${a.id} | ${a.date} ${a.time} | ${a.title}${cli ? ` | cliente: ${cli}` : ""}`;
       });
     const appointmentsLine = upcoming.length ? upcoming.join("\n") : "Nenhum compromisso futuro.";
+
+    // Resumo de pedidos recentes (últimos 90 dias) para contexto da IA
+    const ordersLine = recentOrders.length > 0
+      ? recentOrders.slice(0, 60).map((o) => {
+          const clientName = clients.find((c) => c.id === o.client_id)?.name ?? o.client_id;
+          return `- ${clientName} | ${o.category} | R$${Number(o.value).toLocaleString("pt-BR")} | ${o.created_at.slice(0, 10)}`;
+        }).join("\n")
+      : "Nenhum pedido nos últimos 90 dias.";
     const instruction = `Você é o Assistente IA do Represente-Se, um assistente inteligente dentro de uma plataforma de gestão para representantes comerciais brasileiros. Você conversa com o representante (o usuário) como um assistente geral — no estilo do ChatGPT — mas com dois diferenciais: você conhece a CARTEIRA DE CLIENTES deste usuário e conhece o SISTEMA Represente-Se.
 
 Como você deve agir:
@@ -993,9 +1067,12 @@ ${context || "Nenhum cliente cadastrado ainda."}
 AGENDA — PRÓXIMOS COMPROMISSOS (use o "id" exato para editar/excluir):
 ${appointmentsLine}
 
+PEDIDOS RECENTES — ÚLTIMOS 90 DIAS (${recentOrders.length} pedido(s) — use para responder perguntas sobre vendas, histórico e frequência de compra):
+${ordersLine}
+
 EMPRESAS REPRESENTADAS DO USUÁRIO (use exatamente estes nomes como "category" ao lançar pedidos): ${categoriesLine}`;
     return { systemInstruction: instruction, total, truncated };
-  }, [clients, appointments, settings?.categories]);
+  }, [clients, appointments, recentOrders, settings?.categories]);
 
   // Briefing diário (calculado localmente, sem gastar IA)
   const briefing = useMemo(() => {
