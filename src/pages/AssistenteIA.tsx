@@ -9,8 +9,6 @@ import {
   Trash2,
   Users,
   TrendingUp,
-  Clock,
-  MapPin,
   Crown,
   Route,
   MessageCircle,
@@ -20,6 +18,8 @@ import {
   Copy,
   Check,
   AlertTriangle,
+  ChevronLeft,
+  Square,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
@@ -53,14 +53,131 @@ type AIClient = AIActionClient;
 
 const MAX_CLIENTS_IN_CONTEXT = 1500;
 
-const suggestions = [
-  { icon: Route,         text: "Monte uma rota de visitas para meus clientes inativos." },
-  { icon: ShoppingBag,   text: "Lance um pedido pra mim." },
-  { icon: FileText,      text: "Gere um relatório PDF da minha carteira." },
-  { icon: MessageCircle, text: "Escreva um WhatsApp de reativação para um cliente." },
-  { icon: TrendingUp,    text: "Quem são meus 5 maiores clientes por faturamento?" },
-  { icon: Clock,         text: "Quais clientes estão há mais tempo sem contato?" },
+/* ─── menu de sugestões por tema → submenu ──────────────────── */
+interface SuggestionTheme {
+  id: string;
+  icon: typeof Route;
+  label: string;
+  color: string; // classe de cor do ícone
+  items: string[];
+}
+
+const themes: SuggestionTheme[] = [
+  {
+    id: "acoes",
+    icon: Route,
+    label: "Ações rápidas",
+    color: "text-emerald-600",
+    items: [
+      "Monte uma rota de visitas para meus clientes inativos.",
+      "Lance um pedido pra mim.",
+      "Escreva um WhatsApp de reativação para um cliente.",
+      "Gere um relatório PDF da minha carteira.",
+    ],
+  },
+  {
+    id: "carteira",
+    icon: Users,
+    label: "Minha carteira",
+    color: "text-blue-600",
+    items: [
+      "Quem são meus 5 maiores clientes por faturamento?",
+      "Quais clientes estão há mais tempo sem contato?",
+      "Quais clientes estão em risco de inatividade?",
+      "Resuma a minha carteira em poucos pontos.",
+    ],
+  },
+  {
+    id: "vendas",
+    icon: TrendingUp,
+    label: "Vendas & abordagem",
+    color: "text-amber-600",
+    items: [
+      "Crie um script de visita para um cliente específico.",
+      "Dê ideias para aumentar meu ticket médio.",
+      "Como abordar um cliente que parou de comprar?",
+      "Sugira uma agenda de visitas para esta semana.",
+    ],
+  },
+  {
+    id: "sistema",
+    icon: Sparkles,
+    label: "Sistema & dúvidas",
+    color: "text-violet-600",
+    items: [
+      "Como funciona o mapa de clientes?",
+      "Como lanço pedidos por foto ou PDF?",
+      "O que cada plano oferece?",
+      "Como funciona o alerta de inatividade?",
+    ],
+  },
 ];
+
+function SuggestionMenu({
+  onPick,
+  disabled,
+  compact,
+}: {
+  onPick: (text: string) => void;
+  disabled?: boolean;
+  compact?: boolean;
+}) {
+  const [openId, setOpenId] = useState<string | null>(null);
+  const active = themes.find((t) => t.id === openId) || null;
+
+  if (active) {
+    return (
+      <div className="w-full max-w-xl">
+        <button
+          onClick={() => setOpenId(null)}
+          className="flex items-center gap-1.5 mb-3 text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-emerald-600 transition-colors"
+        >
+          <ChevronLeft className="w-3.5 h-3.5" /> Temas
+        </button>
+        <div className="flex items-center gap-2 mb-3">
+          <active.icon className={cn("w-4 h-4", active.color)} />
+          <span className="text-[12px] font-black uppercase tracking-widest text-slate-600 dark:text-zinc-300">{active.label}</span>
+        </div>
+        <div className={cn("grid gap-2", compact ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2")}>
+          {active.items.map((text) => (
+            <button
+              key={text}
+              onClick={() => onPick(text)}
+              disabled={disabled}
+              className={cn(
+                "group text-left rounded-2xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-300 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed",
+                compact ? "p-3" : "p-4"
+              )}
+            >
+              <span className="text-[12.5px] font-semibold text-slate-700 dark:text-zinc-200 leading-snug">{text}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn("grid gap-3 w-full max-w-xl", compact ? "grid-cols-2" : "grid-cols-2")}>
+      {themes.map((t) => (
+        <button
+          key={t.id}
+          onClick={() => setOpenId(t.id)}
+          disabled={disabled}
+          className={cn(
+            "group flex items-center gap-3 text-left rounded-2xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-300 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed",
+            compact ? "p-2.5" : "p-4"
+          )}
+        >
+          <span className={cn("rounded-xl bg-slate-50 dark:bg-zinc-800 group-hover:bg-emerald-100 flex items-center justify-center flex-shrink-0 transition-colors", compact ? "w-7 h-7" : "w-9 h-9")}>
+            <t.icon className={cn(compact ? "w-3.5 h-3.5" : "w-4 h-4", t.color)} />
+          </span>
+          <span className={cn("font-bold text-slate-700 dark:text-zinc-200 leading-snug", compact ? "text-[11px]" : "text-[13px]")}>{t.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 /* ─── render de texto com **negrito** ───────────────────────── */
 function FormattedText({ text }: { text: string }) {
@@ -312,6 +429,7 @@ export default function AssistenteIA() {
   const [thinking, setThinking] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const isUnlimited =
     settings?.plan_id === "master" && settings?.subscription_status === "active";
@@ -479,6 +597,9 @@ EMPRESAS REPRESENTADAS DO USUÁRIO (use exatamente estes nomes como "category" a
     // Salva a mensagem do user no banco
     await saveChat("user", question);
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
       const history = nextMessages
         .slice(-6)
@@ -488,6 +609,7 @@ EMPRESAS REPRESENTADAS DO USUÁRIO (use exatamente estes nomes como "category" a
 
       const answer = await geminiWithSystem(prompt, systemInstruction, {
         generationConfig: { temperature: 0.3 },
+        signal: controller.signal,
       });
 
       const raw = answer.trim() || "Não consegui gerar uma resposta agora.";
@@ -502,6 +624,11 @@ EMPRESAS REPRESENTADAS DO USUÁRIO (use exatamente estes nomes como "category" a
       await saveChat("assistant", displayMsg);
       bumpUsage();
     } catch (err: any) {
+      // Cancelamento pelo usuário: não é erro, apenas para
+      if (err?.name === "AbortError" || controller.signal.aborted) {
+        toast("Resposta cancelada.");
+        return;
+      }
       console.error("Assistente IA error:", err);
       const detail = (err?.message || "").toString().slice(0, 200);
       toast.error(detail ? `Erro: ${detail}` : "Erro ao falar com o assistente. Tente novamente.");
@@ -513,9 +640,14 @@ EMPRESAS REPRESENTADAS DO USUÁRIO (use exatamente estes nomes como "category" a
       // Salva o erro também (pro usuário não perder a tentativa)
       await saveChat("assistant", errMsg);
     } finally {
+      abortRef.current = null;
       setThinking(false);
       inputRef.current?.focus();
     }
+  };
+
+  const cancel = () => {
+    abortRef.current?.abort();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -616,21 +748,7 @@ EMPRESAS REPRESENTADAS DO USUÁRIO (use exatamente estes nomes como "category" a
                 </div>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-xl">
-                {suggestions.map((s) => (
-                  <button
-                    key={s.text}
-                    onClick={() => send(s.text)}
-                    disabled={clientsLoading}
-                    className="group flex items-center gap-3 text-left p-4 rounded-2xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-300 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <span className="w-9 h-9 rounded-xl bg-slate-50 dark:bg-zinc-800 group-hover:bg-emerald-100 flex items-center justify-center flex-shrink-0 transition-colors">
-                      <s.icon className="w-4 h-4 text-emerald-600" />
-                    </span>
-                    <span className="text-[12.5px] font-semibold text-slate-700 dark:text-zinc-200 leading-snug">{s.text}</span>
-                  </button>
-                ))}
-              </div>
+              <SuggestionMenu onPick={(t) => send(t)} disabled={clientsLoading} />
             </div>
           ) : (
             <>
@@ -679,25 +797,11 @@ EMPRESAS REPRESENTADAS DO USUÁRIO (use exatamente estes nomes como "category" a
                 </motion.div>
               ))}
 
-              {/* Sugestões sempre visíveis (abaixo das mensagens quando há histórico) */}
+              {/* Sugestões por tema sempre visíveis (abaixo das mensagens) */}
               {!thinking && messages.length > 0 && (
                 <div className="pt-4 border-t border-slate-100 dark:border-zinc-800">
                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Sugestões</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {suggestions.map((s) => (
-                      <button
-                        key={s.text}
-                        onClick={() => send(s.text)}
-                        disabled={clientsLoading || thinking}
-                        className="group flex items-center gap-2 text-left p-2.5 rounded-lg border border-slate-200 dark:border-zinc-800 hover:border-emerald-300 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <span className="w-6 h-6 rounded-lg bg-slate-50 dark:bg-zinc-800 group-hover:bg-emerald-100 flex items-center justify-center flex-shrink-0 transition-colors">
-                          <s.icon className="w-3 h-3 text-emerald-600" />
-                        </span>
-                        <span className="text-[11px] font-semibold text-slate-700 dark:text-zinc-200 leading-snug flex-1 line-clamp-2">{s.text}</span>
-                      </button>
-                    ))}
-                  </div>
+                  <SuggestionMenu onPick={(t) => send(t)} disabled={clientsLoading || thinking} compact />
                 </div>
               )}
 
@@ -764,16 +868,28 @@ EMPRESAS REPRESENTADAS DO USUÁRIO (use exatamente estes nomes como "category" a
               disabled={clientsLoading || limitReached}
               className="flex-1 bg-transparent resize-none outline-none text-[14px] font-medium text-slate-800 dark:text-zinc-100 placeholder:text-slate-400 py-2 max-h-32 disabled:opacity-50"
             />
-            <button
-              onClick={() => send(input)}
-              disabled={thinking || clientsLoading || !input.trim() || limitReached}
-              className="flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 flex-shrink-0"
-            >
-              {thinking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            </button>
+            {thinking ? (
+              <button
+                onClick={cancel}
+                title="Cancelar resposta"
+                className="flex items-center justify-center w-10 h-10 rounded-xl bg-red-600 hover:bg-red-500 text-white transition-all active:scale-95 flex-shrink-0"
+              >
+                <Square className="w-3.5 h-3.5 fill-current" />
+              </button>
+            ) : (
+              <button
+                onClick={() => send(input)}
+                disabled={clientsLoading || !input.trim() || limitReached}
+                className="flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 flex-shrink-0"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            )}
           </div>
           <p className="text-[10px] text-slate-400 font-medium text-center mt-2">
-            A IA usa apenas os dados da sua carteira. Confira informações importantes antes de agir.
+            {thinking
+              ? "Gerando resposta… toque no quadrado vermelho para cancelar."
+              : "A IA usa apenas os dados da sua carteira. Confira informações importantes antes de agir."}
           </p>
         </div>
       </div>

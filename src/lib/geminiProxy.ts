@@ -14,7 +14,7 @@ interface GeminiProxyRequest {
  * Calls the Gemini API through our secure Express backend.
  * The API key never leaves the server.
  */
-export async function callGeminiProxy(request: GeminiProxyRequest): Promise<string> {
+export async function callGeminiProxy(request: GeminiProxyRequest, signal?: AbortSignal): Promise<string> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) {
     throw new Error("Usuario nao autenticado.");
@@ -30,6 +30,7 @@ export async function callGeminiProxy(request: GeminiProxyRequest): Promise<stri
       action: 'gemini_proxy',
       payload: request
     }),
+    signal,
   });
 
   const data = await response.json();
@@ -62,6 +63,7 @@ export async function geminiWithSystem(
     imageData?: string;
     imageMimeType?: string;
     generationConfig?: Record<string, unknown>;
+    signal?: AbortSignal;
   }
 ): Promise<string> {
   const parts: Array<{ text?: string; inlineData?: { data: string; mimeType: string } }> = [
@@ -79,5 +81,5 @@ export async function geminiWithSystem(
     model: options?.model || "gemini-2.5-flash",
     systemInstruction,
     generationConfig: options?.generationConfig,
-  });
+  }, options?.signal);
 }
