@@ -395,13 +395,51 @@ export async function commitUpdateClient(
  * Muda a localização de um cliente: geocodifica o destino (cidade ou endereço)
  * e atualiza lat/lng + address.
  */
+/**
+ * Extrai cidade e estado de uma string de localização livre.
+ * Suporta formatos: "São Paulo - SP", "São Paulo/SP", "São Paulo SP", "São Paulo"
+ */
+function parseLocationString(location: string): { city: string; state: string } {
+  const trimmed = location.trim();
+  // "Cidade - UF" ou "Cidade/UF"
+  const m = trimmed.match(/^(.+?)[\s\/\-]+([A-Z]{2})\s*$/);
+  if (m) return { city: m[1].trim(), state: m[2].trim() };
+  return { city: trimmed, state: "" };
+}
+
 export async function commitRelocateClient(
   userId: string,
   client: AIActionClient,
   location: string
 ): Promise<{ lat: number; lng: number }> {
   const { getHighPrecisionCoordinates } = await import("./geminiGeocoding");
-  const coords = await getHighPrecisionCoordinates(location, client.name, client.cnpj || undefined);
+
+  // Extrai cidade/estado da string de localização para validar o resultado
+  const { city, state } = parseLocationString(location);
+
+  // Se o cliente tem CNPJ, enriquece com dados da Receita (endereço oficial)
+  let extra = { city, state, razaoSocial: client.name } as Parameters<typeof getHighPrecisionCoordinates>[3];
+  if (client.cnpj) {
+    try {
+      const info = await lookupCnpj(client.cnpj);
+      if (info) {
+        extra = {
+          ...extra,
+          // Usa cidade/estado da BrasilAPI se a localização passada for só a cidade
+          city: city || info.city,
+          state: state || info.state,
+          street: info.street,
+          number: info.number,
+          neighborhood: info.neighborhood,
+          cep: info.cep,
+          razaoSocial: client.name,
+          nomeFantasia: info.fantasia,
+        };
+      }
+    } catch { /* sem enriquecimento — geocodifica só com o que temos */ }
+  }
+
+  const coords = await getHighPrecisionCoordinates(location, client.name, client.cnpj || undefined, extra);
   if (!coords) throw new Error(`Não consegui localizar "${location}" no mapa.`);
 
   const { error } = await supabase

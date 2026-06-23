@@ -38,19 +38,51 @@ function setCachedCoords(key: string, coords: { lat: number; lng: number } | nul
   } catch {}
 }
 
-/** Faz uma query no Nominatim e valida que o resultado está no Brasil. */
-async function nominatimSearch(querystring: string): Promise<{ lat: number; lng: number } | null> {
+/** Remove acentos para comparação de cidade sem precisar de locale. */
+function stripAccents(s: string): string {
+  return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+}
+
+/**
+ * Faz uma query no Nominatim, valida que o resultado está no Brasil
+ * e, quando `expectedCity` for fornecido, rejeita resultados de outras cidades.
+ */
+async function nominatimSearch(
+  querystring: string,
+  expectedCity?: string
+): Promise<{ lat: number; lng: number } | null> {
   try {
     const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&limit=1&${querystring}`,
+      `https://nominatim.openstreetmap.org/search?format=json&limit=1&addressdetails=1&${querystring}`,
       { headers: { "User-Agent": "RepresenteSeGeocoding/1.0" } }
     );
     if (!res.ok) return null;
     const data = await res.json();
     if (!Array.isArray(data) || !data.length) return null;
-    const lat = parseFloat(data[0].lat);
-    const lng = parseFloat(data[0].lon);
+
+    const item = data[0];
+    const lat = parseFloat(item.lat);
+    const lng = parseFloat(item.lon);
     if (!isWithinBrazil(lat, lng)) return null;
+
+    // Valida cidade: rejeita se o display_name não mencionar a cidade esperada
+    if (expectedCity) {
+      const display = stripAccents(item.display_name || "");
+      const addr = item.address || {};
+      const resultCity = stripAccents(
+        addr.city || addr.town || addr.municipality || addr.county || ""
+      );
+      const target = stripAccents(expectedCity);
+
+      // Aceita se: display_name contém a cidade OU a cidade do address bate
+      const cityMatch =
+        display.includes(target) ||
+        resultCity.includes(target) ||
+        target.includes(resultCity);
+
+      if (!cityMatch) return null;
+    }
+
     return { lat, lng };
   } catch {
     return null;
@@ -105,12 +137,13 @@ export async function getHighPrecisionCoordinates(
 
   // ── Tier 1: Nominatim por CEP ────────────────────────────────────
   // CEP identifica o trecho de rua exato no Brasil — mais preciso que texto livre
+  // Valida que o resultado é da cidade esperada (evita CEPs mapeados errado no OSM)
   if (extra?.cep && extra.cep.length === 8) {
     const qs = new URLSearchParams({
       postalcode: extra.cep,
       country: "Brazil",
     }).toString();
-    const coords = await nominatimSearch(qs);
+    const coords = await nominatimSearch(qs, extra?.city);
     if (coords) {
       setCachedCoords(cacheKey, coords);
       return coords;
@@ -127,7 +160,7 @@ export async function getHighPrecisionCoordinates(
       state: extra.state || "",
       country: "Brazil",
     }).toString();
-    const coords = await nominatimSearch(qs);
+    const coords = await nominatimSearch(qs, extra?.city);
     if (coords) {
       setCachedCoords(cacheKey, coords);
       return coords;
@@ -224,7 +257,7 @@ export async function getHighPrecisionCoordinates(
   const searchName = extra?.razaoSocial || extra?.nomeFantasia || clientName;
   if (searchName && extra?.city) {
     const q = `${searchName} ${extra.city} ${extra.state || ""} Brasil`.trim();
-    const coords = await nominatimSearch(new URLSearchParams({ q }).toString());
+    const coords = await nominatimSearch(new URLSearchParams({ q }).toString(), extra?.city);
     if (coords) {
       setCachedCoords(cacheKey, coords);
       return coords;
@@ -233,7 +266,7 @@ export async function getHighPrecisionCoordinates(
 
   if (extra?.nomeFantasia && extra.nomeFantasia !== extra?.razaoSocial && extra?.city) {
     const q = `${extra.nomeFantasia} ${extra.city} ${extra.state || ""} Brasil`.trim();
-    const coords = await nominatimSearch(new URLSearchParams({ q }).toString());
+    const coords = await nominatimSearch(new URLSearchParams({ q }).toString(), extra?.city);
     if (coords) {
       setCachedCoords(cacheKey, coords);
       return coords;
@@ -248,7 +281,7 @@ export async function getHighPrecisionCoordinates(
       state: extra.state || "",
       country: "Brazil",
     }).toString();
-    const coords = await nominatimSearch(qs);
+    const coords = await nominatimSearch(qs, extra?.city);
     if (coords) {
       setCachedCoords(cacheKey, coords);
       return coords;

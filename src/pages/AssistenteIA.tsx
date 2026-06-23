@@ -1193,7 +1193,7 @@ EMPRESAS REPRESENTADAS DO USUÁRIO (use exatamente estes nomes como "category" a
   };
 
   // Ditado por voz: fala vira texto no input (Web Speech API, pt-BR)
-  const toggleVoice = () => {
+  const toggleVoice = async () => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) {
       toast.error("Seu navegador não suporta ditado por voz.");
@@ -1201,6 +1201,17 @@ EMPRESAS REPRESENTADAS DO USUÁRIO (use exatamente estes nomes como "category" a
     }
     if (listening) {
       recognitionRef.current?.stop();
+      return;
+    }
+
+    // Solicita permissão explicitamente antes de iniciar o reconhecimento.
+    // Isso garante que o navegador/SO mostre o diálogo de microfone.
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Fecha imediatamente — só precisávamos acionar o pedido de permissão
+      stream.getTracks().forEach((t) => t.stop());
+    } catch {
+      toast.error("Permissão de microfone negada. Habilite nas configurações do navegador.");
       return;
     }
 
