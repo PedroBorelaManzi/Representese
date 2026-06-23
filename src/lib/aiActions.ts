@@ -13,11 +13,42 @@ import { supabase } from "./supabase";
    com a carteira e executar cada ação (rota, pedido, whatsapp, relatório).
    ──────────────────────────────────────────────────────────────── */
 
+export type ClientChanges = {
+  name?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  status?: string;
+  notes?: string;
+  city?: string;
+  state?: string;
+  cnpj?: string;
+};
+
 export type AIAction =
   | { type: "route"; clients: string[] }
   | { type: "order"; client: string; category: string; value: number }
   | { type: "whatsapp"; client: string; message: string }
-  | { type: "report"; period?: string };
+  | { type: "report"; period?: string }
+  // ── autonomia: clientes ──
+  | { type: "update_client"; client: string; changes: ClientChanges }
+  | { type: "relocate_client"; client: string; location: string }
+  | { type: "create_client"; cnpj?: string; name?: string; address?: string }
+  | { type: "delete_client"; client: string }
+  // ── autonomia: agenda ──
+  | { type: "create_appointment"; title: string; date: string; time: string; client?: string }
+  | { type: "update_appointment"; id: string; changes: { title?: string; date?: string; time?: string } }
+  | { type: "delete_appointment"; id: string };
+
+/** Compromisso da agenda no contexto do assistente. */
+export interface AIAppointment {
+  id: string;
+  title: string;
+  date: string; // YYYY-MM-DD
+  time: string; // HH:MM
+  client_id?: string | null;
+  google_event_id?: string | null;
+}
 
 /** Cliente da carteira no contexto do assistente (campos usados pelas ações). */
 export interface AIActionClient {
@@ -231,6 +262,238 @@ export async function commitOrder(
     .update({ faturamento: updatedFat, last_contact: new Date().toISOString().slice(0, 10) })
     .eq("id", draft.client.id)
     .eq("user_id", userId);
+}
+
+/* ─── AUTONOMIA: CLIENTES ───────────────────────────────────────── */
+
+/** Consulta um CNPJ na BrasilAPI e devolve dados básicos para cadastro. */
+export async function lookupCnpj(cnpj: string): Promise<{
+  name: string;
+  address: string;
+  city: string;
+  state: string;
+  cnpj: string;
+} | null> {
+  const clean = (cnpj || "").replace(/\D/g, "");
+  if (clean.length !== 14) throw new Error("CNPJ inválido (precisa de 14 dígitos).");
+
+  const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${clean}`);
+  if (!res.ok) throw new Error("CNPJ não encontrado na Receita.");
+  const d = await res.json();
+
+  const streetType = d.tipo_logradouro ? `${d.tipo_logradouro} ` : "";
+  const address = `${streetType}${d.logradouro || ""}, ${d.numero || "S/N"} - ${d.bairro || ""}, ${d.municipio || ""} - ${d.uf || ""}`
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return {
+    name: d.razao_social || d.nome_fantasia || "",
+    address,
+    city: d.municipio || "",
+    state: d.uf || "",
+    cnpj: clean,
+  };
+}
+
+/** Filtra as mudanças permitidas (evita escrever colunas inesperadas). */
+function sanitizeClientChanges(changes: ClientChanges): ClientChanges {
+  const allowed: (keyof ClientChanges)[] = [
+    "name", "phone", "email", "address", "status", "notes", "city", "state", "cnpj",
+  ];
+  const out: ClientChanges = {};
+  for (const k of allowed) {
+    const v = (changes as any)[k];
+    if (v !== undefined && v !== null && String(v).trim() !== "") {
+      (out as any)[k] = typeof v === "string" ? v.trim() : v;
+    }
+  }
+  return out;
+}
+
+/** Edita informações cadastrais de um cliente existente. */
+export async function commitUpdateClient(
+  userId: string,
+  clientId: string,
+  changes: ClientChanges
+): Promise<void> {
+  const payload = sanitizeClientChanges(changes);
+  if (Object.keys(payload).length === 0) throw new Error("Nenhuma alteração válida informada.");
+  if (payload.cnpj) payload.cnpj = payload.cnpj.replace(/\D/g, "");
+
+  const { error } = await supabase
+    .from("clients")
+    .update(payload)
+    .eq("id", clientId)
+    .eq("user_id", userId);
+  if (error) throw error;
+}
+
+/**
+ * Muda a localização de um cliente: geocodifica o destino (cidade ou endereço)
+ * e atualiza lat/lng + address.
+ */
+export async function commitRelocateClient(
+  userId: string,
+  client: AIActionClient,
+  location: string
+): Promise<{ lat: number; lng: number }> {
+  const { getHighPrecisionCoordinates } = await import("./geminiGeocoding");
+  const coords = await getHighPrecisionCoordinates(location, client.name, client.cnpj || undefined);
+  if (!coords) throw new Error(`Não consegui localizar "${location}" no mapa.`);
+
+  const { error } = await supabase
+    .from("clients")
+    .update({ lat: coords.lat, lng: coords.lng, address: location })
+    .eq("id", client.id)
+    .eq("user_id", userId);
+  if (error) throw error;
+  return coords;
+}
+
+/**
+ * Cria um cliente novo. Se vier CNPJ, puxa os dados na Receita e geocodifica.
+ */
+export async function commitCreateClient(
+  userId: string,
+  data: { cnpj?: string; name?: string; address?: string }
+): Promise<{ id: string; name: string }> {
+  let name = data.name?.trim() || "";
+  let address = data.address?.trim() || "";
+  let cnpj = (data.cnpj || "").replace(/\D/g, "");
+  let city = "";
+  let state = "";
+
+  if (cnpj) {
+    const info = await lookupCnpj(cnpj);
+    if (info) {
+      name = name || info.name;
+      address = address || info.address;
+      city = info.city;
+      state = info.state;
+    }
+  }
+
+  if (!name) throw new Error("Preciso de um nome ou um CNPJ válido para cadastrar.");
+
+  // Evita duplicar por CNPJ
+  if (cnpj) {
+    const { data: existing } = await supabase
+      .from("clients")
+      .select("id, name")
+      .eq("cnpj", cnpj)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (existing) throw new Error(`"${existing.name}" já está cadastrado com esse CNPJ.`);
+  }
+
+  let lat = -23.5505;
+  let lng = -46.6333;
+  if (address) {
+    try {
+      const { getHighPrecisionCoordinates } = await import("./geminiGeocoding");
+      const coords = await getHighPrecisionCoordinates(address, name, cnpj || undefined);
+      if (coords) { lat = coords.lat; lng = coords.lng; }
+    } catch { /* mantém fallback */ }
+  }
+
+  const { data: inserted, error } = await supabase
+    .from("clients")
+    .insert([{ user_id: userId, name, cnpj, address, city, state, lat, lng, status: "Ativo", last_contact: new Date().toISOString().slice(0, 10) }])
+    .select("id, name")
+    .single();
+  if (error) throw error;
+  return inserted as { id: string; name: string };
+}
+
+/** Exclui um cliente (ação destrutiva — sempre via confirmação na UI). */
+export async function commitDeleteClient(userId: string, clientId: string): Promise<void> {
+  const { error } = await supabase
+    .from("clients")
+    .delete()
+    .eq("id", clientId)
+    .eq("user_id", userId);
+  if (error) {
+    throw new Error(
+      error.code === "23503"
+        ? "Cliente vinculado a pedidos/compromissos — remova-os antes."
+        : "Erro ao excluir o cliente."
+    );
+  }
+}
+
+/* ─── AUTONOMIA: AGENDA ─────────────────────────────────────────── */
+
+/** Cria um compromisso na agenda (e tenta espelhar no Google Calendar). */
+export async function commitCreateAppointment(
+  userId: string,
+  payload: { title: string; date: string; time: string; client_id?: string | null }
+): Promise<void> {
+  if (!payload.title?.trim()) throw new Error("O compromisso precisa de um título.");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(payload.date)) throw new Error("Data inválida (use AAAA-MM-DD).");
+
+  const savePayload = {
+    user_id: userId,
+    title: payload.title.trim(),
+    date: payload.date,
+    time: payload.time || "09:00",
+    client_id: payload.client_id || null,
+  };
+
+  const { data, error } = await supabase
+    .from("appointments")
+    .insert([savePayload])
+    .select()
+    .single();
+  if (error) throw error;
+
+  try {
+    const { pushEventToGoogle } = await import("./googleSync");
+    await pushEventToGoogle(userId, data);
+  } catch { /* Google opcional */ }
+}
+
+/** Edita / reagenda um compromisso existente. */
+export async function commitUpdateAppointment(
+  userId: string,
+  appt: AIAppointment,
+  changes: { title?: string; date?: string; time?: string }
+): Promise<void> {
+  const payload: Record<string, string> = {};
+  if (changes.title?.trim()) payload.title = changes.title.trim();
+  if (changes.date && /^\d{4}-\d{2}-\d{2}$/.test(changes.date)) payload.date = changes.date;
+  if (changes.time) payload.time = changes.time;
+  if (Object.keys(payload).length === 0) throw new Error("Nenhuma alteração válida no compromisso.");
+
+  const { data, error } = await supabase
+    .from("appointments")
+    .update(payload)
+    .eq("id", appt.id)
+    .eq("user_id", userId)
+    .select()
+    .single();
+  if (error) throw error;
+
+  try {
+    const { pushEventToGoogle } = await import("./googleSync");
+    await pushEventToGoogle(userId, data);
+  } catch { /* Google opcional */ }
+}
+
+/** Exclui um compromisso (e tenta remover do Google Calendar). */
+export async function commitDeleteAppointment(userId: string, appt: AIAppointment): Promise<void> {
+  const { error } = await supabase
+    .from("appointments")
+    .delete()
+    .eq("id", appt.id)
+    .eq("user_id", userId);
+  if (error) throw error;
+
+  if (appt.google_event_id) {
+    try {
+      const { deleteEventFromGoogle } = await import("./googleSync");
+      await deleteEventFromGoogle(userId, appt.google_event_id);
+    } catch { /* Google opcional */ }
+  }
 }
 
 /* ─── 4. RELATÓRIO PDF ──────────────────────────────────────────── */
