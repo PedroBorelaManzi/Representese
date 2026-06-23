@@ -14,6 +14,8 @@ interface Settings {
   theme: 'light' | 'dark';
   has_completed_onboarding: boolean;
   categories: string[];
+  /** Percentual de comissão por empresa representada. Ex.: { "Empresa A": 5, "Empresa B": 7.5 } */
+  commissions: Record<string, number>;
   revenue_ceiling: number;
   subscription_status: SubscriptionStatus;
   plan_id: string;
@@ -30,6 +32,7 @@ const defaultSettings: Settings = {
   theme: 'light',
   has_completed_onboarding: false,
   categories: [],
+  commissions: {},
   revenue_ceiling: 1000000,
   subscription_status: 'active', // Grace period default
   plan_id: 'exclusivo',
@@ -95,6 +98,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           theme: (localStorage.getItem('theme') as 'light' | 'dark') || cached.theme || defaultSettings.theme,
           has_completed_onboarding: cached.has_completed_onboarding ?? defaultSettings.has_completed_onboarding,
           categories: cached.categories || [],
+          commissions: cached.commissions || {},
           revenue_ceiling: parseFloat(cached.revenue_ceiling?.toString() || "1000000") ?? defaultSettings.revenue_ceiling,
           subscription_status: (cached.subscription_status as SubscriptionStatus) || 'active',
           plan_id: cached.plan_id || 'exclusivo',
@@ -165,6 +169,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           theme: (localStorage.getItem('theme') as 'light' | 'dark') || (data.theme as 'light' | 'dark') || defaultSettings.theme,
           has_completed_onboarding: hasCompleted,
           categories: categories,
+          commissions: data.commissions || {},
           revenue_ceiling: parseFloat(data.revenue_ceiling?.toString() || "1000000") ?? defaultSettings.revenue_ceiling,
           subscription_status: effectiveStatus,
           plan_id: planId,
