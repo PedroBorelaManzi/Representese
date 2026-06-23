@@ -30,6 +30,8 @@ import { processOrderFile } from "../lib/orderProcessor";
 import { syncQueue } from "../lib/syncQueue";
 import { offlineCache, CacheKeys } from "../lib/offlineCache";
 import { Client, Order } from "../types";
+import { computeCompanyCycles, cycleLabel, type CompanyCycle } from "../lib/purchaseCycle";
+import { TrendingUp, Clock3 } from "lucide-react";
 
 function cn(...classes: (string | boolean | undefined)[]) {
   return classes.filter(Boolean).join(" ");
@@ -65,6 +67,14 @@ export default function ClientDetails() {
   const [uploadCategory, setUploadCategory] = useState(draft.category || "");
 
   const initializedRef = useRef(false);
+
+  // Ciclo de compra: descobre o ritmo por empresa a partir do histórico de pedidos
+  const purchaseCycles = useMemo<CompanyCycle[]>(() => {
+    const orders = files
+      .filter((f) => f.created_at)
+      .map((f) => ({ category: f.category || "GERAL", value: f.value, created_at: f.created_at }));
+    return computeCompanyCycles(orders).filter((c) => c.status !== "observando" || c.purchases > 0);
+  }, [files]);
 
   useEffect(() => {
     if (user && id) {
@@ -558,6 +568,56 @@ export default function ClientDetails() {
                   </button>
                 </div>
               </div>
+
+              {/* Ciclo de compra inteligente */}
+              {purchaseCycles.length > 0 && (
+                <div className="mb-6 rounded-3xl border border-slate-100 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-950/40 p-5">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="p-1.5 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg">
+                      <TrendingUp className="w-4 h-4 text-emerald-600" />
+                    </div>
+                    <h3 className="text-[11px] font-black text-slate-500 dark:text-zinc-400 uppercase tracking-widest">
+                      Ritmo de compra
+                    </h3>
+                  </div>
+                  <div className="grid gap-2.5">
+                    {purchaseCycles.map((c) => {
+                      const tone =
+                        c.status === "atrasado"
+                          ? "border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/20"
+                          : c.status === "previsto"
+                          ? "border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/20"
+                          : "border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900";
+                      const labelTone =
+                        c.status === "atrasado"
+                          ? "text-red-600 dark:text-red-400"
+                          : c.status === "previsto"
+                          ? "text-amber-600 dark:text-amber-400"
+                          : "text-slate-500 dark:text-zinc-400";
+                      return (
+                        <div
+                          key={c.category}
+                          className={cn("flex items-center justify-between gap-3 rounded-2xl border px-4 py-3", tone)}
+                        >
+                          <div className="min-w-0">
+                            <div className="text-xs font-black text-slate-900 dark:text-zinc-100 uppercase tracking-tight truncate">
+                              {c.category}
+                            </div>
+                            {c.avgIntervalDays > 0 && (
+                              <div className="text-[9px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mt-0.5 flex items-center gap-1">
+                                <Clock3 className="w-3 h-3" /> compra a cada ~{c.avgIntervalDays} dias · {c.purchases} pedidos
+                              </div>
+                            )}
+                          </div>
+                          <span className={cn("text-[10px] font-black uppercase tracking-widest text-right shrink-0", labelTone)}>
+                            {cycleLabel(c)}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               <div className="flex-1 space-y-4 overflow-y-auto pr-2 custom-scrollbar">
                 {files.length === 0 ? (
