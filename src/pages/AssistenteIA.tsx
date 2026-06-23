@@ -12,6 +12,14 @@ import {
   Clock,
   MapPin,
   Crown,
+  Route,
+  MessageCircle,
+  FileText,
+  ShoppingBag,
+  ExternalLink,
+  Copy,
+  Check,
+  AlertTriangle,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
@@ -21,32 +29,37 @@ import { useSettings } from "../contexts/SettingsContext";
 import { geminiWithSystem } from "../lib/geminiProxy";
 import { cn } from "../lib/utils";
 import { toast } from "sonner";
+import {
+  type AIAction,
+  type AIActionClient,
+  parseActions,
+  buildRoute,
+  buildWhatsapp,
+  buildOrderDraft,
+  commitOrder,
+  openCarteiraReport,
+  buildDailyBriefing,
+  BRL,
+} from "../lib/aiActions";
 
 /* ─── tipos ─────────────────────────────────────────────────── */
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+  actions?: AIAction[];
 }
 
-interface AIClient {
-  id: string;
-  name: string;
-  cnpj: string | null;
-  city: string | null;
-  state: string | null;
-  status: string | null;
-  last_contact: string | null;
-  notes: string | null;
-  faturamento: Record<string, number> | null;
-}
+type AIClient = AIActionClient;
 
 const MAX_CLIENTS_IN_CONTEXT = 1500;
 
 const suggestions = [
-  { icon: Clock,      text: "Quais clientes estão há mais tempo sem contato?" },
-  { icon: TrendingUp, text: "Quem são meus 5 maiores clientes por faturamento?" },
-  { icon: MapPin,     text: "Como funciona o mapa de clientes no sistema?" },
-  { icon: Users,      text: "Escreva uma mensagem de reativação para um cliente inativo." },
+  { icon: Route,         text: "Monte uma rota de visitas para meus clientes inativos." },
+  { icon: ShoppingBag,   text: "Lance um pedido pra mim." },
+  { icon: FileText,      text: "Gere um relatório PDF da minha carteira." },
+  { icon: MessageCircle, text: "Escreva um WhatsApp de reativação para um cliente." },
+  { icon: TrendingUp,    text: "Quem são meus 5 maiores clientes por faturamento?" },
+  { icon: Clock,         text: "Quais clientes estão há mais tempo sem contato?" },
 ];
 
 /* ─── render de texto com **negrito** ───────────────────────── */
@@ -63,6 +76,197 @@ function FormattedText({ text }: { text: string }) {
       )}
     </span>
   );
+}
+
+/* ─── cartão de ação executável ─────────────────────────────── */
+function ActionCard({
+  action,
+  clients,
+  inativoDays,
+  userId,
+  onCommitted,
+}: {
+  action: AIAction;
+  clients: AIActionClient[];
+  inativoDays: number;
+  userId: string | undefined;
+  onCommitted: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const [committing, setCommitting] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const wrap = "mt-2 rounded-2xl border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/60 dark:bg-emerald-950/20 p-3.5";
+  const primaryBtn = "flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[12px] font-black uppercase tracking-wider transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed";
+
+  /* ── ROTA ── */
+  if (action.type === "route") {
+    const { url, matched, missingCoords, notFound } = buildRoute(clients, action.clients);
+    return (
+      <div className={wrap}>
+        <div className="flex items-center gap-2 mb-2.5">
+          <Route className="w-4 h-4 text-emerald-600" />
+          <span className="text-[11px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
+            Rota · {matched.length} parada{matched.length === 1 ? "" : "s"}
+          </span>
+        </div>
+        {matched.length > 0 && (
+          <ol className="flex flex-wrap gap-1.5 mb-3">
+            {matched.map((c, i) => (
+              <li key={c.id} className="flex items-center gap-1 bg-white dark:bg-zinc-800 border border-emerald-100 dark:border-zinc-700 rounded-full px-2.5 py-1 text-[11px] font-bold text-slate-700 dark:text-zinc-200">
+                <span className="bg-emerald-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[9px]">{i + 1}</span>
+                {c.name}
+              </li>
+            ))}
+          </ol>
+        )}
+        {(notFound.length > 0 || missingCoords.length > 0) && (
+          <p className="text-[11px] text-amber-600 dark:text-amber-400 mb-2.5 flex items-start gap-1.5">
+            <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+            <span>
+              {notFound.length > 0 && <>Não encontrei: {notFound.join(", ")}. </>}
+              {missingCoords.length > 0 && <>Sem localização no mapa: {missingCoords.join(", ")}.</>}
+            </span>
+          </p>
+        )}
+        {url ? (
+          <a href={url} target="_blank" rel="noopener noreferrer" className={primaryBtn}>
+            Abrir rota no Google Maps <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        ) : (
+          <p className="text-[12px] font-semibold text-slate-500">Nenhum cliente com localização para montar a rota.</p>
+        )}
+      </div>
+    );
+  }
+
+  /* ── WHATSAPP ── */
+  if (action.type === "whatsapp") {
+    const { url, client, message, hasPhone } = buildWhatsapp(clients, action.client, action.message);
+    const copy = async () => {
+      try {
+        await navigator.clipboard.writeText(message);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1800);
+      } catch {
+        toast.error("Não consegui copiar a mensagem.");
+      }
+    };
+    return (
+      <div className={wrap}>
+        <div className="flex items-center gap-2 mb-2.5">
+          <MessageCircle className="w-4 h-4 text-emerald-600" />
+          <span className="text-[11px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
+            Mensagem · {client?.name || action.client}
+          </span>
+        </div>
+        <div className="bg-white dark:bg-zinc-800 border border-emerald-100 dark:border-zinc-700 rounded-xl p-3 text-[12.5px] text-slate-700 dark:text-zinc-200 whitespace-pre-wrap mb-3">
+          {message}
+        </div>
+        <div className="flex gap-2">
+          <button onClick={copy} className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-emerald-200 dark:border-emerald-900/50 text-emerald-700 dark:text-emerald-400 text-[12px] font-black uppercase tracking-wider hover:bg-emerald-100/50 transition-all active:scale-95">
+            {copied ? <><Check className="w-3.5 h-3.5" /> Copiado</> : <><Copy className="w-3.5 h-3.5" /> Copiar</>}
+          </button>
+          {hasPhone && url ? (
+            <a href={url} target="_blank" rel="noopener noreferrer" className={primaryBtn}>
+              Abrir WhatsApp <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          ) : (
+            <span className="flex items-center text-[11px] text-amber-600 dark:text-amber-400 px-1">
+              {client ? "Cliente sem telefone cadastrado." : "Cliente não encontrado."}
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  /* ── PEDIDO ── */
+  if (action.type === "order") {
+    const draft = buildOrderDraft(clients, action.client, action.category, action.value);
+    const valid = !!draft.client && draft.value > 0;
+    const confirm = async () => {
+      if (!userId || !draft.client) return;
+      setCommitting(true);
+      try {
+        await commitOrder(userId, draft);
+        setDone(true);
+        toast.success("Pedido lançado com sucesso!");
+        onCommitted();
+      } catch (e: any) {
+        toast.error(e?.message || "Erro ao lançar o pedido.");
+      } finally {
+        setCommitting(false);
+      }
+    };
+    return (
+      <div className={wrap}>
+        <div className="flex items-center gap-2 mb-2.5">
+          <ShoppingBag className="w-4 h-4 text-emerald-600" />
+          <span className="text-[11px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
+            Lançar pedido
+          </span>
+        </div>
+        <div className="grid grid-cols-3 gap-2 mb-3">
+          <div className="bg-white dark:bg-zinc-800 rounded-xl p-2.5 border border-emerald-100 dark:border-zinc-700">
+            <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Cliente</p>
+            <p className="text-[12px] font-bold text-slate-800 dark:text-zinc-100 truncate">{draft.client?.name || action.client}</p>
+          </div>
+          <div className="bg-white dark:bg-zinc-800 rounded-xl p-2.5 border border-emerald-100 dark:border-zinc-700">
+            <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Empresa</p>
+            <p className="text-[12px] font-bold text-slate-800 dark:text-zinc-100 truncate">{draft.category}</p>
+          </div>
+          <div className="bg-white dark:bg-zinc-800 rounded-xl p-2.5 border border-emerald-100 dark:border-zinc-700">
+            <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Valor</p>
+            <p className="text-[12px] font-black text-emerald-600">{BRL(draft.value)}</p>
+          </div>
+        </div>
+        {!draft.client && (
+          <p className="text-[11px] text-amber-600 dark:text-amber-400 mb-2.5 flex items-center gap-1.5">
+            <AlertTriangle className="w-3.5 h-3.5" /> Cliente "{action.client}" não encontrado na carteira.
+          </p>
+        )}
+        {done ? (
+          <div className="flex items-center gap-2 text-emerald-600 text-[12px] font-black uppercase tracking-wider">
+            <Check className="w-4 h-4" /> Pedido lançado
+          </div>
+        ) : (
+          <button onClick={confirm} disabled={!valid || committing} className={primaryBtn}>
+            {committing ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Lançando...</> : <>Confirmar lançamento <Check className="w-3.5 h-3.5" /></>}
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  /* ── RELATÓRIO ── */
+  if (action.type === "report") {
+    const open = () => {
+      try {
+        openCarteiraReport(clients, inativoDays);
+      } catch (e: any) {
+        toast.error(e?.message || "Erro ao gerar o relatório.");
+      }
+    };
+    return (
+      <div className={wrap}>
+        <div className="flex items-center gap-2 mb-2.5">
+          <FileText className="w-4 h-4 text-emerald-600" />
+          <span className="text-[11px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
+            Relatório da carteira
+          </span>
+        </div>
+        <p className="text-[12px] text-slate-600 dark:text-zinc-300 mb-3">
+          Resumo com top clientes, faturamento por empresa e inativos — pronto para salvar em PDF.
+        </p>
+        <button onClick={open} className={primaryBtn}>
+          Gerar relatório PDF <FileText className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    );
+  }
+
+  return null;
 }
 
 /* ─── helpers de contexto ───────────────────────────────────── */
@@ -164,12 +368,12 @@ export default function AssistenteIA() {
     });
   };
 
-  const { data: clients = [], isLoading: clientsLoading } = useQuery({
+  const { data: clients = [], isLoading: clientsLoading, refetch: refetchClients } = useQuery({
     queryKey: ["ai-assistant-clients", user?.id],
     queryFn: async (): Promise<AIClient[]> => {
       const { data, error } = await supabase
         .from("clients")
-        .select("id, name, cnpj, city, state, status, last_contact, notes, faturamento")
+        .select("id, name, cnpj, city, state, status, last_contact, notes, faturamento, phone, email, address, lat, lng")
         .eq("user_id", user!.id)
         .order("name", { ascending: true });
       if (error) throw error;
@@ -181,6 +385,10 @@ export default function AssistenteIA() {
 
   const { systemInstruction, total, truncated } = useMemo(() => {
     const { context, total, truncated } = buildClientContext(clients);
+    const categoriesLine =
+      settings?.categories && settings.categories.length > 0
+        ? settings.categories.join(", ")
+        : "nenhuma empresa cadastrada ainda";
     const instruction = `Você é o Assistente IA do Represente-Se, um assistente inteligente dentro de uma plataforma de gestão para representantes comerciais brasileiros. Você conversa com o representante (o usuário) como um assistente geral — no estilo do ChatGPT — mas com dois diferenciais: você conhece a CARTEIRA DE CLIENTES deste usuário e conhece o SISTEMA Represente-Se.
 
 Como você deve agir:
@@ -201,10 +409,48 @@ SOBRE O SISTEMA REPRESENTE-SE (para tirar dúvidas de uso):
 - Assistente IA (você): responde sobre a carteira, sobre o sistema e sobre qualquer assunto.
 - Planos: Exclusivo (1 empresa), Profissional (até 5 empresas) e Master (empresas ilimitadas + recursos de IA).
 
+AÇÕES QUE VOCÊ PODE EXECUTAR NO APP:
+Quando o usuário pedir uma das ações abaixo, escreva primeiro uma resposta curta e natural confirmando o que vai fazer e, NA ÚLTIMA LINHA da resposta, inclua UM bloco de ação no formato exato (cerca por crases triplas com a palavra "action"). Use os NOMES dos clientes exatamente como aparecem na carteira. Só emita o bloco quando o usuário realmente pedir a ação — em conversa normal, nunca emita.
+
+1. TRAÇAR ROTA de visitas → escolha os clientes pertinentes (por região, inatividade, etc.) e ordene-os de forma lógica:
+\`\`\`action
+{"type":"route","clients":["Nome Cliente A","Nome Cliente B"]}
+\`\`\`
+
+2. LANÇAR PEDIDO → quando informar cliente, empresa representada e valor. A categoria deve ser uma das empresas representadas do usuário:
+\`\`\`action
+{"type":"order","client":"Nome do Cliente","category":"Empresa Representada","value":1234.56}
+\`\`\`
+Se faltar cliente, empresa ou valor, PERGUNTE antes — não emita o bloco incompleto.
+
+3. MENSAGEM DE WHATSAPP → escreva a mensagem pronta (cordial, em português) e identifique o cliente:
+\`\`\`action
+{"type":"whatsapp","client":"Nome do Cliente","message":"Texto completo da mensagem aqui"}
+\`\`\`
+
+4. RELATÓRIO DA CARTEIRA em PDF → quando pedirem um resumo/relatório geral da carteira:
+\`\`\`action
+{"type":"report"}
+\`\`\`
+
+Regras: no máximo um bloco por resposta; o bloco vai sempre no final; o texto acima do bloco deve fazer sentido sozinho (o usuário verá um cartão com botão para concluir a ação).
+
 DADOS DA CARTEIRA DESTE USUÁRIO (total de ${total} cliente(s)${truncated ? `, exibindo os ${MAX_CLIENTS_IN_CONTEXT} de maior faturamento` : ""}):
-${context || "Nenhum cliente cadastrado ainda."}`;
+${context || "Nenhum cliente cadastrado ainda."}
+
+EMPRESAS REPRESENTADAS DO USUÁRIO (use exatamente estes nomes como "category" ao lançar pedidos): ${categoriesLine}`;
     return { systemInstruction: instruction, total, truncated };
-  }, [clients]);
+  }, [clients, settings?.categories]);
+
+  // Briefing diário (calculado localmente, sem gastar IA)
+  const briefing = useMemo(() => {
+    if (!clients.length) return null;
+    return buildDailyBriefing(clients, {
+      alerta: settings?.alerta_days ?? 30,
+      critico: settings?.critico_days ?? 45,
+      inativo: settings?.inativo_days ?? 90,
+    });
+  }, [clients, settings?.alerta_days, settings?.critico_days, settings?.inativo_days]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -244,13 +490,16 @@ ${context || "Nenhum cliente cadastrado ainda."}`;
         generationConfig: { temperature: 0.3 },
       });
 
-      const assistantMsg = answer.trim() || "Não consegui gerar uma resposta agora.";
+      const raw = answer.trim() || "Não consegui gerar uma resposta agora.";
+      // Separa o texto limpo das ações executáveis embutidas
+      const { text: assistantMsg, actions } = parseActions(raw);
+      const displayMsg = assistantMsg || "Pronto!";
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: assistantMsg },
+        { role: "assistant", content: displayMsg, actions: actions.length ? actions : undefined },
       ]);
-      // Salva a resposta da IA no banco
-      await saveChat("assistant", assistantMsg);
+      // Salva apenas o texto limpo no histórico (sem o bloco técnico de ação)
+      await saveChat("assistant", displayMsg);
       bumpUsage();
     } catch (err: any) {
       console.error("Assistente IA error:", err);
@@ -333,9 +582,39 @@ ${context || "Nenhum cliente cadastrado ainda."}`;
               <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-zinc-100 mb-2">
                 Converse com a IA do seu jeito
               </h2>
-              <p className="text-[13px] font-medium text-slate-500 dark:text-zinc-400 max-w-md mb-8">
+              <p className="text-[13px] font-medium text-slate-500 dark:text-zinc-400 max-w-md mb-6">
                 Pergunte sobre seus clientes, tire dúvidas do sistema ou peça ajuda com qualquer coisa — como num ChatGPT, mas com a sua carteira na mão.
               </p>
+
+              {/* Briefing diário proativo */}
+              {briefing && (briefing.inativos > 0 || briefing.emAlerta > 0 || briefing.urgentes.length > 0) && (
+                <div className="w-full max-w-xl mb-6 rounded-2xl border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/60 dark:bg-emerald-950/20 p-4 text-left">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Sparkles className="w-4 h-4 text-emerald-600" />
+                    <span className="text-[11px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">Seu resumo de hoje</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 mb-3">
+                    <div className="bg-white dark:bg-zinc-800 rounded-xl p-2.5 border border-emerald-100 dark:border-zinc-700 text-center">
+                      <p className="text-lg font-black text-slate-800 dark:text-zinc-100">{briefing.totalClientes}</p>
+                      <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Clientes</p>
+                    </div>
+                    <div className="bg-white dark:bg-zinc-800 rounded-xl p-2.5 border border-emerald-100 dark:border-zinc-700 text-center">
+                      <p className="text-lg font-black text-amber-500">{briefing.emAlerta}</p>
+                      <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Em alerta</p>
+                    </div>
+                    <div className="bg-white dark:bg-zinc-800 rounded-xl p-2.5 border border-emerald-100 dark:border-zinc-700 text-center">
+                      <p className="text-lg font-black text-red-500">{briefing.inativos}</p>
+                      <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Inativos</p>
+                    </div>
+                  </div>
+                  {briefing.urgentes.length > 0 && (
+                    <p className="text-[12px] text-slate-600 dark:text-zinc-300">
+                      <span className="font-bold">Mais urgentes:</span>{" "}
+                      {briefing.urgentes.map((u) => `${u.name} (${u.dias}d)`).join(", ")}.
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-xl">
                 {suggestions.map((s) => (
@@ -368,15 +647,29 @@ ${context || "Nenhum cliente cadastrado ainda."}`;
                       <Brain className="w-4 h-4 text-white" />
                     </div>
                   )}
-                  <div
-                    className={cn(
-                      "max-w-[82%] px-4 py-3 rounded-2xl text-[13.5px] font-medium leading-relaxed",
-                      msg.role === "user"
-                        ? "bg-emerald-600 text-white rounded-br-md shadow-sm shadow-emerald-600/20"
-                        : "bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 rounded-bl-md border border-slate-100 dark:border-zinc-700"
-                    )}
-                  >
-                    <FormattedText text={msg.content} />
+                  <div className={cn("max-w-[82%] flex flex-col", msg.role === "user" ? "items-end" : "items-start")}>
+                    <div
+                      className={cn(
+                        "w-fit px-4 py-3 rounded-2xl text-[13.5px] font-medium leading-relaxed",
+                        msg.role === "user"
+                          ? "bg-emerald-600 text-white rounded-br-md shadow-sm shadow-emerald-600/20"
+                          : "bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 rounded-bl-md border border-slate-100 dark:border-zinc-700"
+                      )}
+                    >
+                      <FormattedText text={msg.content} />
+                    </div>
+                    {/* Cartões de ação executável */}
+                    {msg.role === "assistant" && msg.actions?.map((action, ai) => (
+                      <div key={ai} className="w-full">
+                        <ActionCard
+                          action={action}
+                          clients={clients}
+                          inativoDays={settings?.inativo_days ?? 90}
+                          userId={user?.id}
+                          onCommitted={() => refetchClients()}
+                        />
+                      </div>
+                    ))}
                   </div>
                   {msg.role === "user" && (
                     <div className="w-8 h-8 rounded-xl bg-slate-200 dark:bg-zinc-700 flex items-center justify-center flex-shrink-0">
