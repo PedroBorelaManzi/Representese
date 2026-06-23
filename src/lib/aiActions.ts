@@ -145,7 +145,53 @@ export interface RouteResult {
   notFound: string[];
 }
 
-/** Monta a URL do Google Maps com as paradas (máx. 10) na ordem informada. */
+/** Distância em km entre dois pontos (fórmula de Haversine). */
+function haversineKm(
+  lat1: number, lng1: number,
+  lat2: number, lng2: number
+): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/**
+ * Reordena os clientes pelo algoritmo do vizinho mais próximo:
+ * começa pelo primeiro da lista e sempre vai para o cliente mais próximo
+ * ainda não visitado — minimiza distância total percorrida.
+ */
+function nearestNeighborOrder(stops: AIActionClient[]): AIActionClient[] {
+  if (stops.length <= 2) return stops;
+  const remaining = [...stops.slice(1)];
+  const ordered = [stops[0]];
+
+  while (remaining.length > 0) {
+    const current = ordered[ordered.length - 1];
+    let bestIdx = 0;
+    let bestDist = Infinity;
+
+    remaining.forEach((c, i) => {
+      const dist = haversineKm(current.lat!, current.lng!, c.lat!, c.lng!);
+      if (dist < bestDist) { bestDist = dist; bestIdx = i; }
+    });
+
+    ordered.push(remaining[bestIdx]);
+    remaining.splice(bestIdx, 1);
+  }
+
+  return ordered;
+}
+
+/**
+ * Monta a URL do Google Maps com as paradas (máx. 10) otimizadas pelo
+ * algoritmo do vizinho mais próximo para minimizar deslocamento total.
+ */
 export function buildRoute(
   clients: AIActionClient[],
   names: string[]
@@ -165,7 +211,7 @@ export function buildRoute(
     }
   }
 
-  const stops = matched.slice(0, 10);
+  const stops = nearestNeighborOrder(matched.slice(0, 10));
   const url =
     stops.length > 0
       ? `https://www.google.com/maps/dir/${stops.map((c) => `${c.lat},${c.lng}`).join("/")}`
