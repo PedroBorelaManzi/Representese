@@ -106,14 +106,14 @@ export interface GeocodingExtra {
 }
 
 /**
- * Geocodifica um endereço de empresa com 4 tiers em cascata:
+ * Geocodifica um endereço de empresa com cascata de 5 tiers:
  *
- * 1. Cache (memória + localStorage 7 dias)
- * 2. Nominatim estruturado — logradouro + cidade + estado
- * 3. Nominatim por nome — razão social / fantasia + cidade (como uma busca por nome no mapa)
- * 4. Nominatim cidade — só para garantir que o pin fique na cidade certa
- * 5. Gemini via /api/ai — usa todo o contexto disponível
- * 6. Centro do estado (fallback seguro: melhor que cair em SP sempre)
+ * 0. Cache (memória + localStorage 7 dias)
+ * 1. Nominatim estruturado — logradouro + número + cidade + estado
+ * 2. Gemini com contexto rico — razão social, fantasia, CNPJ, cidade (conhecimento de treinamento)
+ * 3. Nominatim por nome da empresa — razão social / fantasia + cidade
+ * 4. Nominatim só pela cidade — garante pin na cidade certa
+ * 5. Centro do estado (fallback geográfico seguro)
  */
 export async function getHighPrecisionCoordinates(
   address: string,
@@ -132,7 +132,7 @@ export async function getHighPrecisionCoordinates(
   if (cached !== undefined) return cached;
 
   // ── Tier 1: Nominatim estruturado ────────────────────────────────
-  // Usa os campos separados da BrasilAPI: logradouro + número, cidade, estado
+  // Campos separados da BrasilAPI: mais preciso que texto livre
   if (extra?.street && extra?.city) {
     const streetWithNum = [extra.street, extra.number].filter(Boolean).join(" ");
     const qs = new URLSearchParams({
@@ -148,44 +148,9 @@ export async function getHighPrecisionCoordinates(
     }
   }
 
-  // ── Tier 2: Nominatim por nome da empresa ─────────────────────────
-  // Imita uma busca manual no mapa: "Razão Social Cidade Estado Brasil"
-  const searchName = extra?.razaoSocial || extra?.nomeFantasia || clientName;
-  if (searchName && extra?.city) {
-    const q = `${searchName} ${extra.city} ${extra.state || ""} Brasil`.trim();
-    const coords = await nominatimSearch(new URLSearchParams({ q }).toString());
-    if (coords) {
-      setCachedCoords(cacheKey, coords);
-      return coords;
-    }
-  }
-
-  // Tenta também só com o nome fantasia se diferente da razão social
-  if (extra?.nomeFantasia && extra.nomeFantasia !== extra?.razaoSocial && extra?.city) {
-    const q = `${extra.nomeFantasia} ${extra.city} ${extra.state || ""} Brasil`.trim();
-    const coords = await nominatimSearch(new URLSearchParams({ q }).toString());
-    if (coords) {
-      setCachedCoords(cacheKey, coords);
-      return coords;
-    }
-  }
-
-  // ── Tier 3: Nominatim só pela cidade ─────────────────────────────
-  // Garante que, no mínimo, o pin fique na cidade correta
-  if (extra?.city) {
-    const qs = new URLSearchParams({
-      city: extra.city,
-      state: extra.state || "",
-      country: "Brazil",
-    }).toString();
-    const coords = await nominatimSearch(qs);
-    if (coords) {
-      setCachedCoords(cacheKey, coords);
-      return coords;
-    }
-  }
-
-  // ── Tier 4: Gemini via /api/ai ───────────────────────────────────
+  // ── Tier 2: Gemini com contexto rico ─────────────────────────────
+  // Usa o conhecimento de treinamento sobre a empresa (razão social, fantasia, CNPJ)
+  // antes de tentativas textuais menos confiáveis no Nominatim
   try {
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData?.session?.access_token;
@@ -224,10 +189,47 @@ export async function getHighPrecisionCoordinates(
     }
   } catch {}
 
-  // ── Tier 5: Centro do estado (fallback seguro) ────────────────────
+  // ── Tier 3: Nominatim por nome da empresa ─────────────────────────
+  // Imita busca manual no mapa: "Razão Social Cidade Estado Brasil"
+  const searchName = extra?.razaoSocial || extra?.nomeFantasia || clientName;
+  if (searchName && extra?.city) {
+    const q = `${searchName} ${extra.city} ${extra.state || ""} Brasil`.trim();
+    const coords = await nominatimSearch(new URLSearchParams({ q }).toString());
+    if (coords) {
+      setCachedCoords(cacheKey, coords);
+      return coords;
+    }
+  }
+
+  // Tenta também com nome fantasia se diferente da razão social
+  if (extra?.nomeFantasia && extra.nomeFantasia !== extra?.razaoSocial && extra?.city) {
+    const q = `${extra.nomeFantasia} ${extra.city} ${extra.state || ""} Brasil`.trim();
+    const coords = await nominatimSearch(new URLSearchParams({ q }).toString());
+    if (coords) {
+      setCachedCoords(cacheKey, coords);
+      return coords;
+    }
+  }
+
+  // ── Tier 4: Nominatim só pela cidade ─────────────────────────────
+  // Garante que, no mínimo, o pin fique na cidade correta
+  if (extra?.city) {
+    const qs = new URLSearchParams({
+      city: extra.city,
+      state: extra.state || "",
+      country: "Brazil",
+    }).toString();
+    const coords = await nominatimSearch(qs);
+    if (coords) {
+      setCachedCoords(cacheKey, coords);
+      return coords;
+    }
+  }
+
+  // ── Tier 5: Centro do estado (fallback geográfico) ────────────────
   const stateKey = (extra?.state || "").toUpperCase().trim();
   if (stateKey && STATE_CENTERS[stateKey]) {
-    // Não cacheia: fallback geográfico não é geocodificação real — tenta novamente na próxima vez
+    // Não cacheia: fallback geográfico — tenta novamente na próxima vez
     return STATE_CENTERS[stateKey];
   }
 
