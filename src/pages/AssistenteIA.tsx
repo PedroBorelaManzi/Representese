@@ -20,13 +20,17 @@ import {
   AlertTriangle,
   ChevronLeft,
   Square,
+  HelpCircle,
+  Calendar,
+  MapPin,
+  MoreHorizontal,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
-import { geminiWithSystem } from "../lib/geminiProxy";
+import { geminiWithSystem, geminiText } from "../lib/geminiProxy";
 import { cn } from "../lib/utils";
 import { toast } from "sonner";
 import {
@@ -64,21 +68,69 @@ interface SuggestionTheme {
 
 const themes: SuggestionTheme[] = [
   {
-    id: "acoes",
-    icon: Route,
-    label: "Ações rápidas",
-    color: "text-emerald-600",
+    id: "sistema",
+    icon: HelpCircle,
+    label: "Dúvidas do sistema",
+    color: "text-violet-600",
     items: [
-      "Monte uma rota de visitas para meus clientes inativos.",
-      "Lance um pedido pra mim.",
-      "Escreva um WhatsApp de reativação para um cliente.",
-      "Gere um relatório PDF da minha carteira.",
+      "Como funciona o alerta de inatividade?",
+      "Como lanço pedidos por foto ou PDF?",
+      "O que cada plano oferece?",
+      "Como funciona a sincronização offline?",
     ],
   },
   {
-    id: "carteira",
+    id: "agenda",
+    icon: Calendar,
+    label: "Agenda",
+    color: "text-sky-600",
+    items: [
+      "Quais compromissos eu tenho esta semana?",
+      "Sugira uma agenda de visitas para os próximos dias.",
+      "Como conecto minha Google Agenda?",
+      "Quais clientes preciso visitar com prioridade?",
+    ],
+  },
+  {
+    id: "mapa",
+    icon: MapPin,
+    label: "Mapa",
+    color: "text-rose-600",
+    items: [
+      "Monte uma rota de visitas para meus clientes inativos.",
+      "Trace uma rota pelos meus 5 maiores clientes.",
+      "Como funciona o planejamento de rotas no mapa?",
+      "Quais clientes estão na mesma região?",
+    ],
+  },
+  {
+    id: "pedidos",
+    icon: ShoppingBag,
+    label: "Pedidos",
+    color: "text-emerald-600",
+    items: [
+      "Lance um pedido pra mim.",
+      "Gere um relatório PDF da minha carteira.",
+      "Qual foi meu último pedido de cada empresa?",
+      "Como digitalizar um pedido por foto?",
+    ],
+  },
+  {
+    id: "vendas",
+    icon: TrendingUp,
+    label: "Vendas e abordagens",
+    color: "text-amber-600",
+    items: [
+      "Crie um script de visita para um cliente específico.",
+      "Escreva um WhatsApp de reativação para um cliente.",
+      "Dê ideias para aumentar meu ticket médio.",
+      "Como abordar um cliente que parou de comprar?",
+    ],
+  },
+  {
+    id: "clientes",
     icon: Users,
-    label: "Minha carteira",
+    label: "Clientes",
     color: "text-blue-600",
     items: [
       "Quem são meus 5 maiores clientes por faturamento?",
@@ -87,59 +139,53 @@ const themes: SuggestionTheme[] = [
       "Resuma a minha carteira em poucos pontos.",
     ],
   },
-  {
-    id: "vendas",
-    icon: TrendingUp,
-    label: "Vendas & abordagem",
-    color: "text-amber-600",
-    items: [
-      "Crie um script de visita para um cliente específico.",
-      "Dê ideias para aumentar meu ticket médio.",
-      "Como abordar um cliente que parou de comprar?",
-      "Sugira uma agenda de visitas para esta semana.",
-    ],
-  },
-  {
-    id: "sistema",
-    icon: Sparkles,
-    label: "Sistema & dúvidas",
-    color: "text-violet-600",
-    items: [
-      "Como funciona o mapa de clientes?",
-      "Como lanço pedidos por foto ou PDF?",
-      "O que cada plano oferece?",
-      "Como funciona o alerta de inatividade?",
-    ],
-  },
 ];
 
 function SuggestionMenu({
   onPick,
+  onGenerateMore,
   disabled,
   compact,
 }: {
   onPick: (text: string) => void;
+  onGenerateMore?: (theme: SuggestionTheme, existing: string[]) => Promise<string[]>;
   disabled?: boolean;
   compact?: boolean;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
+  const [extra, setExtra] = useState<Record<string, string[]>>({});
+  const [loadingMore, setLoadingMore] = useState(false);
   const active = themes.find((t) => t.id === openId) || null;
 
   if (active) {
+    const items = [...active.items, ...(extra[active.id] || [])];
+    const handleMore = async () => {
+      if (!onGenerateMore || loadingMore) return;
+      setLoadingMore(true);
+      try {
+        const fresh = await onGenerateMore(active, items);
+        if (fresh.length) {
+          setExtra((prev) => ({ ...prev, [active.id]: [...(prev[active.id] || []), ...fresh] }));
+        }
+      } finally {
+        setLoadingMore(false);
+      }
+    };
+
     return (
       <div className="w-full max-w-xl">
         <button
           onClick={() => setOpenId(null)}
           className="flex items-center gap-1.5 mb-3 text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-emerald-600 transition-colors"
         >
-          <ChevronLeft className="w-3.5 h-3.5" /> Temas
+          <ChevronLeft className="w-3.5 h-3.5" /> Menus
         </button>
         <div className="flex items-center gap-2 mb-3">
           <active.icon className={cn("w-4 h-4", active.color)} />
           <span className="text-[12px] font-black uppercase tracking-widest text-slate-600 dark:text-zinc-300">{active.label}</span>
         </div>
         <div className={cn("grid gap-2", compact ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2")}>
-          {active.items.map((text) => (
+          {items.map((text) => (
             <button
               key={text}
               onClick={() => onPick(text)}
@@ -152,27 +198,44 @@ function SuggestionMenu({
               <span className="text-[12.5px] font-semibold text-slate-700 dark:text-zinc-200 leading-snug">{text}</span>
             </button>
           ))}
+          {onGenerateMore && (
+            <button
+              onClick={handleMore}
+              disabled={disabled || loadingMore}
+              title="Gerar mais sugestões"
+              className={cn(
+                "group flex items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 dark:border-zinc-700 text-slate-400 hover:text-emerald-600 hover:border-emerald-300 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed",
+                compact ? "p-3" : "p-4"
+              )}
+            >
+              {loadingMore ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> <span className="text-[11px] font-black uppercase tracking-widest">Gerando...</span></>
+              ) : (
+                <><MoreHorizontal className="w-4 h-4" /> <span className="text-[11px] font-black uppercase tracking-widest">Mais frases</span></>
+              )}
+            </button>
+          )}
         </div>
       </div>
     );
   }
 
   return (
-    <div className={cn("grid gap-3 w-full max-w-xl", compact ? "grid-cols-2" : "grid-cols-2")}>
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 w-full max-w-xl">
       {themes.map((t) => (
         <button
           key={t.id}
           onClick={() => setOpenId(t.id)}
           disabled={disabled}
           className={cn(
-            "group flex items-center gap-3 text-left rounded-2xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-300 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed",
-            compact ? "p-2.5" : "p-4"
+            "group flex flex-col items-start gap-2 text-left rounded-2xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-300 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed",
+            compact ? "p-3" : "p-4"
           )}
         >
           <span className={cn("rounded-xl bg-slate-50 dark:bg-zinc-800 group-hover:bg-emerald-100 flex items-center justify-center flex-shrink-0 transition-colors", compact ? "w-7 h-7" : "w-9 h-9")}>
             <t.icon className={cn(compact ? "w-3.5 h-3.5" : "w-4 h-4", t.color)} />
           </span>
-          <span className={cn("font-bold text-slate-700 dark:text-zinc-200 leading-snug", compact ? "text-[11px]" : "text-[13px]")}>{t.label}</span>
+          <span className={cn("font-bold text-slate-700 dark:text-zinc-200 leading-snug", compact ? "text-[11px]" : "text-[12.5px]")}>{t.label}</span>
         </button>
       ))}
     </div>
@@ -650,6 +713,48 @@ EMPRESAS REPRESENTADAS DO USUÁRIO (use exatamente estes nomes como "category" a
     abortRef.current?.abort();
   };
 
+  // "…" → gera novas frases prontas para o tema, via IA (não conta no limite diário)
+  const generateMoreSuggestions = async (
+    theme: SuggestionTheme,
+    existing: string[]
+  ): Promise<string[]> => {
+    if (!navigator.onLine) {
+      toast.error("Sem conexão para gerar mais sugestões.");
+      return [];
+    }
+    const cats =
+      settings?.categories && settings.categories.length > 0
+        ? settings.categories.join(", ")
+        : "nenhuma cadastrada";
+    const prompt = `Você ajuda um representante comercial brasileiro a usar o assistente de IA do app Represente-Se.
+Gere 4 NOVAS sugestões de perguntas ou comandos CURTOS (máximo 10 palavras cada) que ele poderia enviar ao assistente, sobre o tema "${theme.label}".
+Empresas que ele representa: ${cats}.
+NÃO repita nem reformule nenhuma destas que ele já viu: ${existing.join(" | ")}.
+Responda APENAS com as 4 frases, uma por linha, sem numeração, sem aspas, sem comentários.`;
+    try {
+      const txt = await geminiText(prompt);
+      const seen = new Set(existing.map((e) => e.toLowerCase().trim()));
+      const lines = txt
+        .split("\n")
+        .map((l) => l.replace(/^[-•*\d.\)\s"]+/, "").replace(/["]+$/, "").trim())
+        .filter((l) => l.length > 3 && l.length < 120);
+      const fresh: string[] = [];
+      for (const l of lines) {
+        const key = l.toLowerCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          fresh.push(l);
+        }
+        if (fresh.length >= 4) break;
+      }
+      if (!fresh.length) toast("Sem novas sugestões no momento.");
+      return fresh;
+    } catch {
+      toast.error("Não consegui gerar mais sugestões agora.");
+      return [];
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -748,7 +853,7 @@ EMPRESAS REPRESENTADAS DO USUÁRIO (use exatamente estes nomes como "category" a
                 </div>
               )}
 
-              <SuggestionMenu onPick={(t) => send(t)} disabled={clientsLoading} />
+              <SuggestionMenu onPick={(t) => send(t)} onGenerateMore={generateMoreSuggestions} disabled={clientsLoading} />
             </div>
           ) : (
             <>
@@ -801,7 +906,7 @@ EMPRESAS REPRESENTADAS DO USUÁRIO (use exatamente estes nomes como "category" a
               {!thinking && messages.length > 0 && (
                 <div className="pt-4 border-t border-slate-100 dark:border-zinc-800">
                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Sugestões</p>
-                  <SuggestionMenu onPick={(t) => send(t)} disabled={clientsLoading || thinking} compact />
+                  <SuggestionMenu onPick={(t) => send(t)} onGenerateMore={generateMoreSuggestions} disabled={clientsLoading || thinking} compact />
                 </div>
               )}
 
