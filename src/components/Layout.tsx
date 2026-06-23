@@ -19,7 +19,8 @@ import {
   RefreshCw,
   Sparkles,
   FolderArchive,
-  Wallet
+  Wallet,
+  Trophy
 } from 'lucide-react';
 import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -260,6 +261,7 @@ export default function Layout() {
     { icon: Users, label: 'Clientes', path: '/dashboard/clientes' },
     { icon: Building2, label: 'Empresas', path: '/dashboard/empresas' },
     { icon: Wallet, label: 'Comissões', path: '/dashboard/comissoes' },
+    { icon: Trophy, label: 'Ranking', path: '/dashboard/ranking' },
     { icon: Calendar, label: 'Agenda', path: '/dashboard/agenda' },
     { icon: Mail, label: 'E-mails', path: '/dashboard/email' },
     { icon: FolderArchive, label: 'Arquivos', path: '/dashboard/arquivos' },

@@ -31,6 +31,7 @@ const EmailCallback = React.lazy(() => import("./pages/EmailCallback"));
 const PedidosPage = React.lazy(() => import("./pages/Pedidos"));
 const AssistenteIA = React.lazy(() => import("./pages/AssistenteIA"));
 const ComissoesPage = React.lazy(() => import("./pages/Comissoes"));
+const RankingPage = React.lazy(() => import("./pages/Ranking"));
 const ArquivosPage = React.lazy(() => import("./pages/Arquivos"));
 const PlanosPage = React.lazy(() => import("./pages/Planos"));
 const GoogleCallback = React.lazy(() => import("./pages/GoogleCallback"));
@@ -107,6 +108,7 @@ export default function App() {
                       <Route path="email" element={<EmailClient />} />
                       <Route path="pedidos" element={<PedidosPage />} />
                       <Route path="comissoes" element={<ComissoesPage />} />
+                      <Route path="ranking" element={<RankingPage />} />
                       <Route path="assistente" element={<AssistenteIA />} />
                       <Route path="arquivos" element={<ArquivosPage />} />
                     </Route>
