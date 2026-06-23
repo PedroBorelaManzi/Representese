@@ -93,26 +93,34 @@ app.post('/api/ai', async (req, res) => {
 
   try {
     if (action === 'geocode') {
-      const { address, name, cnpj } = payload;
-      const prompt = `INSTRUTIVO DE PESQUISA PROFUNDA (DEEP SEARCH):
-Você deve localizar as coordenadas geográficas exatas (Latitude e Longitude) para esta empresa brasileira.
+      const { address, name, cnpj, razaoSocial, nomeFantasia, city, state } = payload;
+      const prompt = `Você é um geocodificador especialista em empresas brasileiras.
+Sua tarefa é retornar as coordenadas geográficas (latitude e longitude) mais precisas possíveis para a empresa abaixo.
 
-DADOS RECEBIDOS:
-Nome: ${name || "Não informado"}
+DADOS DA EMPRESA:
+Razão Social: ${razaoSocial || name || "Não informado"}
+Nome Fantasia: ${nomeFantasia || "Não informado"}
 CNPJ: ${cnpj || "Não informado"}
-Endereço Parcial: ${address || "Não informado"}
+Endereço completo: ${address || "Não informado"}
+Cidade: ${city || "Não informado"}
+Estado (UF): ${state || "Não informado"}
 
-SUA MISSÃO:
-1. Use seus recursos internos para pesquisar o endereço oficial desta empresa pelo CNPJ/Nome.
-2. Tente identificar a localização no Google Maps.
-3. Retorne a localização do prédio/sede exata se possível.
-4. Se não encontrar o prédio, use o centro da rua.
-5. Se for impossível determinar a rua, retorne null.
+ESTRATÉGIA (siga nesta ordem de prioridade):
+1. Se conhecer o endereço exato desta empresa pelo CNPJ ou razão social, use-o.
+2. Se não tiver o prédio exato, use o centro da rua + cidade.
+3. Se não tiver a rua, use o centro do bairro ou da cidade informada.
+4. NUNCA use coordenadas de outra cidade que não seja "${city || "a informada"}".
+5. Se não tiver certeza nem da cidade, retorne null.
 
-FORMATO DE RESPOSTA (APENAS JSON):
+REGRAS:
+- Latitude deve estar entre -34 e 6 (território brasileiro).
+- Longitude deve estar entre -74 e -28.
+- Não invente. Incerteza → null.
+
+RESPOSTA (somente JSON, sem markdown):
 {"lat": -00.00000, "lng": -00.00000}
-
-Nota: Não invente coordenadas. Se não tiver certeza mínima da cidade, retorne null.`;
+ou
+null`;
 
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(prompt);

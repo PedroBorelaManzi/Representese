@@ -312,10 +312,14 @@ export async function commitOrder(
 
 /* ─── AUTONOMIA: CLIENTES ───────────────────────────────────────── */
 
-/** Consulta um CNPJ na BrasilAPI e devolve dados básicos para cadastro. */
+/** Consulta um CNPJ na BrasilAPI e devolve dados completos para cadastro e geocoding. */
 export async function lookupCnpj(cnpj: string): Promise<{
   name: string;
+  fantasia: string;
   address: string;
+  street: string;
+  number: string;
+  neighborhood: string;
   city: string;
   state: string;
   cnpj: string;
@@ -328,15 +332,25 @@ export async function lookupCnpj(cnpj: string): Promise<{
   const d = await res.json();
 
   const streetType = d.tipo_logradouro ? `${d.tipo_logradouro} ` : "";
-  const address = `${streetType}${d.logradouro || ""}, ${d.numero || "S/N"} - ${d.bairro || ""}, ${d.municipio || ""} - ${d.uf || ""}`
+  const street = `${streetType}${d.logradouro || ""}`.trim();
+  const number = d.numero || "S/N";
+  const neighborhood = d.bairro || "";
+  const city = d.municipio || "";
+  const state = d.uf || "";
+
+  const address = `${street}, ${number} - ${neighborhood}, ${city} - ${state}`
     .replace(/\s+/g, " ")
     .trim();
 
   return {
     name: d.razao_social || d.nome_fantasia || "",
+    fantasia: d.nome_fantasia || "",
     address,
-    city: d.municipio || "",
-    state: d.uf || "",
+    street,
+    number,
+    neighborhood,
+    city,
+    state,
     cnpj: clean,
   };
 }
@@ -409,11 +423,20 @@ export async function commitCreateClient(
   let city = "";
   let state = "";
 
+  let street = "";
+  let number = "";
+  let neighborhood = "";
+  let fantasia = "";
+
   if (cnpj) {
     const info = await lookupCnpj(cnpj);
     if (info) {
       name = name || info.name;
+      fantasia = info.fantasia;
       address = address || info.address;
+      street = info.street;
+      number = info.number;
+      neighborhood = info.neighborhood;
       city = info.city;
       state = info.state;
     }
@@ -432,15 +455,21 @@ export async function commitCreateClient(
     if (existing) throw new Error(`"${existing.name}" já está cadastrado com esse CNPJ.`);
   }
 
-  let lat = -23.5505;
-  let lng = -46.6333;
-  if (address) {
-    try {
-      const { getHighPrecisionCoordinates } = await import("./geminiGeocoding");
-      const coords = await getHighPrecisionCoordinates(address, name, cnpj || undefined);
-      if (coords) { lat = coords.lat; lng = coords.lng; }
-    } catch { /* mantém fallback */ }
-  }
+  let lat: number | null = null;
+  let lng: number | null = null;
+  try {
+    const { getHighPrecisionCoordinates } = await import("./geminiGeocoding");
+    const coords = await getHighPrecisionCoordinates(address, name, cnpj || undefined, {
+      razaoSocial: name,
+      nomeFantasia: fantasia,
+      street,
+      number,
+      neighborhood,
+      city,
+      state,
+    });
+    if (coords) { lat = coords.lat; lng = coords.lng; }
+  } catch { /* sem coordenadas — o pin não aparecerá até editar o endereço */ }
 
   const { data: inserted, error } = await supabase
     .from("clients")

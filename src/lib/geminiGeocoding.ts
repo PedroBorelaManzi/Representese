@@ -5,148 +5,232 @@ type CacheEntry = {
   expiry: number;
 };
 
-// In-memory cache
 const memoryCache = new Map<string, { lat: number; lng: number } | null>();
 
-function getCachedCoords(address: string): { lat: number; lng: number } | null | undefined {
-  const normalized = address.trim().toLowerCase();
-  
-  // 1. Check in-memory cache
-  if (memoryCache.has(normalized)) {
-    return memoryCache.get(normalized);
-  }
+/** Centros aproximados das capitais de cada estado brasileiro. */
+const STATE_CENTERS: Record<string, { lat: number; lng: number }> = {
+  AC: { lat: -9.97, lng: -67.81 },
+  AL: { lat: -9.67, lng: -35.74 },
+  AM: { lat: -3.10, lng: -60.03 },
+  AP: { lat: 0.03, lng: -51.07 },
+  BA: { lat: -12.97, lng: -38.50 },
+  CE: { lat: -3.72, lng: -38.54 },
+  DF: { lat: -15.78, lng: -47.93 },
+  ES: { lat: -20.32, lng: -40.34 },
+  GO: { lat: -16.69, lng: -49.25 },
+  MA: { lat: -2.53, lng: -44.30 },
+  MG: { lat: -19.92, lng: -43.94 },
+  MS: { lat: -20.46, lng: -54.62 },
+  MT: { lat: -15.60, lng: -56.10 },
+  PA: { lat: -1.46, lng: -48.50 },
+  PB: { lat: -7.12, lng: -34.86 },
+  PE: { lat: -8.06, lng: -34.87 },
+  PI: { lat: -5.09, lng: -42.80 },
+  PR: { lat: -25.42, lng: -49.27 },
+  RJ: { lat: -22.91, lng: -43.17 },
+  RN: { lat: -5.79, lng: -35.21 },
+  RO: { lat: -8.76, lng: -63.90 },
+  RR: { lat: 2.82, lng: -60.67 },
+  RS: { lat: -30.03, lng: -51.23 },
+  SC: { lat: -27.60, lng: -48.55 },
+  SE: { lat: -10.91, lng: -37.07 },
+  SP: { lat: -23.55, lng: -46.63 },
+  TO: { lat: -10.18, lng: -48.33 },
+};
 
-  // 2. Check localStorage cache
+/** Rejeita coords fora do território brasileiro. */
+function isWithinBrazil(lat: number, lng: number): boolean {
+  return lat >= -34 && lat <= 6 && lng >= -74 && lng <= -28;
+}
+
+function getCachedCoords(key: string): { lat: number; lng: number } | null | undefined {
+  const normalized = key.trim().toLowerCase();
+  if (memoryCache.has(normalized)) return memoryCache.get(normalized);
   try {
-    const cachedStr = localStorage.getItem(`geo_cache_${normalized}`);
-    if (cachedStr) {
-      const entry: CacheEntry = JSON.parse(cachedStr);
+    const raw = localStorage.getItem(`geo_cache_${normalized}`);
+    if (raw) {
+      const entry: CacheEntry = JSON.parse(raw);
       if (Date.now() < entry.expiry) {
         memoryCache.set(normalized, entry.coords);
         return entry.coords;
-      } else {
-        localStorage.removeItem(`geo_cache_${normalized}`);
       }
+      localStorage.removeItem(`geo_cache_${normalized}`);
     }
-  } catch (e) {
-    console.error("Error reading geocoding cache", e);
-  }
+  } catch {}
   return undefined;
 }
 
-function setCachedCoords(address: string, coords: { lat: number; lng: number } | null) {
-  const normalized = address.trim().toLowerCase();
+function setCachedCoords(key: string, coords: { lat: number; lng: number } | null) {
+  const normalized = key.trim().toLowerCase();
   memoryCache.set(normalized, coords);
   try {
-    const entry: CacheEntry = {
-      coords,
-      expiry: Date.now() + 7 * 24 * 60 * 60 * 1000 // 7 days TTL
-    };
+    const entry: CacheEntry = { coords, expiry: Date.now() + 7 * 24 * 60 * 60 * 1000 };
     localStorage.setItem(`geo_cache_${normalized}`, JSON.stringify(entry));
-  } catch (e) {
-    console.error("Error saving geocoding cache", e);
+  } catch {}
+}
+
+/** Faz uma query no Nominatim e valida que o resultado está no Brasil. */
+async function nominatimSearch(querystring: string): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&limit=1&${querystring}`,
+      { headers: { "User-Agent": "RepresenteSeGeocoding/1.0" } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!Array.isArray(data) || !data.length) return null;
+    const lat = parseFloat(data[0].lat);
+    const lng = parseFloat(data[0].lon);
+    if (!isWithinBrazil(lat, lng)) return null;
+    return { lat, lng };
+  } catch {
+    return null;
   }
 }
 
-export async function getHighPrecisionCoordinates(address: string, clientName?: string, cnpj?: string): Promise<{ lat: number; lng: number } | null> {
-  if (!address) return null;
+export interface GeocodingExtra {
+  /** Razão social da empresa (vinda da Receita Federal via BrasilAPI). */
+  razaoSocial?: string;
+  /** Nome fantasia (vindo da BrasilAPI). */
+  nomeFantasia?: string;
+  /** Logradouro sem número (ex: "Rua das Flores"). */
+  street?: string;
+  /** Número do endereço. */
+  number?: string;
+  /** Bairro. */
+  neighborhood?: string;
+  /** Município. */
+  city?: string;
+  /** UF (sigla). */
+  state?: string;
+}
 
-  // Check cache first
-  const cached = getCachedCoords(address);
-  if (cached !== undefined) {
-    console.debug(`Geocoding cache hit for "${address}":`, cached);
-    return cached;
-  }
+/**
+ * Geocodifica um endereço de empresa com 4 tiers em cascata:
+ *
+ * 1. Cache (memória + localStorage 7 dias)
+ * 2. Nominatim estruturado — logradouro + cidade + estado
+ * 3. Nominatim por nome — razão social / fantasia + cidade (como uma busca por nome no mapa)
+ * 4. Nominatim cidade — só para garantir que o pin fique na cidade certa
+ * 5. Gemini via /api/ai — usa todo o contexto disponível
+ * 6. Centro do estado (fallback seguro: melhor que cair em SP sempre)
+ */
+export async function getHighPrecisionCoordinates(
+  address: string,
+  clientName?: string,
+  cnpj?: string,
+  extra?: GeocodingExtra
+): Promise<{ lat: number; lng: number } | null> {
+  const hasAddress = Boolean(address?.trim());
+  const hasCity = Boolean(extra?.city?.trim());
+  if (!hasAddress && !hasCity) return null;
 
-  const queries = [address];
-  
-  try {
-    const dashParts = address.split(" - ");
-    if (dashParts.length >= 2) {
-      const streetAndNum = dashParts[0];
-      const streetOnly = streetAndNum.split(",")[0].trim();
-      const cityAndState = dashParts[dashParts.length - 1];
-      const city = cityAndState.split("-")[0].trim();
-      const state = cityAndState.split("-")[1]?.trim() || "";
-      
-      if (streetOnly && city) {
-        queries.push(`${streetOnly}, ${city} - ${state}`);
-      }
-      
-      const bairro = dashParts.length === 3 ? dashParts[1].trim() : "";
-      if (bairro && city) {
-        queries.push(`${bairro}, ${city} - ${state}`);
-      }
-      
-      if (city) {
-        queries.push(`${city} - ${state}`);
-      }
+  const cacheKey = address?.trim() || `${extra?.city},${extra?.state}`;
+
+  // ── Tier 0: Cache ───────────────────────────────────────────────
+  const cached = getCachedCoords(cacheKey);
+  if (cached !== undefined) return cached;
+
+  // ── Tier 1: Nominatim estruturado ────────────────────────────────
+  // Usa os campos separados da BrasilAPI: logradouro + número, cidade, estado
+  if (extra?.street && extra?.city) {
+    const streetWithNum = [extra.street, extra.number].filter(Boolean).join(" ");
+    const qs = new URLSearchParams({
+      street: streetWithNum,
+      city: extra.city,
+      state: extra.state || "",
+      country: "Brazil",
+    }).toString();
+    const coords = await nominatimSearch(qs);
+    if (coords) {
+      setCachedCoords(cacheKey, coords);
+      return coords;
     }
-  } catch (e) {
-    console.warn("Error parsing address for fallbacks, using full address only.");
   }
 
-  for (const q of queries) {
-    try {
-      const geoResponse = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`,
-        { headers: { "User-Agent": "RepresenteSeGeocoding/1.0" } }
-      );
-      if (geoResponse.ok) {
-        const geoData = await geoResponse.json();
-        if (geoData && geoData.length > 0) {
-          console.debug(`Nominatim successfully geocoded "${q}"`);
-          const coords = {
-            lat: parseFloat(geoData[0].lat),
-            lng: parseFloat(geoData[0].lon)
-          };
-          setCachedCoords(address, coords);
-          return coords;
-        }
-      }
-    } catch (err) {
-      console.warn(`Nominatim search failed for query: "${q}"`, err);
+  // ── Tier 2: Nominatim por nome da empresa ─────────────────────────
+  // Imita uma busca manual no mapa: "Razão Social Cidade Estado Brasil"
+  const searchName = extra?.razaoSocial || extra?.nomeFantasia || clientName;
+  if (searchName && extra?.city) {
+    const q = `${searchName} ${extra.city} ${extra.state || ""} Brasil`.trim();
+    const coords = await nominatimSearch(new URLSearchParams({ q }).toString());
+    if (coords) {
+      setCachedCoords(cacheKey, coords);
+      return coords;
     }
   }
 
-  // Tier 2: Call Vercel Serverless Function to proxy AI securely with Rate Limiting
+  // Tenta também só com o nome fantasia se diferente da razão social
+  if (extra?.nomeFantasia && extra.nomeFantasia !== extra?.razaoSocial && extra?.city) {
+    const q = `${extra.nomeFantasia} ${extra.city} ${extra.state || ""} Brasil`.trim();
+    const coords = await nominatimSearch(new URLSearchParams({ q }).toString());
+    if (coords) {
+      setCachedCoords(cacheKey, coords);
+      return coords;
+    }
+  }
+
+  // ── Tier 3: Nominatim só pela cidade ─────────────────────────────
+  // Garante que, no mínimo, o pin fique na cidade correta
+  if (extra?.city) {
+    const qs = new URLSearchParams({
+      city: extra.city,
+      state: extra.state || "",
+      country: "Brazil",
+    }).toString();
+    const coords = await nominatimSearch(qs);
+    if (coords) {
+      setCachedCoords(cacheKey, coords);
+      return coords;
+    }
+  }
+
+  // ── Tier 4: Gemini via /api/ai ───────────────────────────────────
   try {
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData?.session?.access_token;
-    
-    if (!token) {
-      console.warn("No active session, skipping AI geocoding");
-      return null;
-    }
-
-    const response = await fetch('/api/ai', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        action: 'geocode',
-        payload: { address, name: clientName, cnpj }
-      })
-    });
-
-    if (!response.ok) {
-       throw new Error(`AI API Error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    if (data && typeof data.lat === 'number' && typeof data.lng === 'number') {
-      const isSpDefault = Math.abs(data.lat - (-23.5505)) < 0.001 && Math.abs(data.lng - (-46.6333)) < 0.001;
-      if (!isSpDefault) {
-        setCachedCoords(address, data);
-        return data;
+    if (token) {
+      const response = await fetch("/api/ai", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          action: "geocode",
+          payload: {
+            address,
+            name: clientName,
+            cnpj,
+            razaoSocial: extra?.razaoSocial,
+            nomeFantasia: extra?.nomeFantasia,
+            city: extra?.city,
+            state: extra?.state,
+          },
+        }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (
+          data &&
+          typeof data.lat === "number" &&
+          typeof data.lng === "number" &&
+          isWithinBrazil(data.lat, data.lng)
+        ) {
+          setCachedCoords(cacheKey, data);
+          return data;
+        }
       }
     }
-  } catch (error) {
-    console.error("Vercel AI Proxy Geocoding Error:", error);
+  } catch {}
+
+  // ── Tier 5: Centro do estado (fallback seguro) ────────────────────
+  const stateKey = (extra?.state || "").toUpperCase().trim();
+  if (stateKey && STATE_CENTERS[stateKey]) {
+    // Não cacheia: fallback geográfico não é geocodificação real — tenta novamente na próxima vez
+    return STATE_CENTERS[stateKey];
   }
 
-  setCachedCoords(address, null);
+  setCachedCoords(cacheKey, null);
   return null;
 }
