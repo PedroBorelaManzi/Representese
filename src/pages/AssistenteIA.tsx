@@ -81,6 +81,7 @@ interface SuggestionTheme {
   label: string;
   color: string; // classe de cor do ícone
   items: string[];
+  moreItems: string[];
 }
 
 const themes: SuggestionTheme[] = [
@@ -97,6 +98,14 @@ const themes: SuggestionTheme[] = [
       "Como conecto meu Gmail e a Google Agenda?",
       "O app funciona sem internet?",
     ],
+    moreItems: [
+      "Como adiciono um novo cliente manualmente?",
+      "Como vejo meu histórico de pedidos?",
+      "Como configuro meus dados de comissão?",
+      "Como exporto um relatório da minha carteira?",
+      "Como funciona o ranking entre representantes?",
+      "Como faço check-in de visita pelo GPS?",
+    ],
   },
   {
     id: "agenda",
@@ -110,6 +119,14 @@ const themes: SuggestionTheme[] = [
       "Quero agendar uma visita — me ajuda?",
       "Reagende meu próximo compromisso.",
       "Crie um lembrete de follow-up para um cliente.",
+    ],
+    moreItems: [
+      "Mostre todos meus compromissos do mês.",
+      "Delete um compromisso que não vai mais acontecer.",
+      "Quais clientes não recebo visita há mais de 60 dias?",
+      "Qual foi minha última visita a cada cliente?",
+      "Monte uma agenda semanal otimizada por região.",
+      "Crie visitas para todos os clientes críticos desta semana.",
     ],
   },
   {
@@ -125,6 +142,14 @@ const themes: SuggestionTheme[] = [
       "Quais clientes ainda estão sem localização no mapa?",
       "Quais clientes ficam perto uns dos outros?",
     ],
+    moreItems: [
+      "Monte uma rota pelos clientes que nunca visitei.",
+      "Quais clientes ficam em determinado bairro?",
+      "Monte uma rota para amanhã com menos deslocamento.",
+      "Quais clientes ficam fora da minha área habitual?",
+      "Trace uma rota pelos clientes com maior ticket médio.",
+      "Quais clientes estão sem visita este mês?",
+    ],
   },
   {
     id: "pedidos",
@@ -138,6 +163,14 @@ const themes: SuggestionTheme[] = [
       "Quais clientes mais compraram nos últimos 90 dias?",
       "Qual foi o último pedido de cada empresa?",
       "Qual empresa está puxando mais o meu faturamento?",
+    ],
+    moreItems: [
+      "Compare meu faturamento deste mês com o anterior.",
+      "Me mostra todos os pedidos de uma empresa.",
+      "Qual meu ticket médio por pedido?",
+      "Quais clientes não têm nenhum pedido cadastrado?",
+      "Quanto faturei no trimestre por empresa?",
+      "Quais pedidos foram lançados esta semana?",
     ],
   },
   {
@@ -153,6 +186,14 @@ const themes: SuggestionTheme[] = [
       "Escreva um e-mail apresentando uma novidade.",
       "Monte argumentos para fechar uma venda maior.",
     ],
+    moreItems: [
+      "Como lidar com uma objeção de preço?",
+      "Crie uma proposta de cross-sell para um cliente.",
+      "Monte um roteiro de perguntas para uma visita.",
+      "Escreva uma mensagem de agradecimento pós-visita.",
+      "Como aumentar minha frequência de pedidos?",
+      "Dê dicas para melhorar minha taxa de conversão em visitas.",
+    ],
   },
   {
     id: "clientes",
@@ -167,39 +208,33 @@ const themes: SuggestionTheme[] = [
       "Quero atualizar os dados de um cliente.",
       "Me dê um resumo rápido da minha carteira.",
     ],
+    moreItems: [
+      "Quantos clientes ativos tenho por empresa?",
+      "Quais clientes nunca fizeram um pedido?",
+      "Me lista os clientes com status crítico agora.",
+      "Quais clientes cadastrei este mês?",
+      "Quais clientes têm CNPJ mas sem endereço completo?",
+      "Mostre os clientes com maior potencial de reativação.",
+    ],
   },
 ];
 
 function SuggestionMenu({
   onPick,
-  onGenerateMore,
   disabled,
   compact,
 }: {
   onPick: (text: string) => void;
-  onGenerateMore?: (theme: SuggestionTheme, existing: string[]) => Promise<string[]>;
   disabled?: boolean;
   compact?: boolean;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
-  const [extra, setExtra] = useState<Record<string, string[]>>({});
-  const [loadingMore, setLoadingMore] = useState(false);
+  const [showExtra, setShowExtra] = useState<Record<string, boolean>>({});
   const active = themes.find((t) => t.id === openId) || null;
 
   if (active) {
-    const items = [...active.items, ...(extra[active.id] || [])];
-    const handleMore = async () => {
-      if (!onGenerateMore || loadingMore) return;
-      setLoadingMore(true);
-      try {
-        const fresh = await onGenerateMore(active, items);
-        if (fresh.length) {
-          setExtra((prev) => ({ ...prev, [active.id]: [...(prev[active.id] || []), ...fresh] }));
-        }
-      } finally {
-        setLoadingMore(false);
-      }
-    };
+    const expanded = showExtra[active.id] ?? false;
+    const items = expanded ? [...active.items, ...active.moreItems] : active.items;
 
     return (
       <div className="w-full max-w-xl">
@@ -227,21 +262,18 @@ function SuggestionMenu({
               <span className="text-[12.5px] font-semibold text-slate-700 dark:text-zinc-200 leading-snug">{text}</span>
             </button>
           ))}
-          {onGenerateMore && (
+          {!expanded && (
             <button
-              onClick={handleMore}
-              disabled={disabled || loadingMore}
-              title="Gerar mais sugestões"
+              onClick={() => setShowExtra((prev) => ({ ...prev, [active.id]: true }))}
+              disabled={disabled}
+              title="Ver mais sugestões"
               className={cn(
                 "group flex items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 dark:border-zinc-700 text-slate-400 hover:text-emerald-600 hover:border-emerald-300 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed",
                 compact ? "p-3" : "p-4"
               )}
             >
-              {loadingMore ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> <span className="text-[11px] font-black uppercase tracking-widest">Gerando...</span></>
-              ) : (
-                <><MoreHorizontal className="w-4 h-4" /> <span className="text-[11px] font-black uppercase tracking-widest">Mais frases</span></>
-              )}
+              <MoreHorizontal className="w-4 h-4" />
+              <span className="text-[11px] font-black uppercase tracking-widest">Mais frases</span>
             </button>
           )}
         </div>
@@ -1454,7 +1486,7 @@ Responda APENAS com as 4 frases, uma por linha, sem numeração, sem aspas, sem 
                 </div>
               )}
 
-              <SuggestionMenu onPick={(t) => send(t)} onGenerateMore={generateMoreSuggestions} disabled={clientsLoading} />
+              <SuggestionMenu onPick={(t) => send(t)} disabled={clientsLoading} />
             </div>
           ) : (
             <>
@@ -1515,7 +1547,7 @@ Responda APENAS com as 4 frases, uma por linha, sem numeração, sem aspas, sem 
               {!thinking && messages.length > 0 && (
                 <div className="pt-4 border-t border-slate-100 dark:border-zinc-800">
                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Sugestões</p>
-                  <SuggestionMenu onPick={(t) => send(t)} onGenerateMore={generateMoreSuggestions} disabled={clientsLoading || thinking} compact />
+                  <SuggestionMenu onPick={(t) => send(t)} disabled={clientsLoading || thinking} compact />
                 </div>
               )}
 
