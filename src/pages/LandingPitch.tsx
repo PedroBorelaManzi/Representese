@@ -41,6 +41,13 @@ import {
   Layers,
   Target,
   Wallet,
+  Route,
+  Trophy,
+  Bell,
+  FileText,
+  Package,
+  Percent,
+  ClipboardList,
 } from "lucide-react";
 import { Logo } from "../components/Logo";
 import { BrowserDashboard, PhoneDashboard, CrmListMock } from "../components/LandingMockups";
@@ -72,14 +79,22 @@ const industries = [
 ];
 
 const integrations = [
-  { icon: Calendar,      label: "Google Calendar" },
-  { icon: Mail,          label: "Gmail" },
-  { icon: MessageSquare, label: "WhatsApp" },
+  { icon: Users,         label: "Controle de Clientes" },
+  { icon: Calendar,      label: "Agenda Inteligente" },
+  { icon: Route,         label: "Roteiro de Visitas" },
+  { icon: TrendingUp,    label: "Faturamento por Marca" },
   { icon: Brain,         label: "Assistente IA" },
-  { icon: MapPin,        label: "Google Maps" },
-  { icon: Building2,     label: "Busca CNPJ" },
+  { icon: MessageSquare, label: "WhatsApp Integrado" },
+  { icon: Bell,          label: "Alerta de Inatividade" },
+  { icon: Package,       label: "Pedidos com Foto" },
+  { icon: MapPin,        label: "Check-in por GPS" },
+  { icon: FileText,      label: "Relatório em PDF" },
+  { icon: Percent,       label: "Comissões Automáticas" },
+  { icon: Trophy,        label: "Ranking de Desempenho" },
+  { icon: Mail,          label: "Gmail Integrado" },
+  { icon: ClipboardList, label: "Ciclo de Compra" },
+  { icon: Building2,     label: "Busca por CNPJ" },
   { icon: BarChart3,     label: "BI & Analytics" },
-  { icon: ShieldCheck,   label: "Supabase" },
 ];
 
 const painPoints = [
@@ -607,7 +622,7 @@ export default function LandingPitch() {
           <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-white to-transparent z-10" />
           <motion.div
             animate={{ x: ["0%", "-50%"] }}
-            transition={{ duration: 28, repeat: Infinity, ease: "linear" }}
+            transition={{ duration: 55, repeat: Infinity, ease: "linear" }}
             className="flex gap-4 w-max"
           >
             {[...integrations, ...integrations].map((item, i) => (
