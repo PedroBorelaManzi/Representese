@@ -157,8 +157,11 @@ export async function fetchEmailsFromApi(
       const listRes = await fetch(listUrl.toString(), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
-      if (!listRes.ok) return { success: false, error: "Erro na API do Gmail" };
+
+      if (listRes.status === 401 || listRes.status === 403) {
+        return { success: false, error: "auth_expired" };
+      }
+      if (!listRes.ok) return { success: false, error: "Erro na API do Gmail (" + listRes.status + ")" };
       const listData = await listRes.json();
 
       const emailDetails = await Promise.all((listData.messages || []).map(async (msg: any) => {
