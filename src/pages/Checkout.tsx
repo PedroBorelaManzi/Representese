@@ -348,7 +348,7 @@ export default function Checkout() {
                         <Mail className="w-[18px] h-[18px] text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
                         <input required type="email" autoComplete="email" value={formData.email}
                           onChange={(e) => { setFormData({ ...formData, email: e.target.value }); setFormErrors(prev => ({ ...prev, email: '' })); }}
-                          onBlur={() => checkFieldUniqueness('email')} placeholder="nome@empresa.com"
+                          placeholder="nome@empresa.com"
                           className={cn(inputBase, formErrors.email ? inputErr : inputOk)} />
                       </div>
                       {formErrors.email && <p className="text-[12px] text-red-500 font-bold pt-1 animate-in fade-in slide-in-from-top-1">{formErrors.email}</p>}
@@ -384,7 +384,7 @@ export default function Checkout() {
                         <User className="w-[18px] h-[18px] text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
                         <input required type="text" autoComplete="name" value={formData.name}
                           onChange={(e) => { setFormData({ ...formData, name: e.target.value }); setFormErrors(prev => ({ ...prev, name: '' })); }}
-                          onBlur={() => checkFieldUniqueness('name')} placeholder="Como no seu documento"
+                          placeholder="Como no seu documento"
                           className={cn(inputBase, formErrors.name ? inputErr : inputOk)} />
                       </div>
                       {formErrors.name && <p className="text-[12px] text-red-500 font-bold pt-1 animate-in fade-in slide-in-from-top-1">{formErrors.name}</p>}
@@ -397,7 +397,7 @@ export default function Checkout() {
                           <Hash className="w-[18px] h-[18px] text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
                           <input required type="text" value={formData.cpfCnpj}
                             onChange={(e) => { setFormData({ ...formData, cpfCnpj: formatCpfCnpj(e.target.value) }); setFormErrors(prev => ({ ...prev, cpfCnpj: '' })); }}
-                            onBlur={() => checkFieldUniqueness('cpfCnpj')} placeholder="000.000.000-00"
+                            placeholder="000.000.000-00"
                             className={cn(inputBase, formErrors.cpfCnpj ? inputErr : inputOk)} />
                         </div>
                         {formErrors.cpfCnpj && <p className="text-[12px] text-red-500 font-bold pt-1 animate-in fade-in slide-in-from-top-1">{formErrors.cpfCnpj}</p>}
@@ -408,7 +408,7 @@ export default function Checkout() {
                           <Phone className="w-[18px] h-[18px] text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
                           <input required type="tel" autoComplete="tel" value={formData.phone}
                             onChange={(e) => { setFormData({ ...formData, phone: formatPhone(e.target.value) }); setFormErrors(prev => ({ ...prev, phone: '' })); }}
-                            onBlur={() => checkFieldUniqueness('phone')} placeholder="(00) 00000-0000"
+                            placeholder="(00) 00000-0000"
                             className={cn(inputBase, formErrors.phone ? inputErr : inputOk)} />
                         </div>
                         {formErrors.phone && <p className="text-[12px] text-red-500 font-bold pt-1 animate-in fade-in slide-in-from-top-1">{formErrors.phone}</p>}
