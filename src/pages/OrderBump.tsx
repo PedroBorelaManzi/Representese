@@ -539,7 +539,7 @@ export default function OrderBump() {
                     <div className="flex justify-between text-xs font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 px-3 py-2.5 rounded-xl border border-emerald-100/30 dark:border-emerald-900/30">
                       <div className="flex items-center gap-1.5">
                         <Ticket className="w-3.5 h-3.5" />
-                        <span>Cupom {activeCoupon?.code}</span>
+                        <span>Cupom {activeCoupon}</span>
                       </div>
                       <span>-R$ {discountAmount}/mês</span>
                     </div>
@@ -582,7 +582,7 @@ export default function OrderBump() {
                     <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-zinc-850/50 rounded-2xl border border-slate-100 dark:border-zinc-800">
                       <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">{activeCoupon?.code}</span>
+                        <span className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">{activeCoupon}</span>
                       </div>
                       <button 
                         onClick={handleRemoveCoupon}

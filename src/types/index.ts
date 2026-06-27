@@ -18,6 +18,8 @@ export interface Client {
   user_id?: string;
   lat?: number | null;
   lng?: number | null;
+  phone?: string;
+  email?: string;
   notes?: string;
   faturamento?: Record<string, number> | null;
   alerts?: Alert[];
