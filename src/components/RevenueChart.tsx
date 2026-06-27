@@ -113,7 +113,7 @@ const RevenueChart = ({ data, loading, currentDate, onPrevMonth, onNextMonth }) 
             const h = (val / MAX_REVENUE) * 100;
             const isSelected = selectedIdx === idx;
             return (
-              <div key={idx} className={cn("flex-1 relative flex flex-col items-center justify-end group h-full", rotateLabels ? "pb-14" : "pb-10")} onMouseEnter={() => setSelectedIdx(idx)} onMouseLeave={() => setSelectedIdx(null)}>
+              <div key={idx} className={cn("flex-1 relative flex flex-col items-center justify-end group h-full", rotateLabels ? "pb-[84px]" : "pb-10")} onMouseEnter={() => setSelectedIdx(idx)} onMouseLeave={() => setSelectedIdx(null)}>
                 <motion.div 
                   initial={{ height: 0 }} 
                   animate={{ height: h + '%' }} 
@@ -144,10 +144,17 @@ const RevenueChart = ({ data, loading, currentDate, onPrevMonth, onNextMonth }) 
                    </AnimatePresence>
                 </motion.div>
                 {rotateLabels ? (
-                  <div className="absolute bottom-3 left-1/2 h-0 w-0 overflow-visible">
+                  <div className="absolute bottom-0 left-0 right-0 flex items-end justify-center overflow-hidden" style={{ height: '80px' }}>
                     <p
-                      className={cn("absolute font-black uppercase whitespace-nowrap", data.length > 6 ? "text-[8px]" : "text-[9px]", !isSelected && "text-slate-900 dark:text-zinc-100")}
-                      style={{ right: 0, bottom: 0, transformOrigin: '100% 100%', transform: 'rotate(-45deg)', ...(isSelected ? { color: '#10b981' } : {}) }}
+                      className={cn("font-black uppercase", !isSelected && "text-slate-900 dark:text-zinc-100")}
+                      style={{
+                        writingMode: 'vertical-rl',
+                        textOrientation: 'upright',
+                        fontSize: `${Math.max(6, Math.min(12, Math.floor(72 / (item.name.replace(/\s/g, '').length || 1))))}px`,
+                        lineHeight: 1,
+                        letterSpacing: '0.02em',
+                        ...(isSelected ? { color: '#10b981' } : {})
+                      }}
                     >{item.name}</p>
                   </div>
                 ) : (
