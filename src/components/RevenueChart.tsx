@@ -11,7 +11,15 @@ const RevenueChart = ({ data, loading, currentDate, onPrevMonth, onNextMonth }) 
   const [ceilingInput, setCeilingInput] = React.useState('');
   const [localCeiling, setLocalCeiling] = React.useState(1000000);
   const [saving, setSaving] = React.useState(false);
+  const [isNarrow, setIsNarrow] = React.useState(false);
   const { settings, updateSettings } = useSettings();
+
+  React.useEffect(() => {
+    const check = () => setIsNarrow(window.innerWidth < 640);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   React.useEffect(() => { setLocalCeiling(settings.revenue_ceiling ?? 1000000); }, [settings.revenue_ceiling]);
 
@@ -37,6 +45,8 @@ const RevenueChart = ({ data, loading, currentDate, onPrevMonth, onNextMonth }) 
       setCeilingInput('');
     } catch (err) { console.error(err); } finally { setSaving(false); }
   };
+
+  const rotateLabels = isNarrow || data.length > 5;
 
   return (
     
@@ -103,7 +113,7 @@ const RevenueChart = ({ data, loading, currentDate, onPrevMonth, onNextMonth }) 
             const h = (val / MAX_REVENUE) * 100;
             const isSelected = selectedIdx === idx;
             return (
-              <div key={idx} className="flex-1 relative flex flex-col items-center justify-end group h-full pb-10" onMouseEnter={() => setSelectedIdx(idx)} onMouseLeave={() => setSelectedIdx(null)}>
+              <div key={idx} className={cn("flex-1 relative flex flex-col items-center justify-end group h-full", rotateLabels ? "pb-14" : "pb-10")} onMouseEnter={() => setSelectedIdx(idx)} onMouseLeave={() => setSelectedIdx(null)}>
                 <motion.div 
                   initial={{ height: 0 }} 
                   animate={{ height: h + '%' }} 
@@ -133,12 +143,21 @@ const RevenueChart = ({ data, loading, currentDate, onPrevMonth, onNextMonth }) 
                      )}
                    </AnimatePresence>
                 </motion.div>
-                <div className="absolute bottom-0 left-0 right-0 h-8 flex items-center justify-center">
-                  <p 
-                    className={cn("font-black uppercase truncate px-1", data.length > 6 ? "text-[7px]" : "text-[8px]", !isSelected && "text-slate-900 dark:text-zinc-100")}
-                    style={isSelected ? { color: '#10b981' } : undefined}
-                  >{item.name}</p>
-                </div>
+                {rotateLabels ? (
+                  <div className="absolute bottom-3 left-1/2 h-0 w-0 overflow-visible">
+                    <p
+                      className={cn("absolute font-black uppercase whitespace-nowrap", data.length > 6 ? "text-[8px]" : "text-[9px]", !isSelected && "text-slate-900 dark:text-zinc-100")}
+                      style={{ right: 0, bottom: 0, transformOrigin: '100% 100%', transform: 'rotate(-45deg)', ...(isSelected ? { color: '#10b981' } : {}) }}
+                    >{item.name}</p>
+                  </div>
+                ) : (
+                  <div className="absolute bottom-0 left-0 right-0 h-8 flex items-center justify-center">
+                    <p
+                      className={cn("font-black uppercase truncate px-1", data.length > 6 ? "text-[7px]" : "text-[8px]", !isSelected && "text-slate-900 dark:text-zinc-100")}
+                      style={isSelected ? { color: '#10b981' } : undefined}
+                    >{item.name}</p>
+                  </div>
+                )}
               </div>
             );
           })}
