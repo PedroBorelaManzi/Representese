@@ -256,7 +256,17 @@ export default function Checkout() {
         options: { data: { full_name: formData.name, phone: formData.phone, cpf_cnpj: formData.cpfCnpj } }
       });
 
-      if (authError) throw new Error(authError.message.includes("already") ? "E-mail já cadastrado." : `Erro: ${authError.message}`);
+      if (authError) {
+        const m = authError.message.toLowerCase();
+        // O trigger do banco (billing_identities) bloqueia CPF/WhatsApp duplicado já no signUp.
+        if (m.includes('database error') || m.includes('saving new user') || m.includes('duplicate') || m.includes('unique')) {
+          setStep(1);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          setFormErrors(prev => ({ ...prev, cpfCnpj: 'Este CPF/CNPJ ou WhatsApp já está cadastrado em outra conta.' }));
+          throw new Error("Este CPF/CNPJ ou WhatsApp já está cadastrado em outra conta.");
+        }
+        throw new Error(m.includes("already") ? "E-mail já cadastrado." : `Erro: ${authError.message}`);
+      }
 
       const { data, error } = await supabase.functions.invoke('process-checkout', {
         body: {
