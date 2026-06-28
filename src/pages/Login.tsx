@@ -320,7 +320,7 @@ export default function Login() {
           <div className="pt-12 text-center">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
               Ainda não tem conta? <br />
-              <Link to="/register" className="text-emerald-600 font-black mt-2 inline-block hover:text-emerald-700">Comece seu teste grátis agora</Link>
+              <Link to="/planos" className="text-emerald-600 font-black mt-2 inline-block hover:text-emerald-700">Comece seu teste grátis agora</Link>
             </p>
           </div>
         </div>

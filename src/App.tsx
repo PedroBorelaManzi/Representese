@@ -15,7 +15,6 @@ import { lazyWithRetry } from "./lib/lazyWithRetry";
 // Lazy Loaded Pages (com retry automático em chunk órfão após deploy)
 const Landing = lazyWithRetry(() => import("./pages/LandingPitch"));
 const Login = lazyWithRetry(() => import('./pages/Login'));
-const Register = lazyWithRetry(() => import('./pages/Register'));
 const Recovery = lazyWithRetry(() => import('./pages/Recovery'));
 const Checkout = lazyWithRetry(() => import('./pages/Checkout'));
 const OrderBumpPage = lazyWithRetry(() => import("./pages/OrderBump"));
@@ -90,7 +89,8 @@ export default function App() {
                   <Route path="/" element={<LandingOrRedirect />} />
                   <Route path="/landing" element={<Landing />} />
                   <Route path='/login' element={<Login />} />
-                  <Route path='/register' element={<Register />} />
+                  {/* Cadastro antigo (sem CPF) desativado — todo registro passa por /planos → /checkout */}
+                  <Route path='/register' element={<Navigate to="/planos" replace />} />
                   <Route path='/recovery' element={<Recovery />} />
                   <Route path='/checkout' element={<Checkout />} />
                   <Route path='/planos' element={<PlanosPage />} />
