@@ -132,6 +132,24 @@ serve(async (req) => {
       asaasCustomerId = newCustomer.id
     }
 
+    if (action === 'upgrade-subscription') {
+      // Cancela a(s) assinatura(s) ativa(s) anterior(es) antes de criar a nova,
+      // pra não deixar duas assinaturas cobrando o mesmo cliente.
+      const subIdsToCancel = new Set<string>();
+      const { data: prevSettings } = await supabaseAdmin.from('user_settings').select('asaas_subscription_id').eq('user_id', userId).maybeSingle();
+      if (prevSettings?.asaas_subscription_id) subIdsToCancel.add(prevSettings.asaas_subscription_id);
+
+      try {
+        const subsResp = await fetch(`${ASAAS_API_URL}/subscriptions?customer=${asaasCustomerId}&status=ACTIVE`, { headers: { 'access_token': ASAAS_API_KEY } });
+        const subsData = await subsResp.json();
+        for (const s of subsData.data || []) subIdsToCancel.add(s.id);
+      } catch (e) {}
+
+      for (const subId of subIdsToCancel) {
+        await fetch(`${ASAAS_API_URL}/subscriptions/${subId}`, { method: 'DELETE', headers: { 'access_token': ASAAS_API_KEY } }).catch(() => {});
+      }
+    }
+
     let planDiscount = 0;
     if (coupon) {
         const normCode = coupon.toUpperCase().trim();
@@ -182,7 +200,11 @@ serve(async (req) => {
         body: JSON.stringify(paymentBody)
       })
       const subData = await subResp.json()
-      
+
+      if (subData?.id) {
+        await supabaseAdmin.from('user_settings').update({ asaas_subscription_id: subData.id, cancel_at_period_end: false }).eq('user_id', userId);
+      }
+
       if (paymentMethod === 'CREDIT_CARD') {
         return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 })
       } else {

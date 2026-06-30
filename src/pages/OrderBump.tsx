@@ -182,13 +182,12 @@ export default function OrderBump() {
   const nextPlan = planDetails[nextTier as keyof typeof planDetails];
   
   const currentPrice = billingCycle === 'Anual' ? currentPlan.annualPrice : currentPlan.price;
-    const nextPrice = billingCycle === 'Anual' ? nextPlan.annualPrice : nextPlan.price;
-    const standardDiff = nextPrice - currentPrice; // R$ 50
-  
-  // Calculate discount
-  const discountAmount = activeCoupon ? Math.round((standardDiff * activeCoupon.discount) / 100) : 0;
+  const nextPrice = billingCycle === 'Anual' ? nextPlan.annualPrice : nextPlan.price;
 
-  const finalDiff = standardDiff - discountAmount;
+  // O upgrade cancela a assinatura atual e cria uma nova no valor cheio do
+  // plano superior (sem proporcionalidade pelos dias já pagos no plano atual).
+  const discountAmount = activeCoupon ? Math.round((nextPrice * activeCoupon.discount) / 100) : 0;
+  const finalDiff = nextPrice - discountAmount;
 
   const handleApplyCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -224,23 +223,56 @@ export default function OrderBump() {
       if (!validateCard()) {
         return; // Validation failed
       }
+      if (!user) {
+        toast.error("Sessão inválida. Faça login novamente.");
+        return;
+      }
       setLoading(true);
       try {
-        // Simulate gateway transaction
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
+        const [expiryMonth, expiryYearShort] = cardExpiry.split('/');
+        const { data, error } = await supabase.functions.invoke('process-checkout', {
+          body: {
+            action: 'upgrade-subscription',
+            userId: user.id,
+            planId: nextTier,
+            billingCycle: billingCycle === 'Anual' ? 'ANNUAL' : 'MONTHLY',
+            paymentMethod: 'CREDIT_CARD',
+            coupon: activeCoupon?.code,
+            customer: {
+              name: user.user_metadata?.full_name || user.user_metadata?.name || '',
+              email: user.email || '',
+              cpfCnpj: user.user_metadata?.cpf_cnpj || '',
+              phone: user.user_metadata?.phone || ''
+            },
+            creditCard: {
+              holderName: cardHolder,
+              number: cardNumber.replace(/\s/g, ''),
+              expiryMonth,
+              expiryYear: '20' + expiryYearShort,
+              ccv: cardCvv,
+              installments: 1
+            }
+          }
+        });
+
+        if (error) throw error;
+        if (!data?.success) {
+          toast.error(data?.message || "Erro ao processar o seu upgrade de assinatura. Tente novamente.");
+          return;
+        }
+
         // Update in local settings context which syncs online and offline cache
         await updateSettings({ plan_id: nextTier });
-        
+
         // Save cycle and calculated expiration in localStorage
         const expDate = getExpirationDate(billingCycle);
         localStorage.setItem('rm_billing_cycle', billingCycle);
         localStorage.setItem('rm_expiration_date', expDate);
-        
+
         setIsSuccess(true);
         toast.success("Parabéns! Seu upgrade para o plano " + nextPlan.name + " foi processado!");
-      } catch (e) {
-        toast.error("Erro ao processar o seu upgrade de assinatura. Tente novamente.");
+      } catch (e: any) {
+        toast.error(e?.message || "Erro ao processar o seu upgrade de assinatura. Tente novamente.");
       } finally {
         setLoading(false);
       }
@@ -410,13 +442,13 @@ export default function OrderBump() {
 
                 {/* Pricing Summary */}
                 <div className="p-5 rounded-2xl bg-emerald-500/10 dark:bg-emerald-500/5 border-2 border-emerald-500/30 dark:border-emerald-900/20 text-left shadow-lg shadow-emerald-500/5">
-                  <span className="text-[8px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider bg-emerald-500/15 px-2 py-0.5 rounded-full mb-2 inline-block">Valor Adicional</span>
+                  <span className="text-[8px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider bg-emerald-500/15 px-2 py-0.5 rounded-full mb-2 inline-block">Nova Assinatura</span>
                   <div className="flex justify-between items-baseline mt-1">
-                    <p className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">A partir deste mês:</p>
+                    <p className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Cobrado agora:</p>
                     <div className="text-right">
                       <span className="text-xs font-black text-slate-400">R$</span>
                       <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 tracking-tighter"> {finalDiff}</span>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase">/mês a mais</span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">/mês</span>
                     </div>
                   </div>
                 </div>
@@ -426,10 +458,10 @@ export default function OrderBump() {
                   {/* Dynamic Expiration Wording */}
                   <div className="p-4 bg-amber-500/10 dark:bg-amber-500/5 border-2 border-amber-500/30 dark:border-amber-500/20 rounded-2xl space-y-2 shadow-lg shadow-amber-500/5 ring-1 ring-amber-500/10">
                     <p className="text-[10px] text-amber-700 dark:text-amber-400 font-black uppercase tracking-tight">
-                      â„¹ï¸ O seu plano atual encerra no mês de <span className="underline">{getExpirationMonthName(billingCycle)}</span>.
+                      ℹ️ Sua assinatura atual será cancelada e substituída.
                     </p>
                     <p className="text-[9px] text-amber-600 dark:text-amber-500 font-bold leading-relaxed">
-                      Você está contratando o upgrade para o plano {nextPlan.name} até o final do seu plano anterior.
+                      Você está contratando o plano {nextPlan.name} pelo valor cheio (R$ {nextPrice}/mês), sem desconto proporcional pelos dias já pagos no plano {currentPlan.name}.
                     </p>
                   </div>
                 </div>
@@ -512,7 +544,7 @@ export default function OrderBump() {
                   ) : (
                     <>
                       <ShieldCheck className="w-4 h-4" />
-                      <span>Confirmar e Pagar +R$ {finalDiff}</span>
+                      <span>Confirmar e Pagar R$ {finalDiff}</span>
                     </>
                   )}
                 </button>
@@ -532,10 +564,10 @@ export default function OrderBump() {
                     <span>R$ {billingCycle === 'Anual' ? nextPlan.annualPrice : nextPlan.price}/mês</span>
                   </div>
                   <div className="flex justify-between text-xs font-bold text-slate-400">
-                    <span>Crédito do Plano Atual ({currentPlan.name})</span>
-                    <span>-R$ {billingCycle === 'Anual' ? currentPlan.annualPrice : currentPlan.price}/mês</span>
+                    <span>Plano atual cancelado ({currentPlan.name})</span>
+                    <span>R$ {billingCycle === 'Anual' ? currentPlan.annualPrice : currentPlan.price}/mês</span>
                   </div>
-                  
+
                   {activeCoupon && (
                     <div className="flex justify-between text-xs font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 px-3 py-2.5 rounded-xl border border-emerald-100/30 dark:border-emerald-900/30">
                       <div className="flex items-center gap-1.5">
@@ -548,8 +580,8 @@ export default function OrderBump() {
 
                   <div className="p-5 bg-slate-50 dark:bg-zinc-950 border-2 border-slate-100 dark:border-zinc-800/80 rounded-2xl flex justify-between items-center shadow-inner">
                     <div>
-                      <h4 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Diferença Mensal</h4>
-                      <p className="text-[8px] font-bold text-slate-400 uppercase mt-1">Cobrado apenas o delta proporcional</p>
+                      <h4 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Total da Nova Assinatura</h4>
+                      <p className="text-[8px] font-bold text-slate-400 uppercase mt-1">Sem desconto proporcional do plano atual</p>
                     </div>
                     <div className="text-right">
                       <span className="text-xs font-black text-slate-400">R$</span>
@@ -630,9 +662,9 @@ export default function OrderBump() {
             <div className="p-6 bg-emerald-500/10 dark:bg-emerald-500/5 border-2 border-emerald-500/30 dark:border-emerald-500/20 rounded-[28px] text-left flex items-start gap-4 shadow-lg shadow-emerald-500/5 ring-1 ring-emerald-500/10">
               <Clock className="w-5 h-5 text-emerald-600 mt-0.5 shrink-0 animate-pulse" />
               <div>
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-900 dark:text-emerald-400">Migração Proporcional</h4>
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-900 dark:text-emerald-400">Upgrade Instantâneo</h4>
                 <p className="text-[10px] text-emerald-700 dark:text-emerald-500 font-bold leading-relaxed mt-1">
-                  Seu faturamento é recalculado proporcionalmente aos dias restantes no ciclo de cobrança. Nenhum centavo é desperdiçado.
+                  Sua assinatura atual é cancelada e a nova já entra em vigor imediatamente, no valor cheio do plano escolhido.
                 </p>
               </div>
             </div>
