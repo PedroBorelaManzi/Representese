@@ -184,16 +184,26 @@ export default function Checkout() {
   const pixDiscount = paymentMethod === 'PIX' ? (priceAfterCoupon * 5) / 100 : 0;
   const finalPrice = priceAfterCoupon - pixDiscount;
 
-  const handleApplyCoupon = () => {
+  const handleApplyCoupon = async () => {
+    const codeUpper = couponCode.trim().toUpperCase();
+    if (!codeUpper) return;
     setIsApplyingCoupon(true);
-    setTimeout(() => {
-      const codeUpper = couponCode.trim().toUpperCase();
-      if (codeUpper === "REPRESENTE95") { setAppliedCoupon({ code: "REPRESENTE95", discount: 95 }); toast.success("Cupom aplicado!"); }
-      else if (codeUpper === "TESTE") { setAppliedCoupon({ code: "TESTE", discount: 50 }); toast.success("Cupom aplicado!"); }
-      else if (codeUpper === "GRATIS100") { setAppliedCoupon({ code: "GRATIS100", discount: 100 }); toast.success("Cupom aplicado!"); }
-      else toast.error("Cupom inválido");
+    try {
+      const { data, error } = await supabase.functions.invoke('validate-coupon', {
+        body: { code: codeUpper, planId: selectedPlan.id }
+      });
+      if (error || !data?.valid) {
+        toast.error(data?.message || "Cupom inválido");
+        setAppliedCoupon(null);
+      } else {
+        setAppliedCoupon({ code: codeUpper, discount: data.discount_percent });
+        toast.success("Cupom aplicado!");
+      }
+    } catch {
+      toast.error("Erro ao validar cupom. Tente novamente.");
+    } finally {
       setIsApplyingCoupon(false);
-    }, 800);
+    }
   };
 
   const checkFieldUniqueness = async (fieldName: string) => {

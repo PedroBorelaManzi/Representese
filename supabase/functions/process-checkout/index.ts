@@ -136,7 +136,8 @@ serve(async (req) => {
     if (coupon) {
         const normCode = coupon.toUpperCase().trim();
         const { data: dbCoupon } = await supabaseAdmin.from('coupons').select('*').eq('code', normCode).maybeSingle();
-        if (dbCoupon && dbCoupon.active && (!dbCoupon.expires_at || new Date(dbCoupon.expires_at).getTime() > Date.now()) && (!dbCoupon.max_redemptions || dbCoupon.times_redeemed < dbCoupon.max_redemptions)) {
+        const appliesToPlan = !dbCoupon?.applies_to_plans || dbCoupon.applies_to_plans.length === 0 || dbCoupon.applies_to_plans.includes(canonicalPlanId);
+        if (dbCoupon && dbCoupon.active && appliesToPlan && (!dbCoupon.expires_at || new Date(dbCoupon.expires_at).getTime() > Date.now()) && (!dbCoupon.max_redemptions || dbCoupon.times_redeemed < dbCoupon.max_redemptions)) {
             planDiscount = dbCoupon.discount_percent;
             await supabaseAdmin.rpc('increment_coupon', { c_code: normCode }).catch(async () => {
                 await supabaseAdmin.from('coupons').update({ times_redeemed: dbCoupon.times_redeemed + 1 }).eq('code', normCode);

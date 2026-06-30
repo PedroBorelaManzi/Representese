@@ -27,8 +27,8 @@ serve(async (req) => {
       return new Response(JSON.stringify({ valid: false, message: 'Cupom inválido' }), { status: 200, headers: corsHeaders })
     }
 
-    if (coupon.valid_plans && coupon.valid_plans.length > 0) {
-      if (planId && !coupon.valid_plans.includes(planId)) {
+    if (coupon.applies_to_plans && coupon.applies_to_plans.length > 0) {
+      if (planId && !coupon.applies_to_plans.includes(planId)) {
         return new Response(JSON.stringify({ valid: false, message: 'Não aplicável a este plano' }), { status: 200, headers: corsHeaders })
       }
     }
@@ -41,10 +41,9 @@ serve(async (req) => {
       return new Response(JSON.stringify({ valid: false, message: 'Limite de usos atingido' }), { status: 200, headers: corsHeaders })
     }
 
-    return new Response(JSON.stringify({ 
-      valid: true, 
-      discount_percent: coupon.discount_percent,
-      plan_id_override: coupon.plan_id_override
+    return new Response(JSON.stringify({
+      valid: true,
+      discount_percent: coupon.discount_percent
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 })
 
   } catch (error: any) {

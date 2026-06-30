@@ -7,9 +7,9 @@ try {
     .filter(f => f.trim().length > 0);
 
   const secretPatterns = [
-    /GEMINI_API_KEY\s*=\s*['"]?[a-zA-Z0-9_-]+['"]?/i,
-    /SUPABASE_SERVICE_ROLE_KEY\s*=\s*['"]?[a-zA-Z0-9_-]+['"]?/i,
-    /OPENAI_API_KEY\s*=\s*['"]?[a-zA-Z0-9_-]+['"]?/i
+    /GEMINI_API_KEY\s*=\s*['"][a-zA-Z0-9_.\-+/=]{10,}['"]/i,
+    /SUPABASE_SERVICE_ROLE_KEY\s*=\s*['"][a-zA-Z0-9_.\-+/=]{10,}['"]/i,
+    /OPENAI_API_KEY\s*=\s*['"][a-zA-Z0-9_.\-+/=]{10,}['"]/i
   ];
 
   for (const file of files) {

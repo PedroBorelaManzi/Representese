@@ -18,6 +18,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useSettings } from "../contexts/SettingsContext";
+import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
@@ -83,7 +84,7 @@ export default function OrderBump() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [couponCode, setCouponCode] = useState("");
-  const [activeCoupon, setActiveCoupon] = useState<string | null>(null);
+  const [activeCoupon, setActiveCoupon] = useState<{ code: string; discount: number } | null>(null);
   const [couponError, setCouponError] = useState("");
   const [isSuccess, setIsSuccess] = useState(false);
 
@@ -185,30 +186,30 @@ export default function OrderBump() {
     const standardDiff = nextPrice - currentPrice; // R$ 50
   
   // Calculate discount
-  let discountAmount = 0;
-  if (activeCoupon === 'REPRESENTE95') {
-    discountAmount = Math.round((standardDiff * 95) / 100);
-  } else if (activeCoupon === 'TESTE') {
-    discountAmount = Math.round((standardDiff * 50) / 100);
-  }
+  const discountAmount = activeCoupon ? Math.round((standardDiff * activeCoupon.discount) / 100) : 0;
 
   const finalDiff = standardDiff - discountAmount;
 
-  const handleApplyCoupon = (e: React.FormEvent) => {
+  const handleApplyCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
     setCouponError("");
     const normalized = couponCode.toUpperCase().trim();
-    
-    if (normalized === 'REPRESENTE95') {
-        setActiveCoupon('REPRESENTE95');
-        toast.success("Cupom aplicado com sucesso!");
-      } else if (normalized === 'TESTE') {
-        setActiveCoupon('TESTE');
-        toast.success("Cupom aplicado com sucesso!");
-      } else if (couponCode === "") {
+    if (!normalized) {
       setCouponError("Insira um código válido.");
-    } else {
-      setCouponError("Cupom inválido ou expirado.");
+      return;
+    }
+    try {
+      const { data, error } = await supabase.functions.invoke('validate-coupon', {
+        body: { code: normalized, planId: nextTier }
+      });
+      if (error || !data?.valid) {
+        setCouponError(data?.message || "Cupom inválido ou expirado.");
+        return;
+      }
+      setActiveCoupon({ code: normalized, discount: data.discount_percent });
+      toast.success("Cupom aplicado com sucesso!");
+    } catch {
+      setCouponError("Erro ao validar cupom. Tente novamente.");
     }
   };
 
@@ -539,7 +540,7 @@ export default function OrderBump() {
                     <div className="flex justify-between text-xs font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 px-3 py-2.5 rounded-xl border border-emerald-100/30 dark:border-emerald-900/30">
                       <div className="flex items-center gap-1.5">
                         <Ticket className="w-3.5 h-3.5" />
-                        <span>Cupom {activeCoupon}</span>
+                        <span>Cupom {activeCoupon.code}</span>
                       </div>
                       <span>-R$ {discountAmount}/mês</span>
                     </div>
@@ -582,7 +583,7 @@ export default function OrderBump() {
                     <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-zinc-850/50 rounded-2xl border border-slate-100 dark:border-zinc-800">
                       <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">{activeCoupon}</span>
+                        <span className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">{activeCoupon.code}</span>
                       </div>
                       <button 
                         onClick={handleRemoveCoupon}
