@@ -24,9 +24,11 @@ test.describe('Etapa 1: Revisão Frontend (Web Desktop) - Fluxos Principais', ()
   });
 
   test('Deve carregar a página de cadastro com seleção de planos', async ({ page }) => {
+    // /register foi unificado com /planos (fluxo único de cadastro + seleção de plano)
     await page.goto('/register');
     await page.waitForLoadState('networkidle');
-    await expect(page.locator('text=Selecione o plano ideal')).toBeVisible();
+    await expect(page).toHaveURL(/\/planos/);
+    await expect(page.locator('text=sucesso profissional')).toBeVisible();
     await expect(page.locator('text=Exclusivo')).toBeVisible();
   });
 });
