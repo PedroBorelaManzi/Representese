@@ -132,11 +132,30 @@ serve(async (req) => {
       asaasCustomerId = newCustomer.id
     }
 
+    if (action === 'upgrade-subscription') {
+      // Cancela a(s) assinatura(s) ativa(s) anterior(es) antes de criar a nova,
+      // pra não deixar duas assinaturas cobrando o mesmo cliente.
+      const subIdsToCancel = new Set<string>();
+      const { data: prevSettings } = await supabaseAdmin.from('user_settings').select('asaas_subscription_id').eq('user_id', userId).maybeSingle();
+      if (prevSettings?.asaas_subscription_id) subIdsToCancel.add(prevSettings.asaas_subscription_id);
+
+      try {
+        const subsResp = await fetch(`${ASAAS_API_URL}/subscriptions?customer=${asaasCustomerId}&status=ACTIVE`, { headers: { 'access_token': ASAAS_API_KEY } });
+        const subsData = await subsResp.json();
+        for (const s of subsData.data || []) subIdsToCancel.add(s.id);
+      } catch (e) {}
+
+      for (const subId of subIdsToCancel) {
+        await fetch(`${ASAAS_API_URL}/subscriptions/${subId}`, { method: 'DELETE', headers: { 'access_token': ASAAS_API_KEY } }).catch(() => {});
+      }
+    }
+
     let planDiscount = 0;
     if (coupon) {
         const normCode = coupon.toUpperCase().trim();
         const { data: dbCoupon } = await supabaseAdmin.from('coupons').select('*').eq('code', normCode).maybeSingle();
-        if (dbCoupon && dbCoupon.active && (!dbCoupon.expires_at || new Date(dbCoupon.expires_at).getTime() > Date.now()) && (!dbCoupon.max_redemptions || dbCoupon.times_redeemed < dbCoupon.max_redemptions)) {
+        const appliesToPlan = !dbCoupon?.applies_to_plans || dbCoupon.applies_to_plans.length === 0 || dbCoupon.applies_to_plans.includes(canonicalPlanId);
+        if (dbCoupon && dbCoupon.active && appliesToPlan && (!dbCoupon.expires_at || new Date(dbCoupon.expires_at).getTime() > Date.now()) && (!dbCoupon.max_redemptions || dbCoupon.times_redeemed < dbCoupon.max_redemptions)) {
             planDiscount = dbCoupon.discount_percent;
             await supabaseAdmin.rpc('increment_coupon', { c_code: normCode }).catch(async () => {
                 await supabaseAdmin.from('coupons').update({ times_redeemed: dbCoupon.times_redeemed + 1 }).eq('code', normCode);
@@ -181,7 +200,11 @@ serve(async (req) => {
         body: JSON.stringify(paymentBody)
       })
       const subData = await subResp.json()
-      
+
+      if (subData?.id) {
+        await supabaseAdmin.from('user_settings').update({ asaas_subscription_id: subData.id, cancel_at_period_end: false }).eq('user_id', userId);
+      }
+
       if (paymentMethod === 'CREDIT_CARD') {
         return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 })
       } else {
