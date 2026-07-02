@@ -52,6 +52,18 @@ export default defineConfig(({mode}) => {
     },
     build: {
       chunkSizeWarningLimit: 2000,
+      rollupOptions: {
+        output: {
+          // Separa libs pesadas do chunk principal: páginas sem gráficos/animações
+          // não pagam o custo de recharts/framer-motion no primeiro load.
+          manualChunks: {
+            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+            'vendor-charts': ['recharts'],
+            'vendor-motion': ['framer-motion'],
+            'vendor-supabase': ['@supabase/supabase-js'],
+          },
+        },
+      },
     },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.

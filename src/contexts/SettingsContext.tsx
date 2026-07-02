@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+﻿import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode } from "react";
 import { supabase } from "../lib/supabase";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "./AuthContext";
@@ -189,7 +189,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     loadSettings();
   }, [user]);
 
-  const updateSettings = async (newSettings: Partial<Settings>) => {
+  const updateSettings = useCallback(async (newSettings: Partial<Settings>) => {
     if (!user) return;
     
     let avatarUrl = newSettings.avatar_url;
@@ -220,10 +220,12 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       ...dbSettings,
       updated_at: new Date().toISOString(),
     });
-  };
+  }, [user, settings]);
+
+  const contextValue = useMemo(() => ({ settings, loading, updateSettings }), [settings, loading, updateSettings]);
 
   return (
-    <SettingsContext.Provider value={{ settings, loading, updateSettings }}>
+    <SettingsContext.Provider value={contextValue}>
       {children}
     </SettingsContext.Provider>
   );

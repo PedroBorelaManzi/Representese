@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useMemo, ReactNode } from "react";
 import { supabase } from "../lib/supabase";
 import { User } from "@supabase/supabase-js";
 
@@ -81,8 +81,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('has_completed_onboarding');
   };
 
+  // signIn/signOut/signInOffline não dependem de estado — valor só muda com user/loading
+  const contextValue = useMemo(() => ({ user, loading, signOut, signIn, signInOffline }), [user, loading]);
+
   return (
-    <AuthContext.Provider value={{ user, loading, signOut, signIn, signInOffline }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

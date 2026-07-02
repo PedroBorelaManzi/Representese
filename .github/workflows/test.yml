@@ -21,9 +21,9 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: |
-          rm -rf node_modules package-lock.json
-          npm install --include=optional
+        # npm ci usa o lockfile do repositório (build reprodutível). O lockfile
+        # foi regenerado no Linux, então os binários opcionais resolvem certo.
+        run: npm ci --include=optional
 
       - name: Rebuild native modules
         run: npx @tailwindcss/oxide rebuild 2>/dev/null || true
