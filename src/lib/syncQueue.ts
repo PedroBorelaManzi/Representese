@@ -10,9 +10,14 @@ export interface SyncOperation {
   payload: any;
   recordId?: string; // id of the record being updated/deleted
   timestamp: number;
+  attempts?: number; // quantas vezes o processQueue já tentou (e falhou)
 }
 
 const SYNC_QUEUE_KEY = 'rm_sync_queue';
+// Após MAX_SYNC_ATTEMPTS falhas a operação vai para a dead-letter em vez de
+// travar a fila para sempre (ex.: registro que viola constraint no servidor).
+const DEAD_LETTER_KEY = 'rm_sync_dead_letter';
+export const MAX_SYNC_ATTEMPTS = 5;
 
 export const syncQueue = {
   getQueue: (): SyncOperation[] => {
@@ -62,6 +67,21 @@ export const syncQueue = {
     return syncQueue.getQueue().length;
   },
 
+  // Operações que esgotaram as tentativas — ficam guardadas para inspeção
+  // (e para o usuário poder reexportar/redigitar), fora do caminho da fila.
+  getDeadLetter: (): SyncOperation[] => {
+    try {
+      const data = localStorage.getItem(DEAD_LETTER_KEY);
+      return data ? JSON.parse(data) : [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  clearDeadLetter: () => {
+    localStorage.removeItem(DEAD_LETTER_KEY);
+  },
+
   // Processa a fila inteira contra o Supabase
   processQueue: async (): Promise<{ success: boolean; errors: any[] }> => {
     const queue = syncQueue.getQueue();
@@ -69,6 +89,8 @@ export const syncQueue = {
 
     const errors: any[] = [];
     let processedIds: string[] = [];
+    const failedAttempts = new Map<string, number>();
+    const deadLettered: SyncOperation[] = [];
 
     for (const op of queue) {
       try {
@@ -89,10 +111,28 @@ export const syncQueue = {
       } catch (e) {
         console.error(`Erro ao processar op ${op.id}:`, e);
         errors.push(e);
+        const attempts = (op.attempts || 0) + 1;
+        if (attempts >= MAX_SYNC_ATTEMPTS) {
+          deadLettered.push({ ...op, attempts });
+        } else {
+          failedAttempts.set(op.id, attempts);
+        }
       }
     }
 
-    const newQueue = queue.filter(op => !processedIds.includes(op.id));
+    if (deadLettered.length > 0) {
+      try {
+        const existing = syncQueue.getDeadLetter();
+        localStorage.setItem(DEAD_LETTER_KEY, JSON.stringify([...existing, ...deadLettered]));
+      } catch (e) {
+        console.error('Erro ao gravar dead-letter:', e);
+      }
+    }
+
+    const deadIds = deadLettered.map(op => op.id);
+    const newQueue = queue
+      .filter(op => !processedIds.includes(op.id) && !deadIds.includes(op.id))
+      .map(op => (failedAttempts.has(op.id) ? { ...op, attempts: failedAttempts.get(op.id) } : op));
     syncQueue.setQueue(newQueue);
 
     if (typeof window !== 'undefined') {
