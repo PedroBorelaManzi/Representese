@@ -10,7 +10,7 @@ export function FaqSection() {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   return (
-    <section id="duvidas" className="py-24 px-6 bg-slate-50 border-y border-slate-100 scroll-mt-20">
+    <section id="duvidas" className="py-24 px-6 bg-slate-50 border-y border-slate-100 scroll-mt-28">
       <div className="max-w-3xl mx-auto">
         <FadeUp className="text-center mb-12">
           <Kicker num="05" label="Perguntas frequentes" center />

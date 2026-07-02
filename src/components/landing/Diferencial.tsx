@@ -34,7 +34,7 @@ export function IntegrationsMarquee() {
 
 export function DiferencialSection() {
   return (
-    <section id="diferencial" className="relative py-24 px-6 bg-gradient-to-b from-emerald-50/70 via-white to-white scroll-mt-20 overflow-hidden">
+    <section id="diferencial" className="relative py-24 px-6 bg-gradient-to-b from-emerald-50/70 via-white to-white scroll-mt-28 overflow-hidden">
       <div className="max-w-7xl mx-auto">
         {/* topo: a dor */}
         <FadeUp className="text-center max-w-2xl mx-auto mb-12">

@@ -9,7 +9,7 @@ export function SetoresSection() {
   const [hoveredIndustry, setHoveredIndustry] = useState<number | null>(null);
 
   return (
-    <section id="industrias" className="min-h-[80vh] py-20 bg-white border-b border-slate-100 relative overflow-hidden flex items-center transition-all duration-700 scroll-mt-20">
+    <section id="industrias" className="min-h-[80vh] py-20 bg-white border-b border-slate-100 relative overflow-hidden flex items-center transition-all duration-700 scroll-mt-28">
       <AnimatePresence>
         {hoveredIndustry !== null && (
           <motion.div

@@ -10,7 +10,7 @@ import { bentoFeatures } from "./data";
 
 export function RecursosBentoSection() {
   return (
-    <section id="recursos" className="py-24 px-6 bg-white scroll-mt-20 border-t border-slate-100">
+    <section id="recursos" className="py-24 px-6 bg-white scroll-mt-28 border-t border-slate-100">
       <div className="max-w-7xl mx-auto">
         <FadeUp className="text-center mb-16">
           <Kicker num="02" label="A plataforma" center />
@@ -137,7 +137,7 @@ export function CrmHighlightSection() {
 
 export function IaSection() {
   return (
-    <section id="tecnologia" className="py-28 px-6 bg-slate-950 overflow-hidden relative scroll-mt-20">
+    <section id="tecnologia" className="py-28 px-6 bg-slate-950 overflow-hidden relative scroll-mt-28">
       {/* glow + grid */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-emerald-500/15 blur-[150px] rounded-full" />
