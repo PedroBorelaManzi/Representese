@@ -56,7 +56,9 @@ export default function LandingPitch() {
       >
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
           <Link to={user ? "/dashboard" : "/"}>
-            <Logo size="sm" showText variant="light" />
+            {/* No mobile só o ícone: logo com texto + Entrar + CTA não cabem em 390px */}
+            <Logo size="sm" showText variant="light" className="hidden sm:flex" />
+            <Logo size="sm" iconOnly variant="light" className="sm:hidden" />
           </Link>
 
           <div className="hidden lg:flex items-center gap-8">
@@ -83,11 +85,11 @@ export default function LandingPitch() {
             })}
           </div>
 
-          <div className="flex items-center gap-3">
-            <Link to="/login" className="text-[13px] font-semibold text-slate-600 hover:text-slate-900 transition-colors px-4 py-2">Entrar</Link>
-            <Link to="/planos" className="group text-[13px] font-black text-white bg-emerald-600 hover:bg-emerald-500 transition-all px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-600/20 hover:shadow-emerald-600/30 hover:-translate-y-0.5 flex items-center gap-1.5 whitespace-nowrap">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+            <Link to="/login" className="text-[13px] font-semibold text-slate-600 hover:text-slate-900 transition-colors px-2.5 sm:px-4 py-2">Entrar</Link>
+            <Link to="/planos" className="group text-[13px] font-black text-white bg-emerald-600 hover:bg-emerald-500 transition-all px-3.5 sm:px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-600/20 hover:shadow-emerald-600/30 hover:-translate-y-0.5 flex items-center gap-1.5 whitespace-nowrap">
               Cadastre-se
-              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+              <ArrowRight className="hidden sm:block w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
             </Link>
           </div>
         </div>

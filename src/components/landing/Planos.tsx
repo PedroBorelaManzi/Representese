@@ -10,7 +10,7 @@ export function PlanosSection() {
   const [annual, setAnnual] = useState(true);
 
   return (
-    <section id="precos" className="py-24 px-6 bg-white scroll-mt-20">
+    <section id="precos" className="py-24 px-6 bg-white scroll-mt-28">
       <div className="max-w-6xl mx-auto">
         <FadeUp className="text-center mb-10">
           <Kicker num="04" label="Planos & preços" center />
