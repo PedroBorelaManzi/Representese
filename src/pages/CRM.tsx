@@ -14,6 +14,7 @@ import { parseFileForCnpjs } from '../lib/clientImport';
 import { getHighPrecisionCoordinates } from '../lib/geminiGeocoding';
 import { Client, Alert, Order } from '../types';
 import { useQueryClient } from '@tanstack/react-query';
+import { EmptyState } from '../components/ui';
 
 const toTitleCase = (str: string) =>
   str.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
@@ -387,10 +388,20 @@ export default function CRMPage() {
                     </button>
                  )}
                  {filteredClients.length === 0 && (
-                    <div className="p-12 text-center opacity-40">
-                      <Building2 className="w-12 h-12 mx-auto mb-4 text-slate-300" />
-                      <p className="text-sm font-black uppercase tracking-widest">Nenhum cliente encontrado</p>
-                    </div>
+                    clients.length === 0 ? (
+                      <EmptyState
+                        icon={Building2}
+                        title="Sua carteira começa aqui"
+                        description="Cadastre seu primeiro cliente pelo CNPJ — buscamos os dados da empresa automaticamente."
+                        actionLabel="Cadastrar primeiro cliente →"
+                        onAction={() => setIsAddingClient(true)}
+                      />
+                    ) : (
+                      <div className="p-12 text-center opacity-40">
+                        <Building2 className="w-12 h-12 mx-auto mb-4 text-slate-300" />
+                        <p className="text-sm font-black uppercase tracking-widest">Nenhum cliente encontrado</p>
+                      </div>
+                    )
                  )}
               </div>
            )}

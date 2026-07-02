@@ -1,9 +1,16 @@
 import ExcelJS from "exceljs";
-import * as pdfjs from "pdfjs-dist";
 import { geminiWithSystem } from "./geminiProxy";
 
-import workerSrc from "pdfjs-dist/build/pdf.worker.min.mjs?url";
-pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
+// pdfjs (~1,3 MB) só é carregado quando um PDF é de fato processado,
+// não junto com o chunk das páginas que importam este módulo.
+async function loadPdfjs() {
+  const [pdfjs, worker] = await Promise.all([
+    import("pdfjs-dist"),
+    import("pdfjs-dist/build/pdf.worker.min.mjs?url"),
+  ]);
+  pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
+  return pdfjs;
+}
 
 export interface OrderExtractionResult {
   client: string;
@@ -152,8 +159,10 @@ export async function processOrderFile(file: File, knownClients = [], categories
     let extractedText = "";
 
     if (detected.type === "pdf") {
+      const pdfjs = await loadPdfjs();
       const buffer = await file.arrayBuffer();
-      const pdf = await pdfjs.getDocument({ data: buffer }).promise;
+      // isEvalSupported: false — CSP não permite mais unsafe-eval
+      const pdf = await pdfjs.getDocument({ data: buffer, isEvalSupported: false }).promise;
       for (let i = 1; i <= Math.min(pdf.numPages, 3); i++) {
         const page = await pdf.getPage(i);
         const content = await page.getTextContent();

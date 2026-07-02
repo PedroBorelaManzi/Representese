@@ -270,6 +270,13 @@ export default function Layout() {
   return (
     <SubscriptionGuard>
       <div className="flex h-screen bg-slate-100/60 dark:bg-zinc-950 transition-colors duration-300">
+        {/* Skip link: invisível até receber foco via Tab (a11y) */}
+        <a
+          href="#conteudo"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[200] focus:px-4 focus:py-2 focus:rounded-xl focus:bg-emerald-600 focus:text-white focus:text-sm focus:font-bold"
+        >
+          Pular para o conteúdo
+        </a>
         <AnimatePresence mode='wait'>
           {sidebarOpen && (
             <motion.div
@@ -355,7 +362,7 @@ export default function Layout() {
               </button>
             </div>
 
-            <nav className="flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar">
+            <nav aria-label="Menu principal" className="flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar">
               {menuItems.map((item) => {
                 const isActive = location.pathname === item.path;
                 const isEmailItem = item.label === 'E-mails';
@@ -604,7 +611,8 @@ export default function Layout() {
             </button>
           )}
 
-          <main 
+          <main
+            id="conteudo"
             className={cn(
               "flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 xl:p-12 scroll-smooth custom-scrollbar transition-all duration-300",
               !desktopSidebarOpen && "lg:pl-24"
