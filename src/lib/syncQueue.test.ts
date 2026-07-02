@@ -6,7 +6,7 @@ vi.mock('./offlineCache', () => ({ offlineCache: {}, CacheKeys: {} }));
 const fromMock = vi.fn();
 vi.mock('./supabase', () => ({ supabase: { from: (...args: any[]) => fromMock(...args) } }));
 
-import { syncQueue } from './syncQueue';
+import { syncQueue, MAX_SYNC_ATTEMPTS } from './syncQueue';
 
 // Ambiente node não tem localStorage/window — stubs mínimos
 function installBrowserStubs() {
@@ -104,5 +104,55 @@ describe('syncQueue', () => {
     const result = await syncQueue.processQueue();
     expect(result).toEqual({ success: true, errors: [] });
     expect(fromMock).not.toHaveBeenCalled();
+  });
+
+  it('incrementa attempts a cada falha e mantém a operação na fila', async () => {
+    const table = supabaseTableOk();
+    table.insert = vi.fn().mockResolvedValue({ error: new Error('offline') });
+    fromMock.mockReturnValue(table);
+
+    syncQueue.enqueue('clients', 'INSERT', { name: 'X' });
+    await syncQueue.processQueue();
+    await syncQueue.processQueue();
+
+    const [op] = syncQueue.getQueue();
+    expect(op.attempts).toBe(2);
+  });
+
+  it('move para dead-letter após MAX_SYNC_ATTEMPTS falhas', async () => {
+    const table = supabaseTableOk();
+    table.insert = vi.fn().mockResolvedValue({ error: new Error('constraint violada') });
+    fromMock.mockReturnValue(table);
+
+    syncQueue.enqueue('clients', 'INSERT', { name: 'ruim' });
+    for (let i = 0; i < MAX_SYNC_ATTEMPTS; i++) {
+      await syncQueue.processQueue();
+    }
+
+    expect(syncQueue.getPendingCount()).toBe(0);
+    const dead = syncQueue.getDeadLetter();
+    expect(dead).toHaveLength(1);
+    expect(dead[0].attempts).toBe(MAX_SYNC_ATTEMPTS);
+
+    syncQueue.clearDeadLetter();
+    expect(syncQueue.getDeadLetter()).toEqual([]);
+  });
+
+  it('dead-letter não afeta operações saudáveis na mesma rodada', async () => {
+    const table = supabaseTableOk();
+    table.insert = vi.fn().mockResolvedValue({ error: new Error('sempre falha') });
+    fromMock.mockReturnValue(table);
+
+    // Uma op já à beira da dead-letter + uma op saudável
+    syncQueue.enqueue('clients', 'INSERT', { name: 'ruim' });
+    const [almostDead] = syncQueue.getQueue();
+    syncQueue.setQueue([{ ...almostDead, attempts: MAX_SYNC_ATTEMPTS - 1 }]);
+    syncQueue.enqueue('clients', 'DELETE', {}, 'id-ok');
+
+    const result = await syncQueue.processQueue();
+
+    expect(result.errors).toHaveLength(1);
+    expect(syncQueue.getPendingCount()).toBe(0); // DELETE ok, INSERT dead-letter
+    expect(syncQueue.getDeadLetter()).toHaveLength(1);
   });
 });

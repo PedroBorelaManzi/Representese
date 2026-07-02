@@ -5,9 +5,10 @@ import {
   Moon, 
   CreditCard, 
   Bell, 
-  Shield, 
-  Smartphone, 
-  LogOut 
+  Shield,
+  Smartphone,
+  LogOut,
+  FileDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
@@ -20,6 +21,7 @@ import { SettingsAppearance } from './settings/SettingsAppearance';
 import { SettingsSubscription } from './settings/SettingsSubscription';
 import { SettingsNotifications } from './settings/SettingsNotifications';
 import { SettingsSecurity } from './settings/SettingsSecurity';
+import { SettingsPrivacy } from './settings/SettingsPrivacy';
 import { SettingsMobile } from './settings/SettingsMobile';
 import { useModalEsc } from '../hooks/useModalEsc';
 
@@ -34,6 +36,7 @@ const menuItems = [
   { id: 'subscription', label: 'Minha Assinatura', icon: CreditCard, color: 'text-emerald-500' },
   { id: 'notifications', label: 'Notificações', icon: Bell, color: 'text-amber-500' },
   { id: 'security', label: 'Segurança', icon: Shield, color: 'text-red-500' },
+  { id: 'privacy', label: 'Privacidade', icon: FileDown, color: 'text-teal-500' },
   { id: 'mobile', label: 'Celular/App', icon: Smartphone, color: 'text-purple-500' }
 ];
 
@@ -168,6 +171,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 {activeTab === 'appearance' && <SettingsAppearance />}
                 {activeTab === 'notifications' && <SettingsNotifications />}
                 {activeTab === 'security' && <SettingsSecurity />}
+                {activeTab === 'privacy' && <SettingsPrivacy />}
                 {activeTab === 'subscription' && <SettingsSubscription onClose={onClose} />}
                 {activeTab === 'mobile' && <SettingsMobile />}
               </motion.div>
