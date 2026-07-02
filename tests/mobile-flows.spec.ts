@@ -7,19 +7,20 @@ test.describe('Etapa 2: Revisão Frontend (Mobile + Responsivo)', () => {
   });
 
   test('Deve renderizar a Landing Page com layout empilhado e responsivo', async ({ page }) => {
+    test.slow(); // landing e planos são chunks lazy — primeiro load pode ser lento em máquina fria
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
-    await expect(page.locator('text=Representese').first()).toBeVisible();
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.locator('text=Representese').first()).toBeVisible({ timeout: 15000 });
     await page.goto('/planos');
-    await page.waitForLoadState('networkidle');
-    await expect(page.locator('text=Sucesso Profissional')).toBeVisible();
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.locator('text=Sucesso Profissional')).toBeVisible({ timeout: 15000 });
     await expect(page.locator('text=Exclusivo')).toBeVisible();
   });
 
   test('Deve renderizar a tela de login otimizada para toque (mobile)', async ({ page }) => {
     test.skip(!!process.env.CI, 'Requer Supabase Auth ao vivo — roda apenas local');
     await page.goto('/login');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     const emailInput = page.locator('input[type="email"]');
     const passwordInput = page.locator('input[type="password"]');
     const submitBtn = page.locator('button[type="submit"]');
@@ -35,7 +36,7 @@ test.describe('Etapa 2: Revisão Frontend (Mobile + Responsivo)', () => {
 
   test('Deve renderizar a página de termos de serviço de forma responsiva', async ({ page }) => {
     await page.goto('/terms');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await expect(page.locator('text=Termos de Serviço').first()).toBeVisible();
   });
 });

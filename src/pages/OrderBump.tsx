@@ -95,6 +95,8 @@ export default function OrderBump() {
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
   const [cardCvv, setCardCvv] = useState("");
+  const [cardCep, setCardCep] = useState("");
+  const [cardAddressNumber, setCardAddressNumber] = useState("");
 
   const currentTier = settings.plan_id ? (settings.plan_id === 'premium' ? 'profissional' : settings.plan_id) : 'exclusivo';
 
@@ -148,6 +150,14 @@ export default function OrderBump() {
     }
     if (cardCvv.length !== 3) {
       toast.error("O código de segurança CVV deve conter exatamente 3 dígitos.");
+      return false;
+    }
+    if (cardCep.replace(/\D/g, '').length !== 8) {
+      toast.error("Informe o CEP do titular do cartão (obrigatório para a cobrança).");
+      return false;
+    }
+    if (!cardAddressNumber.trim()) {
+      toast.error("Informe o número do endereço do titular do cartão.");
       return false;
     }
     return true;
@@ -250,7 +260,9 @@ export default function OrderBump() {
               expiryMonth,
               expiryYear: '20' + expiryYearShort,
               ccv: cardCvv,
-              installments: 1
+              installments: 1,
+              postalCode: cardCep.replace(/\D/g, ''),
+              addressNumber: cardAddressNumber.trim()
             }
           }
         });
@@ -519,11 +531,33 @@ export default function OrderBump() {
                         }}
                         className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-100 dark:border-zinc-850 rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-widest outline-none focus:border-emerald-500 focus:bg-white dark:focus:bg-zinc-900 transition-all placeholder:text-slate-400 placeholder:normal-case placeholder:tracking-normal"
                       />
-                      <input 
-                        type="password" 
-                        placeholder="CVV" 
+                      <input
+                        type="password"
+                        placeholder="CVV"
                         value={cardCvv}
                         onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, '').substring(0, 3))}
+                        className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-100 dark:border-zinc-850 rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-widest outline-none focus:border-emerald-500 focus:bg-white dark:focus:bg-zinc-900 transition-all placeholder:text-slate-400 placeholder:normal-case placeholder:tracking-normal"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="postal-code"
+                        placeholder="CEP do titular"
+                        value={cardCep}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, '').substring(0, 8);
+                          setCardCep(val.length > 5 ? val.substring(0, 5) + '-' + val.substring(5) : val);
+                        }}
+                        className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-100 dark:border-zinc-850 rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-widest outline-none focus:border-emerald-500 focus:bg-white dark:focus:bg-zinc-900 transition-all placeholder:text-slate-400 placeholder:normal-case placeholder:tracking-normal"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Nº do endereço"
+                        value={cardAddressNumber}
+                        onChange={(e) => setCardAddressNumber(e.target.value.substring(0, 10))}
                         className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-100 dark:border-zinc-850 rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-widest outline-none focus:border-emerald-500 focus:bg-white dark:focus:bg-zinc-900 transition-all placeholder:text-slate-400 placeholder:normal-case placeholder:tracking-normal"
                       />
                     </div>

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { syncQueue } from '../lib/syncQueue';
 import { toast } from 'sonner';
@@ -53,7 +53,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const syncNow = async () => {
+  const syncNow = useCallback(async () => {
     if (!isOnline) {
       toast.error("Você precisa estar conectado à internet para sincronizar.");
       return;
@@ -84,10 +84,12 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       updateStatus();
       window.dispatchEvent(new Event('sync-completed'));
     }
-  };
+  }, [isOnline, pendingCount, queryClient]);
+
+  const contextValue = useMemo(() => ({ isOnline, pendingCount, isSyncing, syncNow }), [isOnline, pendingCount, isSyncing, syncNow]);
 
   return (
-    <SyncContext.Provider value={{ isOnline, pendingCount, isSyncing, syncNow }}>
+    <SyncContext.Provider value={contextValue}>
       {children}
     </SyncContext.Provider>
   );

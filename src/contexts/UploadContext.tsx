@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, useMemo, useCallback, ReactNode, useEffect } from 'react';
 import { saveFileToIndexedDB, getFileFromIndexedDB, deleteFileFromIndexedDB } from '../lib/storage';
 
 interface UploadDraft {
@@ -65,7 +65,7 @@ export function UploadProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('upload_drafts_metadata', JSON.stringify(metadata));
   }, [drafts]);
 
-  const setDraft = async (clientId: string, partialDraft: Partial<UploadDraft>) => {
+  const setDraft = useCallback(async (clientId: string, partialDraft: Partial<UploadDraft>) => {
     console.debug(`[UploadContext] Atualizando rascunho para: ${clientId}`, partialDraft);
     if (partialDraft.file !== undefined) {
       if (partialDraft.file) {
@@ -82,9 +82,9 @@ export function UploadProvider({ children }: { children: ReactNode }) {
         ...partialDraft
       }
     }));
-  };
+  }, []);
 
-  const clearDraft = async (clientId: string) => {
+  const clearDraft = useCallback(async (clientId: string) => {
     console.debug(`[UploadContext] Limpando rascunho: ${clientId}`);
     await deleteFileFromIndexedDB(clientId);
     setDrafts(prev => {
@@ -92,10 +92,12 @@ export function UploadProvider({ children }: { children: ReactNode }) {
       delete newDrafts[clientId];
       return newDrafts;
     });
-  };
+  }, []);
+
+  const contextValue = useMemo(() => ({ drafts, setDraft, clearDraft }), [drafts, setDraft, clearDraft]);
 
   return (
-    <UploadContext.Provider value={{ drafts, setDraft, clearDraft }}>
+    <UploadContext.Provider value={contextValue}>
       {children}
     </UploadContext.Provider>
   );

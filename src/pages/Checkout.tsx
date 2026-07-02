@@ -108,6 +108,10 @@ const formatExpiry = (value: string) => {
   return clean.length <= 2 ? clean : `${clean.slice(0, 2)}/${clean.slice(2)}`;
 };
 const formatCcv = (value: string) => value.replace(/\D/g, '').slice(0, 4);
+const formatCep = (value: string) => {
+  const clean = value.replace(/\D/g, '').slice(0, 8);
+  return clean.length <= 5 ? clean : `${clean.slice(0, 5)}-${clean.slice(5)}`;
+};
 
 function Requirement({ label, met }: { label: string; met: boolean }) {
   return (
@@ -148,7 +152,7 @@ export default function Checkout() {
 
   const [formData, setFormData] = useState({
     name: "", email: "", cpfCnpj: "", phone: "", password: "",
-    cardNumber: "", expiry: "", ccv: "", holderName: ""
+    cardNumber: "", expiry: "", ccv: "", holderName: "", cep: "", addressNumber: ""
   });
 
   const [passwordRequirements, setPasswordRequirements] = useState({
@@ -258,6 +262,14 @@ export default function Checkout() {
   const handleProcessPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isPasswordValid) return toast.error("Senha não atende aos requisitos.");
+    if (paymentMethod === 'CREDIT_CARD') {
+      if (formData.cardNumber.replace(/\D/g, '').length < 13) return toast.error("Número do cartão inválido.");
+      if (!/^\d{2}\/\d{2}$/.test(formData.expiry)) return toast.error("Validade do cartão inválida (MM/AA).");
+      if (formData.ccv.length < 3) return toast.error("CVC inválido.");
+      if (formData.holderName.trim().length < 3) return toast.error("Informe o nome do titular do cartão.");
+      if (formData.cep.replace(/\D/g, '').length !== 8) return toast.error("Informe o CEP do titular do cartão.");
+      if (!formData.addressNumber.trim()) return toast.error("Informe o número do endereço do titular.");
+    }
     setLoading(true);
 
     try {
@@ -285,7 +297,8 @@ export default function Checkout() {
           creditCard: paymentMethod === 'CREDIT_CARD' ? {
             holderName: formData.holderName, number: formData.cardNumber.replace(/\s/g, ''),
             expiryMonth: formData.expiry.split('/')[0], expiryYear: '20' + formData.expiry.split('/')[1],
-            ccv: formData.ccv, installments
+            ccv: formData.ccv, installments,
+            postalCode: formData.cep.replace(/\D/g, ''), addressNumber: formData.addressNumber.trim()
           } : null
         }
       });
@@ -473,24 +486,34 @@ export default function Checkout() {
                           <label className="text-[13px] font-bold text-slate-700">Número do cartão</label>
                           <div className="relative">
                             <CreditCard className="w-[18px] h-[18px] text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
-                            <input type="text" value={formData.cardNumber} onChange={(e) => setFormData({ ...formData, cardNumber: formatCardNumber(e.target.value) })} placeholder="0000 0000 0000 0000" className={cn(inputBase, inputOk)} />
+                            <input type="text" inputMode="numeric" autoComplete="cc-number" value={formData.cardNumber} onChange={(e) => setFormData({ ...formData, cardNumber: formatCardNumber(e.target.value) })} placeholder="0000 0000 0000 0000" className={cn(inputBase, inputOk)} />
                           </div>
                         </div>
                         <div className="grid grid-cols-2 gap-5">
                           <div className="space-y-1.5">
                             <label className="text-[13px] font-bold text-slate-700">Validade</label>
-                            <input type="text" value={formData.expiry} onChange={(e) => setFormData({ ...formData, expiry: formatExpiry(e.target.value) })} placeholder="MM/AA" className={cn(inputBase, inputOk, "pl-4")} />
+                            <input type="text" inputMode="numeric" autoComplete="cc-exp" value={formData.expiry} onChange={(e) => setFormData({ ...formData, expiry: formatExpiry(e.target.value) })} placeholder="MM/AA" className={cn(inputBase, inputOk, "pl-4")} />
                           </div>
                           <div className="space-y-1.5">
                             <label className="text-[13px] font-bold text-slate-700">CVC</label>
-                            <input type="text" value={formData.ccv} onChange={(e) => setFormData({ ...formData, ccv: formatCcv(e.target.value) })} placeholder="123" className={cn(inputBase, inputOk, "pl-4")} />
+                            <input type="text" inputMode="numeric" autoComplete="cc-csc" value={formData.ccv} onChange={(e) => setFormData({ ...formData, ccv: formatCcv(e.target.value) })} placeholder="123" className={cn(inputBase, inputOk, "pl-4")} />
                           </div>
                         </div>
                         <div className="space-y-1.5">
                           <label className="text-[13px] font-bold text-slate-700">Nome do titular</label>
                           <div className="relative">
                             <User className="w-[18px] h-[18px] text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
-                            <input type="text" value={formData.holderName} onChange={(e) => setFormData({ ...formData, holderName: e.target.value })} placeholder="Como impresso no cartão" className={cn(inputBase, inputOk, "uppercase")} />
+                            <input type="text" autoComplete="cc-name" value={formData.holderName} onChange={(e) => setFormData({ ...formData, holderName: e.target.value })} placeholder="Como impresso no cartão" className={cn(inputBase, inputOk, "uppercase")} />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-5">
+                          <div className="space-y-1.5">
+                            <label className="text-[13px] font-bold text-slate-700">CEP do titular</label>
+                            <input type="text" inputMode="numeric" autoComplete="postal-code" value={formData.cep} onChange={(e) => setFormData({ ...formData, cep: formatCep(e.target.value) })} placeholder="00000-000" className={cn(inputBase, inputOk, "pl-4")} />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-[13px] font-bold text-slate-700">Nº do endereço</label>
+                            <input type="text" value={formData.addressNumber} onChange={(e) => setFormData({ ...formData, addressNumber: e.target.value.slice(0, 10) })} placeholder="123" className={cn(inputBase, inputOk, "pl-4")} />
                           </div>
                         </div>
                         {billingCycle === 'ANNUAL' && (
