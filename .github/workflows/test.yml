@@ -28,6 +28,9 @@ jobs:
       - name: Rebuild native modules
         run: npx @tailwindcss/oxide rebuild 2>/dev/null || true
 
+      - name: Run unit tests
+        run: npm run test:unit
+
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
 

@@ -18,7 +18,9 @@ app.use(cors({
       !origin ||
       allowedOrigins.includes(origin) ||
       /\.representese\.com$/.test(origin) ||   // qualquer subdomínio (www, app, etc.)
-      /\.vercel\.app$/.test(origin) ||         // deploys de preview da Vercel
+      // Só previews DESTE projeto (representese-*.vercel.app) — antes qualquer
+      // site *.vercel.app podia chamar a API (defesa em profundidade).
+      /^https:\/\/representese[a-z0-9-]*\.vercel\.app$/.test(origin) ||
       origin.startsWith('capacitor://') ||     // app nativo iOS
       origin === 'http://localhost' ||         // app nativo Android
       origin === 'https://localhost';          // app nativo

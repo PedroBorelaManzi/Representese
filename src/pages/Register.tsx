@@ -27,12 +27,13 @@ import { supabase } from "../lib/supabase";
 import { toast } from "sonner";
 import { Logo } from '../components/Logo';
 import { cn } from "../lib/utils";
+import { passwordStrength } from "../lib/validators";
 import { plans } from "../lib/plansData";
 import { PlanCards } from "../components/plans/PlanCards";
 
 
 
-const PasswordRequirementsDisplay = ({ requirements }: { requirements: any }) => {
+const PasswordRequirementsDisplay = ({ requirements, password = "" }: { requirements: any; password?: string }) => {
   const items = [
     { label: "Mínimo de 8 caracteres", met: requirements.length },
     { label: "Uma letra maiúscula", met: requirements.uppercase },
@@ -40,7 +41,27 @@ const PasswordRequirementsDisplay = ({ requirements }: { requirements: any }) =>
     { label: "Um caractere especial", met: requirements.special },
   ];
 
+  const strength = passwordStrength(password);
+  const barColors = ['bg-red-500', 'bg-red-400', 'bg-amber-400', 'bg-emerald-400', 'bg-emerald-500'];
+  const textColors = ['text-red-500', 'text-red-400', 'text-amber-500', 'text-emerald-500', 'text-emerald-600'];
+
   return (
+    <>
+    {password && (
+      <div className="mt-4 px-2" aria-live="polite">
+        <div className="flex gap-1.5">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className={cn(
+              "h-1.5 flex-1 rounded-full transition-colors duration-300",
+              strength.score >= i ? barColors[strength.score] : "bg-slate-200 dark:bg-zinc-800"
+            )} />
+          ))}
+        </div>
+        <p className={cn("text-[10px] font-bold pt-1.5 transition-colors", textColors[strength.score])}>
+          Força da senha: {strength.label}
+        </p>
+      </div>
+    )}
     <div className="grid grid-cols-2 gap-2 mt-4 px-2">
       {items.map((item, i) => (
         <div key={i} className="flex items-center gap-2">
@@ -57,6 +78,7 @@ const PasswordRequirementsDisplay = ({ requirements }: { requirements: any }) =>
         </div>
       ))}
     </div>
+    </>
   );
 };
 
@@ -265,7 +287,7 @@ const Register = () => {
                         className="w-full pl-12 pr-6 py-4 bg-slate-50/50 dark:bg-zinc-950/50 border border-slate-100 dark:border-zinc-800/50 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/50 text-sm font-bold outline-none"
                         placeholder=""
                       />
-                        <PasswordRequirementsDisplay requirements={passwordRequirements} />
+                        <PasswordRequirementsDisplay requirements={passwordRequirements} password={password} />
                     </div>
                   </div>
 

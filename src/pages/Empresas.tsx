@@ -28,6 +28,7 @@ import { cn } from "../lib/utils";
 import { SearchableClientPicker } from "../components/SearchableClientPicker";
 import { syncQueue } from "../lib/syncQueue";
 import { offlineCache, CacheKeys } from "../lib/offlineCache"; // Motor Híbrido V2
+import { EmptyState } from "../components/ui";
 
 export default function EmpresasPage() {
   const { user } = useAuth();
@@ -552,10 +553,22 @@ export default function EmpresasPage() {
               {loading ? (
                  <div className="col-span-full h-40 flex items-center justify-center"><Loader2 className="w-8 h-8 md:w-10 md:h-10 animate-spin text-emerald-600 opacity-20"/></div>
               ) : filteredOrders.length === 0 ? (
-                <div className="col-span-full h-60 md:h-80 border-4 border-dashed border-slate-100 dark:border-zinc-800 rounded-[32px] md:rounded-[48px] flex flex-col items-center justify-center text-slate-300">
-                  <ShoppingBag className="w-12 h-12 md:w-20 md:h-20 mb-4 md:mb-6 opacity-5" />
-                  <p className="font-black uppercase text-[9px] md:text-[11px] tracking-[0.3em] text-center opacity-40 leading-relaxed px-6">Nenhum Pedido <br/> Identificado Neste Período</p>
-                </div>
+                allOrders.length === 0 ? (
+                  <div className="col-span-full border-4 border-dashed border-slate-100 dark:border-zinc-800 rounded-[32px] md:rounded-[48px]">
+                    <EmptyState
+                      icon={ShoppingBag}
+                      title="Nenhum pedido ainda"
+                      description="Envie a foto ou o PDF de um pedido e a IA extrai cliente, empresa e valor automaticamente."
+                      actionLabel="Lançar primeiro pedido →"
+                      onAction={() => setIsUploadModalOpen(true)}
+                    />
+                  </div>
+                ) : (
+                  <div className="col-span-full h-60 md:h-80 border-4 border-dashed border-slate-100 dark:border-zinc-800 rounded-[32px] md:rounded-[48px] flex flex-col items-center justify-center text-slate-300">
+                    <ShoppingBag className="w-12 h-12 md:w-20 md:h-20 mb-4 md:mb-6 opacity-5" />
+                    <p className="font-black uppercase text-[9px] md:text-[11px] tracking-[0.3em] text-center opacity-40 leading-relaxed px-6">Nenhum Pedido <br/> Identificado Neste Período</p>
+                  </div>
+                )
               ) : (
                 filteredOrders.map(order => (
                   <div key={order.id} className="bg-white dark:bg-zinc-900 p-6 md:p-9 rounded-[32px] md:rounded-[45px] border border-slate-100 dark:border-zinc-800 hover:border-slate-200 dark:hover:border-zinc-700 hover:shadow-xl transition-all group relative overflow-hidden active:scale-[0.98]">

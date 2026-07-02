@@ -1,8 +1,16 @@
 import ExcelJS from 'exceljs';
-import * as pdfjs from 'pdfjs-dist';
 import { callGeminiProxy } from "./geminiProxy";
 
-pdfjs.GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
+// pdfjs (~1,3 MB) só é carregado quando um PDF é de fato processado.
+// Worker local (bundle) — o unpkg.com é bloqueado pelo CSP do vercel.json.
+async function loadPdfjs() {
+  const [pdfjs, worker] = await Promise.all([
+    import('pdfjs-dist'),
+    import('pdfjs-dist/build/pdf.worker.min.mjs?url'),
+  ]);
+  pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
+  return pdfjs;
+}
 
 
 export function extractCnpjs(text: string): string[] {
@@ -94,8 +102,10 @@ async function processWithGemini(file: File): Promise<string[]> {
 
 async function extractTextFromPDF(file: File): Promise<string[]> {
   try {
+    const pdfjs = await loadPdfjs();
     const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+    // isEvalSupported: false — CSP não permite mais unsafe-eval
+    const pdf = await pdfjs.getDocument({ data: arrayBuffer, isEvalSupported: false }).promise;
     const pagesText: string[] = [];
     for (let i = 1; i <= Math.min(pdf.numPages, 10); i++) {
       const page = await pdf.getPage(i);
