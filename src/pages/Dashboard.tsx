@@ -16,8 +16,8 @@ import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Client, Order, Appointment } from "../types";
 
-// Extended to 22:00 (16 hours total from 07:00)
-const HOURS = Array.from({ length: 16 }, (_, i) => i + 7); 
+// Ciclo completo de 24h (00:00 a 23:00)
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 const formatDateLocal = (date: Date) => {
   if (!date || isNaN(date.getTime())) return '';
@@ -31,7 +31,16 @@ export default function Dashboard() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [currentDate, setCurrentDate] = useState(new Date());
-  
+  const businessHourRef = React.useRef<HTMLDivElement>(null);
+
+  // Grade agora cobre 24h; abre já no horário comercial em vez de sempre em
+  // 00:00. scrollIntoView (em vez de setar scrollTop num container fixo)
+  // encontra sozinho o ancestral que realmente rola — que aqui é o <main>
+  // da página, não o painel do calendário.
+  useEffect(() => {
+    businessHourRef.current?.scrollIntoView({ block: "start" });
+  }, []);
+
   const [selectedNoteDate, setSelectedNoteDate] = useState(new Date());
   const [events, setEvents] = useState<Appointment[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -515,26 +524,41 @@ export default function Dashboard() {
     setEditingEvent({ title: "", time: timeStr, date: formatDateLocal(date), client_id: "" });
   };
 
-  const getEventPosition = (time: string) => {
-    try {
-      const start = time.split(" - ")[0];
-      const hour = parseInt(start.split(":")[0]);
-      const minute = parseInt(start.split(":")[1] || "0");
-      if (hour < 7 || hour > 22) return null;
-      return (hour - 7) * 60 + minute;
-    } catch { return null; }
+  /* Compromissos que passam da meia-noite (ex.: 22:00 - 04:00) ficam gravados
+     num único dia (o de início), mas precisam aparecer nas duas colunas da
+     grade: a fatia da noite no dia de início e a fatia da madrugada no dia
+     seguinte. `parseTimeRange` normaliza isso; `endMin` fica >= 1440 quando
+     o compromisso atravessa a virada, para o cálculo de duração dar certo. */
+  const parseTimeRange = (time: string) => {
+    const parts = time.split(" - ");
+    const [sh, sm] = parts[0].split(":").map((n) => parseInt(n, 10));
+    const [eh, em] = (parts[1] || parts[0]).split(":").map((n) => parseInt(n, 10));
+    if (isNaN(sh)) return null;
+    const startMin = sh * 60 + (sm || 0);
+    let endMin = (isNaN(eh) ? sh : eh) * 60 + (em || 0);
+    const crossesMidnight = endMin <= startMin;
+    if (crossesMidnight) endMin += 24 * 60;
+    return { startMin, endMin, crossesMidnight };
   };
 
-  const getEventHeight = (time: string) => {
-    try {
-      const parts = time.split(" - ");
-      const start = parts[0].split(":");
-      const end = parts[1].split(":");
-      const startMin = parseInt(start[0]) * 60 + parseInt(start[1] || "0");
-      const endMin = parseInt(end[0]) * 60 + parseInt(end[1] || "0");
-      const duration = endMin - startMin;
-      return Math.max(duration, 24); 
-    } catch { return 48; }
+  /** Segmentos de um compromisso a desenhar num dia específico da grade.
+   *  `isStart`: dia em que o compromisso realmente começa (mostra título completo).
+   *  Um compromisso que cruza a meia-noite gera 2 segmentos: um em cada dia. */
+  const getEventSegmentForDay = (event: Appointment, dateStr: string, prevDateStr: string) => {
+    const range = parseTimeRange(event.time);
+    if (!range) return null;
+    const { startMin, endMin, crossesMidnight } = range;
+
+    if (event.date === dateStr) {
+      const top = startMin;
+      const height = Math.max((crossesMidnight ? 24 * 60 : endMin) - startMin, 24);
+      return { top, height, isStart: true };
+    }
+    if (crossesMidnight && event.date === prevDateStr) {
+      const endMinToday = endMin - 24 * 60;
+      return { top: 0, height: Math.max(endMinToday, 24), isStart: false };
+    }
+    return null;
   };
 
   const selectedDayEvents = useMemo(() => {
@@ -559,7 +583,7 @@ export default function Dashboard() {
       />
       
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 flex-1 min-h-0">
-        <div className="lg:col-span-3 bg-white dark:bg-zinc-900 shadow-2xl border border-slate-200/80 dark:border-zinc-800/80 rounded-3xl overflow-hidden flex flex-col h-full min-h-[500px]">
+        <div className="lg:col-span-3 bg-white dark:bg-zinc-900 shadow-2xl border border-slate-200/80 dark:border-zinc-800/80 rounded-3xl overflow-hidden flex flex-col h-full min-h-[500px] lg:min-h-0">
           <div className="p-4 border-b border-slate-200 dark:border-zinc-800/80 flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50 dark:bg-zinc-950/40 z-40 gap-4">
             <div className="flex items-center gap-4">
               <h2 className="text-sm font-black text-slate-800 dark:text-zinc-100 uppercase tracking-widest leading-none">
@@ -608,8 +632,8 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="flex-1 flex flex-col overflow-hidden relative">
-            <div className="hidden lg:flex flex-1 min-h-[960px] overflow-auto custom-scrollbar">
+          <div className="flex-1 flex flex-col overflow-hidden relative min-h-0">
+            <div className="hidden lg:flex flex-1 min-h-0 overflow-auto custom-scrollbar">
               <div className="flex flex-col flex-1 min-w-[1000px] lg:min-w-0">
                 <div className="flex bg-slate-50/95 dark:bg-zinc-950/95 border-b border-slate-200 dark:border-zinc-800 sticky top-0 z-30 backdrop-blur-md">
                   <div className="w-14 flex-shrink-0 sticky left-0 bg-slate-50 dark:bg-zinc-900 z-40 border-r border-slate-200 dark:border-zinc-800" />
@@ -644,19 +668,26 @@ export default function Dashboard() {
                 <div className="flex flex-1">
                   <div className="w-14 flex flex-col bg-slate-50/50 dark:bg-zinc-950/40 border-r border-slate-200 dark:border-zinc-800 text-slate-400 flex-shrink-0 sticky left-0 z-30 shadow-sm">
                     {HOURS.map(hour => (
-                      <div key={hour} className="h-[60px] text-[9px] font-black text-slate-400/80 dark:text-zinc-500 pr-2 pt-0.5 flex items-start justify-end tracking-tight border-b border-slate-200/40 dark:border-zinc-800/30">{String(hour).padStart(2, '0')}:00</div>
+                      <div
+                        key={hour}
+                        ref={hour === 7 ? businessHourRef : undefined}
+                        className="h-[60px] text-[9px] font-black text-slate-400/80 dark:text-zinc-500 pr-2 pt-0.5 flex items-start justify-end tracking-tight border-b border-slate-200/40 dark:border-zinc-800/30"
+                      >
+                        {String(hour).padStart(2, '0')}:00
+                      </div>
                     ))}
                   </div>
                   <div className="flex-1 grid grid-cols-7 divide-x divide-slate-300 dark:divide-zinc-800 relative bg-white dark:bg-zinc-900">
                     {weekDays.map((date, dayIdx) => {
-                      const dayEvents = (events || []).filter(e => e && isSameDay(date, e.date));
+                      const dateStr = formatDateLocal(date);
+                      const prevDateStr = formatDateLocal(new Date(date.getTime() - 86400000));
                       const isToday = isSameDay(date, formatDateLocal(new Date()));
                       const isWeekend = dayIdx === 0 || dayIdx === 6;
                       return (
-                        <div 
-                          key={dayIdx} 
+                        <div
+                          key={dayIdx}
                           className={cn(
-                            "relative h-full transition-colors", 
+                            "relative h-full transition-colors",
                             isWeekend ? "bg-slate-50/50 dark:bg-zinc-950/20" : "bg-white dark:bg-zinc-900",
                             isToday ? "bg-emerald-50/20 dark:bg-emerald-950/20" : ""
                           )}
@@ -665,21 +696,29 @@ export default function Dashboard() {
                             <div key={hour} className={cn("h-[60px] border-b border-slate-300/80 dark:border-zinc-800 cursor-pointer transition-colors", dragOverInfo?.dayIndex === dayIdx && dragOverInfo?.hour === hour ? "bg-emerald-500/10" : "hover:bg-slate-50/30")} onDragOver={(e) => onDragOver(e, dayIdx, hour)} onDrop={(e) => onDrop(e, date, hour)} onClick={() => openNewEventModal(date, hour)} />
                           ))}
                           <div className="absolute inset-0 pointer-events-none p-0.5">
-                            {dayEvents.map(event => {
-                              const top = getEventPosition(event.time);
-                              const height = getEventHeight(event.time);
-                              if (top === null) return null;
+                            {(events || []).map(event => {
+                              if (!event) return null;
+                              const segment = getEventSegmentForDay(event, dateStr, prevDateStr);
+                              if (!segment) return null;
+                              const { top, height, isStart } = segment;
                               const clientName = clients.find(c => c.id === event.client_id)?.name;
                               return (
-                                <div 
-                                  key={event.id} 
-                                  draggable 
-                                  onDragStart={(e) => onDragStart(e, event.id)} 
-                                  onClick={(e) => { e.stopPropagation(); setEditingEvent(event); }} 
-                                  className="absolute left-0.5 right-0.5 pointer-events-auto bg-emerald-50/90 dark:bg-emerald-950/60 border border-emerald-100 dark:border-emerald-900/40 border-l-4 border-l-emerald-500 shadow-sm rounded-lg p-1.5 transition-all cursor-grab active:cursor-grabbing z-10 overflow-hidden" 
+                                <div
+                                  key={`${event.id}-${dateStr}`}
+                                  draggable={isStart}
+                                  onDragStart={isStart ? (e) => onDragStart(e, event.id) : undefined}
+                                  onClick={(e) => { e.stopPropagation(); setEditingEvent(event); }}
+                                  className={cn(
+                                    "absolute left-0.5 right-0.5 pointer-events-auto bg-emerald-50/90 dark:bg-emerald-950/60 border border-emerald-100 dark:border-emerald-900/40 shadow-sm rounded-lg p-1.5 transition-all z-10 overflow-hidden",
+                                    isStart ? "border-l-4 border-l-emerald-500 cursor-grab active:cursor-grabbing" : "border-l-4 border-l-emerald-300 dark:border-l-emerald-700 cursor-pointer"
+                                  )}
                                   style={{ top: `${top}px`, height: `${height}px` }}
+                                  title={isStart ? event.title : `${event.title} (continua da madrugada)`}
                                 >
-                                  <div className="text-[8px] font-black text-emerald-950 dark:text-emerald-50 mb-0.5 truncate leading-tight uppercase tracking-tight">{event.title}</div>
+                                  <div className="text-[8px] font-black text-emerald-950 dark:text-emerald-50 mb-0.5 truncate leading-tight uppercase tracking-tight flex items-center gap-1">
+                                    {!isStart && <span aria-hidden="true">↳</span>}
+                                    {event.title}
+                                  </div>
                                   {clientName && <div className="text-[6px] font-black text-emerald-600/90 dark:text-emerald-400/90 uppercase truncate">@{clientName}</div>}
                                 </div>
                               );
