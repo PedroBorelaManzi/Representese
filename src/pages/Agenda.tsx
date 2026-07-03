@@ -20,7 +20,6 @@ import {
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { Link } from "react-router-dom";
-import { fetchVisits } from "../lib/visits";
 import AppointmentForm from "../components/AppointmentForm";
 import DailyNotes from "../components/DailyNotes";
 import { syncGoogleEvents, pushEventToGoogle, deleteEventFromGoogle } from "../lib/googleSync";
@@ -55,7 +54,6 @@ const isSameDay = (d1: Date, d2String: string) => {
 
 export default function Agenda() {
   const { user } = useAuth();
-  const [roteiro, setRoteiro] = useState({ planned: 0, visited: 0 });
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedMobileDate, setSelectedMobileDate] = useState(new Date());
   const [selectedNoteDate, setSelectedNoteDate] = useState(new Date());
@@ -114,17 +112,6 @@ export default function Agenda() {
       setLoading(false);
     }
   }, [agendaData, isQueryLoading]);
-
-  // Roteiro de visitas de hoje (gerenciado no Mapa) — só um resumo aqui
-  useEffect(() => {
-    if (!user) return;
-    fetchVisits(user.id)
-      .then((vs) => setRoteiro({
-        planned: vs.filter((v) => v.status === "planned").length,
-        visited: vs.filter((v) => v.status === "visited").length,
-      }))
-      .catch(() => {});
-  }, [user]);
 
   // Instant local cache loading on mount
   useEffect(() => {
@@ -421,26 +408,6 @@ export default function Agenda() {
           </>
         }
       />
-
-      {(roteiro.planned + roteiro.visited) > 0 && (
-        <Link
-          to="/dashboard/map"
-          className="mb-4 flex items-center gap-3 rounded-2xl border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/20 px-4 py-3 hover:bg-emerald-100/70 dark:hover:bg-emerald-950/40 transition-colors"
-        >
-          <div className="p-1.5 bg-emerald-600 rounded-lg shrink-0">
-            <ClipboardList className="w-4 h-4 text-white" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-xs font-black text-emerald-800 dark:text-emerald-300 uppercase tracking-tight">
-              Roteiro de hoje · {roteiro.visited}/{roteiro.planned + roteiro.visited} visitados
-            </div>
-            <div className="text-[10px] font-bold text-emerald-600/80 dark:text-emerald-500/80">
-              Gerencie suas visitas no Mapa
-            </div>
-          </div>
-          <ArrowRightIcon className="w-4 h-4 text-emerald-600 shrink-0" />
-        </Link>
-      )}
 
       <div className="flex-1 flex flex-col gap-6 mt-6 min-h-0">
         <div className="flex-1 bg-white dark:bg-zinc-950 rounded-[32px] border border-slate-200/80 dark:border-zinc-800/80 shadow-2xl flex flex-col min-h-[600px] relative overflow-hidden">

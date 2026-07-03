@@ -20,6 +20,7 @@ import { MultiplataformaSection, ComoFuncionaSection, ProvaSocialSection } from 
 import { PlanosSection } from "../components/landing/Planos";
 import { FaqSection } from "../components/landing/Faq";
 import { CtaFinalSection, LandingFooter } from "../components/landing/CtaFooter";
+import { ComparativoSection } from "../components/landing/Comparativo";
 
 /* Página composta por seções em src/components/landing/ (auditoria 3.1).
    Aqui ficam só a nav e o hero, que dependem do estado de scroll da página. */
@@ -247,7 +248,7 @@ export default function LandingPitch() {
           initial={{ opacity: 0, y: 60, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 1, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          className="relative z-10 mt-16 max-w-3xl mx-auto w-full px-4"
+          className="relative z-10 mt-16 max-w-4xl xl:max-w-5xl mx-auto w-full px-4"
         >
           <div className="relative">
             <div className="absolute -inset-4 bg-gradient-to-b from-emerald-200/50 to-transparent blur-3xl rounded-3xl -z-10" />
@@ -289,6 +290,7 @@ export default function LandingPitch() {
 
       <IntegrationsMarquee />
       <DiferencialSection />
+      <ComparativoSection />
       <RecursosBentoSection />
       <CrmHighlightSection />
       <IaSection />
@@ -300,6 +302,23 @@ export default function LandingPitch() {
       <FaqSection />
       <CtaFinalSection />
       <LandingFooter />
+
+      {/* CTA fixo no mobile: aparece depois do hero, some perto dos planos
+          (lá o CTA já está na tela). Padrão de conversão mobile-first. */}
+      {scrolled && (
+        <div
+          className="lg:hidden fixed inset-x-0 bottom-0 z-50 px-4 pt-3 bg-white/90 backdrop-blur-xl border-t border-slate-200 shadow-[0_-8px_30px_rgba(0,0,0,0.08)]"
+          style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)" }}
+        >
+          <Link
+            to="/planos"
+            className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl bg-emerald-600 active:bg-emerald-700 text-white font-black text-sm shadow-lg shadow-emerald-600/25"
+          >
+            Criar minha conta
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

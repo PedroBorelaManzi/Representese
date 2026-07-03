@@ -258,10 +258,11 @@ export default function Layout() {
   // planejar o dia → trabalhar a carteira → se comunicar → consultar materiais.
   const menuGroups: { title: string; items: { icon: typeof LayoutDashboard; label: string; path: string }[] }[] = [
     {
-      title: 'Meu Dia',
+      title: 'Dia a Dia',
       items: [
         { icon: LayoutDashboard, label: 'Início', path: '/dashboard' },
         { icon: Calendar, label: 'Agenda', path: '/dashboard/agenda' },
+        { icon: MapIcon, label: 'Mapa', path: '/dashboard/map' },
         { icon: Sparkles, label: 'Assistente IA', path: '/dashboard/assistente' },
       ],
     },
@@ -269,7 +270,6 @@ export default function Layout() {
       title: 'Vendas',
       items: [
         { icon: Users, label: 'Clientes', path: '/dashboard/clientes' },
-        { icon: MapIcon, label: 'Mapa & Rotas', path: '/dashboard/map' },
         { icon: Building2, label: 'Empresas & Pedidos', path: '/dashboard/empresas' },
         { icon: Wallet, label: 'Comissões', path: '/dashboard/comissoes' },
         { icon: Trophy, label: 'Ranking', path: '/dashboard/ranking' },
