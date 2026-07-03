@@ -1,23 +1,24 @@
 import { useState } from "react";
-import { Plus, Trash2, Sun, Moon, Check, X, ChevronRight } from "lucide-react";
+import { Plus, Trash2, Sun, Moon, Check, X, ChevronRight, ChevronLeft, Wallet, Percent } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSettings } from "../contexts/SettingsContext";
 import { toast } from "sonner";
 
+const TOTAL_STEPS = 4;
 
 export default function OnboardingModal() {
   const [editingDaysField, setEditingDaysField] = useState<'alerta' | 'critico' | 'inativo' | null>(null);
   const [editingDaysValue, setEditingDaysValue] = useState('');
   const renderOnboardingDaysConfig = (field: 'alerta' | 'critico' | 'inativo', label: string, currentVal: number, colorClass: string) => {
     const isEditing = editingDaysField === field;
-    
+
     const handleSave = () => {
       const val = parseInt(editingDaysValue, 10);
       if (isNaN(val) || val <= 0) {
         toast.error("Insira um número de dias válido.");
         return;
       }
-      
+
       if (field === 'alerta') {
         setAlerta(val);
         if (critico <= val) setCritico(val + 5);
@@ -44,7 +45,7 @@ export default function OnboardingModal() {
         <div className="flex items-center gap-2 bg-slate-50 dark:bg-zinc-950 border border-slate-150 dark:border-zinc-850 rounded-2xl p-3 justify-between w-full">
           <span className={`text-xs font-bold uppercase ${colorClass}`}>{label}</span>
           <div className="flex items-center gap-2">
-            <input 
+            <input
               type="number"
               value={editingDaysValue}
               onChange={(e) => setEditingDaysValue(e.target.value)}
@@ -67,7 +68,7 @@ export default function OnboardingModal() {
     }
 
     return (
-      <button 
+      <button
         type="button"
         onClick={() => {
           setEditingDaysField(field);
@@ -87,8 +88,7 @@ export default function OnboardingModal() {
   const { settings, loading, updateSettings } = useSettings();
   const [step, setStep] = useState(1);
 
-  
-  // Step 1: Categories
+  // Step 1: Categories (empresas representadas)
   const [categories, setCategories] = useState<string[]>([]);
   const [newCat, setNewCat] = useState("");
 
@@ -99,43 +99,54 @@ export default function OnboardingModal() {
     }
   };
 
-  // Step 2: Alerts
+  // Step 2: Comissões por empresa (%)
+  const [commissions, setCommissions] = useState<Record<string, number>>({});
+  const setCommission = (cat: string, value: string) => {
+    const num = value === "" ? 0 : Math.max(0, Math.min(100, Number(value)));
+    setCommissions((prev) => ({ ...prev, [cat]: isNaN(num) ? 0 : num }));
+  };
+
+  // Step 3: Alertas de inatividade
   const [alerta, setAlerta] = useState(15);
   const [critico, setCritico] = useState(30);
-
   const [inativo, setInativo] = useState(90);
 
-  // Step 3: Theme
+  // Step 4: Tema
   const [theme, setTheme] = useState<'light' | 'dark'>(settings.theme || 'light');
-
-  // Step 4: Revenue Ceiling
-
 
   const handleFinish = async () => {
     await updateSettings({
       categories,
+      commissions,
       alerta_days: alerta,
       critico_days: critico,
       inativo_days: inativo,
       theme,
       has_completed_onboarding: true,
     });
+    toast.success("Tudo configurado! Bem-vindo ao Represente-Se.");
   };
 
+  // Só aparece no primeiro login: usuário sem onboarding concluído e sem empresas cadastradas ainda.
   if (loading || settings.has_completed_onboarding || (settings.categories && settings.categories.length > 0)) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 15 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-2xl p-8 w-full max-w-lg space-y-6"
+        className="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-2xl p-8 w-full max-w-lg space-y-6 max-h-[90vh] overflow-y-auto custom-scrollbar"
       >
         {/* Progress Bar */}
-        <div className="flex gap-2">
-          <div className={`h-1.5 flex-1 rounded-full ${step >= 1 ? "bg-emerald-600" : "bg-slate-100 dark:bg-zinc-800"}`} />
-          <div className={`h-1.5 flex-1 rounded-full ${step >= 2 ? "bg-emerald-600" : "bg-slate-100 dark:bg-zinc-800"}`} />
-          <div className={`h-1.5 flex-1 rounded-full ${step >= 3 ? "bg-emerald-600" : "bg-slate-100 dark:bg-zinc-800"}`} />
+        <div>
+          <div className="flex gap-2">
+            {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
+              <div key={i} className={`h-1.5 flex-1 rounded-full ${step >= i + 1 ? "bg-emerald-600" : "bg-slate-100 dark:bg-zinc-800"}`} />
+            ))}
+          </div>
+          <p className="text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest mt-2">
+            Passo {step} de {TOTAL_STEPS} · Vamos configurar sua conta
+          </p>
         </div>
 
         <AnimatePresence mode="wait">
@@ -149,19 +160,20 @@ export default function OnboardingModal() {
             >
               <div>
                 <h2 className="text-xl font-black text-slate-900 dark:text-zinc-50 uppercase tracking-tight">Configure suas empresas</h2>
-                <p className="text-sm text-slate-500 dark:text-zinc-400 mt-1">Adicione as empresas que você trabalha hoje.</p>
+                <p className="text-sm text-slate-500 dark:text-zinc-400 mt-1">Adicione as empresas que você representa hoje.</p>
               </div>
 
               <div className="flex gap-2">
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={newCat}
                   onChange={(e) => setNewCat(e.target.value)}
-                  placeholder="Ex: Nestle, Coca-Cola..."
+                  placeholder="Ex: Nestlé, Coca-Cola..."
                   className="flex-1 px-4 py-3 border border-slate-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-emerald-500 text-sm bg-white dark:bg-zinc-950 dark:text-zinc-100"
-                  onKeyDown={(e) => e.key === 'Enter' && addCategory()}
+                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCategory())}
+                  autoFocus
                 />
-                <button 
+                <button
                   onClick={addCategory}
                   disabled={!newCat.trim()}
                   className="px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl disabled:opacity-50 transition-colors"
@@ -172,7 +184,7 @@ export default function OnboardingModal() {
 
               <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
                 {categories.map((cat, index) => (
-                  <motion.div 
+                  <motion.div
                     key={index}
                     initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -183,11 +195,11 @@ export default function OnboardingModal() {
                   </motion.div>
                 ))}
                 {categories.length === 0 && (
-                  <p className="text-center text-xs text-slate-400 dark:text-zinc-500 py-4">Me dê o nome de todas as empresas que você trabalha hoje.</p>
+                  <p className="text-center text-xs text-slate-400 dark:text-zinc-500 py-4">Me dê o nome de todas as empresas que você representa hoje.</p>
                 )}
               </div>
 
-              <button 
+              <button
                 onClick={() => setStep(2)}
                 disabled={categories.length === 0}
                 className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm tracking-wide disabled:opacity-50 flex items-center justify-center gap-1 mt-4"
@@ -206,8 +218,53 @@ export default function OnboardingModal() {
               className="space-y-4"
             >
               <div>
+                <h2 className="text-xl font-black text-slate-900 dark:text-zinc-50 uppercase tracking-tight flex items-center gap-2">
+                  <Wallet className="w-5 h-5 text-emerald-600" /> Suas comissões
+                </h2>
+                <p className="text-sm text-slate-500 dark:text-zinc-400 mt-1">
+                  Qual o percentual de comissão em cada empresa? Deixe 0% se preferir configurar depois.
+                </p>
+              </div>
+
+              <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
+                {categories.map((cat) => (
+                  <div key={cat} className="flex items-center justify-between gap-3 p-3 bg-slate-50 dark:bg-zinc-950 border border-slate-100 dark:border-zinc-800 rounded-xl">
+                    <span className="text-sm font-bold text-slate-800 dark:text-zinc-200 truncate">{cat}</span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={0.5}
+                        value={commissions[cat] ?? ""}
+                        onChange={(e) => setCommission(cat, e.target.value)}
+                        placeholder="0"
+                        className="w-16 px-2 py-1.5 text-center bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-lg text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                      <Percent className="w-3.5 h-3.5 text-slate-400" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex gap-3 mt-4">
+                <button onClick={() => setStep(1)} className="flex-1 py-3 bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-300 rounded-xl font-bold text-sm flex items-center justify-center gap-1"><ChevronLeft className="w-4 h-4" /> Voltar</button>
+                <button onClick={() => setStep(3)} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-1">Próximo <ChevronRight className="w-4 h-4" /></button>
+              </div>
+            </motion.div>
+          )}
+
+          {step === 3 && (
+            <motion.div
+              key="step3"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-4"
+            >
+              <div>
                 <h2 className="text-xl font-black text-slate-900 dark:text-zinc-50 uppercase tracking-tight">Alertas de Inatividade</h2>
-                <p className="text-sm text-slate-500 dark:text-zinc-400 mt-1">Como você deseja acompanhar os alertas e inatividade de clientes sem compra?</p>
+                <p className="text-sm text-slate-500 dark:text-zinc-400 mt-1">Como você deseja acompanhar os alertas de clientes sem compra?</p>
               </div>
 
               <div className="space-y-3">
@@ -217,15 +274,15 @@ export default function OnboardingModal() {
               </div>
 
               <div className="flex gap-3 mt-4">
-                <button onClick={() => setStep(1)} className="flex-1 py-3 bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-300 rounded-xl font-bold text-sm">Voltar</button>
-                <button onClick={() => setStep(3)} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-1">Próximo</button>
+                <button onClick={() => setStep(2)} className="flex-1 py-3 bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-300 rounded-xl font-bold text-sm flex items-center justify-center gap-1"><ChevronLeft className="w-4 h-4" /> Voltar</button>
+                <button onClick={() => setStep(4)} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-1">Próximo <ChevronRight className="w-4 h-4" /></button>
               </div>
             </motion.div>
           )}
 
-          {step === 3 && (
+          {step === 4 && (
             <motion.div
-              key="step3"
+              key="step4"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               className="space-y-4"
@@ -236,7 +293,7 @@ export default function OnboardingModal() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <button 
+                <button
                   onClick={() => setTheme('light')}
                   className={`p-5 rounded-2xl border flex flex-col items-center gap-3 transition-all ${theme === 'light' ? "border-emerald-600 bg-emerald-50/50 dark:bg-emerald-950/20" : "border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950"}`}
                 >
@@ -244,7 +301,7 @@ export default function OnboardingModal() {
                   <span className="text-sm font-bold text-slate-800 dark:text-zinc-200">Tema Claro</span>
                 </button>
 
-                <button 
+                <button
                   onClick={() => setTheme('dark')}
                   className={`p-5 rounded-2xl border flex flex-col items-center gap-3 transition-all ${theme === 'dark' ? "border-emerald-600 bg-emerald-50/50 dark:bg-emerald-950/20" : "border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950"}`}
                 >
@@ -254,13 +311,11 @@ export default function OnboardingModal() {
               </div>
 
               <div className="flex gap-3 mt-4">
-                <button onClick={() => setStep(2)} className="flex-1 py-3 bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-300 rounded-xl font-bold text-sm">Voltar</button>
+                <button onClick={() => setStep(3)} className="flex-1 py-3 bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-300 rounded-xl font-bold text-sm flex items-center justify-center gap-1"><ChevronLeft className="w-4 h-4" /> Voltar</button>
                 <button onClick={handleFinish} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-1"><Check className="w-4 h-4" /> Finalizar</button>
               </div>
             </motion.div>
           )}
-
-
         </AnimatePresence>
       </motion.div>
     </div>
