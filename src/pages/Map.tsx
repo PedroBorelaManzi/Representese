@@ -22,6 +22,7 @@ import {
 } from "../lib/visits";
 import { toast } from "sonner";
 import { offlineCache, CacheKeys } from "../lib/offlineCache";
+import { PageHeader } from "../components/ui";
 import { syncQueue } from "../lib/syncQueue";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { Capacitor } from '@capacitor/core';
@@ -569,66 +570,54 @@ export default function Map() {
 
   return (
     <div className="h-full flex flex-col gap-6 lg:gap-10 pb-4">
-      {/* Premium Header */}
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 lg:gap-6">
-        <div className="flex items-center justify-between w-full">
-          <div>
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 dark:text-zinc-100 flex items-center gap-3 lg:gap-4 uppercase tracking-tight">
-              <div className="p-2 sm:p-2.5 lg:p-3 bg-emerald-600 rounded-xl lg:rounded-[20px]">
-                <Navigation2 className="w-6 h-6 lg:w-8 h-8 text-white" />
+      {/* Header padrão */}
+      <PageHeader
+        icon={Navigation2}
+        className="mb-0 lg:mb-0"
+        title="Mapa & Rotas"
+        subtitle={offlineCache.isOnline() ? 'Onde estão seus clientes' : 'Mapa offline (cache)'}
+        actions={
+          <>
+            <form onSubmit={handleMapSearch} className="relative w-full sm:w-64 group">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                {isSearchingMap ? <Loader2 className="h-4 w-4 text-emerald-500 animate-spin" /> : <Search className="h-4 w-4 text-slate-400 group-focus-within:text-emerald-600 transition-colors" />}
               </div>
-              Mapa de <span className="text-emerald-600">Clientes</span>
-            </h1>
-            <p className="text-xs lg:text-sm text-slate-500 dark:text-zinc-400 mt-2 font-medium">Onde estão seus clientes.</p>
-          </div>
-          
-          {!offlineCache.isOnline() && (
-            <span className="px-3 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-full border border-amber-100 dark:border-amber-900/30 shadow-sm animate-pulse flex items-center gap-1.5 self-center">
-              <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
-              Mapa Offline Cache
-            </span>
-          )}
-        </div>
-        
-        <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 w-full lg:w-auto">
-          <form onSubmit={handleMapSearch} className="relative w-full sm:w-80 lg:w-96 group">
-            <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none">
-              {isSearchingMap ? <Loader2 className="h-5 w-5 text-emerald-500 animate-spin" /> : <Search className="h-5 w-5 text-slate-400 group-focus-within:text-emerald-600 transition-colors" />}
-            </div>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="block w-full pl-14 pr-6 py-3 lg:py-4 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-[24px] shadow-sm focus:ring-8 focus:ring-emerald-500/10 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all placeholder:text-slate-300"
-              placeholder="Buscar Cliente ou Endereço..."
-            />
-          </form>
-          <button
-            onClick={() => setRoteiroOpen(o => !o)}
-            className={`relative w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-3 sm:px-8 sm:py-4 rounded-[24px] font-black uppercase text-[9px] sm:text-[11px] tracking-widest transition-all active:scale-95 group ${roteiroOpen ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-[0_20px_40px_-10px_rgba(16,185,129,0.4)]' : 'bg-white border border-slate-200 text-slate-700 hover:border-emerald-300 hover:text-emerald-600 shadow-sm'}`}
-          >
-            <ClipboardList className="w-4 h-4" />
-            ROTEIRO
-            {plannedCount + visitedCount > 0 && (
-              <span className="ml-1 bg-emerald-100 text-emerald-700 rounded-full px-1.5 py-0.5 text-[8px] leading-none">{visitedCount}/{plannedCount + visitedCount}</span>
-            )}
-          </button>
-          <button
-            onClick={() => { setIsRouteMode(m => !m); if (isRouteMode) setRouteClientIds([]); }}
-            className={`w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-3 sm:px-8 sm:py-4 rounded-[24px] font-black uppercase text-[9px] sm:text-[11px] tracking-widest transition-all active:scale-95 group ${isRouteMode ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-[0_20px_40px_-10px_rgba(99,102,241,0.4)]' : 'bg-white border border-slate-200 text-slate-700 hover:border-indigo-300 hover:text-indigo-600 shadow-sm'}`}
-          >
-            <Route className="w-4 h-4" />
-            {isRouteMode ? 'CANCELAR ROTA' : 'PLANEJAR ROTA'}
-          </button>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-3 sm:px-8 sm:py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-[24px] font-black uppercase text-[9px] sm:text-[11px] tracking-widest transition-all shadow-[0_20px_40px_-10px_rgba(16,185,129,0.4)] active:scale-95 group"
-          >
-            <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
-            ADICIONAR CLIENTES
-          </button>
-        </div>
-      </div>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="block w-full pl-11 pr-4 py-3 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-2xl shadow-sm focus:ring-4 focus:ring-emerald-500/10 text-[10px] font-black uppercase tracking-widest transition-all placeholder:text-slate-300"
+                placeholder="Buscar cliente ou endereço..."
+                aria-label="Buscar cliente ou endereço"
+              />
+            </form>
+            <button
+              onClick={() => setRoteiroOpen(o => !o)}
+              className={`flex items-center justify-center gap-2 px-4 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 ${roteiroOpen ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/25' : 'bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:border-emerald-300 hover:text-emerald-600 shadow-sm'}`}
+            >
+              <ClipboardList className="w-4 h-4" />
+              Roteiro
+              {plannedCount + visitedCount > 0 && (
+                <span className="bg-emerald-100 text-emerald-700 rounded-full px-1.5 py-0.5 text-[8px] leading-none">{visitedCount}/{plannedCount + visitedCount}</span>
+              )}
+            </button>
+            <button
+              onClick={() => { setIsRouteMode(m => !m); if (isRouteMode) setRouteClientIds([]); }}
+              className={`flex items-center justify-center gap-2 px-4 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 ${isRouteMode ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/25' : 'bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:border-indigo-300 hover:text-indigo-600 shadow-sm'}`}
+            >
+              <Route className="w-4 h-4" />
+              {isRouteMode ? 'Cancelar rota' : 'Planejar rota'}
+            </button>
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-lg shadow-emerald-600/25 active:scale-95 group"
+            >
+              <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
+              Adicionar
+            </button>
+          </>
+        }
+      />
 
       <div 
         ref={mapContainerRef}

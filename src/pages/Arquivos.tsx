@@ -20,6 +20,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { offlineCache } from "../lib/offlineCache";
+import { PageHeader } from "../components/ui";
 import { toast } from "sonner";
 
 const BUCKET = "user_files";
@@ -207,36 +208,31 @@ export default function Arquivos() {
 
   return (
     <div className="max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-emerald-600 rounded-2xl">
-            <HardDrive className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-black text-slate-900 dark:text-zinc-100 tracking-tight">Arquivos</h1>
-            <p className="text-sm text-slate-500 dark:text-zinc-400 font-medium">Guarde tabelas, pedidos e documentos. Organize em pastas.</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setCreatingFolder(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-200 text-[12px] font-black uppercase tracking-widest hover:border-emerald-300 hover:text-emerald-600 transition-all"
-          >
-            <FolderPlus className="w-4 h-4" /> Nova pasta
-          </button>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-[12px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 active:scale-95 transition-all disabled:opacity-60"
-          >
-            {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-            Enviar arquivo
-          </button>
-          <input ref={fileInputRef} type="file" multiple className="hidden" onChange={(e) => handleUpload(e.target.files)} />
-        </div>
-      </div>
+      {/* Header padrão */}
+      <PageHeader
+        icon={HardDrive}
+        title="Arquivos"
+        subtitle="Tabelas, pedidos e documentos em pastas"
+        actions={
+          <>
+            <button
+              onClick={() => setCreatingFolder(true)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-200 text-[10px] font-black uppercase tracking-widest hover:border-emerald-300 hover:text-emerald-600 transition-all"
+            >
+              <FolderPlus className="w-4 h-4" /> Nova pasta
+            </button>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 active:scale-95 transition-all disabled:opacity-60"
+            >
+              {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+              Enviar arquivo
+            </button>
+            <input ref={fileInputRef} type="file" multiple className="hidden" onChange={(e) => handleUpload(e.target.files)} />
+          </>
+        }
+      />
 
       {/* Breadcrumb */}
       <div className="flex items-center gap-1.5 mb-5 text-[13px] font-bold flex-wrap">

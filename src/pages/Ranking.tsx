@@ -13,6 +13,7 @@ import {
 import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
 import { cn } from "../lib/utils";
+import { PageHeader } from "../components/ui";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
@@ -121,30 +122,24 @@ export default function Ranking() {
 
   return (
     <div className="h-[calc(100dvh-2rem)] flex flex-col gap-6 overflow-y-auto custom-scrollbar">
-      {/* Cabeçalho */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-6 pt-6 pb-5 border-b border-slate-200/70 dark:border-zinc-800/70 bg-gradient-to-r from-white to-slate-50/50 dark:from-zinc-900 dark:to-zinc-950/50 rounded-t-2xl">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-amber-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
-            <Trophy className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-zinc-100">Ranking</h1>
-            <p className="text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
-              Compita com outros representantes
-            </p>
-          </div>
-        </div>
-        {myRow && (
+      {/* Cabeçalho padrão */}
+      <PageHeader
+        icon={Trophy}
+        accent="amber"
+        className="mb-0 lg:mb-0"
+        title="Ranking"
+        subtitle="Compita com outros representantes"
+        actions={myRow ? (
           <button
             onClick={() => refreshAll(true)}
-            className="px-4 py-2.5 bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 border border-slate-200 dark:border-zinc-700 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-slate-50 transition-all flex items-center gap-2"
+            className="px-4 py-2.5 bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 border border-slate-200 dark:border-zinc-700 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all flex items-center gap-2"
           >
             <RefreshCw className="w-4 h-4" /> Atualizar meus números
           </button>
-        )}
-      </div>
+        ) : undefined}
+      />
 
-      <div className="px-6 pb-6 flex flex-col gap-6">
+      <div className="pb-6 flex flex-col gap-6">
         {/* Não participa → opt-in */}
         {!myRow ? (
           <div className="rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 md:p-8 max-w-lg mx-auto w-full text-center">

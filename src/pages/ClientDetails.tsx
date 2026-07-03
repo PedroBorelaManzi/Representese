@@ -33,12 +33,11 @@ import { Client, Order } from "../types";
 import { computeCompanyCycles, cycleLabel, type CompanyCycle } from "../lib/purchaseCycle";
 import { TrendingUp, Clock3 } from "lucide-react";
 
+import { toTitleCase } from "../lib/utils";
+
 function cn(...classes: (string | boolean | undefined)[]) {
   return classes.filter(Boolean).join(" ");
 }
-
-const toTitleCase = (str: string) =>
-  str.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
 
 export default function ClientDetails() {
   const { id } = useParams();
