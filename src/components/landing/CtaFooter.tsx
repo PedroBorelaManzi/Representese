@@ -11,50 +11,52 @@ export function CtaFinalSection() {
     <section className="py-24 px-6 bg-white">
       <div className="max-w-5xl mx-auto">
         <FadeUp>
-          <div className="relative rounded-[48px] overflow-hidden px-10 md:px-20 py-20 text-center"
-            style={{ background: "linear-gradient(135deg, #059669 0%, #0d9488 50%, #10b981 100%)" }}
-          >
-            <div className="absolute inset-0 pointer-events-none opacity-10"
+          <div className="relative rounded-[48px] overflow-hidden px-10 md:px-20 py-20 text-center bg-slate-950 ring-1 ring-emerald-500/20">
+            {/* glow esmeralda vindo do topo + grade fina */}
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{ background: "radial-gradient(ellipse 75% 60% at 50% -10%, rgba(16,185,129,0.35) 0%, rgba(16,185,129,0.08) 45%, transparent 70%)" }}
+            />
+            <div
+              className="absolute inset-0 pointer-events-none opacity-[0.35] [mask-image:radial-gradient(ellipse_70%_70%_at_50%_0%,black,transparent_75%)]"
               style={{
-                backgroundImage: `radial-gradient(circle, white 1px, transparent 1px)`,
-                backgroundSize: "28px 28px",
+                backgroundImage:
+                  "linear-gradient(to right, rgba(148,163,184,0.14) 1px, transparent 1px), linear-gradient(to bottom, rgba(148,163,184,0.14) 1px, transparent 1px)",
+                backgroundSize: "44px 44px",
               }}
             />
             <motion.div
-              animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0.8, 0.5] }}
-              transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute top-0 right-0 w-80 h-80 bg-white/10 blur-[80px] rounded-full"
-            />
-            <motion.div
-              animate={{ scale: [1, 1.3, 1], opacity: [0.4, 0.7, 0.4] }}
-              transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute bottom-0 left-0 w-60 h-60 bg-white/10 blur-[60px] rounded-full"
+              animate={{ opacity: [0.35, 0.6, 0.35] }}
+              transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute -top-24 left-1/2 -translate-x-1/2 w-[480px] h-[280px] bg-emerald-500/25 blur-[110px] rounded-full pointer-events-none"
             />
 
             <div className="relative z-10">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 backdrop-blur text-white text-[10px] font-black uppercase tracking-widest mb-6">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-emerald-400/30 bg-emerald-400/10 backdrop-blur text-emerald-300 text-[10px] font-black uppercase tracking-widest mb-7">
                 <Sparkles className="w-3 h-3" />
                 Comece hoje
               </div>
-              <h2 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight text-white mb-6 leading-tight">
-                Pronto para transformar<br />sua operação comercial?
+              <h2 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight text-white mb-6 leading-[1.06]">
+                Pronto para transformar
+                <br />
+                <span className="bg-gradient-to-br from-emerald-300 via-emerald-400 to-teal-300 bg-clip-text text-transparent">sua operação comercial?</span>
               </h2>
-              <p className="text-emerald-50 font-medium text-lg max-w-lg mx-auto mb-10">
+              <p className="text-slate-400 font-medium text-lg max-w-lg mx-auto mb-10">
                 Junte-se a mais de 2.000 representantes que já alavancaram seus resultados com a Represente-Se.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Link
                   to="/planos"
-                  className="group flex items-center gap-2 px-10 py-4 rounded-2xl bg-white hover:bg-emerald-50 text-emerald-700 font-black text-[14px] transition-all shadow-xl hover:-translate-y-0.5"
+                  className="group flex items-center gap-2 px-10 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-[14px] transition-all shadow-[0_12px_40px_-8px_rgba(16,185,129,0.55)] hover:-translate-y-0.5"
                 >
                   Escolher meu plano
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </Link>
-                <a href="#precos" className="px-10 py-4 rounded-2xl border border-white/30 bg-white/10 backdrop-blur text-white font-black text-[14px] transition-all hover:bg-white/20">
+                <a href="#precos" className="px-10 py-4 rounded-2xl border border-white/15 bg-white/5 backdrop-blur text-white font-black text-[14px] transition-all hover:bg-white/10 hover:border-white/25">
                   Ver planos
                 </a>
               </div>
-              <p className="text-emerald-100/80 text-[11px] font-medium uppercase tracking-widest mt-6">
+              <p className="text-slate-500 text-[11px] font-medium uppercase tracking-widest mt-7">
                 Satisfação garantida · Sem compromisso · Cancele quando quiser
               </p>
             </div>

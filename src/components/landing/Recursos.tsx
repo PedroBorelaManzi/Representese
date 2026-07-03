@@ -30,8 +30,8 @@ export function RecursosBentoSection() {
                 className={cn(
                   "group h-full rounded-3xl p-7 border transition-all duration-300 flex flex-col",
                   f.dark
-                    ? "bg-slate-950 border-slate-800 text-white"
-                    : "bg-white border-slate-200/80 hover:border-emerald-200 hover:shadow-lg hover:shadow-emerald-50"
+                    ? "bg-slate-950 border-slate-800 text-white hover:ring-1 hover:ring-emerald-500/40 hover:-translate-y-1"
+                    : "bg-white border-slate-200/80 hover:border-emerald-200 hover:shadow-xl hover:shadow-emerald-100/60 hover:-translate-y-1"
                 )}
               >
                 {f.dark && (
