@@ -1,23 +1,20 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from "react-router-dom";
-import { Search, MapPin, Building2, Trash2, ChevronRight, Plus, Loader2, FileUp, X, ChevronDown } from 'lucide-react';
+import { Search, MapPin, Building2, Trash2, ChevronRight, Plus, Loader2, FileUp, X, ChevronDown, Users } from 'lucide-react';
 import { supabase, logAudit } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
 import { useSync } from '../contexts/SyncContext';
 import { useClients } from '../hooks/useClients';
 import { syncQueue } from '../lib/syncQueue';
-import { cn, useDebounce } from '../lib/utils';
+import { cn, useDebounce, toTitleCase } from '../lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { parseFileForCnpjs } from '../lib/clientImport';
 import { getHighPrecisionCoordinates } from '../lib/geminiGeocoding';
 import { Client, Alert, Order } from '../types';
 import { useQueryClient } from '@tanstack/react-query';
-import { EmptyState } from '../components/ui';
-
-const toTitleCase = (str: string) =>
-  str.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+import { EmptyState, PageHeader } from '../components/ui';
 
 export default function CRMPage() {
   const queryClient = useQueryClient();
@@ -270,42 +267,43 @@ export default function CRMPage() {
   };
 
   return (
-    <div className="h-[calc(100dvh-2rem)] flex flex-col gap-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-6 pt-6 pb-5 border-b border-slate-200/70 dark:border-zinc-800/70 bg-gradient-to-r from-white to-slate-50/50 dark:from-zinc-900 dark:to-zinc-950/50 mb-6 rounded-t-2xl">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-zinc-100">
-             Gestão de Clientes
-          </h1>
-        </div>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-           <div className="relative flex-1 sm:flex-none">
-             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-             <input 
-               type="text"
-               value={searchTerm}
-               onChange={(e) => setSearchTerm(e.target.value)}
-               placeholder="Buscar por nome, CNPJ ou cidade..."
-               className="pl-10 pr-4 py-2.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl text-xs w-full md:w-80 outline-none focus:ring-2 focus:ring-emerald-500 font-bold"
-             />
-           </div>
-           <input type="file" ref={fileInputRef} onChange={handleImportFile} className="hidden" accept=".pdf,.xlsx,.xls,.txt,image/*" />
-           <button 
-             onClick={() => setIsAddingClient(true)}
-             className="px-6 py-2.5 bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 border border-slate-200 dark:border-zinc-700 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
-           >
-             <Plus className="w-4 h-4" />
-             Novo Cliente
-           </button>
-           <button 
-             onClick={() => fileInputRef.current?.click()}
-             disabled={isImporting}
-             className="px-6 py-2.5 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 active:scale-95 transition-all flex items-center justify-center gap-2"
-           >
-             {isImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
-             {isImporting ? `Importando` : 'Importar Lista'}
-           </button>
-         </div>
-      </div>
+    <div className="h-[calc(100dvh-2rem)] flex flex-col">
+      <PageHeader
+        icon={Users}
+        title="Clientes"
+        subtitle={`${clients.length} na carteira`}
+        actions={
+          <>
+            <div className="relative flex-1 sm:flex-none">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Buscar por nome, CNPJ ou cidade..."
+                aria-label="Buscar cliente"
+                className="pl-10 pr-4 py-2.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl text-xs w-full sm:w-72 outline-none focus:ring-2 focus:ring-emerald-500 font-bold"
+              />
+            </div>
+            <input type="file" ref={fileInputRef} onChange={handleImportFile} className="hidden" accept=".pdf,.xlsx,.xls,.txt,image/*" />
+            <button
+              onClick={() => setIsAddingClient(true)}
+              className="px-5 py-2.5 bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 border border-slate-200 dark:border-zinc-700 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              Novo Cliente
+            </button>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isImporting}
+              className="px-5 py-2.5 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 active:scale-95 transition-all flex items-center justify-center gap-2"
+            >
+              {isImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
+              {isImporting ? `Importando` : 'Importar Lista'}
+            </button>
+          </>
+        }
+      />
       <div className="flex-1 bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 flex flex-col min-h-0 ring-1 ring-slate-200/80 shadow-none overflow-hidden relative">
         <div className="px-4 py-3 border-b dark:border-zinc-850 bg-slate-50/50 dark:bg-zinc-950/20 flex items-center gap-2 overflow-x-auto no-scrollbar">
           {(['Todos', 'Alerta', 'Crítico', 'Inativo'] as const).map(tab => (

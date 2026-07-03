@@ -2,7 +2,7 @@
 import { MapContainer, TileLayer, Marker, Popup, useMap, Tooltip, ZoomControl } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-import { Search, MapPin, Building2, Phone, Mail, Plus, X, Info, Loader2, ExternalLink, Trash2, Navigation2, Target, Users, FileDown, Maximize2, Minimize2, Route, CheckCheck, ArrowRight, ClipboardList, CheckCircle2, Footprints } from "lucide-react";
+import { Search, MapPin, Building2, Phone, Mail, Plus, X, Info, Loader2, ExternalLink, Trash2, Navigation2, Target, Users, FileDown, Maximize2, Minimize2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
@@ -10,18 +10,9 @@ import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
 import { useClients } from "../hooks/useClients";
 import { useQueryClient } from '@tanstack/react-query';
-import {
-  type Visit,
-  PROXIMITY_METERS,
-  todayISO,
-  haversineMeters,
-  fetchVisits,
-  addToRoteiro,
-  removeFromRoteiro,
-  confirmVisit,
-} from "../lib/visits";
 import { toast } from "sonner";
 import { offlineCache, CacheKeys } from "../lib/offlineCache";
+import { PageHeader } from "../components/ui";
 import { syncQueue } from "../lib/syncQueue";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { Capacitor } from '@capacitor/core';
@@ -44,15 +35,6 @@ const createCustomIcon = (color: string) => {
 const defaultIcon = createCustomIcon('#10b981'); // Emerald
 const redIcon = createCustomIcon('#ef4444'); // Red
 const inactiveIcon = createCustomIcon('#94a3b8'); // Slate-400 (Gray)
-
-const createRouteIcon = (num: number) => L.divIcon({
-  className: 'custom-pin',
-  html: `<div style="position:relative;width:32px;height:48px;"><svg viewBox="0 0 24 24" fill="#6366f1" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg><span style="position:absolute;top:7px;left:50%;transform:translateX(-50%);font-size:10px;font-weight:900;color:white;line-height:1;">${num}</span></div>`,
-  iconSize: [32, 48],
-  iconAnchor: [16, 48],
-  popupAnchor: [1, -38],
-  tooltipAnchor: [16, -30],
-});
 
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
@@ -188,115 +170,6 @@ export default function Map() {
       setIsPseudoFullscreen(true);
     }
   };
-
-  const [isRouteMode, setIsRouteMode] = useState(false);
-  const [routeClientIds, setRouteClientIds] = useState<string[]>([]);
-
-  const toggleRouteClient = (id: string) => {
-    setRouteClientIds(prev => {
-      if (prev.includes(id)) return prev.filter(x => x !== id);
-      if (prev.length >= 10) { toast.error("Máximo de 10 paradas por rota."); return prev; }
-      return [...prev, id];
-    });
-  };
-
-  const routeClients = routeClientIds
-    .map(id => companies.find(c => c.id === id))
-    .filter((c): c is (typeof companies)[0] => !!c && !!c.lat && !!c.lng);
-
-  const openInGoogleMaps = () => {
-    if (routeClients.length === 0) return;
-    const stops = routeClients.map(c => `${c.lat},${c.lng}`).join('/');
-    window.open(`https://www.google.com/maps/dir/${stops}`, '_blank');
-  };
-
-  /* ─── Roteiro de visitas ─────────────────────────────────────── */
-  const [todayVisits, setTodayVisits] = useState<Visit[]>([]);
-  const [roteiroOpen, setRoteiroOpen] = useState(false);
-  const [myPos, setMyPos] = useState<[number, number] | null>(null);
-  const [confirming, setConfirming] = useState<{ visit: Visit; name: string; clientId: string } | null>(null);
-  const promptedRef = useRef<Set<string>>(new Set());
-
-  const loadVisits = async () => {
-    if (!user) return;
-    try {
-      setTodayVisits(await fetchVisits(user.id));
-    } catch { /* offline: roteiro indisponível */ }
-  };
-
-  useEffect(() => {
-    loadVisits();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
-
-  const visitByClient = (clientId: string) => todayVisits.find((v) => v.client_id === clientId);
-
-  const handleToggleRoteiro = async (clientId: string) => {
-    if (!user) return;
-    const existing = visitByClient(clientId);
-    try {
-      if (existing) {
-        await removeFromRoteiro(user.id, existing.id);
-        setTodayVisits((prev) => prev.filter((v) => v.id !== existing.id));
-        toast("Removido do roteiro de hoje.");
-      } else {
-        const v = await addToRoteiro(user.id, clientId);
-        setTodayVisits((prev) => [...prev.filter((x) => x.client_id !== clientId), v]);
-        toast.success("Adicionado ao roteiro de hoje!");
-      }
-    } catch {
-      toast.error("Não consegui atualizar o roteiro.");
-    }
-  };
-
-  const handleConfirmVisit = async (visit: Visit, clientId: string) => {
-    if (!user) return;
-    try {
-      await confirmVisit(user.id, visit, clientId);
-      setTodayVisits((prev) =>
-        prev.map((v) => (v.id === visit.id ? { ...v, status: "visited", visited_at: new Date().toISOString() } : v))
-      );
-      // Reflete o novo último contato na carteira sem recarregar
-      queryClient.setQueryData(["clients", user.id], (old: any[]) =>
-        old ? old.map((c) => (c.id === clientId ? { ...c, last_contact: todayISO() } : c)) : old
-      );
-      setConfirming(null);
-      triggerLightHaptic();
-      toast.success("Visita confirmada! ✅");
-    } catch {
-      toast.error("Erro ao confirmar a visita.");
-    }
-  };
-
-  // GPS em primeiro plano: acompanha a posição e detecta chegada (<100m) a um cliente do roteiro
-  useEffect(() => {
-    if (!("geolocation" in navigator)) return;
-    const watchId = navigator.geolocation.watchPosition(
-      (pos) => setMyPos([pos.coords.latitude, pos.coords.longitude]),
-      () => {},
-      { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 }
-    );
-    return () => navigator.geolocation.clearWatch(watchId);
-  }, []);
-
-  // Quando a posição muda, vê se chegou perto de um cliente planejado ainda não visitado
-  useEffect(() => {
-    if (!myPos || confirming) return;
-    for (const v of todayVisits) {
-      if (v.status !== "planned" || promptedRef.current.has(v.client_id)) continue;
-      const c = companies.find((x) => x.id === v.client_id);
-      if (!c || !c.lat || !c.lng) continue;
-      const dist = haversineMeters(myPos[0], myPos[1], c.lat, c.lng);
-      if (dist <= PROXIMITY_METERS) {
-        promptedRef.current.add(v.client_id);
-        setConfirming({ visit: v, name: c.name, clientId: c.id });
-        break;
-      }
-    }
-  }, [myPos, todayVisits, companies, confirming]);
-
-  const plannedCount = todayVisits.filter((v) => v.status === "planned").length;
-  const visitedCount = todayVisits.filter((v) => v.status === "visited").length;
 
   const [newLocation, setNewLocation] = useState({
     cnpj: "", name: "",  contact: "", address: "", lat: -23.5500, lng: -46.6340
@@ -569,66 +442,37 @@ export default function Map() {
 
   return (
     <div className="h-full flex flex-col gap-6 lg:gap-10 pb-4">
-      {/* Premium Header */}
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 lg:gap-6">
-        <div className="flex items-center justify-between w-full">
-          <div>
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 dark:text-zinc-100 flex items-center gap-3 lg:gap-4 uppercase tracking-tight">
-              <div className="p-2 sm:p-2.5 lg:p-3 bg-emerald-600 rounded-xl lg:rounded-[20px]">
-                <Navigation2 className="w-6 h-6 lg:w-8 h-8 text-white" />
+      {/* Header padrão */}
+      <PageHeader
+        icon={Navigation2}
+        className="mb-0 lg:mb-0"
+        title="Mapa"
+        subtitle={offlineCache.isOnline() ? 'Onde estão seus clientes' : 'Mapa offline (cache)'}
+        actions={
+          <>
+            <form onSubmit={handleMapSearch} className="relative w-full sm:w-64 group">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                {isSearchingMap ? <Loader2 className="h-4 w-4 text-emerald-500 animate-spin" /> : <Search className="h-4 w-4 text-slate-400 group-focus-within:text-emerald-600 transition-colors" />}
               </div>
-              Mapa de <span className="text-emerald-600">Clientes</span>
-            </h1>
-            <p className="text-xs lg:text-sm text-slate-500 dark:text-zinc-400 mt-2 font-medium">Onde estão seus clientes.</p>
-          </div>
-          
-          {!offlineCache.isOnline() && (
-            <span className="px-3 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-full border border-amber-100 dark:border-amber-900/30 shadow-sm animate-pulse flex items-center gap-1.5 self-center">
-              <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
-              Mapa Offline Cache
-            </span>
-          )}
-        </div>
-        
-        <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 w-full lg:w-auto">
-          <form onSubmit={handleMapSearch} className="relative w-full sm:w-80 lg:w-96 group">
-            <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none">
-              {isSearchingMap ? <Loader2 className="h-5 w-5 text-emerald-500 animate-spin" /> : <Search className="h-5 w-5 text-slate-400 group-focus-within:text-emerald-600 transition-colors" />}
-            </div>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="block w-full pl-14 pr-6 py-3 lg:py-4 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-[24px] shadow-sm focus:ring-8 focus:ring-emerald-500/10 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all placeholder:text-slate-300"
-              placeholder="Buscar Cliente ou Endereço..."
-            />
-          </form>
-          <button
-            onClick={() => setRoteiroOpen(o => !o)}
-            className={`relative w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-3 sm:px-8 sm:py-4 rounded-[24px] font-black uppercase text-[9px] sm:text-[11px] tracking-widest transition-all active:scale-95 group ${roteiroOpen ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-[0_20px_40px_-10px_rgba(16,185,129,0.4)]' : 'bg-white border border-slate-200 text-slate-700 hover:border-emerald-300 hover:text-emerald-600 shadow-sm'}`}
-          >
-            <ClipboardList className="w-4 h-4" />
-            ROTEIRO
-            {plannedCount + visitedCount > 0 && (
-              <span className="ml-1 bg-emerald-100 text-emerald-700 rounded-full px-1.5 py-0.5 text-[8px] leading-none">{visitedCount}/{plannedCount + visitedCount}</span>
-            )}
-          </button>
-          <button
-            onClick={() => { setIsRouteMode(m => !m); if (isRouteMode) setRouteClientIds([]); }}
-            className={`w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-3 sm:px-8 sm:py-4 rounded-[24px] font-black uppercase text-[9px] sm:text-[11px] tracking-widest transition-all active:scale-95 group ${isRouteMode ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-[0_20px_40px_-10px_rgba(99,102,241,0.4)]' : 'bg-white border border-slate-200 text-slate-700 hover:border-indigo-300 hover:text-indigo-600 shadow-sm'}`}
-          >
-            <Route className="w-4 h-4" />
-            {isRouteMode ? 'CANCELAR ROTA' : 'PLANEJAR ROTA'}
-          </button>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-3 sm:px-8 sm:py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-[24px] font-black uppercase text-[9px] sm:text-[11px] tracking-widest transition-all shadow-[0_20px_40px_-10px_rgba(16,185,129,0.4)] active:scale-95 group"
-          >
-            <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
-            ADICIONAR CLIENTES
-          </button>
-        </div>
-      </div>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="block w-full pl-11 pr-4 py-3 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-2xl shadow-sm focus:ring-4 focus:ring-emerald-500/10 text-[10px] font-black uppercase tracking-widest transition-all placeholder:text-slate-300"
+                placeholder="Buscar cliente ou endereço..."
+                aria-label="Buscar cliente ou endereço"
+              />
+            </form>
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-lg shadow-emerald-600/25 active:scale-95 group"
+            >
+              <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
+              Adicionar
+            </button>
+          </>
+        }
+      />
 
       <div 
         ref={mapContainerRef}
@@ -649,177 +493,6 @@ export default function Map() {
               <span className="text-[10px] font-black uppercase text-emerald-700 dark:text-emerald-400">Ativos</span>
            </div>
         </div>
-
-        {/* Route Mode Banner */}
-        <AnimatePresence>
-          {isRouteMode && (
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-indigo-600 text-white px-6 py-2.5 rounded-full shadow-xl flex items-center gap-3 text-[10px] font-black uppercase tracking-widest whitespace-nowrap"
-            >
-              <Route className="w-3.5 h-3.5" />
-              Toque nos clientes para montar a rota · {routeClientIds.length}/10 selecionados
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Route Panel */}
-        <AnimatePresence>
-          {isRouteMode && routeClients.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 40 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 40 }}
-              className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border border-slate-100 dark:border-zinc-800 p-5 w-[min(420px,calc(100%-32px))]"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Rota otimizada · {routeClients.length} paradas</span>
-                <button onClick={() => setRouteClientIds([])} className="text-[9px] font-black text-red-400 hover:text-red-600 uppercase tracking-wider">Limpar</button>
-              </div>
-              <div className="flex items-center gap-1.5 flex-wrap mb-4">
-                {routeClients.map((c, i) => (
-                  <React.Fragment key={c.id}>
-                    <span className="flex items-center gap-1 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 text-[9px] font-black uppercase px-2.5 py-1 rounded-full">
-                      <span className="bg-indigo-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[8px]">{i + 1}</span>
-                      {c.name.length > 18 ? c.name.slice(0, 18) + '…' : c.name}
-                    </span>
-                    {i < routeClients.length - 1 && <ArrowRight className="w-3 h-3 text-slate-300 shrink-0" />}
-                  </React.Fragment>
-                ))}
-              </div>
-              <button
-                onClick={openInGoogleMaps}
-                className="w-full flex items-center justify-center gap-2.5 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-indigo-500/30"
-              >
-                <CheckCheck className="w-4 h-4" />
-                Abrir rota no Google Maps
-                <ExternalLink className="w-3.5 h-3.5" />
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Roteiro de visitas do dia */}
-        <AnimatePresence>
-          {roteiroOpen && (
-            <motion.div
-              initial={{ opacity: 0, x: 40 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 40 }}
-              className="absolute top-4 right-4 z-[1001] bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border border-slate-100 dark:border-zinc-800 p-5 w-[min(340px,calc(100%-32px))] max-h-[calc(100%-32px)] flex flex-col"
-            >
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-2">
-                  <ClipboardList className="w-4 h-4 text-emerald-600" />
-                  <span className="text-[11px] font-black uppercase tracking-widest text-slate-700 dark:text-zinc-200">Roteiro de hoje</span>
-                </div>
-                <button onClick={() => setRoteiroOpen(false)} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800">
-                  <X className="w-4 h-4 text-slate-400" />
-                </button>
-              </div>
-              <p className="text-[9px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-3">
-                {visitedCount} de {plannedCount + visitedCount} visitados
-                {myPos && <span className="ml-1 text-emerald-500">· GPS ativo</span>}
-              </p>
-
-              {todayVisits.length === 0 ? (
-                <div className="text-center py-8 px-2">
-                  <Footprints className="w-9 h-9 text-slate-300 dark:text-zinc-700 mx-auto mb-2" />
-                  <p className="text-xs font-bold text-slate-500 dark:text-zinc-400">Roteiro vazio.</p>
-                  <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1">
-                    Toque num cliente no mapa e use "Adicionar ao roteiro".
-                  </p>
-                </div>
-              ) : (
-                <div className="flex-1 overflow-y-auto custom-scrollbar -mx-1 px-1 space-y-2">
-                  {todayVisits.map((v) => {
-                    const c = companies.find((x) => x.id === v.client_id);
-                    if (!c) return null;
-                    const visited = v.status === "visited";
-                    return (
-                      <div
-                        key={v.id}
-                        className={`flex items-center gap-2.5 rounded-2xl border px-3 py-2.5 ${
-                          visited
-                            ? "border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/60 dark:bg-emerald-950/20"
-                            : "border-slate-100 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-950/40"
-                        }`}
-                      >
-                        <button
-                          onClick={() => !visited && handleConfirmVisit(v, c.id)}
-                          disabled={visited}
-                          title={visited ? "Visitado" : "Confirmar visita"}
-                          className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-all ${
-                            visited ? "bg-emerald-600 text-white" : "border-2 border-slate-300 dark:border-zinc-600 hover:border-emerald-500"
-                          }`}
-                        >
-                          {visited && <CheckCircle2 className="w-4 h-4" />}
-                        </button>
-                        <div className="min-w-0 flex-1">
-                          <div className={`text-[11px] font-black uppercase tracking-tight truncate ${visited ? "text-emerald-700 dark:text-emerald-400 line-through" : "text-slate-800 dark:text-zinc-200"}`}>
-                            {c.name}
-                          </div>
-                          <div className="text-[9px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider truncate">
-                            {[c.city, c.state].filter(Boolean).join("/") || "—"}
-                          </div>
-                        </div>
-                        {!visited && (
-                          <button
-                            onClick={() => handleToggleRoteiro(c.id)}
-                            className="shrink-0 p-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30"
-                            title="Remover"
-                          >
-                            <X className="w-3.5 h-3.5 text-slate-400 hover:text-red-500" />
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Confirmação de visita por proximidade (GPS <100m) */}
-        <AnimatePresence>
-          {confirming && (
-            <div className="fixed inset-0 z-[10002] flex items-end sm:items-center justify-center p-4">
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => setConfirming(null)} />
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 30 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 30 }}
-                className="relative z-[10003] bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border border-slate-100 dark:border-zinc-800 p-6 w-full max-w-sm"
-              >
-                <div className="w-14 h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center mx-auto mb-4">
-                  <MapPin className="w-7 h-7 text-emerald-600" />
-                </div>
-                <h3 className="text-lg font-black text-slate-900 dark:text-zinc-100 text-center">Você está no cliente?</h3>
-                <p className="text-sm font-bold text-emerald-600 text-center mt-1 uppercase tracking-tight">{confirming.name}</p>
-                <p className="text-xs text-slate-400 dark:text-zinc-500 text-center mt-2">
-                  Detectamos que você chegou a menos de {PROXIMITY_METERS}m. Confirmar a visita?
-                </p>
-                <div className="flex gap-3 mt-6">
-                  <button
-                    onClick={() => setConfirming(null)}
-                    className="flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
-                  >
-                    Agora não
-                  </button>
-                  <button
-                    onClick={() => handleConfirmVisit(confirming.visit, confirming.clientId)}
-                    className="flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest bg-emerald-600 text-white hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <CheckCircle2 className="w-4 h-4" /> Visitei
-                  </button>
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
 
         {/* Floating Fullscreen Toggle Button */}
         <button 
@@ -850,21 +523,16 @@ export default function Map() {
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" 
           />
           {mapCompanies.filter(c => c.lat && c.lng).map((company) => {
-            const routeIdx = routeClients.findIndex(r => r.id === company.id);
-            const inRoute = routeIdx !== -1;
-            const markerIcon = inRoute
-              ? createRouteIcon(routeIdx + 1)
-              : (!company.lat || !company.lng) ? redIcon : (company.status === 'Inativo' ? inactiveIcon : defaultIcon);
+            const markerIcon = (!company.lat || !company.lng) ? redIcon : (company.status === 'Inativo' ? inactiveIcon : defaultIcon);
             return (
             <Marker
               key={company.id}
               position={[company.displayLat, company.displayLng]}
               icon={markerIcon}
-              draggable={!isRouteMode && selectedClientId === company.id}
+              draggable={selectedClientId === company.id}
               eventHandlers={{
                 click: () => {
                   triggerLightHaptic();
-                  if (isRouteMode) { toggleRouteClient(company.id); return; }
                   setSelectedClientId(company.id);
                 },
                 dragend: (e: any) => handleMarkerDrag(company.id, e.target.getLatLng())
@@ -873,7 +541,7 @@ export default function Map() {
               <Tooltip direction="top" offset={[0, -25]} opacity={1}>
                 <span className="font-black uppercase tracking-tight text-[10px] px-2 py-1 text-slate-900">{company.name}</span>
               </Tooltip>
-              {!isRouteMode && <Popup className="premium-popup">
+              <Popup className="premium-popup">
                 <div className="w-[min(300px,85vw)] bg-white dark:bg-zinc-900">
                   {/* Header */}
                   <div className="flex items-center gap-2.5 p-3 border-b border-slate-100 dark:border-zinc-800">
@@ -927,43 +595,6 @@ export default function Map() {
                     </div>
                   )}
 
-                  {/* Roteiro toggle */}
-                  <div className="px-3 pt-3">
-                    {(() => {
-                      const v = visitByClient(company.id);
-                      const visited = v?.status === "visited";
-                      return (
-                        <button
-                          onClick={() => v && visited ? null : (v ? handleConfirmVisit(v, company.id) : handleToggleRoteiro(company.id))}
-                          disabled={visited}
-                          className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 ${
-                            visited
-                              ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 cursor-default"
-                              : v
-                              ? "bg-emerald-600 text-white hover:bg-emerald-700"
-                              : "bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-200"
-                          }`}
-                        >
-                          {visited ? (
-                            <><CheckCircle2 className="w-3.5 h-3.5" /> Visitado hoje</>
-                          ) : v ? (
-                            <><CheckCircle2 className="w-3.5 h-3.5" /> Confirmar visita</>
-                          ) : (
-                            <><ClipboardList className="w-3.5 h-3.5" /> Adicionar ao roteiro</>
-                          )}
-                        </button>
-                      );
-                    })()}
-                    {visitByClient(company.id) && visitByClient(company.id)?.status !== "visited" && (
-                      <button
-                        onClick={() => handleToggleRoteiro(company.id)}
-                        className="w-full text-center text-[9px] font-black text-slate-400 hover:text-red-500 uppercase tracking-wider mt-1.5 py-1"
-                      >
-                        Remover do roteiro
-                      </button>
-                    )}
-                  </div>
-
                   {/* Actions */}
                   <div className="p-3 flex gap-2">
                     <Link
@@ -986,7 +617,7 @@ export default function Map() {
                     <span className="text-[9px] font-bold uppercase tracking-tight text-amber-600 dark:text-amber-500">Arraste o pin para ajustar posição</span>
                   </div>
                 </div>
-              </Popup>}
+              </Popup>
             </Marker>
             );
           })}

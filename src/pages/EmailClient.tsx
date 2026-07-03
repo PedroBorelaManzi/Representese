@@ -383,11 +383,11 @@ export default function EmailClient() {
           <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 rounded-[32px] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-emerald-500/10">
             <Mail className="w-10 h-10 text-emerald-600 dark:text-emerald-400" />
           </div>
-          <h1 className="text-4xl md:text-5xl font-black text-slate-900 dark:text-zinc-100 uppercase tracking-tighter">
-            Email
+          <h1 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-zinc-100 tracking-tight">
+            E-mails
           </h1>
-          <p className="text-slate-500 dark:text-zinc-400 font-medium text-lg max-w-xl mx-auto leading-relaxed">
-            Selecione uma conta para gerenciar suas mensagens com o poder do Gmail.
+          <p className="text-slate-500 dark:text-zinc-400 font-medium text-base max-w-xl mx-auto leading-relaxed">
+            Conecte sua conta do Gmail para ler e responder mensagens sem sair do sistema.
           </p>
           {accounts.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8 md:mt-12 text-left pb-20">

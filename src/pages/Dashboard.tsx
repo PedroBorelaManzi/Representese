@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Plus, ChevronLeft, ChevronRight, Clock, Home, Loader2, Globe, RefreshCw, Calendar } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, Clock, Home, Loader2, Globe, RefreshCw, Calendar, LayoutDashboard } from "lucide-react";
 import { supabase, logAudit } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { cn } from "../lib/utils";
+import { PageHeader } from "../components/ui";
 import { syncGoogleEvents, pushEventToGoogle, deleteEventFromGoogle } from "../lib/googleSync";
 import { fetchHolidays, getClientLocations, Holiday } from "../lib/holidayService";
 import AppointmentForm from "../components/AppointmentForm";
@@ -544,30 +545,27 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 h-full flex flex-col">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-6 pt-6 pb-5 border-b border-slate-200/70 dark:border-zinc-800/70 bg-gradient-to-r from-white to-slate-50/50 dark:from-zinc-900 dark:to-zinc-950/50 mb-6 rounded-t-2xl">
-        <div className="flex items-center justify-between w-full">
-          <div>
-            <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-zinc-100">
-              Início
-            </h1>
-            <p className="text-sm text-slate-400 font-medium mt-0.5">Semana de {new Date().toLocaleString('pt-BR', { month: 'long' })}</p>
-          </div>
-          
-          {!offlineCache.isOnline() && (
-            <span className="px-3 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-full border border-amber-100 dark:border-amber-900/30 shadow-sm animate-pulse flex items-center gap-1.5 self-center">
-              <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
-              Modo Offline Cache
-            </span>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        icon={LayoutDashboard}
+        className="mb-0 lg:mb-0"
+        title="Início"
+        subtitle={new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
+        actions={!offlineCache.isOnline() ? (
+          <span className="px-3 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-full border border-amber-100 dark:border-amber-900/30 shadow-sm animate-pulse flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
+            Modo Offline Cache
+          </span>
+        ) : undefined}
+      />
       
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 flex-1 min-h-0">
         <div className="lg:col-span-3 bg-white dark:bg-zinc-900 shadow-2xl border border-slate-200/80 dark:border-zinc-800/80 rounded-3xl overflow-hidden flex flex-col h-full min-h-[500px]">
           <div className="p-4 border-b border-slate-200 dark:border-zinc-800/80 flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50 dark:bg-zinc-950/40 z-40 gap-4">
             <div className="flex items-center gap-4">
               <h2 className="text-sm font-black text-slate-800 dark:text-zinc-100 uppercase tracking-widest leading-none">
-                {weekDays[0]?.toLocaleDateString('pt-BR', { month: 'long' })} {weekDays[0]?.getFullYear()}
+                {/* Quarta-feira (meio da semana) define o mês dominante — evita mostrar
+                    "junho" quando a semana vira o mês (ex.: dom 28/jun a sáb 4/jul) */}
+                {(weekDays[3] || weekDays[0])?.toLocaleDateString('pt-BR', { month: 'long' })} {(weekDays[3] || weekDays[0])?.getFullYear()}
               </h2>
               <div className="flex items-center gap-2">
                 {googleConnected && (

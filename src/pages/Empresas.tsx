@@ -26,6 +26,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import { cn } from "../lib/utils";
 import { SearchableClientPicker } from "../components/SearchableClientPicker";
+import { PageHeader } from "../components/ui";
 import { syncQueue } from "../lib/syncQueue";
 import { offlineCache, CacheKeys } from "../lib/offlineCache"; // Motor Híbrido V2
 import { EmptyState } from "../components/ui";
@@ -422,33 +423,32 @@ export default function EmpresasPage() {
 
   return (
     <div className="flex flex-col gap-4 lg:gap-10 pb-20 overflow-x-hidden">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-6 pt-6 pb-5 border-b border-slate-200/70 dark:border-zinc-800/70 bg-gradient-to-r from-white to-slate-50/50 dark:from-zinc-900 dark:to-zinc-950/50 mb-6 rounded-t-2xl">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-zinc-100">
-            Empresas
-          </h1>
-        </div>
-        
-        <div className="flex items-center gap-3 md:gap-4">
-          <div className="flex items-center gap-2 md:gap-3 bg-white dark:bg-zinc-900 px-3 md:px-4 py-2 rounded-2xl md:rounded-[24px] border border-slate-100 dark:border-zinc-800 shadow-sm h-12 md:h-14">
-            <button onClick={prevMonth} className="p-1.5 md:p-2 hover:bg-slate-50 dark:hover:bg-zinc-800 rounded-lg md:rounded-xl transition-all active:scale-90">
-              <ChevronLeft className="w-4 h-4 text-slate-400" />
-            </button>
-            <div className="text-[9px] md:text-[10px] font-black uppercase text-emerald-600 tracking-widest min-w-[100px] md:min-w-[120px] text-center">
-              {viewDate.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+      <PageHeader
+        icon={Building2}
+        className="mb-0 lg:mb-0"
+        title="Empresas & Pedidos"
+        subtitle="Faturamento por representada"
+        actions={
+          <>
+            <div className="flex items-center gap-2 bg-white dark:bg-zinc-900 px-3 py-1.5 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-sm">
+              <button onClick={prevMonth} aria-label="Mês anterior" className="p-1.5 hover:bg-slate-50 dark:hover:bg-zinc-800 rounded-lg transition-all active:scale-90">
+                <ChevronLeft className="w-4 h-4 text-slate-400" />
+              </button>
+              <div className="text-[10px] font-black uppercase text-emerald-600 tracking-widest min-w-[110px] text-center">
+                {viewDate.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+              </div>
+              <button onClick={nextMonth} aria-label="Próximo mês" className="p-1.5 hover:bg-slate-50 dark:hover:bg-zinc-800 rounded-lg transition-all active:scale-90">
+                <ChevronRight className="w-4 h-4 text-slate-400" />
+              </button>
             </div>
-            <button onClick={nextMonth} className="p-1.5 md:p-2 hover:bg-slate-50 dark:hover:bg-zinc-800 rounded-lg md:rounded-xl transition-all active:scale-90">
-              <ChevronRight className="w-4 h-4 text-slate-400" />
-            </button>
-          </div>
 
-          <button onClick={() => setIsUploadModalOpen(true)} className="flex items-center gap-2 md:gap-3 px-4 md:px-8 py-3 md:py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl md:rounded-[24px] font-black uppercase text-[9px] md:text-[11px] tracking-widest transition-all shadow-xl active:scale-95 group h-12 md:h-14 whitespace-nowrap">
-            <Upload className="w-4 h-4 md:w-5 md:h-5" />
-            <span className="hidden xs:inline">Enviar Pedidos</span>
-            <span className="xs:hidden">Enviar Pedidos</span>
-          </button>
-        </div>
-      </div>
+            <button onClick={() => setIsUploadModalOpen(true)} className="flex items-center gap-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-lg shadow-emerald-600/25 active:scale-95 whitespace-nowrap">
+              <Upload className="w-4 h-4" />
+              Enviar Pedidos
+            </button>
+          </>
+        }
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
         <div className="bg-white dark:bg-zinc-900 p-5 sm:p-6 lg:p-8 rounded-[32px] md:rounded-[40px] border border-slate-200 dark:border-zinc-800 ring-1 ring-slate-200/80 shadow-none hover:ring-emerald-300 transition-all group">
@@ -495,9 +495,11 @@ export default function EmpresasPage() {
           </div>
           
           <div className="grid grid-cols-2 lg:flex lg:flex-col gap-3 w-full">
-            <button onClick={() => isLimitExceeded ? setShowUpsellModal(true) : setIsAddModalOpen(true)} className="w-full text-left p-4 sm:p-5 lg:p-6 rounded-3xl md:rounded-[32px] bg-emerald-600 text-white shadow-xl flex items-center justify-between group mb-2 md:mb-4 transition-all active:scale-95 col-span-2 lg:col-span-1">
-              <span className="text-[10px] sm:text-xs lg:text-[14px] font-black uppercase tracking-tight">Nova Empresa</span>
-              <Plus className="w-4 h-4 sm:w-5 h-5 lg:w-6 lg:h-6 group-hover:rotate-90 transition-transform" />
+            {/* "Nova Empresa" é ação secundária: borda tracejada em vez de
+                competir em verde sólido com o filtro "Todas as Empresas" */}
+            <button onClick={() => isLimitExceeded ? setShowUpsellModal(true) : setIsAddModalOpen(true)} className="w-full text-left p-4 sm:p-5 rounded-3xl border-2 border-dashed border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/10 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:border-emerald-400 flex items-center justify-between group mb-2 md:mb-4 transition-all active:scale-95 col-span-2 lg:col-span-1">
+              <span className="text-[10px] sm:text-xs lg:text-[13px] font-black uppercase tracking-tight">Nova Empresa</span>
+              <Plus className="w-4 h-4 sm:w-5 h-5 group-hover:rotate-90 transition-transform" />
             </button>
 
             <button 

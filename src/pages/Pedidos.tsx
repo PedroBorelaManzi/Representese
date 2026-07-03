@@ -8,6 +8,7 @@ import { useSettings } from "../contexts/SettingsContext";
 import { processOrderFile } from "../lib/orderProcessor";
 import { getHighPrecisionCoordinates } from "../lib/geminiGeocoding";
 import { cn } from "../lib/utils";
+import { PageHeader } from "../components/ui";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Client, Order } from "../types";
@@ -227,27 +228,21 @@ export default function PedidosPage() {
 
   return (
     <div className="h-full flex flex-col gap-6 md:gap-10 pb-20 overflow-x-hidden">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-          <h1 className="text-2xl md:text-4xl font-black text-slate-900 dark:text-zinc-100 flex items-center gap-3 md:gap-4 uppercase tracking-tight">
-            <div className="p-2 md:p-3 bg-emerald-600 rounded-xl md:rounded-[20px]">
-              <ShoppingBag className="w-6 h-6 md:w-8 md:h-8 text-white" />
-            </div>
-            <span>Gestão <span className="text-slate-200 dark:text-zinc-800 ml-1 md:ml-2">/</span> <span className="text-emerald-600">Pedidos</span></span>
-          </h1>
-          <p className="text-xs md:text-sm text-slate-500 dark:text-zinc-400 mt-2 font-medium">Monitoramento de faturamento e registros via IA.</p>
-        </div>
-        
-        <div className="flex items-center gap-2 md:gap-3">
-            <button 
-              onClick={() => setIsBatchModalOpen(true)}
-              className="px-4 md:px-6 py-3 md:py-4 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-2xl md:rounded-[24px] text-[8px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-emerald-600 transition-all shadow-sm flex items-center gap-2 md:gap-3 active:scale-95 whitespace-nowrap"
-            >
-              <Plus className="w-4 h-4 md:w-5 md:h-5" />
-              Lote IA
-            </button>
-        </div>
-      </div>
+      <PageHeader
+        icon={ShoppingBag}
+        className="mb-0 lg:mb-0"
+        title="Pedidos"
+        subtitle="Faturamento e registros via IA"
+        actions={
+          <button
+            onClick={() => setIsBatchModalOpen(true)}
+            className="px-5 py-3 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-emerald-600 transition-all shadow-sm flex items-center gap-2 active:scale-95 whitespace-nowrap"
+          >
+            <Plus className="w-4 h-4" />
+            Lote IA
+          </button>
+        }
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
         {stats.map((item, i) => (

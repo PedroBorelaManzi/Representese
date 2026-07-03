@@ -254,17 +254,39 @@ export default function Layout() {
     return () => clearInterval(interval);
   }, [user, settings?.alerta_days, settings?.critico_days, settings?.inativo_days]);
 
-  const menuItems = [
-    { icon: LayoutDashboard, label: 'Início', path: '/dashboard' },
-    { icon: Sparkles, label: 'Assistente IA', path: '/dashboard/assistente' },
-    { icon: MapIcon, label: 'Mapa', path: '/dashboard/map' },
-    { icon: Users, label: 'Clientes', path: '/dashboard/clientes' },
-    { icon: Building2, label: 'Empresas', path: '/dashboard/empresas' },
-    { icon: Wallet, label: 'Comissões', path: '/dashboard/comissoes' },
-    { icon: Trophy, label: 'Ranking', path: '/dashboard/ranking' },
-    { icon: Calendar, label: 'Agenda', path: '/dashboard/agenda' },
-    { icon: Mail, label: 'E-mails', path: '/dashboard/email' },
-    { icon: FolderArchive, label: 'Arquivos', path: '/dashboard/arquivos' },
+  // Menu agrupado pelo fluxo de trabalho do representante:
+  // planejar o dia → trabalhar a carteira → se comunicar → consultar materiais.
+  const menuGroups: { title: string; items: { icon: typeof LayoutDashboard; label: string; path: string }[] }[] = [
+    {
+      title: 'Dia a Dia',
+      items: [
+        { icon: LayoutDashboard, label: 'Início', path: '/dashboard' },
+        { icon: Calendar, label: 'Agenda', path: '/dashboard/agenda' },
+        { icon: MapIcon, label: 'Mapa', path: '/dashboard/map' },
+        { icon: Sparkles, label: 'Assistente IA', path: '/dashboard/assistente' },
+      ],
+    },
+    {
+      title: 'Vendas',
+      items: [
+        { icon: Users, label: 'Clientes', path: '/dashboard/clientes' },
+        { icon: Building2, label: 'Empresas & Pedidos', path: '/dashboard/empresas' },
+        { icon: Wallet, label: 'Comissões', path: '/dashboard/comissoes' },
+        { icon: Trophy, label: 'Ranking', path: '/dashboard/ranking' },
+      ],
+    },
+    {
+      title: 'Comunicação',
+      items: [
+        { icon: Mail, label: 'E-mails', path: '/dashboard/email' },
+      ],
+    },
+    {
+      title: 'Recursos',
+      items: [
+        { icon: FolderArchive, label: 'Arquivos', path: '/dashboard/arquivos' },
+      ],
+    },
   ];
 
   return (
@@ -297,10 +319,10 @@ export default function Layout() {
           <div className="flex flex-col h-full">
             <div className="flex items-center justify-between"
               style={{
-                paddingTop: "calc(env(safe-area-inset-top, 0px) + 32px)",
+                paddingTop: "calc(env(safe-area-inset-top, 0px) + 24px)",
                 paddingLeft: "32px",
                 paddingRight: "32px",
-                paddingBottom: "32px"
+                paddingBottom: "20px"
               }}
             >
               <Logo size="sm" />
@@ -313,8 +335,8 @@ export default function Layout() {
               </button>
             </div>
 
-            <div className="px-6 mb-8 border-b border-slate-200/60 pb-4">
-              <div className="p-4 bg-transparent rounded-[24px]">
+            <div className="px-6 mb-4 border-b border-slate-200/60 dark:border-zinc-800/60 pb-4">
+              <div className="px-2 bg-transparent rounded-[24px]">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-xs font-black text-white overflow-hidden shadow-sm">
                     {settings.avatar_url && !avatarError ? (
@@ -362,49 +384,57 @@ export default function Layout() {
               </button>
             </div>
 
-            <nav aria-label="Menu principal" className="flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar">
-              {menuItems.map((item) => {
-                const isActive = location.pathname === item.path;
-                const isEmailItem = item.label === 'E-mails';
-                
-                const handleItemClick = (e: React.MouseEvent) => {
-                  if (isEmailItem && Capacitor.isNativePlatform()) {
-                    e.preventDefault();
-                    setSidebarOpen(false);
-                    window.open("mailto:", "_system");
-                  } else {
-                    setSidebarOpen(false);
-                  }
-                };
+            <nav aria-label="Menu principal" className="flex-1 px-4 overflow-y-auto custom-scrollbar">
+              {menuGroups.map((group, groupIndex) => (
+                <div key={group.title} className={cn(groupIndex > 0 && "pt-4 mt-4 border-t border-slate-100 dark:border-zinc-800/50")}>
+                  <p className="px-4 mb-2 text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest">{group.title}</p>
+                  <div className="space-y-1">
+                    {group.items.map((item) => {
+                      const isActive = location.pathname === item.path;
+                      const isEmailItem = item.label === 'E-mails';
 
-                return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    onClick={handleItemClick}
-                    className={cn(
-                      "flex items-center gap-4 py-3.5 transition-all duration-300 group relative overflow-hidden",
-                      isActive 
-                        ? "bg-emerald-50 text-emerald-700 font-black border-l-2 border-emerald-500 rounded-r-xl pl-[14px]" 
-                        : "text-slate-500 hover:text-slate-900 hover:bg-slate-100/70 rounded-xl px-4"
+                      const handleItemClick = (e: React.MouseEvent) => {
+                        if (isEmailItem && Capacitor.isNativePlatform()) {
+                          e.preventDefault();
+                          setSidebarOpen(false);
+                          window.open("mailto:", "_system");
+                        } else {
+                          setSidebarOpen(false);
+                        }
+                      };
+
+                      return (
+                        <Link
+                          key={item.path}
+                          to={item.path}
+                          onClick={handleItemClick}
+                          className={cn(
+                            "flex items-center gap-4 py-3 transition-all duration-300 group relative overflow-hidden",
+                            isActive
+                              ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 font-black border-l-2 border-emerald-500 rounded-r-xl pl-[14px]"
+                              : "text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-100/70 dark:hover:bg-zinc-800/40 rounded-xl px-4"
+                          )}
+                        >
+                          <item.icon className={cn(
+                            "w-5 h-5 shrink-0 transition-transform duration-300 group-hover:scale-110",
+                            isActive ? "text-emerald-700 dark:text-emerald-400" : "text-slate-400 group-hover:text-emerald-600"
+                          )} />
+                          <span className="text-[13px] uppercase tracking-tight">{item.label}</span>
+                        </Link>
+                      );
+                    })}
+                    {group.title === 'Comunicação' && (
+                      <WhatsAppButton
+                        label="WhatsApp"
+                        variant="sidebar"
+                      />
                     )}
-                  >
-                    <item.icon className={cn(
-                      "w-5 h-5 transition-transform duration-300 group-hover:scale-110",
-                      isActive ? "text-emerald-700" : "text-slate-400 group-hover:text-emerald-600"
-                    )} />
-                    <span className="text-[13px] uppercase tracking-tight">{item.label}</span>
-                  </Link>
-                );
-              })}
-
-              <WhatsAppButton 
-                label="WhatsApp"
-                variant="sidebar"
-              />
+                  </div>
+                </div>
+              ))}
 
               <div className="pt-4 mt-4 border-t border-slate-100 dark:border-zinc-800/50">
-                <p className="px-4 mb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Personalização</p>
+                <p className="px-4 mb-2 text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest">Sistema</p>
                 
                 <div className='space-y-1'>
                   <button
@@ -523,10 +553,10 @@ export default function Layout() {
 
             <div className="mt-auto"
               style={{
-                paddingTop: "32px",
+                paddingTop: "16px",
                 paddingLeft: "32px",
                 paddingRight: "32px",
-                paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 32px)"
+                paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 20px)"
               }}
             >
               <div className="flex items-center justify-between">

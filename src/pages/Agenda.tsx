@@ -14,12 +14,12 @@ import {
   Clock,
   Users,
   ClipboardList,
+  CalendarDays,
   ChevronRight as ArrowRightIcon
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { Link } from "react-router-dom";
-import { fetchVisits } from "../lib/visits";
 import AppointmentForm from "../components/AppointmentForm";
 import DailyNotes from "../components/DailyNotes";
 import { syncGoogleEvents, pushEventToGoogle, deleteEventFromGoogle } from "../lib/googleSync";
@@ -27,6 +27,7 @@ import { syncQueue } from "../lib/syncQueue";
 import { offlineCache, CacheKeys } from "../lib/offlineCache";
 import { fetchHolidays, getClientLocations, Holiday } from "../lib/holidayService";
 import { cn } from "../lib/utils";
+import { PageHeader } from "../components/ui";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -53,7 +54,6 @@ const isSameDay = (d1: Date, d2String: string) => {
 
 export default function Agenda() {
   const { user } = useAuth();
-  const [roteiro, setRoteiro] = useState({ planned: 0, visited: 0 });
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedMobileDate, setSelectedMobileDate] = useState(new Date());
   const [selectedNoteDate, setSelectedNoteDate] = useState(new Date());
@@ -112,17 +112,6 @@ export default function Agenda() {
       setLoading(false);
     }
   }, [agendaData, isQueryLoading]);
-
-  // Roteiro de visitas de hoje (gerenciado no Mapa) — só um resumo aqui
-  useEffect(() => {
-    if (!user) return;
-    fetchVisits(user.id)
-      .then((vs) => setRoteiro({
-        planned: vs.filter((v) => v.status === "planned").length,
-        visited: vs.filter((v) => v.status === "visited").length,
-      }))
-      .catch(() => {});
-  }, [user]);
 
   // Instant local cache loading on mount
   useEffect(() => {
@@ -371,76 +360,54 @@ export default function Agenda() {
 
   return (
     <div className="h-full flex flex-col gap-0 pb-0">
-      {/* Premium Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 px-6 pt-6 pb-5 border-b border-slate-200/70 dark:border-zinc-800/70 bg-gradient-to-r from-white to-slate-50/50 dark:from-zinc-900 dark:to-zinc-950/50 mb-6 rounded-t-2xl">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-zinc-100">
-            Agenda
-          </h1>
-          <p className="text-sm text-slate-400 font-medium mt-0.5">Visitas e feriados do mês.</p>
-        </div>
-        
-        <div className="flex flex-col sm:flex-row items-center gap-4">
-            <div className="relative w-full sm:w-auto">
-              <input 
-                type="text" 
-                value={searchFilter} 
-                onChange={(e) => setSearchFilter(e.target.value)} 
-                placeholder="Filtrar compromissos..." 
-                className="pl-10 pr-4 py-4 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-[24px] text-[10px] font-black uppercase tracking-widest outline-none focus:ring-4 focus:ring-emerald-500/10 w-full sm:w-64" 
+      {/* Header padrão */}
+      <PageHeader
+        icon={CalendarDays}
+        title="Agenda"
+        subtitle="Visitas e feriados do mês"
+        actions={
+          <>
+            <div className="relative flex-1 sm:flex-none">
+              <input
+                type="text"
+                value={searchFilter}
+                onChange={(e) => setSearchFilter(e.target.value)}
+                placeholder="Filtrar compromissos..."
+                aria-label="Filtrar compromissos"
+                className="pl-10 pr-4 py-3 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-2xl text-[10px] font-black uppercase tracking-widest outline-none focus:ring-4 focus:ring-emerald-500/10 w-full sm:w-60"
               />
               <Sparkles className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500" />
             </div>
-            <div className="flex items-center gap-2 bg-slate-50 dark:bg-zinc-900 p-2 rounded-[24px] border border-slate-100 dark:border-zinc-800 w-full sm:w-auto">
-               {googleConnected && (
-                  <button 
-                    onClick={handleSync}
-                    disabled={isSyncing}
-                    className="p-4 bg-white dark:bg-zinc-800 rounded-2xl text-emerald-600 shadow-sm active:scale-95 transition-all"
-                  >
-                     <RefreshCw className={cn("w-6 h-6", isSyncing && "animate-spin")} />
-                  </button>
-               )}
-               <button 
-                onClick={handleGoogleConnect}
-                className={cn(
-                  "flex-1 px-6 py-4 rounded-2xl transition-all font-black uppercase text-[10px] tracking-widest flex items-center gap-3 shadow-sm",
-                  googleConnected ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-white dark:bg-zinc-800 text-slate-400 hover:text-emerald-600 border border-slate-100 dark:border-zinc-800"
-                )}
-               >
-                <Globe className="w-5 h-5 text-emerald-600" />
-                <span className="truncate">{googleConnected ? "Google Calendar Ativo" : "Conectar Calendário"}</span>
-               </button>
-            </div>
-            <button 
-              onClick={() => { setEditingEvent({ id: '', title: '', date: formatDateLocal(selectedMobileDate), time: '09:00 - 10:00' }); setIsModalOpen(true); }}
-              className="w-full sm:w-auto px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-[24px] font-black uppercase text-[11px] tracking-widest transition-all shadow-[0_20px_40px_-10px_rgba(99,102,241,0.4)] active:scale-95 flex items-center justify-center gap-3 group"
+            {googleConnected && (
+              <button
+                onClick={handleSync}
+                disabled={isSyncing}
+                aria-label="Sincronizar com o Google Calendar"
+                className="p-3 bg-white dark:bg-zinc-800 border border-slate-100 dark:border-zinc-800 rounded-2xl text-emerald-600 shadow-sm active:scale-95 transition-all"
+              >
+                <RefreshCw className={cn("w-4 h-4", isSyncing && "animate-spin")} />
+              </button>
+            )}
+            <button
+              onClick={handleGoogleConnect}
+              className={cn(
+                "px-4 py-3 rounded-2xl transition-all font-black uppercase text-[10px] tracking-widest flex items-center gap-2 shadow-sm",
+                googleConnected ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 border border-emerald-100 dark:border-emerald-900/40" : "bg-white dark:bg-zinc-800 text-slate-400 hover:text-emerald-600 border border-slate-100 dark:border-zinc-800"
+              )}
             >
-              <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
+              <Globe className="w-4 h-4 text-emerald-600" />
+              <span className="truncate">{googleConnected ? "Google Ativo" : "Conectar Calendário"}</span>
+            </button>
+            <button
+              onClick={() => { setEditingEvent({ id: '', title: '', date: formatDateLocal(selectedMobileDate), time: '09:00 - 10:00' }); setIsModalOpen(true); }}
+              className="px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-lg shadow-emerald-600/25 active:scale-95 flex items-center justify-center gap-2 group"
+            >
+              <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
               Agendar Visita
             </button>
-        </div>
-      </div>
-
-      {(roteiro.planned + roteiro.visited) > 0 && (
-        <Link
-          to="/dashboard/map"
-          className="mx-6 -mt-2 mb-2 flex items-center gap-3 rounded-2xl border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/20 px-4 py-3 hover:bg-emerald-100/70 dark:hover:bg-emerald-950/40 transition-colors"
-        >
-          <div className="p-1.5 bg-emerald-600 rounded-lg shrink-0">
-            <ClipboardList className="w-4 h-4 text-white" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-xs font-black text-emerald-800 dark:text-emerald-300 uppercase tracking-tight">
-              Roteiro de hoje · {roteiro.visited}/{roteiro.planned + roteiro.visited} visitados
-            </div>
-            <div className="text-[10px] font-bold text-emerald-600/80 dark:text-emerald-500/80">
-              Gerencie suas visitas no Mapa
-            </div>
-          </div>
-          <ArrowRightIcon className="w-4 h-4 text-emerald-600 shrink-0" />
-        </Link>
-      )}
+          </>
+        }
+      />
 
       <div className="flex-1 flex flex-col gap-6 mt-6 min-h-0">
         <div className="flex-1 bg-white dark:bg-zinc-950 rounded-[32px] border border-slate-200/80 dark:border-zinc-800/80 shadow-2xl flex flex-col min-h-[600px] relative overflow-hidden">
