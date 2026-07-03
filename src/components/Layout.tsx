@@ -38,6 +38,7 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { toast } from 'sonner';
 
 const SettingsModal = React.lazy(() => import('./SettingsModal'));
+const OnboardingModal = React.lazy(() => import('./OnboardingModal'));
 
 export default function Layout() {
   const [isEditingInactivity, setIsEditingInactivity] = useState(false);
@@ -574,6 +575,11 @@ export default function Layout() {
 
         <React.Suspense fallback={null}>
           <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} />
+        </React.Suspense>
+
+        {/* Só aparece no primeiro login: guiado por has_completed_onboarding + categorias vazias */}
+        <React.Suspense fallback={null}>
+          <OnboardingModal />
         </React.Suspense>
 
         <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
