@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   motion,
   useScroll,
   useMotionValueEvent,
   useSpring,
+  useTransform,
 } from "framer-motion";
 import { Star, Play, ArrowRight, Brain, TrendingUp } from "lucide-react";
 import { Logo } from "../components/Logo";
@@ -33,6 +34,15 @@ export default function LandingPitch() {
 
   useMotionValueEvent(scrollY, "change", (v) => setScrolled(v > 40));
 
+  // Mockup do hero: entra inclinado em 3D e endireita conforme o scroll
+  const mockupRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress: mockupProgress } = useScroll({
+    target: mockupRef,
+    offset: ["start end", "start 0.35"],
+  });
+  const mockupRotateX = useTransform(mockupProgress, [0, 1], [24, 0]);
+  const mockupScale = useTransform(mockupProgress, [0, 1], [0.94, 1]);
+
   return (
     <div className="min-h-screen bg-white text-slate-900 overflow-x-hidden font-sans selection:bg-emerald-100 selection:text-emerald-900">
 
@@ -42,27 +52,23 @@ export default function LandingPitch() {
         className="fixed top-0 left-0 right-0 h-[3px] origin-left bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500 z-[60]"
       />
 
-      {/* ── NAV ─────────────────────────────────────────────── */}
-      <motion.nav
-        style={{
-          paddingTop:    scrolled ? "10px" : "18px",
-          paddingBottom: scrolled ? "10px" : "18px",
-        }}
-        className={cn(
-          "fixed top-0 w-full z-50 transition-all duration-300",
-          scrolled
-            ? "bg-white/85 backdrop-blur-xl border-b border-slate-200/60 shadow-[0_4px_24px_rgba(0,0,0,0.04)]"
-            : "bg-white/50 backdrop-blur-md"
-        )}
-      >
-        <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
-          <Link to={user ? "/dashboard" : "/"}>
+      {/* ── NAV: pílula flutuante ───────────────────────────── */}
+      <nav className="fixed top-0 inset-x-0 z-50 flex justify-center px-3 pt-3 sm:pt-4 pointer-events-none">
+        <div
+          className={cn(
+            "pointer-events-auto flex items-center gap-1 sm:gap-2 rounded-full border pl-3 pr-1.5 py-1.5 transition-all duration-300 max-w-full",
+            scrolled
+              ? "bg-white/90 backdrop-blur-xl border-slate-200/80 shadow-[0_8px_32px_rgba(15,23,42,0.10)]"
+              : "bg-white/70 backdrop-blur-lg border-slate-200/50 shadow-[0_4px_20px_rgba(15,23,42,0.06)]"
+          )}
+        >
+          <Link to={user ? "/dashboard" : "/"} className="flex items-center pr-1 sm:pr-2">
             {/* No mobile só o ícone: logo com texto + Entrar + CTA não cabem em 390px */}
-            <Logo size="sm" showText variant="light" className="hidden sm:flex" />
-            <Logo size="sm" iconOnly variant="light" className="sm:hidden" />
+            <Logo size="sm" showText variant="light" className="hidden md:flex" />
+            <Logo size="sm" iconOnly variant="light" className="md:hidden" />
           </Link>
 
-          <div className="hidden lg:flex items-center gap-8">
+          <div className="hidden lg:flex items-center">
             {NAV.map((item) => {
               const isActive = active === item.id;
               return (
@@ -70,31 +76,27 @@ export default function LandingPitch() {
                   key={item.id}
                   href={`#${item.id}`}
                   className={cn(
-                    "text-[13px] font-semibold transition-colors relative group",
-                    isActive ? "text-emerald-600" : "text-slate-600 hover:text-slate-900"
+                    "text-[13px] font-semibold transition-all px-3.5 py-2 rounded-full",
+                    isActive
+                      ? "text-emerald-700 bg-emerald-50"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/80"
                   )}
                 >
                   {item.label}
-                  <span
-                    className={cn(
-                      "absolute -bottom-1 left-0 h-0.5 bg-emerald-500 transition-all duration-300",
-                      isActive ? "w-full" : "w-0 group-hover:w-full"
-                    )}
-                  />
                 </a>
               );
             })}
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-            <Link to="/login" className="text-[13px] font-semibold text-slate-600 hover:text-slate-900 transition-colors px-2.5 sm:px-4 py-2">Entrar</Link>
-            <Link to="/planos" className="group text-[13px] font-black text-white bg-emerald-600 hover:bg-emerald-500 transition-all px-3.5 sm:px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-600/20 hover:shadow-emerald-600/30 hover:-translate-y-0.5 flex items-center gap-1.5 whitespace-nowrap">
-              Cadastre-se
-              <ArrowRight className="hidden sm:block w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-            </Link>
-          </div>
+          <span className="hidden lg:block h-5 w-px bg-slate-200 mx-1" />
+
+          <Link to="/login" className="text-[13px] font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all px-3 sm:px-3.5 py-2 rounded-full whitespace-nowrap">Entrar</Link>
+          <Link to="/planos" className="group text-[13px] font-black text-white bg-emerald-600 hover:bg-emerald-500 transition-all px-4 sm:px-5 py-2.5 rounded-full shadow-lg shadow-emerald-600/25 hover:shadow-emerald-600/35 flex items-center gap-1.5 whitespace-nowrap">
+            Cadastre-se
+            <ArrowRight className="hidden sm:block w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+          </Link>
         </div>
-      </motion.nav>
+      </nav>
 
       {/* ── HERO ────────────────────────────────────────────── */}
       <section className="relative min-h-screen flex flex-col items-center justify-center pt-32 pb-16 px-6 overflow-hidden bg-white">
@@ -243,14 +245,20 @@ export default function LandingPitch() {
           </motion.div>
         </div>
 
-        {/* dashboard mockup (codado, janela de navegador) */}
+        {/* dashboard mockup (codado, janela de navegador) — entra inclinado
+            em 3D e endireita conforme o usuário rola (padrão Linear/Mobbin) */}
         <motion.div
-          initial={{ opacity: 0, y: 60, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
+          ref={mockupRef}
+          initial={{ opacity: 0, y: 60 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
           className="relative z-10 mt-16 max-w-4xl xl:max-w-5xl mx-auto w-full px-4"
+          style={{ perspective: 1400 }}
         >
-          <div className="relative">
+          <motion.div
+            className="relative"
+            style={{ rotateX: mockupRotateX, scale: mockupScale, transformOrigin: "50% 0%" }}
+          >
             <div className="absolute -inset-4 bg-gradient-to-b from-emerald-200/50 to-transparent blur-3xl rounded-3xl -z-10" />
             <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-[0_30px_90px_rgba(0,0,0,0.14),0_6px_20px_rgba(0,0,0,0.06)] ring-1 ring-slate-900/5">
               <BrowserDashboard />
@@ -284,7 +292,7 @@ export default function LandingPitch() {
                 <p className="text-[10px] text-slate-500 font-medium mt-0.5">gerado por IA</p>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
         </motion.div>
       </section>
 
