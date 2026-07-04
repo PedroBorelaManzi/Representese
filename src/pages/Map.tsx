@@ -597,11 +597,17 @@ export default function Map() {
           )}
         </button>
 
-        <MapContainer 
+        <MapContainer
           key={isCurrentlyFullscreen ? 'fullscreen' : 'normal'}
-          center={center} 
-          zoom={zoom} 
-          style={{ height: isCurrentlyFullscreen ? '100vh' : '100%', width: '100%' }}
+          center={center}
+          zoom={zoom}
+          /* Preenche o wrapper via posicionamento absoluto (que já é
+             position:relative, igual aos overlays flutuantes abaixo) em vez
+             de height:100% — isso depende da altura do wrapper resolvida
+             pelo flex/grid, e não de toda a cadeia de ancestrais ter altura
+             definida até a raiz, o que em algumas rotas resultava em altura
+             zero e o mapa ficando completamente em branco. */
+          style={{ position: 'absolute', inset: 0 }}
           scrollWheelZoom={true}
         >
           <ChangeView center={center} zoom={zoom} />
