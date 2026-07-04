@@ -206,13 +206,6 @@ export default function Map() {
     window.open(`https://www.google.com/maps/dir/${stops}`, '_blank');
   };
 
-  const openInWaze = () => {
-    if (routeClients.length === 0) return;
-    // Waze só aceita um destino por link — abre a rota até a última parada selecionada.
-    const last = routeClients[routeClients.length - 1];
-    window.open(`https://waze.com/ul?ll=${last.lat},${last.lng}&navigate=yes`, '_blank');
-  };
-
   const loadClients = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -578,22 +571,13 @@ export default function Map() {
                   </React.Fragment>
                 ))}
               </div>
-              <div className="grid grid-cols-2 gap-2.5">
-                <button
-                  onClick={openInGoogleMaps}
-                  className="flex items-center justify-center gap-2 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-indigo-500/30"
-                >
-                  <CheckCheck className="w-4 h-4" />
-                  Google Maps
-                </button>
-                <button
-                  onClick={openInWaze}
-                  className="flex items-center justify-center gap-2 py-3.5 bg-sky-500 hover:bg-sky-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-sky-500/30"
-                >
-                  <Navigation2 className="w-4 h-4" />
-                  Waze
-                </button>
-              </div>
+              <button
+                onClick={openInGoogleMaps}
+                className="w-full flex items-center justify-center gap-2 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-indigo-500/30"
+              >
+                <CheckCheck className="w-4 h-4" />
+                Abrir no Google Maps
+              </button>
             </motion.div>
           )}
         </AnimatePresence>
@@ -617,7 +601,7 @@ export default function Map() {
           key={isCurrentlyFullscreen ? 'fullscreen' : 'normal'}
           center={center} 
           zoom={zoom} 
-          style={{ height: isCurrentlyFullscreen ? '100vh' : 'calc(100vh - 280px)', width: '100%' }} 
+          style={{ height: isCurrentlyFullscreen ? '100vh' : '100%', width: '100%' }}
           scrollWheelZoom={true}
         >
           <ChangeView center={center} zoom={zoom} />
