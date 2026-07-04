@@ -37,13 +37,13 @@ export const NAV = [
 export const NAV_IDS = NAV.map((n) => n.id);
 
 export const industries = [
-  { name: "Construção",     icon: Building2,    image: "/assets/setor_materiais.webp" },
-  { name: "Supermercados",  icon: ShoppingCart,  image: "/assets/setor_supermercado.webp" },
-  { name: "Farmácias",      icon: PlusIcon,      image: "/assets/setor_farmacia.webp" },
-  { name: "Distribuidoras", icon: Store,         image: "/assets/setor_distribuidora.webp" },
-  { name: "Serviços",       icon: Briefcase,     image: "/assets/setor_servicos.webp",     objectPosition: "50% 15%" },
-  { name: "Agronegócio",    icon: Wheat,         image: "/assets/setor_agro.webp" },
-  { name: "Outros",         icon: Zap,           image: "/assets/setor_outros.webp" },
+  { name: "Construção",     icon: Building2,    image: "/assets/setor_materiais.webp",     objectPosition: "center" },
+  { name: "Supermercados",  icon: ShoppingCart,  image: "/assets/setor_supermercado.webp", objectPosition: "center" },
+  { name: "Farmácias",      icon: PlusIcon,      image: "/assets/setor_farmacia.webp",     objectPosition: "center" },
+  { name: "Distribuidoras", icon: Store,         image: "/assets/setor_distribuidora.webp", objectPosition: "center" },
+  { name: "Serviços",       icon: Briefcase,     image: "/assets/setor_servicos.webp",     objectPosition: "center" },
+  { name: "Agronegócio",    icon: Wheat,         image: "/assets/setor_agro.webp",         objectPosition: "center" },
+  { name: "Outros",         icon: Zap,           image: "/assets/setor_outros.webp",       objectPosition: "center" },
 ];
 
 export const integrations = [
