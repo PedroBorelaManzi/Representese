@@ -39,7 +39,7 @@ export const NAV_IDS = NAV.map((n) => n.id);
 export const industries = [
   { name: "Construção",     icon: Building2,    image: "/assets/setor_materiais.webp" },
   { name: "Supermercados",  icon: ShoppingCart,  image: "/assets/setor_supermercado.webp" },
-  { name: "Farmácias",      icon: PlusIcon,      image: "/assets/setor_farmacia.webp",     objectPosition: "50% 20%" },
+  { name: "Farmácias",      icon: PlusIcon,      image: "/assets/setor_farmacia.webp" },
   { name: "Distribuidoras", icon: Store,         image: "/assets/setor_distribuidora.webp" },
   { name: "Serviços",       icon: Briefcase,     image: "/assets/setor_servicos.webp",     objectPosition: "50% 15%" },
   { name: "Agronegócio",    icon: Wheat,         image: "/assets/setor_agro.webp" },
