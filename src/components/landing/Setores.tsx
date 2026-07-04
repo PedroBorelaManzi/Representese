@@ -5,9 +5,9 @@ import { industries } from "./data";
 
 export function SetoresSection() {
   return (
-    <section id="industrias" className="py-24 px-6 bg-white border-b border-slate-100 scroll-mt-28">
-      <div className="max-w-7xl mx-auto">
-        <FadeUp className="text-center mb-14">
+    <section id="industrias" className="py-16 px-6 bg-white border-b border-slate-100 scroll-mt-28">
+      <div className="max-w-[1600px] mx-auto">
+        <FadeUp className="text-center mb-8">
           <div className="flex justify-center">
             <Kicker num="03" label="Setores atendidos" center />
           </div>
@@ -20,7 +20,7 @@ export function SetoresSection() {
         </FadeUp>
 
         {/* 2 colunas no celular, 4 no tablet, todas as 7 lado a lado no desktop */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 sm:gap-5">
           {industries.map((item, idx) => (
             <FadeUp key={item.name} delay={idx * 0.05}>
               <div className="group h-full rounded-2xl overflow-hidden border border-slate-200/80 bg-white shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
@@ -33,11 +33,11 @@ export function SetoresSection() {
                     style={{ objectPosition: (item as { objectPosition?: string }).objectPosition ?? "center" }}
                   />
                 </div>
-                <div className="p-3 flex flex-col items-center gap-1.5 text-center">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
-                    <item.icon className="w-4 h-4 text-emerald-600" />
+                <div className="p-3.5 flex flex-col items-center gap-2 text-center">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
+                    <item.icon className="w-[18px] h-[18px] text-emerald-600" />
                   </div>
-                  <span className="text-[10px] font-black uppercase tracking-tight text-slate-900 leading-tight">
+                  <span className="text-[11px] font-black uppercase tracking-tight text-slate-900 leading-tight">
                     {item.name}
                   </span>
                 </div>
