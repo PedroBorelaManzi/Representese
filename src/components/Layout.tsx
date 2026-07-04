@@ -326,10 +326,10 @@ export default function Layout() {
                 paddingBottom: "20px"
               }}
             >
-              <Logo size="sm" />
-              <button 
+              <Logo size="sm" textSize="text-lg" className="min-w-0" />
+              <button
                 onClick={() => setDesktopSidebarOpen(false)}
-                className="hidden lg:flex p-1.5 hover:bg-slate-50 dark:hover:bg-zinc-800 border border-slate-100 dark:border-zinc-800/80 rounded-xl text-slate-400 hover:text-emerald-600 transition-all duration-300 active:scale-95"
+                className="hidden lg:flex shrink-0 p-1.5 hover:bg-slate-50 dark:hover:bg-zinc-800 border border-slate-100 dark:border-zinc-800/80 rounded-xl text-slate-400 hover:text-emerald-600 transition-all duration-300 active:scale-95"
                 title="Ocultar Menu Lateral"
               >
                 <ChevronLeft className="w-4 h-4" />

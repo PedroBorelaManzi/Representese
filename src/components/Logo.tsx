@@ -7,14 +7,20 @@ interface LogoProps {
   iconOnly?: boolean;
   showText?: boolean;
   size?: 'sm' | 'md' | 'lg' | 'xl';
+  /** Trava o texto num tamanho fixo (classe Tailwind), ignorando o aumento
+   *  automático em telas largas. Use em contextos de largura fixa (ex.:
+   *  sidebar de 280px), onde escalar pelo breakpoint do VIEWPORT — não do
+   *  container — estoura o espaço disponível mesmo a tela sendo grande. */
+  textSize?: string;
 }
 
-export const Logo: React.FC<LogoProps & { variant?: 'light' | 'dark' | 'auto' }> = ({ 
-  className, 
-  iconOnly = false, 
-  showText = true, 
+export const Logo: React.FC<LogoProps & { variant?: 'light' | 'dark' | 'auto' }> = ({
+  className,
+  iconOnly = false,
+  showText = true,
   size = 'md',
-  variant = 'auto'
+  variant = 'auto',
+  textSize,
 }) => {
   const sizeMap = {
     sm: 'h-8 w-8',
@@ -38,7 +44,7 @@ export const Logo: React.FC<LogoProps & { variant?: 'light' | 'dark' | 'auto' }>
       {!finalIconOnly && (
         <span className={cn(
           "font-black tracking-tighter flex items-center leading-none select-none uppercase whitespace-nowrap",
-          size === 'lg' || size === 'xl' ? "text-xl md:text-5xl" : "text-lg md:text-2xl",
+          textSize ?? (size === 'lg' || size === 'xl' ? "text-xl md:text-5xl" : "text-lg md:text-2xl"),
           variant === 'light' ? "text-slate-900" : (variant === 'dark' ? "text-white" : "text-slate-900 dark:text-white")
         )}>
           <span>Represente</span>
