@@ -264,6 +264,7 @@ export default function Layout() {
         { icon: LayoutDashboard, label: 'Início', path: '/dashboard' },
         { icon: Calendar, label: 'Agenda', path: '/dashboard/agenda' },
         { icon: MapIcon, label: 'Mapa', path: '/dashboard/map' },
+        { icon: FolderArchive, label: 'Arquivos', path: '/dashboard/arquivos' },
         { icon: Sparkles, label: 'Assistente IA', path: '/dashboard/assistente' },
       ],
     },
@@ -280,12 +281,6 @@ export default function Layout() {
       title: 'Comunicação',
       items: [
         { icon: Mail, label: 'E-mails', path: '/dashboard/email' },
-      ],
-    },
-    {
-      title: 'Recursos',
-      items: [
-        { icon: FolderArchive, label: 'Arquivos', path: '/dashboard/arquivos' },
       ],
     },
   ];
