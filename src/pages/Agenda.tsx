@@ -365,6 +365,7 @@ export default function Agenda() {
         icon={CalendarDays}
         title="Agenda"
         subtitle="Visitas e feriados do mês"
+        className="mb-4 lg:mb-5"
         actions={
           <>
             <div className="relative flex-1 sm:flex-none">
@@ -409,21 +410,21 @@ export default function Agenda() {
         }
       />
 
-      <div className="flex-1 flex flex-col gap-6 mt-6 min-h-0">
+      <div className="flex-1 flex flex-col gap-6 mt-4 min-h-0">
         <div className="flex-1 bg-white dark:bg-zinc-950 rounded-[32px] border border-slate-200/80 dark:border-zinc-800/80 shadow-2xl flex flex-col min-h-[600px] relative overflow-hidden">
-          <div className="p-4 lg:p-8 border-b border-slate-300/60 dark:border-zinc-800 flex items-center justify-between bg-emerald-600/5 dark:bg-emerald-900/10">
-            <div className="flex items-center gap-4 lg:gap-6">
-               <div className="flex items-center bg-white dark:bg-zinc-900 p-2 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-sm">
-                  <button onClick={() => setCurrentDate(new Date(currentDate.setMonth(currentDate.getMonth() - 1)))} className="p-2 lg:p-3 hover:bg-slate-50 dark:hover:bg-zinc-800 rounded-xl text-slate-400 transition-all active:scale-90"><ChevronLeft className="w-5 h-5" /></button>
-                  <button onClick={() => setCurrentDate(new Date(currentDate.setMonth(currentDate.getMonth() + 1)))} className="p-2 lg:p-3 hover:bg-slate-50 dark:hover:bg-zinc-800 rounded-xl text-slate-400 transition-all active:scale-90"><ChevronRight className="w-5 h-5" /></button>
+          <div className="p-3 lg:p-4 border-b border-slate-300/60 dark:border-zinc-800 flex items-center justify-between bg-emerald-600/5 dark:bg-emerald-900/10">
+            <div className="flex items-center gap-3 lg:gap-4">
+               <div className="flex items-center bg-white dark:bg-zinc-900 p-1 rounded-xl border border-slate-100 dark:border-zinc-800 shadow-sm">
+                  <button onClick={() => setCurrentDate(new Date(currentDate.setMonth(currentDate.getMonth() - 1)))} className="p-1.5 lg:p-2 hover:bg-slate-50 dark:hover:bg-zinc-800 rounded-lg text-slate-400 transition-all active:scale-90"><ChevronLeft className="w-4 h-4" /></button>
+                  <button onClick={() => setCurrentDate(new Date(currentDate.setMonth(currentDate.getMonth() + 1)))} className="p-1.5 lg:p-2 hover:bg-slate-50 dark:hover:bg-zinc-800 rounded-lg text-slate-400 transition-all active:scale-90"><ChevronRight className="w-4 h-4" /></button>
                </div>
-               <h2 className="text-xl lg:text-2xl font-black text-slate-900 dark:text-zinc-100 uppercase tracking-tighter">
+               <h2 className="text-base lg:text-lg font-black text-slate-900 dark:text-zinc-100 uppercase tracking-tighter">
                   {currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
                </h2>
             </div>
 
             <div className="hidden md:flex items-center gap-2">
-              <span className="flex items-center gap-2 px-4 py-2 bg-emerald-50 dark:bg-emerald-950/40 rounded-full text-[9px] font-black uppercase tracking-widest text-emerald-600 border border-emerald-100 dark:border-emerald-900/40 shadow-sm">
+              <span className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 rounded-full text-[9px] font-black uppercase tracking-widest text-emerald-600 border border-emerald-100 dark:border-emerald-900/40 shadow-sm">
                  <Activity className="w-3.5 h-3.5" />
                  {events.length} Compromissos
               </span>
@@ -434,7 +435,7 @@ export default function Agenda() {
           <div className="hidden lg:flex flex-1 flex-col overflow-x-auto lg:overflow-x-visible custom-scrollbar">
             <div className="grid grid-cols-7 border-b border-slate-300/60 dark:border-zinc-800 bg-white dark:bg-zinc-900 sticky top-0 z-20 min-w-[1000px] lg:min-w-0">
               {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
-                <div key={day} className="py-6 text-center text-[10px] font-black text-slate-500 dark:text-zinc-400 uppercase tracking-[0.2em]">{day}</div>
+                <div key={day} className="py-2.5 text-center text-[10px] font-black text-slate-500 dark:text-zinc-400 uppercase tracking-[0.2em]">{day}</div>
               ))}
             </div>
 

@@ -17,6 +17,7 @@ import {
   Eye,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import * as tus from "tus-js-client";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { offlineCache } from "../lib/offlineCache";
@@ -25,6 +26,9 @@ import { toast } from "sonner";
 
 const BUCKET = "user_files";
 const PLACEHOLDER = ".keep";
+// Acima disso o upload direto (PUT único) fica frágil em redes lentas/instáveis;
+// usamos upload retomável (TUS) em partes de 6MB, que retoma sozinho se cair a conexão.
+const RESUMABLE_THRESHOLD = 6 * 1024 * 1024;
 
 interface StorageItem {
   name: string;
@@ -54,6 +58,7 @@ export default function Arquivos() {
   const [items, setItems] = useState<StorageItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ name: string; pct: number } | null>(null);
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [dragActive, setDragActive] = useState(false);
@@ -117,17 +122,63 @@ export default function Arquivos() {
     loadItems();
   };
 
+  // Upload retomável (TUS) em partes de 6MB — não perde o progresso se a conexão cair
+  // no meio do envio, o que é essencial para arquivos grandes em redes instáveis.
+  const uploadResumable = (file: File, objectPath: string, accessToken: string) =>
+    new Promise<void>((resolve, reject) => {
+      const upload = new tus.Upload(file, {
+        endpoint: `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/upload/resumable`,
+        retryDelays: [0, 3000, 5000, 10000, 20000],
+        headers: {
+          authorization: `Bearer ${accessToken}`,
+          "x-upsert": "true",
+        },
+        uploadDataDuringCreation: true,
+        removeFingerprintOnSuccess: true,
+        metadata: {
+          bucketName: BUCKET,
+          objectName: objectPath,
+          contentType: file.type || "application/octet-stream",
+          cacheControl: "3600",
+        },
+        chunkSize: 6 * 1024 * 1024,
+        onError: reject,
+        onProgress: (bytesUploaded, bytesTotal) => {
+          setUploadProgress({ name: file.name, pct: Math.round((bytesUploaded / bytesTotal) * 100) });
+        },
+        onSuccess: () => resolve(),
+      });
+      upload.start();
+    });
+
   const handleUpload = async (files: FileList | null) => {
     if (!files || files.length === 0 || !user) return;
     setUploading(true);
     let ok = 0;
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+
     for (const file of Array.from(files)) {
-      const { error } = await supabase.storage
-        .from(BUCKET)
-        .upload(`${prefix}/${file.name}`, file, { upsert: true });
-      if (error) toast.error(`Falha ao enviar ${file.name}`);
-      else ok++;
+      const objectPath = `${prefix}/${file.name}`;
+      try {
+        if (file.size > RESUMABLE_THRESHOLD && accessToken) {
+          setUploadProgress({ name: file.name, pct: 0 });
+          await uploadResumable(file, objectPath, accessToken);
+        } else {
+          const { error } = await supabase.storage.from(BUCKET).upload(objectPath, file, { upsert: true });
+          if (error) throw error;
+        }
+        ok++;
+      } catch (err: any) {
+        const msg = /payload too large|exceeded|max.*size/i.test(err?.message || "")
+          ? `${file.name} excede o limite de tamanho permitido pelo servidor.`
+          : `Falha ao enviar ${file.name}.`;
+        toast.error(msg);
+      }
     }
+
+    setUploadProgress(null);
     setUploading(false);
     if (ok > 0) toast.success(ok === 1 ? "Arquivo enviado!" : `${ok} arquivos enviados!`);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -151,18 +202,20 @@ export default function Arquivos() {
   };
 
   // Baixa o arquivo (salvar no dispositivo) — ação explícita.
+  // Usa URL assinada + download nativo do navegador em vez de carregar o
+  // blob inteiro na memória do JS, o que deixa arquivos grandes muito mais rápidos.
   const handleDownload = async (name: string) => {
-    const { data, error } = await supabase.storage.from(BUCKET).download(`${prefix}/${name}`);
-    if (error || !data) {
+    const { data, error } = await supabase.storage
+      .from(BUCKET)
+      .createSignedUrl(`${prefix}/${name}`, 60 * 60, { download: name });
+    if (error || !data?.signedUrl) {
       toast.error("Erro ao baixar arquivo.");
       return;
     }
-    const url = URL.createObjectURL(data);
     const a = document.createElement("a");
-    a.href = url;
+    a.href = data.signedUrl;
     a.download = name;
     a.click();
-    URL.revokeObjectURL(url);
   };
 
   // lista todos os caminhos de arquivo (recursivo) sob um prefixo
@@ -227,12 +280,24 @@ export default function Arquivos() {
               className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 active:scale-95 transition-all disabled:opacity-60"
             >
               {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-              Enviar arquivo
+              {uploadProgress ? `Enviando ${uploadProgress.pct}%` : "Enviar arquivo"}
             </button>
             <input ref={fileInputRef} type="file" multiple className="hidden" onChange={(e) => handleUpload(e.target.files)} />
           </>
         }
       />
+
+      {uploadProgress && (
+        <div className="mb-5 -mt-2">
+          <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5">
+            <span className="truncate">{uploadProgress.name}</span>
+            <span className="text-emerald-600">{uploadProgress.pct}%</span>
+          </div>
+          <div className="h-1.5 rounded-full bg-slate-100 dark:bg-zinc-800 overflow-hidden">
+            <div className="h-full bg-emerald-600 transition-all duration-300" style={{ width: `${uploadProgress.pct}%` }} />
+          </div>
+        </div>
+      )}
 
       {/* Breadcrumb */}
       <div className="flex items-center gap-1.5 mb-5 text-[13px] font-bold flex-wrap">
