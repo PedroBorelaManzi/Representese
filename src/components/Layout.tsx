@@ -22,7 +22,7 @@ import {
   Wallet,
   Trophy
 } from 'lucide-react';
-import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom';
+import { Link, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
 import { useSync } from '../contexts/SyncContext';
@@ -83,7 +83,6 @@ export default function Layout() {
   const { settings, updateSettings } = useSettings();
   const { isOnline, pendingCount, isSyncing, syncNow } = useSync();
   const location = useLocation();
-  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);

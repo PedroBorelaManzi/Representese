@@ -254,6 +254,9 @@ export default function CRMPage() {
         });
 
         await Promise.allSettled(chunkPromises);
+
+        const processedSoFar = Math.min(i + chunk.length, uniqueCnpjs.length);
+        toast.loading(`Importando ${processedSoFar}/${uniqueCnpjs.length} clientes...`, { id: toastId });
       }
 
       toast.success(`Importação concluída! ${importedCount} novos clientes adicionados.`, { id: toastId });

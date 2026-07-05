@@ -1,19 +1,17 @@
 ﻿import React, { useState, useEffect, useRef } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap, Tooltip, ZoomControl } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap, Tooltip } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-import { Search, MapPin, Building2, Phone, Mail, Plus, X, Info, Loader2, ExternalLink, Trash2, Navigation2, Target, Users, FileDown, Maximize2, Minimize2, Route, CheckCheck, ArrowRight } from "lucide-react";
+import { Search, MapPin, Building2, Plus, X, Info, Loader2, ExternalLink, Trash2, Navigation2, Target, Users, FileDown, Maximize2, Minimize2, Route, CheckCheck, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
 import { useClients } from "../hooks/useClients";
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from "sonner";
 import { offlineCache, CacheKeys } from "../lib/offlineCache";
 import { PageHeader } from "../components/ui";
-import { syncQueue } from "../lib/syncQueue";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { Capacitor } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
@@ -77,14 +75,8 @@ export default function Map() {
     } catch (e) {}
   };
 
-  // Immediate cache loading
-  useEffect(() => {
-    const cachedClients = (offlineCache.get(CacheKeys.CLIENTS) as any[]) as any[];
-    // Handled by React Query
-  }, []);
-  const { user } = useAuth();
   const { settings } = useSettings();
-  const { data: companies = [], refetch } = useClients();
+  const { data: companies = [] } = useClients();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchingMap, setIsSearchingMap] = useState(false);
@@ -211,8 +203,7 @@ export default function Map() {
     if (!user) return;
 
     if (!offlineCache.isOnline()) {
-      const cachedClients = (offlineCache.get(CacheKeys.CLIENTS) as any[]) as any[];
-      // Handled by React Query
+      // Dados offline já vêm do cache via React Query.
       return;
     }
 

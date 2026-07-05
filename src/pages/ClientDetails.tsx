@@ -53,7 +53,6 @@ export default function ClientDetails() {
   const [files, setFiles] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
-  const [isFetchingCnpj, setIsFetchingCnpj] = useState(false);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
   
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
@@ -102,39 +101,6 @@ export default function ClientDetails() {
   const handleUpdateCategory = (cat: string) => {
     setUploadCategory(cat);
     setDraft(id || "", { category: cat });
-  };
-
-    const fetchCnpjData = async () => {
-    if (!client?.cnpj || !user) return;
-    setIsFetchingCnpj(true);
-    try {
-      const authData = await supabase.auth.getSession();
-      const token = authData.data.session?.access_token;
-      
-      const res = await fetch("https://wdtftftwdqtihupbtlxk.supabase.co/functions/v1/fetch-cnpj", {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': "Bearer " },
-        body: JSON.stringify({ cnpj: client.cnpj })
-      });
-      if (res.status === 403) {
-         toast.error("Upgrade necessário para buscar dados automáticos do CNPJ.");
-         setIsFetchingCnpj(false);
-         return;
-      }
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      
-      const newPhone = data.telefone || client.phone;
-      const newEmail = data.email || client.email;
-      
-      await supabase.from('clients').update({ phone: newPhone, email: newEmail }).eq('id', client.id);
-      setClient({ ...client, phone: newPhone, email: newEmail });
-      toast.success("Dados atualizados pelo CNPJ com sucesso!");
-    } catch (e) {
-      toast.error("Erro ao buscar CNPJ.");
-    } finally {
-      setIsFetchingCnpj(false);
-    }
   };
 
   const loadClientData = async () => {

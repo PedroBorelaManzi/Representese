@@ -1,4 +1,3 @@
-import { offlineCache, CacheKeys } from './offlineCache';
 import { supabase } from './supabase';
 
 export type SyncAction = 'INSERT' | 'UPDATE' | 'DELETE' | 'UPSERT';

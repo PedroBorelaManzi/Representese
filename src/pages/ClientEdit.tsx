@@ -8,7 +8,6 @@ export default function ClientEdit() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   
   const [formData, setFormData] = useState({

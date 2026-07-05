@@ -51,7 +51,6 @@ export default function Dashboard() {
   const [googleConnected, setGoogleConnected] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
-  const [userCategories, setUserCategories] = useState<string[]>([]);
   const [allTimeCategories, setAllTimeCategories] = useState<string[]>([]);
   const [monthlyOrders, setMonthlyOrders] = useState<Order[]>([]);
 
@@ -121,7 +120,6 @@ export default function Dashboard() {
 
       return {
         googleConnected: isGoogleConnected,
-        userCategories: catsArray,
         allTimeCategories: resolvedCats,
         clients: clientsList,
         events: appList,
@@ -136,7 +134,6 @@ export default function Dashboard() {
   useEffect(() => {
     if (dashboardData) {
       setGoogleConnected(dashboardData.googleConnected);
-      setUserCategories(dashboardData.userCategories);
       setAllTimeCategories(dashboardData.allTimeCategories);
       setClients(dashboardData.clients);
       setEvents(dashboardData.events);
@@ -297,9 +294,7 @@ export default function Dashboard() {
   // Offline cache updates or fetch fallback
   useEffect(() => {
     if (!offlineCache.isOnline()) {
-      const cachedSettings = offlineCache.get<any>(CacheKeys.USER_SETTINGS);
       const cachedAllTimeCats = offlineCache.get<string[]>(CacheKeys.ALL_TIME_CATEGORIES);
-      if (cachedSettings?.categories) setUserCategories(cachedSettings.categories);
       if (cachedAllTimeCats) setAllTimeCategories(cachedAllTimeCats);
       
       const cachedClients = offlineCache.get<Client[]>(CacheKeys.CLIENTS) || [];

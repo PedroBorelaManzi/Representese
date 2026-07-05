@@ -63,7 +63,6 @@ export default function Agenda() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Appointment | null>(null);
-  const [loading, setLoading] = useState(true);
   const [googleConnected, setGoogleConnected] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
@@ -72,7 +71,7 @@ export default function Agenda() {
 
   const queryClient = useQueryClient();
 
-  const { data: agendaData, isLoading: isQueryLoading } = useQuery({
+  const { data: agendaData } = useQuery({
     queryKey: ['agendaData', user?.id, currentDate.getFullYear(), currentDate.getMonth()],
     queryFn: async () => {
       if (!user) return null;
@@ -107,11 +106,8 @@ export default function Agenda() {
       setGoogleConnected(agendaData.googleConnected);
       setClients(agendaData.clients);
       setEvents(agendaData.events);
-      setLoading(false);
-    } else if (!isQueryLoading) {
-      setLoading(false);
     }
-  }, [agendaData, isQueryLoading]);
+  }, [agendaData]);
 
   // Instant local cache loading on mount
   useEffect(() => {
@@ -120,10 +116,6 @@ export default function Agenda() {
 
     if (cachedClients) setClients(cachedClients);
     if (cachedEvents) setEvents(cachedEvents);
-
-    if (!offlineCache.isOnline()) {
-      setLoading(false);
-    }
   }, []);
 
   // Load holidays based on clients and currentDate

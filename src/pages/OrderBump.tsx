@@ -110,16 +110,6 @@ export default function OrderBump() {
     return date.toLocaleDateString('pt-BR');
   };
 
-  const getExpirationMonthName = (cycle: 'Mensal' | 'Anual') => {
-    const date = new Date();
-    if (cycle === 'Mensal') {
-      date.setDate(date.getDate() + 30);
-    } else if (cycle === 'Anual') {
-      date.setFullYear(date.getFullYear() + 1);
-    }
-    return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-  };
-
   const validateCard = () => {
     if (!cardHolder.trim() || cardHolder.trim().length < 3) {
       toast.error("Por favor, insira o nome completo do titular do cartão.");
@@ -191,7 +181,6 @@ export default function OrderBump() {
   const currentPlan = planDetails[currentTier as keyof typeof planDetails];
   const nextPlan = planDetails[nextTier as keyof typeof planDetails];
   
-  const currentPrice = billingCycle === 'Anual' ? currentPlan.annualPrice : currentPlan.price;
   const nextPrice = billingCycle === 'Anual' ? nextPlan.annualPrice : nextPlan.price;
 
   // O upgrade cancela a assinatura atual e cria uma nova no valor cheio do
