@@ -331,8 +331,14 @@ EMPRESAS REPRESENTADAS DO USUÁRIO (use exatamente estes nomes como "category" a
     });
   }, [clients, settings?.alerta_days, settings?.critico_days, settings?.inativo_days]);
 
+  // Primeira renderização do histórico entra direto no fim (sem animação),
+  // como se o chat já tivesse sido aberto lá embaixo; só mensagens novas
+  // depois disso rolam suavemente.
+  const hasScrolledOnceRef = useRef(false);
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    if (messages.length === 0) return;
+    endRef.current?.scrollIntoView({ behavior: hasScrolledOnceRef.current ? "smooth" : "auto", block: "end" });
+    hasScrolledOnceRef.current = true;
   }, [messages, thinking]);
 
   const send = async (raw: string) => {
