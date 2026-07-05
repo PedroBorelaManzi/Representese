@@ -24,7 +24,7 @@ export function SetoresSection() {
           {industries.map((item, idx) => (
             <FadeUp key={item.name} delay={idx * 0.05}>
               <div className="group h-full rounded-2xl overflow-hidden border border-slate-200/80 bg-white shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                <div className="aspect-[4/5] overflow-hidden bg-slate-100">
+                <div className="aspect-[4/3] overflow-hidden bg-slate-100">
                   <img
                     src={item.image}
                     alt={item.name}
