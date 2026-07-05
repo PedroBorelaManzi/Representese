@@ -62,8 +62,8 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { isAvailable, isEnabled, setupBiometric, authenticate } = useBiometric();
-  const { signIn, signInOffline, user } = useAuth();
+  const { isAvailable, isEnabled, authenticate } = useBiometric();
+  const { signIn, signInOffline } = useAuth();
   const navigate = useNavigate();
 
   const [isBiometricAvailable, setIsBiometricAvailable] = useState(false);
