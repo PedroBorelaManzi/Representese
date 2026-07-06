@@ -20,7 +20,8 @@ import {
   Sparkles,
   FolderArchive,
   Wallet,
-  Trophy
+  Trophy,
+  Headphones
 } from 'lucide-react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -35,10 +36,12 @@ import { WhatsAppButton } from './WhatsAppButton';
 import { Logo } from './Logo';
 import { SubscriptionGuard } from './SubscriptionGuard';
 import { ErrorBoundary } from './ErrorBoundary';
+import { useIsSupportAdmin } from '../hooks/useIsSupportAdmin';
 import { toast } from 'sonner';
 
 const SettingsModal = React.lazy(() => import('./SettingsModal'));
 const OnboardingModal = React.lazy(() => import('./OnboardingModal'));
+const SupportChatWidget = React.lazy(() => import('./SupportChatWidget').then(m => ({ default: m.SupportChatWidget })));
 
 export default function Layout() {
   const [isEditingInactivity, setIsEditingInactivity] = useState(false);
@@ -82,6 +85,7 @@ export default function Layout() {
   const { user, signOut } = useAuth();
   const { settings, updateSettings } = useSettings();
   const { isOnline, pendingCount, isSyncing, syncNow } = useSync();
+  const { isAdmin: isSupportAdmin } = useIsSupportAdmin();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -282,6 +286,12 @@ export default function Layout() {
         { icon: Mail, label: 'E-mails', path: '/dashboard/email' },
       ],
     },
+    ...(isSupportAdmin
+      ? [{
+          title: 'Admin',
+          items: [{ icon: Headphones, label: 'Suporte', path: '/dashboard/suporte-admin' }],
+        }]
+      : []),
   ];
 
   return (
@@ -574,6 +584,10 @@ export default function Layout() {
         {/* Só aparece no primeiro login: guiado por has_completed_onboarding + categorias vazias */}
         <React.Suspense fallback={null}>
           <OnboardingModal />
+        </React.Suspense>
+
+        <React.Suspense fallback={null}>
+          <SupportChatWidget />
         </React.Suspense>
 
         <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
