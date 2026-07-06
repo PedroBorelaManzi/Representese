@@ -11,6 +11,12 @@ import { Toaster } from "sonner";
 import Layout from "./components/Layout";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { lazyWithRetry } from "./lib/lazyWithRetry";
+import { useTrackPageview } from "./hooks/useTrackPageview";
+
+function PageviewTracker() {
+  useTrackPageview();
+  return null;
+}
 
 // Lazy Loaded Pages (com retry automático em chunk órfão após deploy)
 const Landing = lazyWithRetry(() => import("./pages/LandingPitch"));
@@ -33,6 +39,7 @@ const AssistenteIA = lazyWithRetry(() => import("./pages/AssistenteIA"));
 const ComissoesPage = lazyWithRetry(() => import("./pages/Comissoes"));
 const RankingPage = lazyWithRetry(() => import("./pages/Ranking"));
 const ArquivosPage = lazyWithRetry(() => import("./pages/Arquivos"));
+const AdminSupportPage = lazyWithRetry(() => import("./pages/AdminSupport"));
 const PlanosPage = lazyWithRetry(() => import("./pages/Planos"));
 const GoogleCallback = lazyWithRetry(() => import("./pages/GoogleCallback"));
 const PrivacyPolicy = lazyWithRetry(() => import("./pages/PrivacyPolicy"));
@@ -81,6 +88,7 @@ export default function App() {
     <AuthProvider>
       <Toaster position="top-right" expand={false} richColors />
       <BrowserRouter>
+        <PageviewTracker />
         <SyncProvider>
           <SettingsProvider>
             <UploadProvider>
@@ -112,6 +120,7 @@ export default function App() {
                       <Route path="ranking" element={<RankingPage />} />
                       <Route path="assistente" element={<AssistenteIA />} />
                       <Route path="arquivos" element={<ArquivosPage />} />
+                      <Route path="suporte-admin" element={<AdminSupportPage />} />
                     </Route>
                     <Route path="order-bump" element={<OrderBumpPage />} />
                   </Route>

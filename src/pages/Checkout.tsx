@@ -10,6 +10,7 @@ import { cn } from '../lib/utils';
 import { Logo } from '../components/Logo';
 import { toast } from "sonner";
 import { supabase } from "../lib/supabase";
+import { posthog } from "../lib/posthog";
 
 const plans = {
   exclusivo: {
@@ -234,6 +235,7 @@ export default function Checkout() {
       if (error) throw error;
       if (data.success) {
         toast.success("Pagamento processado!");
+        posthog.capture('signup_completed', { plan_id: selectedPlan.id, billing_cycle: billingCycle });
         if (data.invoiceUrl) setTimeout(() => { window.location.href = data.invoiceUrl; }, 1500);
         else navigate("/login");
       } else toast.error(data.message || "Erro no processamento");

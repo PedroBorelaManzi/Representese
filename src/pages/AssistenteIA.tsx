@@ -38,6 +38,7 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
 import { geminiWithSystem, geminiText } from "../lib/geminiProxy";
+import { posthog } from "../lib/posthog";
 import { cn } from "../lib/utils";
 import { toast } from "sonner";
 import {
@@ -396,6 +397,7 @@ EMPRESAS REPRESENTADAS DO USUÁRIO (use exatamente estes nomes como "category" a
       // Salva apenas o texto limpo no histórico (sem o bloco técnico de ação)
       await saveChat("assistant", displayMsg);
       bumpUsage();
+      posthog.capture('ai_message_sent', { had_image: !!image, had_actions: actions.length > 0 });
     } catch (err: any) {
       // Cancelamento pelo usuário: não é erro, apenas para
       if (err?.name === "AbortError" || controller.signal.aborted) {

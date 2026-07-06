@@ -8,8 +8,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { persistQueryClient } from '@tanstack/react-query-persist-client';
 import { indexedDBPersister } from './lib/queryPersister';
 import { logError } from './lib/supabase';
+import { initSentry, Sentry } from './lib/sentry';
+import { initPostHog } from './lib/posthog';
 
-
+initSentry();
+initPostHog();
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -56,10 +59,27 @@ if (typeof window !== 'undefined') {
   });
 }
 
+const ErrorFallback = () => (
+  <div className="flex flex-col items-center justify-center min-h-screen gap-4 px-6 text-center bg-slate-50">
+    <p className="text-lg font-black text-slate-900">Ops, algo deu errado.</p>
+    <p className="text-sm text-slate-500 max-w-sm">
+      Já registramos o problema. Tente recarregar a página — se persistir, fale com o suporte.
+    </p>
+    <button
+      onClick={() => window.location.reload()}
+      className="px-6 py-3 bg-emerald-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest"
+    >
+      Recarregar
+    </button>
+  </div>
+);
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <App />
-    </QueryClientProvider>
+    <Sentry.ErrorBoundary fallback={<ErrorFallback />}>
+      <QueryClientProvider client={queryClient}>
+        <App />
+      </QueryClientProvider>
+    </Sentry.ErrorBoundary>
   </StrictMode>,
 );

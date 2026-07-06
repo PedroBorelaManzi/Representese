@@ -19,6 +19,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useSettings } from "../contexts/SettingsContext";
 import { supabase } from "../lib/supabase";
+import { posthog } from "../lib/posthog";
 import { useAuth } from "../contexts/AuthContext";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
@@ -272,6 +273,7 @@ export default function OrderBump() {
 
         setIsSuccess(true);
         toast.success("Parabéns! Seu upgrade para o plano " + nextPlan.name + " foi processado!");
+        posthog.capture('plan_upgraded', { from: currentTier, to: nextTier, billing_cycle: billingCycle });
       } catch (e: any) {
         toast.error(e?.message || "Erro ao processar o seu upgrade de assinatura. Tente novamente.");
       } finally {

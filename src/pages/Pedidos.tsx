@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Plus, Search, FileText, Upload, Loader2, ShoppingBag, Trash2, ArrowUpRight, TrendingUp, DollarSign, Calendar, ChevronRight, X, Sparkles, Navigation } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+import { posthog } from "../lib/posthog";
 import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
 import { processOrderFile } from "../lib/orderProcessor";
@@ -144,6 +145,7 @@ export default function PedidosPage() {
       }
       setIsManualModalOpen(false); loadData();
       toast.success("Pedido registrado com sucesso!");
+      posthog.capture('order_logged', { category: selectedCategory });
       clearDraft("manual_order");
     } catch (err) { toast.error(err instanceof Error ? err.message : 'Erro desconhecido'); } finally { setIsSaving(false); }
   };

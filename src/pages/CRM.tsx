@@ -15,6 +15,7 @@ import { getHighPrecisionCoordinates } from '../lib/geminiGeocoding';
 import { Client, Alert, Order } from '../types';
 import { useQueryClient } from '@tanstack/react-query';
 import { EmptyState, PageHeader } from '../components/ui';
+import { posthog } from '../lib/posthog';
 
 export default function CRMPage() {
   const queryClient = useQueryClient();
@@ -149,6 +150,7 @@ export default function CRMPage() {
         const { data, error } = await supabase.from("clients").insert([newClientData]).select().single();
         if (error) throw error;
         toast.success("Cliente adicionado com sucesso!", { id: toastId });
+        posthog.capture('client_added');
         // React Query will refetch or invalidate
         setIsAddingClient(false);
         setNewCnpj("");
