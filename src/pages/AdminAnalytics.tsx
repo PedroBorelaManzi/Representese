@@ -411,6 +411,7 @@ export default function AdminAnalytics() {
             </div>
           </div>
         </>
+        )
       )}
 
       {activeTab === 'landing' && (
