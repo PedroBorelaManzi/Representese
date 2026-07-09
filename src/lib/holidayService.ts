@@ -10,6 +10,90 @@ export interface Holiday {
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+// Feriados estaduais (data fixa, definidos por lei estadual). Usado apenas no
+// fallback offline; a fonte primária é a Edge Function get-holidays, que mantém
+// a mesma tabela. Datas que sempre coincidem com feriado nacional são omitidas.
+const STATE_HOLIDAYS: Record<string, { month: number; day: number; name: string }[]> = {
+  AC: [
+    { month: 1, day: 23, name: "Dia do Evangélico" },
+    { month: 6, day: 15, name: "Aniversário do Acre" },
+    { month: 9, day: 5, name: "Dia da Amazônia" },
+    { month: 11, day: 17, name: "Assinatura do Tratado de Petrópolis" },
+  ],
+  AL: [
+    { month: 6, day: 24, name: "São João" },
+    { month: 6, day: 29, name: "São Pedro" },
+    { month: 9, day: 16, name: "Emancipação Política de Alagoas" },
+  ],
+  AP: [
+    { month: 3, day: 19, name: "São José" },
+    { month: 9, day: 13, name: "Criação do Território do Amapá" },
+  ],
+  AM: [
+    { month: 9, day: 5, name: "Elevação do Amazonas a Província" },
+    { month: 12, day: 8, name: "Nossa Senhora da Conceição" },
+  ],
+  BA: [{ month: 7, day: 2, name: "Independência da Bahia" }],
+  CE: [
+    { month: 3, day: 19, name: "São José" },
+    { month: 3, day: 25, name: "Data Magna do Ceará" },
+  ],
+  DF: [{ month: 11, day: 30, name: "Dia do Evangélico" }],
+  MA: [{ month: 7, day: 28, name: "Adesão do Maranhão à Independência" }],
+  MS: [{ month: 10, day: 11, name: "Criação do Estado de Mato Grosso do Sul" }],
+  PA: [{ month: 8, day: 15, name: "Adesão do Pará à Independência" }],
+  PB: [{ month: 8, day: 5, name: "Fundação do Estado da Paraíba" }],
+  PR: [{ month: 12, day: 19, name: "Emancipação Política do Paraná" }],
+  PE: [{ month: 3, day: 6, name: "Revolução Pernambucana" }],
+  PI: [{ month: 10, day: 19, name: "Dia do Piauí" }],
+  RJ: [{ month: 4, day: 23, name: "São Jorge" }],
+  RN: [
+    { month: 8, day: 7, name: "Dia do Rio Grande do Norte" },
+    { month: 10, day: 3, name: "Mártires de Cunhaú e Uruaçu" },
+  ],
+  RS: [{ month: 9, day: 20, name: "Revolução Farroupilha" }],
+  RO: [
+    { month: 1, day: 4, name: "Criação do Estado de Rondônia" },
+    { month: 6, day: 18, name: "Dia do Evangélico" },
+  ],
+  RR: [{ month: 10, day: 5, name: "Criação do Estado de Roraima" }],
+  SP: [{ month: 7, day: 9, name: "Revolução Constitucionalista de 1932" }],
+  SE: [{ month: 7, day: 8, name: "Emancipação Política de Sergipe" }],
+  TO: [
+    { month: 3, day: 18, name: "Autonomia do Estado do Tocantins" },
+    { month: 10, day: 5, name: "Criação do Estado do Tocantins" },
+  ],
+};
+
+function buildStateHolidays(
+  year: number,
+  locations: { city: string; state?: string }[]
+): Holiday[] {
+  const distinctStates = new Set(
+    locations
+      .map((l) => (l.state || "").trim().toUpperCase())
+      .filter((s) => s.length > 0)
+  );
+
+  const result: Holiday[] = [];
+  distinctStates.forEach((uf) => {
+    (STATE_HOLIDAYS[uf] || []).forEach((h) => {
+      const isoDate = `${year}-${pad2(h.month)}-${pad2(h.day)}`;
+      result.push({
+        id: `estadual-${uf}-${isoDate}-${h.name}`,
+        name: h.name,
+        date: isoDate,
+        type: "estadual",
+        state: uf,
+        description: h.name,
+      });
+    });
+  });
+  return result;
+}
+
 export async function fetchHolidays(year: number, locations: { city: string; state?: string }[]): Promise<Holiday[]> {
   try {
     const response = await fetch(`${SUPABASE_URL}/functions/v1/get-holidays`, {
@@ -42,13 +126,15 @@ export async function fetchHolidays(year: number, locations: { city: string; sta
       { date: `${year}-12-25`, name: "Natal" }
     ];
 
-    return BACKUP_NATIONAL_HOLIDAYS.map(h => ({
+    const nationalFallback: Holiday[] = BACKUP_NATIONAL_HOLIDAYS.map(h => ({
       id: `backup-${year}-${h.name}`,
       name: h.name,
       date: h.date,
       type: "national" as const,
       description: h.name
     }));
+
+    return [...nationalFallback, ...buildStateHolidays(year, locations)];
   }
 }
 

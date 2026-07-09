@@ -215,7 +215,7 @@ export default function Layout() {
             }
           });
 
-          // 3. Check for holidays today (Municipal & National) based on client locations
+          // 3. Check for holidays today (National, State & Municipal) based on client locations
           const locations: { city: string; state?: string }[] = [];
           const seenLocs = new Set();
           clientsData.forEach((c: any) => {
@@ -238,6 +238,7 @@ export default function Layout() {
             todayHolidays.forEach((h: any) => {
               let msg = `Hoje é ${h.name}`;
               if (h.type === 'municipal' && h.city) msg += ` em ${h.city}`;
+              else if (h.type === 'estadual' && h.state) msg += ` em ${h.state}`;
               msg += `. Planeje suas visitas e rotas considerando este feriado!`;
               
               sendNotification(

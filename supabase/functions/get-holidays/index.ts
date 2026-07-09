@@ -8,8 +8,65 @@ const corsHeaders = {
 
 const BASE_URL_GITHUB = 'https://cdn.jsdelivr.net/gh/joaopbini/feriados-brasil@master/dados';
 
-const normalize = (str: string) => 
+const normalize = (str: string) =>
   (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+// Feriados estaduais brasileiros (data fixa, definidos por lei estadual).
+// N\u00e3o inclu\u00edmos datas que sempre coincidem com um feriado nacional
+// (ex.: DF/MG em 21/04 = Tiradentes) para evitar duplicidade na agenda.
+const STATE_HOLIDAYS: Record<string, { month: number; day: number; name: string }[]> = {
+  AC: [
+    { month: 1, day: 23, name: "Dia do Evang\u00e9lico" },
+    { month: 6, day: 15, name: "Anivers\u00e1rio do Acre" },
+    { month: 9, day: 5, name: "Dia da Amaz\u00f4nia" },
+    { month: 11, day: 17, name: "Assinatura do Tratado de Petr\u00f3polis" },
+  ],
+  AL: [
+    { month: 6, day: 24, name: "S\u00e3o Jo\u00e3o" },
+    { month: 6, day: 29, name: "S\u00e3o Pedro" },
+    { month: 9, day: 16, name: "Emancipa\u00e7\u00e3o Pol\u00edtica de Alagoas" },
+  ],
+  AP: [
+    { month: 3, day: 19, name: "S\u00e3o Jos\u00e9" },
+    { month: 9, day: 13, name: "Cria\u00e7\u00e3o do Territ\u00f3rio do Amap\u00e1" },
+  ],
+  AM: [
+    { month: 9, day: 5, name: "Eleva\u00e7\u00e3o do Amazonas a Prov\u00edncia" },
+    { month: 12, day: 8, name: "Nossa Senhora da Concei\u00e7\u00e3o" },
+  ],
+  BA: [{ month: 7, day: 2, name: "Independ\u00eancia da Bahia" }],
+  CE: [
+    { month: 3, day: 19, name: "S\u00e3o Jos\u00e9" },
+    { month: 3, day: 25, name: "Data Magna do Cear\u00e1" },
+  ],
+  DF: [{ month: 11, day: 30, name: "Dia do Evang\u00e9lico" }],
+  MA: [{ month: 7, day: 28, name: "Ades\u00e3o do Maranh\u00e3o \u00e0 Independ\u00eancia" }],
+  MS: [{ month: 10, day: 11, name: "Cria\u00e7\u00e3o do Estado de Mato Grosso do Sul" }],
+  PA: [{ month: 8, day: 15, name: "Ades\u00e3o do Par\u00e1 \u00e0 Independ\u00eancia" }],
+  PB: [{ month: 8, day: 5, name: "Funda\u00e7\u00e3o do Estado da Para\u00edba" }],
+  PR: [{ month: 12, day: 19, name: "Emancipa\u00e7\u00e3o Pol\u00edtica do Paran\u00e1" }],
+  PE: [{ month: 3, day: 6, name: "Revolu\u00e7\u00e3o Pernambucana" }],
+  PI: [{ month: 10, day: 19, name: "Dia do Piau\u00ed" }],
+  RJ: [{ month: 4, day: 23, name: "S\u00e3o Jorge" }],
+  RN: [
+    { month: 8, day: 7, name: "Dia do Rio Grande do Norte" },
+    { month: 10, day: 3, name: "M\u00e1rtires de Cunha\u00fa e Urua\u00e7u" },
+  ],
+  RS: [{ month: 9, day: 20, name: "Revolu\u00e7\u00e3o Farroupilha" }],
+  RO: [
+    { month: 1, day: 4, name: "Cria\u00e7\u00e3o do Estado de Rond\u00f4nia" },
+    { month: 6, day: 18, name: "Dia do Evang\u00e9lico" },
+  ],
+  RR: [{ month: 10, day: 5, name: "Cria\u00e7\u00e3o do Estado de Roraima" }],
+  SP: [{ month: 7, day: 9, name: "Revolu\u00e7\u00e3o Constitucionalista de 1932" }],
+  SE: [{ month: 7, day: 8, name: "Emancipa\u00e7\u00e3o Pol\u00edtica de Sergipe" }],
+  TO: [
+    { month: 3, day: 18, name: "Autonomia do Estado do Tocantins" },
+    { month: 10, day: 5, name: "Cria\u00e7\u00e3o do Estado do Tocantins" },
+  ],
+};
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -65,6 +122,28 @@ serve(async (req) => {
       type: "national",
       description: h.name
     }));
+
+    // 1b. State holidays: derived from the distinct UFs among the user's clients.
+    const distinctStates = new Set<string>(
+      locations
+        .map((l: any) => (l.state || "").trim().toUpperCase())
+        .filter((s: string) => s.length > 0)
+    );
+
+    const stateHolidays: any[] = [];
+    distinctStates.forEach((uf) => {
+      (STATE_HOLIDAYS[uf] || []).forEach((h) => {
+        const isoDate = `${year}-${pad2(h.month)}-${pad2(h.day)}`;
+        stateHolidays.push({
+          id: `estadual-${uf}-${isoDate}-${h.name}`,
+          name: h.name,
+          date: isoDate,
+          type: "estadual",
+          state: uf,
+          description: h.name,
+        });
+      });
+    });
 
     if (locations.length === 0) {
       return new Response(JSON.stringify(nationalHolidays), {
@@ -199,7 +278,7 @@ serve(async (req) => {
       }
     }
 
-    const combined = [...nationalHolidays, ...municipalHolidays];
+    const combined = [...nationalHolidays, ...stateHolidays, ...municipalHolidays];
     
     // Sort
     combined.sort((a, b) => a.date.localeCompare(b.date));
