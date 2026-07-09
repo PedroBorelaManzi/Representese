@@ -92,11 +92,11 @@ export default function App() {
     <AuthProvider>
       <Toaster position="top-right" expand={false} richColors />
       <BrowserRouter>
-        <PageviewTracker />
-        <PageTracker />
         <SyncProvider>
           <SettingsProvider>
             <UploadProvider>
+              <PageviewTracker />
+              <PageTracker />
               <Suspense fallback={<LoadingSpinner />}>
                 <Routes>
                   <Route path="/" element={<LandingOrRedirect />} />
