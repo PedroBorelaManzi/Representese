@@ -16,6 +16,7 @@ import { Client, Alert, Order } from '../types';
 import { useQueryClient } from '@tanstack/react-query';
 import { EmptyState, PageHeader } from '../components/ui';
 import { posthog } from '../lib/posthog';
+import ClientImportModal from '../components/ClientImportModal';
 
 export default function CRMPage() {
   const queryClient = useQueryClient();
@@ -38,13 +39,14 @@ export default function CRMPage() {
   }, [location.search]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Import Modal/State
   const [isImporting, setIsImporting] = useState(false);
   const [isAddingClient, setIsAddingClient] = useState(false);
   const [newCnpj, setNewCnpj] = useState("");
   const [isSearchingCnpj, setIsSearchingCnpj] = useState(false);
   const [importStats, setImportStats] = useState({ current: 0, total: 0 });
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   // Pagination for performance on mobile
   const [displayLimit, setDisplayLimit] = useState(40);
@@ -299,12 +301,11 @@ export default function CRMPage() {
               Novo Cliente
             </button>
             <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isImporting}
+              onClick={() => setIsImportModalOpen(true)}
               className="px-5 py-2.5 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 active:scale-95 transition-all flex items-center justify-center gap-2"
             >
-              {isImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
-              {isImporting ? `Importando` : 'Importar Lista'}
+              <FileUp className="w-4 h-4" />
+              Importar Clientes
             </button>
           </>
         }
@@ -467,6 +468,15 @@ export default function CRMPage() {
           </div>
         )}
       </AnimatePresence>
+
+      <ClientImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImportComplete={() => {
+          setIsImportModalOpen(false);
+          queryClient.invalidateQueries({ queryKey: ['clients'] });
+        }}
+      />
     </div>
   );
 }
