@@ -21,7 +21,8 @@ import {
   FolderArchive,
   Wallet,
   Trophy,
-  Headphones
+  Headphones,
+  FileSpreadsheet
 } from 'lucide-react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -278,6 +279,7 @@ export default function Layout() {
         { icon: Users, label: 'Clientes', path: '/dashboard/clientes' },
         { icon: Building2, label: 'Empresas & Pedidos', path: '/dashboard/empresas' },
         { icon: Wallet, label: 'Comissões', path: '/dashboard/comissoes' },
+        { icon: FileSpreadsheet, label: 'Relatórios', path: '/dashboard/relatorios' },
         { icon: Trophy, label: 'Ranking', path: '/dashboard/ranking' },
       ],
     },
