@@ -41,6 +41,12 @@ type Appointment = {
   google_event_id?: string;
 };
 
+const holidayTypeLabel = (type?: string) =>
+  type === "national" ? "Nacional" : type === "estadual" ? "Estadual" : "Municipal";
+
+const holidayScopeLabel = (h: { city?: string; state?: string }) =>
+  h.city || h.state || "Território Nacional";
+
 const formatDateLocal = (date: Date) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -571,7 +577,7 @@ export default function Agenda() {
                                   </div>
                                   <div className="flex-1 min-w-0">
                                       <h4 className="text-sm font-black text-amber-900 dark:text-amber-400 uppercase tracking-tighter">{h.name}</h4>
-                                      <p className="text-[10px] font-bold text-amber-700/70 dark:text-amber-500/60 uppercase">Feriado {h.type === 'national' ? 'Nacional' : 'Municipal'}</p>
+                                      <p className="text-[10px] font-bold text-amber-700/70 dark:text-amber-500/60 uppercase">Feriado {holidayTypeLabel(h.type)}</p>
                                   </div>
                               </div>
                           ))}
@@ -676,7 +682,7 @@ export default function Agenda() {
                            <h3 className="text-2xl font-black text-slate-900 dark:text-zinc-100 uppercase tracking-tighter leading-none mb-2">{selectedHoliday.name}</h3>
                            <div className="flex items-center gap-2">
                              <span className="text-[10px] font-black px-3 py-1 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 rounded-full uppercase tracking-widest">
-                               {selectedHoliday.type === "national" ? "Nacional" : "Municipal"}
+                               {holidayTypeLabel(selectedHoliday.type)}
                              </span>
                            </div>
                         </div>
@@ -687,7 +693,7 @@ export default function Agenda() {
                    <div className="p-6 bg-slate-50 dark:bg-zinc-800/10 rounded-[32px] border border-slate-100 dark:border-zinc-800 mb-8">
                       <div className="flex items-center gap-3 mb-4 text-slate-400">
                          <Navigation className="w-4 h-4" />
-                         <span className="text-[10px] font-black uppercase tracking-widest">{selectedHoliday.city || "Território Nacional"}</span>
+                         <span className="text-[10px] font-black uppercase tracking-widest">{holidayScopeLabel(selectedHoliday)}</span>
                       </div>
                       <p className="text-sm font-medium text-slate-600 dark:text-zinc-400 leading-relaxed">
                         Este é um feriado oficial. Fique atento às alterações nos seus compromissos e planeje-se com antecedência para otimizar suas visitas a clientes nesta região.
