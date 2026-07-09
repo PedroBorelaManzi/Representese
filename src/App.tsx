@@ -41,6 +41,7 @@ const RankingPage = lazyWithRetry(() => import("./pages/Ranking"));
 const ArquivosPage = lazyWithRetry(() => import("./pages/Arquivos"));
 const AdminSupportPage = lazyWithRetry(() => import("./pages/AdminSupport"));
 const PlanosPage = lazyWithRetry(() => import("./pages/Planos"));
+const ReportsPage = lazyWithRetry(() => import("./pages/Reports"));
 const GoogleCallback = lazyWithRetry(() => import("./pages/GoogleCallback"));
 const PrivacyPolicy = lazyWithRetry(() => import("./pages/PrivacyPolicy"));
 const TermsOfService = lazyWithRetry(() => import("./pages/TermsOfService"));
@@ -120,6 +121,7 @@ export default function App() {
                       <Route path="ranking" element={<RankingPage />} />
                       <Route path="assistente" element={<AssistenteIA />} />
                       <Route path="arquivos" element={<ArquivosPage />} />
+                      <Route path="relatorios" element={<ReportsPage />} />
                       <Route path="suporte-admin" element={<AdminSupportPage />} />
                     </Route>
                     <Route path="order-bump" element={<OrderBumpPage />} />
