@@ -16,8 +16,14 @@ import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Client, Order, Appointment } from "../types";
 
-// Ciclo completo de 24h (00:00 a 23:00)
-const HOURS = Array.from({ length: 24 }, (_, i) => i);
+// Janela visível da agenda semanal: das 05:00 às 20:00 (8h da noite).
+// A última linha (20:00) representa o intervalo 20:00–21:00, então o fim
+// efetivo da janela é 21:00.
+const START_HOUR = 5;
+const END_HOUR = 20;
+const HOURS = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => i + START_HOUR);
+const WINDOW_START_MIN = START_HOUR * 60;
+const WINDOW_END_MIN = (END_HOUR + 1) * 60;
 
 const formatDateLocal = (date: Date) => {
   if (!date || isNaN(date.getTime())) return '';
@@ -33,10 +39,10 @@ export default function Dashboard() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const businessHourRef = React.useRef<HTMLDivElement>(null);
 
-  // Grade agora cobre 24h; abre já no horário comercial em vez de sempre em
-  // 00:00. scrollIntoView (em vez de setar scrollTop num container fixo)
-  // encontra sozinho o ancestral que realmente rola — que aqui é o <main>
-  // da página, não o painel do calendário.
+  // Grade cobre das 05:00 às 20:00; abre já no início da janela.
+  // scrollIntoView (em vez de setar scrollTop num container fixo) encontra
+  // sozinho o ancestral que realmente rola — que aqui é o <main> da página,
+  // não o painel do calendário.
   useEffect(() => {
     businessHourRef.current?.scrollIntoView({ block: "start" });
   }, []);
@@ -545,13 +551,22 @@ export default function Dashboard() {
     const { startMin, endMin, crossesMidnight } = range;
 
     if (event.date === dateStr) {
-      const top = startMin;
-      const height = Math.max((crossesMidnight ? 24 * 60 : endMin) - startMin, 24);
+      const rawEnd = crossesMidnight ? 24 * 60 : endMin;
+      // Recorta o evento à janela visível (05:00–21:00). Fora dela, não renderiza.
+      const visibleStart = Math.max(startMin, WINDOW_START_MIN);
+      const visibleEnd = Math.min(rawEnd, WINDOW_END_MIN);
+      if (visibleEnd <= visibleStart) return null;
+      const top = visibleStart - WINDOW_START_MIN;
+      const height = Math.max(visibleEnd - visibleStart, 24);
       return { top, height, isStart: true };
     }
     if (crossesMidnight && event.date === prevDateStr) {
       const endMinToday = endMin - 24 * 60;
-      return { top: 0, height: Math.max(endMinToday, 24), isStart: false };
+      const visibleEnd = Math.min(endMinToday, WINDOW_END_MIN);
+      // A continuação começa à meia-noite, antes da janela; só mostra o que
+      // sobra dentro dela (a partir das 05:00).
+      if (visibleEnd <= WINDOW_START_MIN) return null;
+      return { top: 0, height: Math.max(visibleEnd - WINDOW_START_MIN, 24), isStart: false };
     }
     return null;
   };
@@ -665,7 +680,7 @@ export default function Dashboard() {
                     {HOURS.map(hour => (
                       <div
                         key={hour}
-                        ref={hour === 7 ? businessHourRef : undefined}
+                        ref={hour === START_HOUR ? businessHourRef : undefined}
                         className="h-[60px] text-[9px] font-black text-slate-400/80 dark:text-zinc-500 pr-2 pt-0.5 flex items-start justify-end tracking-tight border-b border-slate-200/40 dark:border-zinc-800/30"
                       >
                         {String(hour).padStart(2, '0')}:00
