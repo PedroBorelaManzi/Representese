@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { 
-  User, 
-  MapPin, 
-  Phone, 
-  Mail, 
-  Calendar, 
+import {
+  User,
+  MapPin,
+  Phone,
+  Mail,
+  Calendar,
   ArrowLeft,
   FileText,
   Download,
@@ -17,7 +17,8 @@ import {
   Upload,
   AlertCircle,
   CheckCircle2,
-  CreditCard
+  CreditCard,
+  PhoneCall
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
@@ -32,6 +33,9 @@ import { offlineCache, CacheKeys } from "../lib/offlineCache";
 import { Client, Order } from "../types";
 import { computeCompanyCycles, cycleLabel, type CompanyCycle } from "../lib/purchaseCycle";
 import { TrendingUp, Clock3 } from "lucide-react";
+import ClientFollowupModal from "../components/ClientFollowupModal";
+import ClientFollowupHistory from "../components/ClientFollowupHistory";
+import { getClientFollowupStatus, type ClientFollowupStatus } from "../lib/followupService";
 
 import { toTitleCase } from "../lib/utils";
 
@@ -63,6 +67,8 @@ export default function ClientDetails() {
   
   const [uploadValue, setUploadValue] = useState(draft.value || "");
   const [uploadCategory, setUploadCategory] = useState(draft.category || "");
+  const [isFollowupModalOpen, setIsFollowupModalOpen] = useState(false);
+  const [followupStatus, setFollowupStatus] = useState<ClientFollowupStatus | null>(null);
 
   const initializedRef = useRef(false);
 
@@ -77,8 +83,19 @@ export default function ClientDetails() {
   useEffect(() => {
     if (user && id) {
       loadClientData();
+      loadFollowupStatus();
     }
   }, [user, id]);
+
+  const loadFollowupStatus = async () => {
+    if (!user || !id) return;
+    try {
+      const status = await getClientFollowupStatus(user.id, id);
+      setFollowupStatus(status);
+    } catch (error) {
+      console.error('Error loading followup status:', error);
+    }
+  };
 
   useEffect(() => {
     initializedRef.current = false;
@@ -484,13 +501,13 @@ export default function ClientDetails() {
               <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Anotações</h3>
               {isSavingNotes && <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />}
             </div>
-            <textarea 
+            <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Histórico, preferências e notas de negociação..."
               className="w-full h-40 bg-slate-50 dark:bg-zinc-950 border border-slate-100 dark:border-zinc-800 rounded-2xl p-4 text-xs font-medium outline-none focus:ring-4 focus:ring-emerald-500/5 resize-none transition-all dark:text-zinc-200"
             />
-            <button 
+            <button
               onClick={handleSaveNotes}
               disabled={isSavingNotes}
               className="w-full py-4 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all disabled:opacity-50"
@@ -498,6 +515,66 @@ export default function ClientDetails() {
               Atualizar Resumo
             </button>
           </div>
+
+          {/* Followup Status */}
+          {followupStatus && (
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 ring-1 ring-slate-200/80 shadow-none p-8 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Follow-up</h3>
+              </div>
+
+              <div className={cn(
+                "p-4 rounded-xl border-2",
+                followupStatus.priority === 'urgent' ? "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900" :
+                followupStatus.priority === 'high' ? "bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900" :
+                followupStatus.priority === 'medium' ? "bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-900" :
+                followupStatus.priority === 'low' ? "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700" :
+                "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900"
+              )}>
+                <p className={cn(
+                  "text-xs font-black uppercase tracking-widest mb-2",
+                  followupStatus.priority === 'urgent' ? "text-red-800 dark:text-red-200" :
+                  followupStatus.priority === 'high' ? "text-amber-800 dark:text-amber-200" :
+                  followupStatus.priority === 'medium' ? "text-yellow-800 dark:text-yellow-200" :
+                  followupStatus.priority === 'low' ? "text-slate-600 dark:text-slate-400" :
+                  "text-emerald-800 dark:text-emerald-200"
+                )}>
+                  {followupStatus.priority === 'urgent' && '🔴 Urgente - 45+ dias'}
+                  {followupStatus.priority === 'high' && '🟠 Alta - 30+ dias'}
+                  {followupStatus.priority === 'medium' && '🟡 Média - 14+ dias'}
+                  {followupStatus.priority === 'low' && '⚪ Baixa - Recente'}
+                  {followupStatus.priority === 'done' && '✅ Atualizado'}
+                </p>
+                <p className={cn(
+                  "text-[10px] font-bold uppercase tracking-tight",
+                  followupStatus.priority === 'urgent' ? "text-red-700 dark:text-red-300" :
+                  followupStatus.priority === 'high' ? "text-amber-700 dark:text-amber-300" :
+                  followupStatus.priority === 'medium' ? "text-yellow-700 dark:text-yellow-300" :
+                  followupStatus.priority === 'low' ? "text-slate-500 dark:text-slate-400" :
+                  "text-emerald-700 dark:text-emerald-300"
+                )}>
+                  {followupStatus.daysSinceContact >= 0
+                    ? `${followupStatus.daysSinceContact} dias sem contato`
+                    : 'Contato recente'}
+                </p>
+              </div>
+
+              <button
+                onClick={() => setIsFollowupModalOpen(true)}
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+              >
+                <PhoneCall className="w-4 h-4" />
+                Registrar Follow-up
+              </button>
+            </div>
+          )}
+
+          {user && id && (
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 ring-1 ring-slate-200/80 shadow-none p-8 space-y-4">
+              <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 border-b border-slate-50 dark:border-zinc-800 pb-4">Histórico de Contatos</h3>
+              <ClientFollowupHistory clientId={id} userId={user.id} />
+            </div>
+          )}
         </div>
 
         <div className="lg:col-span-2 space-y-8">
@@ -735,6 +812,20 @@ export default function ClientDetails() {
           </div>
         )}
       </AnimatePresence>
+
+      {user && id && (
+        <ClientFollowupModal
+          isOpen={isFollowupModalOpen}
+          onClose={() => setIsFollowupModalOpen(false)}
+          clientId={id}
+          clientName={client?.name || ""}
+          userId={user.id}
+          onFollowupLogged={() => {
+            loadFollowupStatus();
+            loadClientData();
+          }}
+        />
+      )}
     </div>
   );
 }

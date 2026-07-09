@@ -130,7 +130,7 @@ export class NotificationService {
         .from('clients')
         .select('id, name, last_contact')
         .eq('user_id', userId)
-        .eq('status', 'active');
+        .eq('status', 'Ativo');
 
       if (!clients) return;
 
@@ -190,7 +190,7 @@ export class NotificationService {
         .from('clients')
         .select('id')
         .eq('user_id', userId)
-        .eq('status', 'active');
+        .eq('status', 'Ativo');
 
       const { data: orders } = await supabase
         .from('orders')

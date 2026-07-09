@@ -90,7 +90,7 @@ async function fetchReportData(userId: string, year: number, month: number): Pro
   }));
 
   const totalRevenue = orders.reduce((sum, o) => sum + o.value, 0);
-  const activeClients = clients.filter(c => c.status === 'active').length;
+  const activeClients = clients.filter(c => c.status === 'Ativo').length;
 
   return {
     month: startDate,
@@ -148,7 +148,7 @@ export async function generateExcelReport(userId: string, year: number, month: n
   clientsSheet.addRows(data.clients.map(c => ({
     name: c.name,
     city: c.city,
-    status: c.status === 'active' ? 'Ativo' : 'Inativo',
+    status: c.status === 'Ativo' ? 'Ativo' : 'Inativo',
     lastContact: c.lastContact ? new Date(c.lastContact).toLocaleDateString('pt-BR') : 'Nunca'
   })));
 

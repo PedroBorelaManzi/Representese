@@ -223,7 +223,7 @@ export default function ClientImportModal({ isOpen, onClose, onImportComplete }:
           email: client.email || null,
           lat: client.lat || null,
           lng: client.lng || null,
-          status: 'active',
+          status: 'Ativo',
         });
 
         if (error) {
