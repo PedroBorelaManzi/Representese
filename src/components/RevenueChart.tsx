@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
 import { Settings, TrendingUp, X, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -98,10 +99,16 @@ const RevenueChart = ({ data, loading, currentDate, onPrevMonth, onNextMonth }) 
            ))}
         </div>
         {MAX_REVENUE === 1 ? (
-          <div className="flex-1 flex flex-col items-center justify-center h-full pb-10 opacity-60">
-             <TrendingUp className="w-8 h-8 text-slate-300 mb-2" />
-             <p className="text-sm font-black text-slate-400 uppercase tracking-widest text-center">Nenhum faturamento registrado</p>
-             <p className="text-[10px] font-bold text-slate-400 text-center max-w-[200px] mt-1">Seus ganhos mensais aparecerão aqui</p>
+          <div className="flex-1 flex flex-col items-center justify-center h-full pb-10">
+             <TrendingUp className="w-8 h-8 text-slate-300 mb-2 opacity-60" />
+             <p className="text-sm font-black text-slate-400 uppercase tracking-widest text-center opacity-60">Nenhum faturamento registrado</p>
+             <p className="text-[10px] font-bold text-slate-400 text-center max-w-[200px] mt-1 opacity-60">Lance seus pedidos e acompanhe seus ganhos por empresa aqui</p>
+             <Link
+               to="/dashboard/empresas"
+               className="mt-4 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-emerald-600/20"
+             >
+               Lançar primeiro pedido
+             </Link>
           </div>
         ) : (
         <div className={cn(

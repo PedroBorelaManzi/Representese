@@ -124,7 +124,7 @@ export default function OnboardingModal() {
       theme,
       has_completed_onboarding: true,
     });
-    toast.success("Tudo configurado! Bem-vindo ao Represente-Se.");
+    toast.success("Tudo configurado! Siga os Primeiros Passos no seu painel para colocar a carteira pra rodar. 🚀");
   };
 
   // Só aparece no primeiro login: usuário sem onboarding concluído e sem empresas cadastradas ainda.
@@ -312,7 +312,7 @@ export default function OnboardingModal() {
 
               <div className="flex gap-3 mt-4">
                 <button onClick={() => setStep(3)} className="flex-1 py-3 bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-300 rounded-xl font-bold text-sm flex items-center justify-center gap-1"><ChevronLeft className="w-4 h-4" /> Voltar</button>
-                <button onClick={handleFinish} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-1"><Check className="w-4 h-4" /> Finalizar</button>
+                <button onClick={handleFinish} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-1"><Check className="w-4 h-4" /> Começar a usar</button>
               </div>
             </motion.div>
           )}

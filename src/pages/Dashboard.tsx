@@ -9,6 +9,7 @@ import { fetchHolidays, getClientLocations, Holiday } from "../lib/holidayServic
 import AppointmentForm from "../components/AppointmentForm";
 import RevenueChart from "../components/RevenueChart";
 import DailyNotes from "../components/DailyNotes";
+import GettingStartedCard from "../components/GettingStartedCard";
 import { offlineCache, CacheKeys } from "../lib/offlineCache";
 import { toast } from "sonner";
 import { LocalNotifications } from '@capacitor/local-notifications';
@@ -129,7 +130,8 @@ export default function Dashboard() {
         allTimeCategories: resolvedCats,
         clients: clientsList,
         events: appList,
-        monthlyOrders: monthlyOrdersList
+        monthlyOrders: monthlyOrdersList,
+        totalOrdersCount: allOrdersCats.length
       };
     },
     enabled: !!user && offlineCache.isOnline(),
@@ -591,7 +593,20 @@ export default function Dashboard() {
           </span>
         ) : undefined}
       />
-      
+
+      {/* Jornada inicial: só renderiza com dados frescos (online) para não marcar
+          passos errados a partir de cache parcial. */}
+      {dashboardData && (
+        <GettingStartedCard
+          clientsCount={dashboardData.clients.length}
+          appointmentsCount={dashboardData.events.length}
+          ordersCount={dashboardData.totalOrdersCount}
+          googleConnected={dashboardData.googleConnected}
+          onNewAppointment={() => openNewEventModal(selectedNoteDate)}
+          onConnectGoogle={handleGoogleConnect}
+        />
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 flex-1 min-h-0">
         <div className="lg:col-span-3 bg-white dark:bg-zinc-900 shadow-2xl border border-slate-200/80 dark:border-zinc-800/80 rounded-3xl overflow-hidden flex flex-col h-full min-h-[500px] lg:min-h-0">
           <div className="p-4 border-b border-slate-200 dark:border-zinc-800/80 flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50 dark:bg-zinc-950/40 z-40 gap-4">
