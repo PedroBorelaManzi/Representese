@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
+import { useSettings } from '../contexts/SettingsContext';
 
 function getSessionId() {
   let sid = localStorage.getItem('landing_session_id');
@@ -11,6 +12,7 @@ function getSessionId() {
 }
 
 export function useLandingTracking(activeSection: string) {
+  const { settings } = useSettings();
   const startTimeRef = useRef<number>(Date.now());
   const currentSectionRef = useRef<string>(activeSection || 'hero');
 
@@ -22,7 +24,7 @@ export function useLandingTracking(activeSection: string) {
       const timeSpentMs = Date.now() - startTimeRef.current;
       const durationSeconds = Math.floor(timeSpentMs / 1000);
 
-      if (durationSeconds > 1 && currentSectionRef.current) {
+      if (durationSeconds > 1 && currentSectionRef.current && !settings?.is_admin) {
         const sid = getSessionId();
         const sectionId = currentSectionRef.current;
         
@@ -47,7 +49,7 @@ export function useLandingTracking(activeSection: string) {
       const timeSpentMs = Date.now() - startTimeRef.current;
       const durationSeconds = Math.floor(timeSpentMs / 1000);
       
-      if (durationSeconds > 1 && currentSectionRef.current) {
+      if (durationSeconds > 1 && currentSectionRef.current && !settings?.is_admin) {
         const sid = getSessionId();
         const sectionId = currentSectionRef.current;
         

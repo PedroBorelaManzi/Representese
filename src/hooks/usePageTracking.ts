@@ -3,10 +3,12 @@ import { useLocation } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useSettings } from '../contexts/SettingsContext';
 
 export function usePageTracking() {
   const location = useLocation();
   const { user } = useAuth();
+  const { settings } = useSettings();
   const startTimeRef = useRef<number>(Date.now());
   const currentPathRef = useRef<string>(location.pathname);
 
@@ -31,7 +33,7 @@ export function usePageTracking() {
       const durationSeconds = Math.floor(timeSpentMs / 1000);
 
       // Only track if spent more than 1 second to avoid rapid click noise
-      if (durationSeconds > 1 && user) {
+      if (durationSeconds > 1 && user && !settings.is_admin) {
         trackEventMutation.mutate({
           event_type: 'page_view',
           route: oldPath,
@@ -51,7 +53,7 @@ export function usePageTracking() {
       const timeSpentMs = Date.now() - startTimeRef.current;
       const durationSeconds = Math.floor(timeSpentMs / 1000);
       
-      if (durationSeconds > 1 && user) {
+      if (durationSeconds > 1 && user && !settings.is_admin) {
         // We use fetch with keepalive or synchronous xhr for unload events ideally, 
         // but for simplicity we'll try the mutation. It might not complete if the page closes, 
         // but it's acceptable for internal analytics.
@@ -79,7 +81,7 @@ export function usePageTracking() {
 
   return {
     trackAction: (actionName: string, metadata?: any) => {
-      if (user) {
+      if (user && !settings.is_admin) {
         trackEventMutation.mutate({
           event_type: 'action',
           route: location.pathname,
