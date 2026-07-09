@@ -16,6 +16,15 @@ export const SettingsNotifications = React.memo(function SettingsNotifications()
   const [agendaReminders, setAgendaReminders] = useState(() => {
     return localStorage.getItem("rm_agenda_reminders") !== "false";
   });
+  const [orderUpdates, setOrderUpdates] = useState(() => {
+    return localStorage.getItem("rm_notif_orders") !== "false";
+  });
+  const [clientFollowups, setClientFollowups] = useState(() => {
+    return localStorage.getItem("rm_notif_followups") !== "false";
+  });
+  const [weeklySummary, setWeeklySummary] = useState(() => {
+    return localStorage.getItem("rm_notif_summary") !== "false";
+  });
 
   const handleTogglePush = async (checked: boolean) => {
     if (checked) {
@@ -59,6 +68,24 @@ export const SettingsNotifications = React.memo(function SettingsNotifications()
     localStorage.setItem("rm_email_notifications", checked ? "true" : "false");
     setEmailNotifications(checked);
     toast.success(checked ? "Notificações por e-mail ativadas!" : "Notificações por e-mail desativadas.");
+  };
+
+  const handleToggleOrderUpdates = (checked: boolean) => {
+    localStorage.setItem("rm_notif_orders", checked ? "true" : "false");
+    setOrderUpdates(checked);
+    toast.success(checked ? "Notificações de pedidos ativadas!" : "Notificações de pedidos desativadas.");
+  };
+
+  const handleToggleFollowups = (checked: boolean) => {
+    localStorage.setItem("rm_notif_followups", checked ? "true" : "false");
+    setClientFollowups(checked);
+    toast.success(checked ? "Lembretes de follow-up ativados!" : "Lembretes de follow-up desativados.");
+  };
+
+  const handleToggleSummary = (checked: boolean) => {
+    localStorage.setItem("rm_notif_summary", checked ? "true" : "false");
+    setWeeklySummary(checked);
+    toast.success(checked ? "Resumo semanal ativado!" : "Resumo semanal desativado.");
   };
 
   const handleToggleAgenda = async (checked: boolean) => {
@@ -123,23 +150,23 @@ export const SettingsNotifications = React.memo(function SettingsNotifications()
       <h2 className="text-xl md:text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Notificações</h2>
       <div className="space-y-4">
         {[
-          { 
-            title: 'Notificações por E-mail', 
-            desc: 'Receba alertas de inatividade e relatórios por e-mail', 
+          {
+            title: 'Notificações por E-mail',
+            desc: 'Receba alertas de inatividade e relatórios por e-mail',
             icon: Globe,
             enabled: emailNotifications,
             toggle: () => handleToggleEmail(!emailNotifications)
           },
-          { 
-            title: 'Notificações Push', 
-            desc: 'Alertas em tempo real no seu navegador', 
+          {
+            title: 'Notificações Push',
+            desc: 'Alertas em tempo real no seu navegador',
             icon: Smartphone,
             enabled: pushNotifications,
             toggle: () => handleTogglePush(!pushNotifications)
           },
-          { 
-            title: 'Lembretes de Agenda', 
-            desc: 'Avisos sobre seus compromissos e reuniões', 
+          {
+            title: 'Lembretes de Agenda',
+            desc: 'Avisos sobre seus compromissos e reuniões',
             icon: Bell,
             enabled: agendaReminders,
             toggle: () => handleToggleAgenda(!agendaReminders)
@@ -170,6 +197,53 @@ export const SettingsNotifications = React.memo(function SettingsNotifications()
           </div>
         ))}
       </div>
+
+      {pushNotifications && (
+        <div className="space-y-4 mt-8">
+          <h3 className="text-sm font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">Tipos de Notificação</h3>
+          <div className="space-y-3">
+            {[
+              {
+                title: '📦 Atualização de Pedidos',
+                desc: 'Notificações quando status de pedidos mudam',
+                enabled: orderUpdates,
+                toggle: () => handleToggleOrderUpdates(!orderUpdates)
+              },
+              {
+                title: '👥 Lembretes de Follow-up',
+                desc: 'Lembrete quando clientes precisam de contato',
+                enabled: clientFollowups,
+                toggle: () => handleToggleFollowups(!clientFollowups)
+              },
+              {
+                title: '📊 Resumo Semanal',
+                desc: 'Sumário das atividades da semana toda segunda',
+                enabled: weeklySummary,
+                toggle: () => handleToggleSummary(!weeklySummary)
+              }
+            ].map((item, i) => (
+              <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700">
+                <div className="text-left flex-1">
+                  <p className="text-[11px] font-black uppercase tracking-widest text-slate-900 dark:text-zinc-100">{item.title}</p>
+                  <p className="text-[9px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-tight">{item.desc}</p>
+                </div>
+                <button
+                  onClick={item.toggle}
+                  className={cn(
+                    "w-10 h-6 rounded-full p-0.5 transition-all duration-300 relative flex items-center cursor-pointer shrink-0 ml-2",
+                    item.enabled ? "bg-emerald-500 justify-end" : "bg-slate-300 dark:bg-zinc-600 justify-start"
+                  )}
+                >
+                  <motion.div
+                    layout
+                    className="w-4 h-4 rounded-full bg-white shadow-sm"
+                  />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {pushNotifications && (
         <div className="p-4 md:p-6 rounded-2xl md:rounded-[32px] bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 flex flex-col md:flex-row items-center justify-between gap-4 mt-6">
