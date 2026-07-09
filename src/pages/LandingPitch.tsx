@@ -22,6 +22,7 @@ import { PlanosSection } from "../components/landing/Planos";
 import { FaqSection } from "../components/landing/Faq";
 import { CtaFinalSection, LandingFooter } from "../components/landing/CtaFooter";
 import { ComparativoSection } from "../components/landing/Comparativo";
+import { useLandingTracking } from "../hooks/useLandingTracking";
 
 /* Página composta por seções em src/components/landing/ (auditoria 3.1).
    Aqui ficam só a nav e o hero, que dependem do estado de scroll da página. */
@@ -31,6 +32,9 @@ export default function LandingPitch() {
   const [scrolled, setScrolled] = useState(false);
   const { user } = useAuth();
   const active = useActiveSection(NAV_IDS);
+  
+  // Track anonymous landing page usage
+  useLandingTracking(active);
 
   useMotionValueEvent(scrollY, "change", (v) => setScrolled(v > 40));
 

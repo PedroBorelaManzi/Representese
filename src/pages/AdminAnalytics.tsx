@@ -3,10 +3,10 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { useSettings } from '../contexts/SettingsContext';
 import { Navigate } from 'react-router-dom';
-import { BarChart3, Clock, LayoutDashboard, MousePointerClick, Search, ChevronDown, ChevronUp, User } from 'lucide-react';
+import { BarChart3, Clock, LayoutDashboard, MousePointerClick, Search, ChevronDown, ChevronUp, User, Users, LineChart } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend
+  PieChart, Pie, Cell
 } from 'recharts';
 import { cn } from '../lib/utils';
 
@@ -30,11 +30,13 @@ export default function AdminAnalytics() {
   const { settings } = useSettings();
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'sistema' | 'landing'>('sistema');
 
   if (!settings.is_admin) {
     return <Navigate to="/dashboard" replace />;
   }
 
+  // --- QUERY 1: Sistema (Usuários Logados) ---
   const { data, isLoading } = useQuery({
     queryKey: ['admin_analytics_full'],
     queryFn: async () => {
@@ -125,7 +127,49 @@ export default function AdminAnalytics() {
         globalChartData,
         usersList
       };
-    }
+    },
+    enabled: activeTab === 'sistema'
+  });
+
+  // --- QUERY 2: Landing Page (Leads Anônimos) ---
+  const { data: landingData, isLoading: isLoadingLanding } = useQuery({
+    queryKey: ['admin_analytics_landing'],
+    queryFn: async () => {
+      const { data: eventsData, error } = await supabase
+        .from('landing_events')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(10000);
+
+      if (error) throw error;
+      const events = eventsData || [];
+      
+      const timeBySection = events.reduce((acc, curr) => {
+        const section = curr.section_id || 'unknown';
+        acc[section] = (acc[section] || 0) + (curr.duration_seconds || 0);
+        return acc;
+      }, {} as Record<string, number>);
+
+      const totalTime = events.reduce((acc, curr) => acc + (curr.duration_seconds || 0), 0);
+      const uniqueSessions = new Set(events.map(e => e.session_id)).size;
+
+      const chartData = Object.entries(timeBySection)
+        .map(([name, tempoSegundos]) => ({
+          name: name === 'hero' ? 'Início (Hero)' : name.charAt(0).toUpperCase() + name.slice(1),
+          tempoSegundos,
+          tempoMinutos: Number((tempoSegundos / 60).toFixed(2)),
+          percentage: totalTime > 0 ? Number(((tempoSegundos / totalTime) * 100).toFixed(1)) : 0
+        }))
+        .sort((a, b) => b.tempoSegundos - a.tempoSegundos);
+
+      return {
+        totalEvents: events.length,
+        totalTime,
+        uniqueSessions,
+        chartData
+      };
+    },
+    enabled: activeTab === 'landing'
   });
 
   const formatTime = (seconds: number) => {
@@ -149,12 +193,43 @@ export default function AdminAnalytics() {
             <LayoutDashboard className="w-8 h-8 text-emerald-600" />
             Analytics Global
           </h1>
-          <p className="text-zinc-500 mt-2">Métricas de tempo de tela e comportamento geral dos usuários.</p>
+          <p className="text-zinc-500 mt-2">Métricas de comportamento de usuários e visitantes da página de vendas.</p>
         </div>
       </div>
 
-      {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Tabs */}
+      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-zinc-800 pb-px mb-6">
+        <button
+          onClick={() => setActiveTab('sistema')}
+          className={cn(
+            "px-6 py-3 font-semibold text-sm transition-all relative",
+            activeTab === 'sistema' ? "text-emerald-600" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+          )}
+        >
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            Sistema (Logados)
+          </div>
+          {activeTab === 'sistema' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600" />}
+        </button>
+        <button
+          onClick={() => setActiveTab('landing')}
+          className={cn(
+            "px-6 py-3 font-semibold text-sm transition-all relative",
+            activeTab === 'landing' ? "text-indigo-600" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+          )}
+        >
+          <div className="flex items-center gap-2">
+            <LineChart className="w-4 h-4" />
+            Landing Page (Leads)
+          </div>
+          {activeTab === 'landing' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600" />}
+        </button>
+      </div>
+
+      {activeTab === 'sistema' && (
+        isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map(i => (
              <div key={i} className="h-32 bg-zinc-100 dark:bg-zinc-800 rounded-2xl animate-pulse"></div>
           ))}
@@ -336,6 +411,119 @@ export default function AdminAnalytics() {
             </div>
           </div>
         </>
+      )}
+
+      {activeTab === 'landing' && (
+        isLoadingLanding ? (
+           <div className="h-32 bg-zinc-100 dark:bg-zinc-800 rounded-2xl animate-pulse"></div>
+        ) : (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+            {/* Top Cards Landing */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800 flex flex-col justify-center">
+                <div className="flex items-center gap-3 mb-2">
+                  <Users className="w-5 h-5 text-indigo-600" />
+                  <h3 className="text-sm font-medium text-zinc-500">Visitantes Únicos (Sessões)</h3>
+                </div>
+                <p className="text-4xl font-black text-zinc-900 dark:text-white tracking-tight">
+                  {landingData?.uniqueSessions.toLocaleString()}
+                </p>
+              </div>
+              <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800 flex flex-col justify-center">
+                <div className="flex items-center gap-3 mb-2">
+                  <MousePointerClick className="w-5 h-5 text-emerald-600" />
+                  <h3 className="text-sm font-medium text-zinc-500">Total de Interações</h3>
+                </div>
+                <p className="text-4xl font-black text-zinc-900 dark:text-white tracking-tight">
+                  {landingData?.totalEvents.toLocaleString()}
+                </p>
+              </div>
+              <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800 flex flex-col justify-center">
+                <div className="flex items-center gap-3 mb-2">
+                  <Clock className="w-5 h-5 text-amber-500" />
+                  <h3 className="text-sm font-medium text-zinc-500">Tempo de Leitura Global</h3>
+                </div>
+                <p className="text-4xl font-black text-zinc-900 dark:text-white tracking-tight">
+                  {formatTime(landingData?.totalTime || 0)}
+                </p>
+              </div>
+            </div>
+
+            {/* Gráfico Geral de Funil da Landing Page */}
+            <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800 flex flex-col lg:flex-row items-center gap-8">
+              <div className="w-full lg:w-1/2 h-[400px]">
+                 <div className="flex items-center gap-3 mb-6">
+                  <LineChart className="w-6 h-6 text-zinc-900 dark:text-white" />
+                  <h3 className="text-xl font-semibold text-zinc-900 dark:text-white">Atenção por Seção (Minutos)</h3>
+                </div>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={landingData?.chartData} layout="vertical" margin={{ top: 10, right: 30, left: 40, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.1} horizontal={false} />
+                    <XAxis type="number" tick={{ fill: '#888888', fontSize: 12 }} axisLine={false} tickLine={false} />
+                    <YAxis dataKey="name" type="category" tick={{ fill: '#888888', fontSize: 12 }} axisLine={false} tickLine={false} />
+                    <Tooltip 
+                      cursor={{ fill: 'rgba(99, 102, 241, 0.05)' }}
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      formatter={(value: number) => [`${value} minutos`, 'Tempo Gasto']}
+                    />
+                    <Bar dataKey="tempoMinutos" fill="#6366f1" radius={[0, 6, 6, 0]}>
+                      {landingData?.chartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Lista Detalhada em Pizza */}
+              <div className="w-full lg:w-1/2">
+                <h4 className="text-sm font-bold text-slate-700 dark:text-zinc-300 mb-6">Onde eles mais leem? (% do Tempo)</h4>
+                <div className="flex flex-col sm:flex-row items-center gap-6">
+                  <div className="w-48 h-48">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={landingData?.chartData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={50}
+                          outerRadius={80}
+                          paddingAngle={2}
+                          dataKey="percentage"
+                          nameKey="name"
+                          labelLine={false}
+                        >
+                          {landingData?.chartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          formatter={(value: number) => [`${value}% do tempo`, 'Visibilidade']}
+                          contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  
+                  <div className="flex-1 space-y-3 w-full">
+                    {landingData?.chartData.map((route, i) => (
+                      <div key={route.name} className="flex items-center justify-between text-sm p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }}></div>
+                          <span className="font-medium text-slate-600 dark:text-zinc-400">{route.name}</span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <span className="text-slate-500 text-xs text-right hidden sm:block">{formatTime(route.tempoSegundos)}</span>
+                          <span className="font-bold text-slate-800 dark:text-zinc-200 w-10 text-right">{route.percentage}%</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
       )}
     </div>
   );
