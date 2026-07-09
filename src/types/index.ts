@@ -54,3 +54,19 @@ export interface Appointment {
   user_id: string;
   created_at?: string;
 }
+
+export interface UserSettings {
+  id: string;
+  user_id: string;
+  is_admin?: boolean;
+}
+
+export interface UserEvent {
+  id: string;
+  user_id: string;
+  event_type: string;
+  route?: string;
+  duration_seconds?: number;
+  metadata?: Record<string, any>;
+  created_at: string;
+}

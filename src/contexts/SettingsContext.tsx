@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode } from "react";
 import { supabase } from "../lib/supabase";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "./AuthContext";
@@ -22,6 +22,7 @@ interface Settings {
   avatar_url?: string;
   trial_ends_at?: string;
   current_period_end?: string;
+  is_admin?: boolean;
 }
 
 const defaultSettings: Settings = {
@@ -37,6 +38,7 @@ const defaultSettings: Settings = {
   subscription_status: 'active', // Grace period default
   plan_id: 'exclusivo',
   avatar_url: undefined,
+  is_admin: false,
 };
 
 interface SettingsContextType {
@@ -105,6 +107,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           avatar_url: cached.avatar_url,
           trial_ends_at: cached.trial_ends_at,
           current_period_end: cached.current_period_end,
+          is_admin: cached.is_admin ?? defaultSettings.is_admin,
         });
       }
 
@@ -176,6 +179,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           avatar_url: finalAvatar,
           trial_ends_at: entData?.trial_ends_at,
           current_period_end: entData?.current_period_end,
+          is_admin: data.is_admin ?? defaultSettings.is_admin,
         };
 
         setSettings(freshSettings);

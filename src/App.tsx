@@ -18,6 +18,8 @@ function PageviewTracker() {
   return null;
 }
 
+import PageTracker from "./components/PageTracker";
+
 // Lazy Loaded Pages (com retry automático em chunk órfão após deploy)
 const Landing = lazyWithRetry(() => import("./pages/LandingPitch"));
 const Login = lazyWithRetry(() => import('./pages/Login'));
@@ -45,6 +47,7 @@ const ReportsPage = lazyWithRetry(() => import("./pages/Reports"));
 const GoogleCallback = lazyWithRetry(() => import("./pages/GoogleCallback"));
 const PrivacyPolicy = lazyWithRetry(() => import("./pages/PrivacyPolicy"));
 const TermsOfService = lazyWithRetry(() => import("./pages/TermsOfService"));
+const AdminAnalytics = lazyWithRetry(() => import("./pages/AdminAnalytics"));
 
 const LoadingSpinner = () => (
   <div className="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-zinc-950">
@@ -90,6 +93,7 @@ export default function App() {
       <Toaster position="top-right" expand={false} richColors />
       <BrowserRouter>
         <PageviewTracker />
+        <PageTracker />
         <SyncProvider>
           <SettingsProvider>
             <UploadProvider>
@@ -123,6 +127,7 @@ export default function App() {
                       <Route path="arquivos" element={<ArquivosPage />} />
                       <Route path="relatorios" element={<ReportsPage />} />
                       <Route path="suporte-admin" element={<AdminSupportPage />} />
+                      <Route path="admin/analytics" element={<AdminAnalytics />} />
                     </Route>
                     <Route path="order-bump" element={<OrderBumpPage />} />
                   </Route>

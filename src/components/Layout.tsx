@@ -22,7 +22,8 @@ import {
   Wallet,
   Trophy,
   Headphones,
-  FileSpreadsheet
+  FileSpreadsheet,
+  BarChart3
 } from 'lucide-react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -289,10 +290,13 @@ export default function Layout() {
         { icon: Mail, label: 'E-mails', path: '/dashboard/email' },
       ],
     },
-    ...(isSupportAdmin
+    ...((isSupportAdmin || settings.is_admin)
       ? [{
           title: 'Admin',
-          items: [{ icon: Headphones, label: 'Suporte', path: '/dashboard/suporte-admin' }],
+          items: [
+            ...(isSupportAdmin ? [{ icon: Headphones, label: 'Suporte', path: '/dashboard/suporte-admin' }] : []),
+            ...(settings.is_admin ? [{ icon: BarChart3, label: 'Analytics', path: '/dashboard/admin/analytics' }] : []),
+          ],
         }]
       : []),
   ];

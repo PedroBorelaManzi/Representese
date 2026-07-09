@@ -1,0 +1,7 @@
+import React from 'react';
+import { usePageTracking } from '../hooks/usePageTracking';
+
+export default function PageTracker() {
+  usePageTracking();
+  return null;
+}
