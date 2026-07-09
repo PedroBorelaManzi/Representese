@@ -11,7 +11,6 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
-import { toast } from "sonner";
 import { cn } from "../lib/utils";
 import { plans } from "../lib/plansData";
 import { PlanCards } from "../components/plans/PlanCards";
@@ -27,16 +26,6 @@ export default function Planos() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [currentSubscription, setCurrentSubscription] = useState<any>(null);
-
-  useEffect(() => {
-    if (user?.email === 'pedroborelamanzi@gmail.com' && !localStorage.getItem('temp_downgrade_done_3')) {
-      supabase.from('user_settings').update({ subscription_plan: 'Acesso Exclusivo' }).eq('user_id', user.id).then(() => {
-        localStorage.setItem('temp_downgrade_done_3', 'true');
-        toast.success("Plano voltado para Exclusivo com sucesso para testes!");
-        setTimeout(() => window.location.reload(), 1500);
-      });
-    }
-  }, [user]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });

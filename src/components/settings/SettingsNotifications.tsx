@@ -16,9 +16,6 @@ export const SettingsNotifications = React.memo(function SettingsNotifications()
   const [agendaReminders, setAgendaReminders] = useState(() => {
     return localStorage.getItem("rm_agenda_reminders") !== "false";
   });
-  const [orderUpdates, setOrderUpdates] = useState(() => {
-    return localStorage.getItem("rm_notif_orders") !== "false";
-  });
   const [clientFollowups, setClientFollowups] = useState(() => {
     return localStorage.getItem("rm_notif_followups") !== "false";
   });
@@ -68,12 +65,6 @@ export const SettingsNotifications = React.memo(function SettingsNotifications()
     localStorage.setItem("rm_email_notifications", checked ? "true" : "false");
     setEmailNotifications(checked);
     toast.success(checked ? "Notificações por e-mail ativadas!" : "Notificações por e-mail desativadas.");
-  };
-
-  const handleToggleOrderUpdates = (checked: boolean) => {
-    localStorage.setItem("rm_notif_orders", checked ? "true" : "false");
-    setOrderUpdates(checked);
-    toast.success(checked ? "Notificações de pedidos ativadas!" : "Notificações de pedidos desativadas.");
   };
 
   const handleToggleFollowups = (checked: boolean) => {
@@ -203,12 +194,6 @@ export const SettingsNotifications = React.memo(function SettingsNotifications()
           <h3 className="text-sm font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">Tipos de Notificação</h3>
           <div className="space-y-3">
             {[
-              {
-                title: '📦 Atualização de Pedidos',
-                desc: 'Notificações quando status de pedidos mudam',
-                enabled: orderUpdates,
-                toggle: () => handleToggleOrderUpdates(!orderUpdates)
-              },
               {
                 title: '👥 Lembretes de Follow-up',
                 desc: 'Lembrete quando clientes precisam de contato',

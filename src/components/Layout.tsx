@@ -85,7 +85,7 @@ export default function Layout() {
 
   const { user, signOut } = useAuth();
   const { settings, updateSettings } = useSettings();
-  const { isOnline, pendingCount, isSyncing, syncNow } = useSync();
+  const { isOnline, pendingCount, deadLetterCount, isSyncing, syncNow } = useSync();
   const { isAdmin: isSupportAdmin } = useIsSupportAdmin();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -390,6 +390,11 @@ export default function Layout() {
                   </div>
                 )}
               </button>
+              {deadLetterCount > 0 && (
+                <p className="mt-2 px-3 py-2 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/30 text-[10px] font-bold text-red-600 dark:text-red-400 leading-snug">
+                  {deadLetterCount} alteração{deadLetterCount > 1 ? 'ões' : ''} offline não {deadLetterCount > 1 ? 'puderam' : 'pôde'} ser enviada{deadLetterCount > 1 ? 's' : ''}. Confira seus últimos lançamentos.
+                </p>
+              )}
             </div>
 
             <nav aria-label="Menu principal" className="flex-1 px-4 overflow-y-auto custom-scrollbar">
