@@ -1,222 +1,504 @@
-import React, { useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, FileText, Calendar, Loader2, File, ChevronRight, ArrowLeft } from 'lucide-react';
+import {
+  FileSpreadsheet,
+  Download,
+  FileText,
+  Loader2,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  ShoppingBag,
+  Wallet,
+  Users,
+  Trophy,
+  Building2,
+  HeartPulse,
+  CheckCircle2,
+  AlertTriangle,
+  Flame,
+  XCircle,
+  RefreshCw,
+} from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
+import { useSettings } from '../contexts/SettingsContext';
 import { downloadExcelReport, downloadCSVReport } from '../lib/reportGenerator';
+import { fetchReportAnalytics, TrendPoint } from '../lib/reportAnalytics';
+import { PageHeader, Skeleton } from '../components/ui';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
+
+const BRL = (v: number) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v);
+const BRLfull = (v: number) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+const shortBRL = (v: number) => (v >= 1000 ? `R$ ${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}k` : `R$ ${Math.round(v)}`);
 
 interface MonthOption {
   year: number;
   month: number;
   label: string;
+  fullLabel: string;
+}
+
+function buildMonthOptions(): MonthOption[] {
+  const now = new Date();
+  return Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    return {
+      year: d.getFullYear(),
+      month: d.getMonth() + 1,
+      label: `${d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}/${String(d.getFullYear()).slice(2)}`,
+      fullLabel: d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
+    };
+  });
+}
+
+/** Variação vs. mês anterior. `prev === 0` não vira porcentagem infinita. */
+function DeltaChip({ current, prev, invert = false }: { current: number; prev: number; invert?: boolean }) {
+  if (prev === 0 && current === 0) {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+        <Minus className="w-3 h-3" /> estável
+      </span>
+    );
+  }
+  if (prev === 0) {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+        <TrendingUp className="w-3 h-3" /> novo
+      </span>
+    );
+  }
+  const pct = ((current - prev) / prev) * 100;
+  const up = pct >= 0;
+  const good = invert ? !up : up;
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider tabular-nums',
+        Math.abs(pct) < 0.5
+          ? 'text-slate-400 dark:text-zinc-500'
+          : good
+            ? 'text-emerald-600 dark:text-emerald-400'
+            : 'text-red-500 dark:text-red-400'
+      )}
+      title="Comparado ao mês anterior"
+    >
+      {Math.abs(pct) < 0.5 ? <Minus className="w-3 h-3" /> : up ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+      {Math.abs(pct) < 0.5 ? 'estável' : `${up ? '+' : ''}${pct.toFixed(0)}%`}
+    </span>
+  );
+}
+
+function KpiTile({
+  icon: Icon,
+  label,
+  value,
+  current,
+  prev,
+}: {
+  icon: typeof Wallet;
+  label: string;
+  value: string;
+  current: number;
+  prev: number;
+}) {
+  return (
+    <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200/80 dark:border-zinc-800/80 p-5 flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest">{label}</span>
+        <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center">
+          <Icon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+        </div>
+      </div>
+      <p className="text-2xl font-black text-slate-900 dark:text-zinc-50 tabular-nums leading-none truncate" title={value}>
+        {value}
+      </p>
+      <DeltaChip current={current} prev={prev} />
+    </div>
+  );
+}
+
+/** Barra de 12 meses, série única (receita). Mês selecionado ganha destaque e
+ *  rótulo direto; o resto responde no hover. */
+function TrendChart({ trend }: { trend: TrendPoint[] }) {
+  const [hovered, setHovered] = useState<string | null>(null);
+  const max = Math.max(...trend.map((t) => t.revenue), 1);
+  const ticks = [1, 0.75, 0.5, 0.25, 0];
+
+  return (
+    <div className="flex gap-3 h-56">
+      <div className="flex flex-col justify-between pb-7 pr-2 border-r border-slate-100 dark:border-zinc-800/60 text-right shrink-0 w-14">
+        {ticks.map((t) => (
+          <span key={t} className="text-[9px] font-black text-slate-400 dark:text-zinc-500 tabular-nums">
+            {shortBRL(max * t)}
+          </span>
+        ))}
+      </div>
+      <div className="flex-1 flex items-stretch gap-1.5 sm:gap-2 min-w-0">
+        {trend.map((point) => {
+          const h = Math.max((point.revenue / max) * 100, point.revenue > 0 ? 2 : 0);
+          const active = hovered === point.key || (hovered === null && point.isSelected);
+          return (
+            <div
+              key={point.key}
+              className="flex-1 flex flex-col items-center justify-end gap-1.5 relative min-w-0 group"
+              onMouseEnter={() => setHovered(point.key)}
+              onMouseLeave={() => setHovered(null)}
+            >
+              <AnimatePresence>
+                {active && point.revenue > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 6 }}
+                    className="absolute -top-1 z-10 whitespace-nowrap pointer-events-none"
+                  >
+                    <div className="bg-slate-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-3 py-1.5 rounded-xl shadow-xl flex flex-col items-center">
+                      <span className="text-[8px] font-black uppercase tracking-widest opacity-60">{point.fullLabel}</span>
+                      <span className="text-[11px] font-black tabular-nums">{BRLfull(point.revenue)}</span>
+                      <span className="text-[8px] font-bold opacity-60">{point.orders} pedido{point.orders === 1 ? '' : 's'}</span>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              <div className="w-full flex-1 flex items-end pb-0">
+                <motion.div
+                  initial={{ height: 0 }}
+                  animate={{ height: `${h}%` }}
+                  transition={{ duration: 0.5, ease: 'easeOut' }}
+                  className={cn(
+                    'w-full rounded-t-[4px] transition-colors',
+                    point.isSelected
+                      ? 'bg-emerald-600 dark:bg-emerald-500'
+                      : active
+                        ? 'bg-emerald-500'
+                        : 'bg-emerald-500/45 dark:bg-emerald-500/35'
+                  )}
+                />
+              </div>
+              <span
+                className={cn(
+                  'text-[8px] sm:text-[9px] font-black uppercase tracking-tight h-5 shrink-0',
+                  point.isSelected ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-zinc-500'
+                )}
+              >
+                {point.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+const healthRows = [
+  { key: 'emDia' as const, label: 'Em dia', icon: CheckCircle2, color: 'text-emerald-600 dark:text-emerald-400', bar: 'bg-emerald-500' },
+  { key: 'alerta' as const, label: 'Alerta', icon: AlertTriangle, color: 'text-amber-600 dark:text-amber-400', bar: 'bg-amber-500' },
+  { key: 'critico' as const, label: 'Crítico', icon: Flame, color: 'text-orange-600 dark:text-orange-400', bar: 'bg-orange-500' },
+  { key: 'inativo' as const, label: 'Inativo', icon: XCircle, color: 'text-red-600 dark:text-red-400', bar: 'bg-red-500' },
+];
+
+function CardShell({ icon: Icon, title, subtitle, children }: { icon: typeof Wallet; title: string; subtitle?: string; children: React.ReactNode }) {
+  return (
+    <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200/80 dark:border-zinc-800/80 p-5 sm:p-6">
+      <div className="flex items-center gap-2 mb-5">
+        <Icon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+        <div>
+          <h3 className="text-[11px] font-black text-slate-500 dark:text-zinc-400 uppercase tracking-[0.18em] leading-none">{title}</h3>
+          {subtitle && <p className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium mt-1">{subtitle}</p>}
+        </div>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function LoadingSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} className="h-32 rounded-3xl" />
+        ))}
+      </div>
+      <Skeleton className="h-72 rounded-3xl" />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Skeleton className="h-64 rounded-3xl" />
+        <Skeleton className="h-64 rounded-3xl" />
+      </div>
+    </div>
+  );
 }
 
 export default function ReportsPage() {
   const { user } = useAuth();
-  const [selectedMonth, setSelectedMonth] = useState<MonthOption | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [monthOptions, setMonthOptions] = useState<MonthOption[]>([]);
+  const { settings, loading: settingsLoading } = useSettings();
+  const monthOptions = useMemo(buildMonthOptions, []);
+  const [selected, setSelected] = useState<MonthOption>(monthOptions[0]);
+  const [exporting, setExporting] = useState<'excel' | 'csv' | null>(null);
 
-  useEffect(() => {
-    // Generate last 12 months
-    const months: MonthOption[] = [];
-    const now = new Date();
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['reportAnalytics', user?.id, selected.year, selected.month],
+    queryFn: () =>
+      fetchReportAnalytics(user!.id, selected.year, selected.month, settings.commissions || {}, {
+        alertaDays: settings.alerta_days || 30,
+        criticoDays: settings.critico_days || 45,
+        inativoDays: settings.inativo_days || 90,
+      }),
+    enabled: !!user && !settingsLoading,
+    staleTime: 5 * 60 * 1000,
+  });
 
-    for (let i = 0; i < 12; i++) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      months.push({
-        year: date.getFullYear(),
-        month: date.getMonth() + 1,
-        label: date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
-      });
-    }
-
-    setMonthOptions(months);
-    setSelectedMonth(months[0]); // Select current month
-  }, []);
-
-  const handleGenerateExcel = async () => {
-    if (!selectedMonth || !user) return;
-
-    setIsGenerating(true);
+  const handleExport = async (format: 'excel' | 'csv') => {
+    if (!user || exporting) return;
+    setExporting(format);
     try {
-      await downloadExcelReport(user.id, selectedMonth.year, selectedMonth.month);
-      toast.success(`Relatório de ${selectedMonth.label} gerado com sucesso!`);
+      if (format === 'excel') await downloadExcelReport(user.id, selected.year, selected.month, settings.commissions || {});
+      else await downloadCSVReport(user.id, selected.year, selected.month, settings.commissions || {});
+      toast.success(`Relatório de ${selected.fullLabel} gerado com sucesso!`);
     } catch (error) {
-      console.error(error);
+      console.error('Erro ao gerar relatório:', error);
       toast.error('Erro ao gerar relatório. Tente novamente.');
     } finally {
-      setIsGenerating(false);
+      setExporting(null);
     }
   };
 
-  const handleGenerateCSV = async () => {
-    if (!selectedMonth || !user) return;
-
-    setIsGenerating(true);
-    try {
-      await downloadCSVReport(user.id, selectedMonth.year, selectedMonth.month);
-      toast.success(`Relatório de ${selectedMonth.label} gerado com sucesso!`);
-    } catch (error) {
-      console.error(error);
-      toast.error('Erro ao gerar relatório. Tente novamente.');
-    } finally {
-      setIsGenerating(false);
-    }
-  };
+  const kpis = data?.kpis;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-zinc-950 dark:to-zinc-900 p-6">
-      <div className="max-w-3xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-black text-slate-900 dark:text-zinc-100 uppercase tracking-tighter mb-2">Relatórios</h1>
-          <p className="text-sm text-slate-600 dark:text-slate-400 font-medium">Gere relatórios mensais em Excel ou CSV com dados de clientes, pedidos e compromissos</p>
+    <div className="space-y-6">
+      <PageHeader
+        icon={FileSpreadsheet}
+        title="Relatórios"
+        subtitle="Receita, comissões e saúde da carteira — na tela e no Excel"
+        actions={
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleExport('excel')}
+              disabled={!!exporting}
+              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-emerald-100 dark:shadow-none disabled:opacity-60 active:scale-95"
+            >
+              {exporting === 'excel' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              Excel
+            </button>
+            <button
+              onClick={() => handleExport('csv')}
+              disabled={!!exporting}
+              className="flex items-center gap-2 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-200 px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all hover:border-emerald-500/40 disabled:opacity-60 active:scale-95"
+            >
+              {exporting === 'csv' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+              CSV
+            </button>
+          </div>
+        }
+      />
+
+      {/* Seletor de mês */}
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
+        {monthOptions.map((m) => {
+          const isActive = m.year === selected.year && m.month === selected.month;
+          return (
+            <button
+              key={`${m.year}-${m.month}`}
+              onClick={() => setSelected(m)}
+              className={cn(
+                'shrink-0 px-4 py-2 rounded-2xl text-[11px] font-black uppercase tracking-wider transition-all',
+                isActive
+                  ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20'
+                  : 'bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-500 dark:text-zinc-400 hover:border-emerald-500/40 hover:text-slate-800 dark:hover:text-zinc-200'
+              )}
+              title={m.fullLabel}
+            >
+              {m.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {isLoading || settingsLoading ? (
+        <LoadingSkeleton />
+      ) : isError ? (
+        <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200/80 dark:border-zinc-800/80 p-12 flex flex-col items-center text-center gap-4">
+          <div className="w-14 h-14 rounded-3xl bg-red-50 dark:bg-red-950/30 flex items-center justify-center">
+            <XCircle className="w-7 h-7 text-red-500" />
+          </div>
+          <div>
+            <h3 className="text-base font-black text-slate-900 dark:text-zinc-100 uppercase tracking-tight">Não foi possível carregar os dados</h3>
+            <p className="text-sm text-slate-500 dark:text-zinc-400 mt-1">Verifique sua conexão e tente novamente.</p>
+          </div>
+          <button
+            onClick={() => refetch()}
+            className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all active:scale-95"
+          >
+            <RefreshCw className="w-4 h-4" /> Tentar novamente
+          </button>
         </div>
+      ) : data && kpis ? (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+          {/* KPIs */}
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
+            <KpiTile icon={Wallet} label="Receita" value={BRL(kpis.revenue)} current={kpis.revenue} prev={kpis.revenuePrev} />
+            <KpiTile icon={ShoppingBag} label="Pedidos" value={String(kpis.orders)} current={kpis.orders} prev={kpis.ordersPrev} />
+            <KpiTile icon={TrendingUp} label="Ticket Médio" value={BRL(kpis.avgTicket)} current={kpis.avgTicket} prev={kpis.avgTicketPrev} />
+            <KpiTile icon={Trophy} label="Comissão Estimada" value={BRL(kpis.commission)} current={kpis.commission} prev={kpis.commissionPrev} />
+            <KpiTile icon={Users} label="Clientes Novos" value={String(kpis.newClients)} current={kpis.newClients} prev={kpis.newClientsPrev} />
+          </div>
 
-        {/* Main Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white dark:bg-zinc-900 rounded-[32px] border border-slate-200 dark:border-zinc-800 shadow-xl overflow-hidden"
-        >
-          {/* Month Selection */}
-          <div className="border-b border-slate-200 dark:border-zinc-800 p-8">
-            <div className="flex items-center gap-4 mb-6">
-              <Calendar className="w-6 h-6 text-emerald-500" />
+          {/* Tendência 12 meses */}
+          <CardShell icon={TrendingUp} title="Receita — últimos 12 meses" subtitle={`Terminando em ${selected.fullLabel}`}>
+            <TrendChart trend={data.trend} />
+          </CardShell>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Top clientes */}
+            <CardShell icon={Trophy} title="Top clientes do mês" subtitle="Participação na receita do período">
+              {data.topClients.length === 0 ? (
+                <p className="text-sm text-slate-400 dark:text-zinc-500 font-medium py-8 text-center">
+                  Nenhum pedido lançado em {selected.fullLabel}.
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {data.topClients.map((client, idx) => (
+                    <div key={client.id}>
+                      <div className="flex items-center justify-between gap-3 mb-1.5">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-[10px] font-black text-slate-500 dark:text-zinc-400 shrink-0 tabular-nums">
+                            {idx + 1}
+                          </span>
+                          <span className="text-sm font-bold text-slate-800 dark:text-zinc-200 truncate">{client.name}</span>
+                          <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 shrink-0">
+                            {client.orders} ped.
+                          </span>
+                        </div>
+                        <span className="text-sm font-black text-slate-900 dark:text-zinc-100 tabular-nums shrink-0">{BRL(client.revenue)}</span>
+                      </div>
+                      <div className="h-1.5 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${client.share * 100}%` }}
+                          transition={{ duration: 0.5, ease: 'easeOut' }}
+                          className="h-full bg-emerald-500 rounded-full"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardShell>
+
+            {/* Saúde da carteira */}
+            <CardShell
+              icon={HeartPulse}
+              title="Saúde da carteira"
+              subtitle={`Régua de inatividade: ${settings.alerta_days || 30} / ${settings.critico_days || 45} / ${settings.inativo_days || 90} dias sem contato`}
+            >
+              <div className="space-y-4">
+                {healthRows.map((row) => {
+                  const count = data.health[row.key];
+                  const pct = data.health.total > 0 ? (count / data.health.total) * 100 : 0;
+                  return (
+                    <div key={row.key}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className={cn('flex items-center gap-2 text-sm font-bold', row.color)}>
+                          <row.icon className="w-4 h-4" /> {row.label}
+                        </span>
+                        <span className="text-sm font-black text-slate-900 dark:text-zinc-100 tabular-nums">
+                          {count}
+                          <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 ml-1.5">({pct.toFixed(0)}%)</span>
+                        </span>
+                      </div>
+                      <div className="h-1.5 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${pct}%` }}
+                          transition={{ duration: 0.5, ease: 'easeOut' }}
+                          className={cn('h-full rounded-full', row.bar)}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+                <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider pt-1">
+                  {data.health.total} cliente{data.health.total === 1 ? '' : 's'} na carteira
+                </p>
+              </div>
+            </CardShell>
+          </div>
+
+          {/* Receita por empresa */}
+          <CardShell icon={Building2} title="Receita por empresa" subtitle="Com comissão estimada pelo percentual configurado">
+            {data.byCompany.length === 0 ? (
+              <p className="text-sm text-slate-400 dark:text-zinc-500 font-medium py-8 text-center">
+                Nenhum pedido lançado em {selected.fullLabel}.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {data.byCompany.map((company) => (
+                  <div key={company.name}>
+                    <div className="flex items-center justify-between gap-3 mb-1.5">
+                      <span className="text-sm font-bold text-slate-800 dark:text-zinc-200 truncate uppercase tracking-tight">{company.name}</span>
+                      <div className="flex items-baseline gap-3 shrink-0">
+                        <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 tabular-nums">
+                          {company.commissionPct > 0 ? `${company.commissionPct}% → ${BRL(company.commissionValue)}` : 'comissão não configurada'}
+                        </span>
+                        <span className="text-sm font-black text-slate-900 dark:text-zinc-100 tabular-nums">{BRL(company.revenue)}</span>
+                      </div>
+                    </div>
+                    <div className="h-1.5 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${company.share * 100}%` }}
+                        transition={{ duration: 0.5, ease: 'easeOut' }}
+                        className="h-full bg-emerald-500 rounded-full"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardShell>
+
+          {/* Exportação */}
+          <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200/80 dark:border-zinc-800/80 p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center shrink-0">
+                <FileSpreadsheet className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
               <div>
-                <h2 className="text-xl font-black text-slate-900 dark:text-zinc-100 uppercase tracking-tighter">Selecione o Mês</h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">Escolha um mês para gerar seu relatório</p>
+                <h3 className="text-sm font-black text-slate-900 dark:text-zinc-100 uppercase tracking-tight">
+                  Exportar {selected.fullLabel}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-zinc-400 font-medium mt-0.5 max-w-md">
+                  Excel com 6 abas: Resumo, Pedidos, Comissões, Clientes, Compromissos e Follow-ups. CSV compatível com qualquer planilha.
+                </p>
               </div>
             </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-              {monthOptions.map((month) => (
-                <button
-                  key={`${month.year}-${month.month}`}
-                  onClick={() => setSelectedMonth(month)}
-                  className={cn(
-                    'p-3 rounded-2xl font-bold text-sm uppercase tracking-widest transition-all text-center',
-                    selectedMonth?.year === month.year && selectedMonth?.month === month.month
-                      ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30'
-                      : 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 hover:bg-slate-200 dark:hover:bg-zinc-700'
-                  )}
-                >
-                  {month.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Format Selection */}
-          <div className="p-8">
-            <h3 className="text-lg font-black text-slate-900 dark:text-zinc-100 uppercase tracking-tighter mb-6">
-              Escolha o Formato
-            </h3>
-
-            <div className="grid md:grid-cols-2 gap-6">
-              {/* Excel Option */}
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={handleGenerateExcel}
-                disabled={isGenerating || !selectedMonth}
-                className={cn(
-                  'p-6 rounded-2xl border-2 transition-all flex flex-col items-center gap-4 text-center',
-                  isGenerating
-                    ? 'opacity-50 cursor-not-allowed'
-                    : 'border-emerald-200 dark:border-emerald-900 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 hover:border-emerald-500 dark:hover:border-emerald-500'
-                )}
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                onClick={() => handleExport('excel')}
+                disabled={!!exporting}
+                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-wider transition-all disabled:opacity-60 active:scale-95"
               >
-                <div className="p-4 rounded-2xl bg-emerald-100 dark:bg-emerald-950/30">
-                  <FileText className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <div>
-                  <p className="font-black text-slate-900 dark:text-zinc-100 uppercase tracking-widest">Excel</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-bold mt-1">Múltiplas abas com dados organizados</p>
-                </div>
-                <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-xs uppercase tracking-widest mt-2">
-                  {isGenerating ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Gerando...
-                    </>
-                  ) : (
-                    <>
-                      <Download className="w-4 h-4" />
-                      Baixar Excel
-                      <ChevronRight className="w-4 h-4" />
-                    </>
-                  )}
-                </div>
-              </motion.button>
-
-              {/* CSV Option */}
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={handleGenerateCSV}
-                disabled={isGenerating || !selectedMonth}
-                className={cn(
-                  'p-6 rounded-2xl border-2 transition-all flex flex-col items-center gap-4 text-center',
-                  isGenerating
-                    ? 'opacity-50 cursor-not-allowed'
-                    : 'border-blue-200 dark:border-blue-900 hover:bg-blue-50 dark:hover:bg-blue-950/20 hover:border-blue-500 dark:hover:border-blue-500'
-                )}
+                {exporting === 'excel' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                Excel
+              </button>
+              <button
+                onClick={() => handleExport('csv')}
+                disabled={!!exporting}
+                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-wider transition-all disabled:opacity-60 active:scale-95"
               >
-                <div className="p-4 rounded-2xl bg-blue-100 dark:bg-blue-950/30">
-                  <File className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div>
-                  <p className="font-black text-slate-900 dark:text-zinc-100 uppercase tracking-widest">CSV</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-bold mt-1">Compatível com qualquer planilha</p>
-                </div>
-                <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-bold text-xs uppercase tracking-widest mt-2">
-                  {isGenerating ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Gerando...
-                    </>
-                  ) : (
-                    <>
-                      <Download className="w-4 h-4" />
-                      Baixar CSV
-                      <ChevronRight className="w-4 h-4" />
-                    </>
-                  )}
-                </div>
-              </motion.button>
-            </div>
-          </div>
-
-          {/* Info Box */}
-          <div className="border-t border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-950/50 p-6">
-            <div className="flex gap-4">
-              <div className="text-emerald-500 flex-shrink-0">
-                <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center text-xs font-bold">✓</div>
-              </div>
-              <div className="text-sm">
-                <p className="font-bold text-slate-900 dark:text-zinc-100">O que está incluído no relatório</p>
-                <ul className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-400 font-medium">
-                  <li>✓ Resumo de vendas e receita</li>
-                  <li>✓ Lista de clientes com status</li>
-                  <li>✓ Detalhamento de pedidos</li>
-                  <li>✓ Compromissos agendados</li>
-                  <li>✓ Métricas de desempenho</li>
-                </ul>
-              </div>
+                {exporting === 'csv' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                CSV
+              </button>
             </div>
           </div>
         </motion.div>
-
-        {/* Footer Info */}
-        <div className="mt-8 p-6 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 rounded-2xl">
-          <p className="text-xs text-blue-800 dark:text-blue-200 font-medium">
-            💡 <strong>Dica:</strong> Você pode agendar relatórios automáticos para serem gerados todo mês. Configure nas configurações de notificações.
-          </p>
-        </div>
-      </div>
+      ) : null}
     </div>
   );
 }

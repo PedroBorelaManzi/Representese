@@ -3,7 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 
-export type NotificationType = 'order_update' | 'appointment_reminder' | 'client_followup' | 'client_alert' | 'weekly_summary';
+export type NotificationType = 'appointment_reminder' | 'client_followup' | 'client_alert' | 'weekly_summary';
 
 interface NotificationPayload {
   type: NotificationType;
@@ -15,7 +15,6 @@ interface NotificationPayload {
 
 export class NotificationService {
   private static readonly NOTIFICATION_ID_RANGES = {
-    order_update: 1000,
     appointment_reminder: 2000,
     client_followup: 3000,
     client_alert: 4000,
@@ -33,9 +32,6 @@ export class NotificationService {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Setup realtime listeners for order updates
-      this.setupOrderUpdateListener(user.id);
-
       // Schedule appointment reminders
       this.scheduleAppointmentReminders(user.id);
 
@@ -52,34 +48,6 @@ export class NotificationService {
     } catch (error) {
       console.error('Error initializing NotificationService:', error);
     }
-  }
-
-  private static setupOrderUpdateListener(userId: string) {
-    supabase
-      .channel(`orders:${userId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'orders',
-          filter: `user_id=eq.${userId}`
-        },
-        async (payload) => {
-          if (payload.new.status !== payload.old.status) {
-            await this.sendNotification({
-              type: 'order_update',
-              title: '📦 Atualização de Pedido',
-              body: `O pedido de ${payload.new.category} mudou para: ${payload.new.status}`,
-              data: {
-                orderId: payload.new.id,
-                status: payload.new.status,
-              },
-            });
-          }
-        }
-      )
-      .subscribe();
   }
 
   private static async scheduleAppointmentReminders(userId: string) {
@@ -253,9 +221,6 @@ export class NotificationService {
         break;
       case 'client_followup':
         window.location.href = `/dashboard/clientes/${data.clientId}`;
-        break;
-      case 'order_update':
-        window.location.href = '/dashboard/empresas';
         break;
       case 'weekly_summary':
         window.location.href = '/dashboard';
