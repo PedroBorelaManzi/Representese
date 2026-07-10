@@ -101,10 +101,22 @@ const navItems = [
   { icon: Calendar, label: "Minha Agenda" },
 ];
 
+const kpis = [
+  { label: "Faturamento", value: "R$ 143.600", trend: "+18%" },
+  { label: "Pedidos", value: "91", trend: "+12%" },
+  { label: "Clientes ativos", value: "248", trend: "+6%" },
+];
+
+const reps = [
+  { name: "Tintas Aurora", value: "R$ 48.200", pct: 80, color: "#10b981" },
+  { name: "AgroMax Insumos", value: "R$ 71.500", pct: 95, color: "#0ea5e9" },
+  { name: "Farma Distribuidora", value: "R$ 23.900", pct: 60, color: "#8b5cf6" },
+];
+
 const agenda = [
-  { t: "09:00", l: "Reunião com cliente", c: "bg-emerald-500" },
+  { t: "09:00", l: "Reunião · Tintas Aurora", c: "bg-emerald-500" },
   { t: "11:30", l: "Almoço com cliente", c: "bg-sky-400" },
-  { t: "14:00", l: "Apresentação", c: "bg-violet-400" },
+  { t: "14:00", l: "Demo CRM · AgroMax", c: "bg-violet-400" },
 ];
 
 /* desenho do dashboard em tamanho real (base 920px) */
@@ -162,6 +174,45 @@ function BrowserDashboardInner() {
             </div>
             <div className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-emerald-600 text-white text-[12px] font-black">
               <Plus className="w-3.5 h-3.5" /> Novo Registro
+            </div>
+          </div>
+
+          {/* KPIs */}
+          <div className="grid grid-cols-3 gap-3">
+            {kpis.map((k) => (
+              <div key={k.label} className="rounded-2xl bg-white border border-slate-100 p-4">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400 leading-none mb-2 truncate">
+                  {k.label}
+                </p>
+                <p className="text-[22px] font-black text-slate-900 leading-none">{k.value}</p>
+                <p className="mt-2 inline-flex items-center gap-1 text-[11px] font-black text-emerald-600">
+                  <ArrowUpRight className="w-3.5 h-3.5" /> {k.trend}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {/* faturamento por representada (destaque) */}
+          <div className="rounded-2xl bg-white border border-slate-100 p-4">
+            <div className="flex items-center justify-between mb-3.5">
+              <p className="text-[14px] font-black text-slate-900">Faturamento por representada</p>
+              <span className="text-[11px] font-black text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">junho</span>
+            </div>
+            <div className="space-y-3">
+              {reps.map((r) => (
+                <div key={r.name}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ background: r.color }} />
+                      <span className="text-[12px] font-bold text-slate-700">{r.name}</span>
+                    </div>
+                    <span className="text-[12px] font-black text-slate-900">{r.value}</span>
+                  </div>
+                  <div className="h-2.5 rounded-full bg-slate-100 overflow-hidden">
+                    <div className="h-full rounded-full" style={{ width: `${r.pct}%`, background: r.color }} />
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -227,9 +278,41 @@ function PhoneDashboardInner() {
         </div>
       </div>
 
-      {/* placeholder */}
-      <div className="flex-1 flex items-center justify-center">
-        <p className="text-[12px] text-slate-400 text-center">Dashboard em tempo real</p>
+      {/* card principal */}
+      <div className="px-5">
+        <div className="rounded-2xl p-4 text-white relative overflow-hidden" style={{ background: "linear-gradient(135deg,#059669,#0d9488)" }}>
+          <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-50/90">Faturamento do mês</p>
+          <p className="text-[26px] font-black leading-tight mt-1">R$ 143.600</p>
+          <span className="inline-flex items-center gap-1 mt-2 text-[11px] font-black bg-white/20 px-2 py-1 rounded-full">
+            <ArrowUpRight className="w-3.5 h-3.5" /> +18% vs. maio
+          </span>
+        </div>
+      </div>
+
+      {/* mini KPIs */}
+      <div className="px-5 grid grid-cols-2 gap-3 mt-3">
+        {[
+          { l: "Pedidos", v: "91" },
+          { l: "Clientes", v: "248" },
+        ].map((k) => (
+          <div key={k.l} className="rounded-2xl bg-white border border-slate-100 p-3.5">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400 leading-none">{k.l}</p>
+            <p className="text-[22px] font-black text-slate-900 leading-none mt-1.5">{k.v}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* sugestão IA */}
+      <div className="px-5 mt-3">
+        <div className="rounded-2xl bg-white border border-slate-100 p-3.5">
+          <div className="flex items-center gap-2 mb-2">
+            <Brain className="w-4 h-4 text-emerald-600" />
+            <span className="text-[10px] font-black uppercase tracking-wide text-emerald-600">Sugestão da IA</span>
+          </div>
+          <p className="text-[12px] font-semibold text-slate-600 leading-relaxed">
+            3 clientes da AgroMax sem follow-up. Recomendo contato esta semana.
+          </p>
+        </div>
       </div>
 
       <div className="flex-1" />
@@ -261,10 +344,10 @@ export function PhoneDashboard() {
 }
 
 const crmClients = [
-  { initials: "AC", name: "Acme Commerce", city: "São Paulo · SP", status: "Ativo" },
-  { initials: "TD", name: "Tech Distribution", city: "Curitiba · PR", status: "Ativo" },
-  { initials: "MB", name: "Market Business", city: "Goiânia · GO", status: "Inativo" },
-  { initials: "TR", name: "Trade Retail", city: "Campinas · SP", status: "Ativo" },
+  { initials: "CV", name: "Comercial Vale Verde", city: "São Paulo · SP", status: "Ativo", value: "R$ 12.4k", ia: true },
+  { initials: "DH", name: "Distribuidora Horizonte", city: "Curitiba · PR", status: "Ativo", value: "R$ 9.1k" },
+  { initials: "MB", name: "Mercantil Bandeirante", city: "Goiânia · GO", status: "Inativo", value: "R$ 7.2k" },
+  { initials: "AP", name: "Atacado Primavera", city: "Campinas · SP", status: "Ativo", value: "R$ 5.8k" },
 ];
 
 function CrmListInner() {
@@ -307,6 +390,11 @@ function CrmListInner() {
               <p className="text-[15px] font-black text-slate-900 truncate leading-tight">{c.name}</p>
               <p className="text-[12px] font-medium text-slate-400 truncate">{c.city}</p>
             </div>
+            {c.ia && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-600 text-[11px] font-black">
+                <Sparkles className="w-3.5 h-3.5" /> Resumo IA
+              </span>
+            )}
             <span
               className={cn(
                 "px-3 py-1 rounded-full text-[11px] font-black shrink-0",
@@ -315,6 +403,7 @@ function CrmListInner() {
             >
               {c.status}
             </span>
+            <span className="text-[14px] font-black text-slate-700 w-16 text-right shrink-0">{c.value}</span>
           </div>
         ))}
       </div>
