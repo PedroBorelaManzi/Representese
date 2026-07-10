@@ -192,7 +192,7 @@ export default function Register() {
           </div>
 
           <form onSubmit={handleRegister} className="space-y-4">
-            {!isLoginMode && (
+            {!isLoginMode && (<>
               <div className="space-y-1.5">
                 <label className="text-[13px] font-bold text-slate-700 dark:text-zinc-300 ml-1">
                   Nome completo *
@@ -248,6 +248,7 @@ export default function Register() {
                 />
               </div>
             </div>
+            </>)}
 
             <div className="space-y-1.5">
               <label className="text-[13px] font-bold text-slate-700 dark:text-zinc-300 ml-1">
