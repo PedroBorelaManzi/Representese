@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { useSettings } from '../contexts/SettingsContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { ShieldAlert, CreditCard, ExternalLink, MessageCircle, Loader2 } from 'lucide-react';
+import { ShieldAlert, CreditCard, ExternalLink, MessageCircle, Loader2, Sparkles, ArrowRight } from 'lucide-react';
 import { Logo } from './Logo';
 import { toast } from 'sonner';
+import { Link } from 'react-router-dom';
 
 export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
   const { settings, loading: settingsLoading } = useSettings();
@@ -14,8 +15,11 @@ export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
   // Se estiver carregando, não bloqueia ainda para evitar flashes
   if (settingsLoading) return <>{children}</>;
 
-  // Se o status for 'past_due' || 'inactive', mostramos a tela de bloqueio
-  const isBlocked = settings.subscription_status === 'past_due' || settings.subscription_status === 'inactive';
+  // Se o status for 'past_due', mostramos a tela de bloqueio financeiro
+  const isPastDue = settings.subscription_status === 'past_due' || settings.subscription_status === 'canceled';
+  
+  // Se for 'inactive', é um lead novo que ainda não escolheu o plano
+  const isLead = settings.subscription_status === 'inactive';
 
   const handleRegularize = async () => {
     if (!user) return;
@@ -56,9 +60,45 @@ export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
     }
   };
 
-  if (isBlocked) {
+  if (isPastDue || isLead) {
     const whatsappNumber = "5515997472785";
     const userEmail = user?.email || "não informado";
+    
+    // UI Amigável para LEADS novos (inactive)
+    if (isLead) {
+      return (
+        <div className="fixed inset-0 z-[9999] bg-slate-50 dark:bg-zinc-950 flex flex-col items-center justify-center p-6 text-center">
+          <div className="max-w-md w-full space-y-8 relative z-10">
+            <Logo size="lg" />
+            
+            <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-8 rounded-[40px] space-y-6 shadow-xl">
+              <div className="w-20 h-20 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-3xl flex items-center justify-center mx-auto shadow-inner">
+                <Sparkles className="w-10 h-10" />
+              </div>
+              
+              <div className="space-y-2">
+                <h1 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Quase lá!</h1>
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Sua conta foi criada com sucesso. Para começar a usar o sistema e gerenciar suas representações, você precisa escolher um plano.
+                </p>
+              </div>
+
+              <div className="pt-2">
+                <Link 
+                  to="/planos"
+                  className="w-full bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white py-5 rounded-2xl font-black uppercase text-[12px] tracking-widest flex items-center justify-center gap-3 transition-all shadow-xl shadow-emerald-600/20"
+                >
+                  Ver Planos Disponíveis
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // UI de Bloqueio para INADIMPLENTES (past_due)
     const whatsappMessage = encodeURIComponent(`Olá! Estou com uma pendência no meu acesso ao Representese e gostaria de regularizar. Meu e-mail é: ${userEmail}`);
     const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${whatsappMessage}`;
 
