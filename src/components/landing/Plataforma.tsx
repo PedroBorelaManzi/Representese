@@ -1,11 +1,10 @@
-/* Multiplataforma (dispositivos codados) + Como funciona (3 passos) + prova social. */
+/* Multiplataforma (dispositivos codados) + Como funciona (3 passos). */
 import React from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, BarChart3, Building2, Laptop, Monitor, Quote, Smartphone, Star, Users } from "lucide-react";
+import { ArrowRight, BarChart3, Building2, Laptop, Monitor, Smartphone, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import { BrowserDashboard, PhoneDashboard } from "../LandingMockups";
-import { FadeUp, Kicker, Counter } from "./primitives";
-import { stats, testimonials } from "./data";
+import { FadeUp, Kicker } from "./primitives";
 
 export function MultiplataformaSection() {
   return (
@@ -144,59 +143,3 @@ export function ComoFuncionaSection() {
   );
 }
 
-export function ProvaSocialSection() {
-  return (
-    <section className="py-24 px-6 bg-slate-50 border-b border-slate-100">
-      <div className="max-w-7xl mx-auto">
-        {/* números */}
-        <FadeUp className="text-center mb-14">
-          <Kicker label="Resultados reais" center />
-          <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 mb-4">
-            Representantes que<br />mudaram o jogo.
-          </h2>
-        </FadeUp>
-
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-5xl mx-auto mb-20">
-          {stats.map((s, i) => (
-            <FadeUp key={s.label} delay={i * 0.05}>
-              <div className="text-center">
-                <p className="text-4xl md:text-5xl font-black bg-gradient-to-br from-slate-900 to-slate-600 bg-clip-text text-transparent mb-1">
-                  <Counter to={s.to} prefix={s.prefix} suffix={s.suffix} sep={s.sep} />
-                </p>
-                <p className="text-[12px] text-slate-500 font-medium uppercase tracking-wider">{s.label}</p>
-              </div>
-            </FadeUp>
-          ))}
-        </div>
-
-        {/* depoimentos */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {testimonials.map((t, i) => (
-            <FadeUp key={t.name} delay={i * 0.1}>
-              <div className="h-full bg-white rounded-3xl border border-slate-200 p-8 shadow-sm relative overflow-hidden flex flex-col">
-                <Quote className="absolute top-6 right-6 w-10 h-10 text-emerald-50 fill-emerald-50" />
-                <div className="flex gap-1 mb-5 relative z-10">
-                  {[1, 2, 3, 4, 5].map((s) => (
-                    <Star key={s} className="w-4 h-4 fill-amber-400 text-amber-400" />
-                  ))}
-                </div>
-                <blockquote className="text-[15px] font-bold text-slate-800 leading-relaxed mb-6 relative z-10 flex-1">
-                  "{t.quote}"
-                </blockquote>
-                <div className="flex items-center gap-3 relative z-10">
-                  <div className="w-11 h-11 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center font-black text-white text-xs">
-                    {t.initials}
-                  </div>
-                  <div>
-                    <p className="text-[13px] font-black text-slate-900">{t.name}</p>
-                    <p className="text-[11px] text-slate-500 font-medium">{t.role}</p>
-                  </div>
-                </div>
-              </div>
-            </FadeUp>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
