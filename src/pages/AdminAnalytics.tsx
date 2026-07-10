@@ -92,7 +92,7 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
 
       // Converte para array formato do recharts
       const globalChartData = Object.entries(timeByRouteGlobal)
-        .map(([name, tempoSegundos]) => ({
+        .map(([name, tempoSegundos]: [string, number]) => ({
           name,
           tempoSegundos,
           tempoMinutos: Number((tempoSegundos / 60).toFixed(2))
@@ -169,7 +169,7 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
       const uniqueSessions = new Set(events.map(e => e.session_id)).size;
 
       const chartData = Object.entries(timeBySection)
-        .map(([name, tempoSegundos]) => ({
+        .map(([name, tempoSegundos]: [string, number]) => ({
           name: name === 'hero' ? 'Início (Hero)' : name.charAt(0).toUpperCase() + name.slice(1),
           tempoSegundos,
           tempoMinutos: Number((tempoSegundos / 60).toFixed(2)),
