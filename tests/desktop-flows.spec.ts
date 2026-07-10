@@ -23,11 +23,19 @@ test.describe('Etapa 1: Revisão Frontend (Web Desktop) - Fluxos Principais', ()
     await expect(toast).toBeVisible({ timeout: 5000 });
   });
 
-  test('Deve carregar a página de cadastro com seleção de planos', async ({ page }) => {
-    // /register foi unificado com /planos (fluxo único de cadastro + seleção de plano)
+  test('Deve carregar a página de cadastro', async ({ page }) => {
+    // /register mostra o formulário de cadastro; a seleção de plano acontece
+    // depois, em /planos, para onde o usuário é levado após criar a conta.
     await page.goto('/register');
     await page.waitForLoadState('domcontentloaded');
-    await expect(page).toHaveURL(/\/planos/);
+    await expect(page.locator('input[type="email"]')).toBeVisible();
+    await expect(page.locator('input[type="password"]')).toBeVisible();
+  });
+
+  test('Deve carregar a página de planos com seleção de planos', async ({ page }) => {
+    // /planos é checkout público — não exige login prévio.
+    await page.goto('/planos');
+    await page.waitForLoadState('domcontentloaded');
     await expect(page.locator('text=sucesso profissional')).toBeVisible();
     await expect(page.locator('text=Exclusivo')).toBeVisible();
   });
