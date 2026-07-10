@@ -304,7 +304,13 @@ export default function Layout() {
   return (
     <SubscriptionGuard>
       <div className="flex h-screen bg-slate-100/60 dark:bg-zinc-950 transition-colors duration-300">
-
+        {/* Skip link: invisível até receber foco via Tab (a11y) */}
+        <a
+          href="#conteudo"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[200] focus:px-4 focus:py-2 focus:rounded-xl focus:bg-emerald-600 focus:text-white focus:text-sm focus:font-bold"
+        >
+          Pular para o conteúdo
+        </a>
         <AnimatePresence mode='wait'>
           {sidebarOpen && (
             <motion.div

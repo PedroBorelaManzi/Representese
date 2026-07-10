@@ -224,8 +224,11 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       localStorage.setItem('theme', newSettings.theme);
     }
 
-    // Do NOT write plan_id, subscription_status, trial_ends_at to DB from client
-    const { avatar_url, plan_id, subscription_status, trial_ends_at, current_period_end, ...dbSettings } = updated;
+    // Do NOT write plan_id, subscription_status, trial_ends_at to DB from client.
+    // is_admin também nunca é escrito pelo cliente — quem manda é a tabela
+    // support_admins (e um trigger no banco reverte qualquer tentativa); tirar
+    // do payload evita ruído e reforça a proteção do lado do app.
+    const { avatar_url, plan_id, subscription_status, trial_ends_at, current_period_end, is_admin, ...dbSettings } = updated;
 
     await supabase.from("user_settings").upsert({
       user_id: user.id,

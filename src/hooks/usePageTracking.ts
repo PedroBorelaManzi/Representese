@@ -11,6 +11,22 @@ export function usePageTracking() {
   const { settings } = useSettings();
   const startTimeRef = useRef<number>(Date.now());
   const currentPathRef = useRef<string>(location.pathname);
+  // Token capturado fora do handler de unload: lá não dá pra await getSession().
+  const accessTokenRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (active) accessTokenRef.current = data.session?.access_token ?? null;
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      accessTokenRef.current = session?.access_token ?? null;
+    });
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
 
   const trackEventMutation = useMutation({
     mutationFn: async (eventData: { event_type: string; route: string; duration_seconds?: number; metadata?: any }) => {
@@ -53,25 +69,26 @@ export function usePageTracking() {
       const timeSpentMs = Date.now() - startTimeRef.current;
       const durationSeconds = Math.floor(timeSpentMs / 1000);
       
-      if (durationSeconds > 1 && user && !settings.is_admin) {
-        // We use fetch with keepalive or synchronous xhr for unload events ideally, 
-        // but for simplicity we'll try the mutation. It might not complete if the page closes, 
-        // but it's acceptable for internal analytics.
-        // Or we can use navigator.sendBeacon
-        const eventData = {
-          user_id: user.id,
-          event_type: 'page_view',
-          route: currentPathRef.current,
-          duration_seconds: durationSeconds
-        };
-        // Fallback for unload
-        const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/user_events`;
-        const headers = {
-          'Content-Type': 'application/json',
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${(supabase as any).auth?.session?.()?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY}`
-        };
-        navigator.sendBeacon(url, new Blob([JSON.stringify(eventData)], { type: 'application/json' }));
+      const token = accessTokenRef.current;
+      if (durationSeconds > 1 && user && !settings.is_admin && token) {
+        // fetch + keepalive (não sendBeacon): o beacon não deixa setar headers,
+        // então apikey/Authorization nunca iam junto e o RLS derrubava o insert.
+        // keepalive mantém a requisição viva mesmo com a aba fechando.
+        fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/user_events`, {
+          method: 'POST',
+          keepalive: true,
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            user_id: user.id,
+            event_type: 'page_view',
+            route: currentPathRef.current,
+            duration_seconds: durationSeconds,
+          }),
+        }).catch(() => {});
       }
     };
 
