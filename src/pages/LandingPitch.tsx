@@ -18,6 +18,7 @@ import { IntegrationsMarquee, DiferencialSection } from "../components/landing/D
 import { RecursosBentoSection, GestaoInteligenteSection } from "../components/landing/Recursos";
 import { SetoresSection } from "../components/landing/Setores";
 import { MultiplataformaSection, ComoFuncionaSection } from "../components/landing/Plataforma";
+import { TrustSection } from "../components/landing/Trust";
 import { FaqSection } from "../components/landing/Faq";
 import { CtaFinalSection, LandingFooter } from "../components/landing/CtaFooter";
 import { useLandingTracking } from "../hooks/useLandingTracking";
@@ -308,6 +309,7 @@ export default function LandingPitch() {
       <GestaoInteligenteSection />
       <MultiplataformaSection />
       <ComoFuncionaSection />
+      <TrustSection />
       <FaqSection />
       <CtaFinalSection />
       <LandingFooter />

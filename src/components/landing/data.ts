@@ -24,6 +24,10 @@ import {
   Package,
   Percent,
   ClipboardList,
+  ShieldCheck,
+  Scale,
+  Activity,
+  DatabaseBackup,
 } from "lucide-react";
 
 /* ─── navegação (ordem = ordem dos capítulos na página) ───────── */
@@ -90,6 +94,14 @@ export const faqs = [
   { question: "O sistema integra com meu ERP?",              answer: "Ainda não há integração direta com ERPs — a importação é feita por planilha, e novas integrações estão no roadmap." },
   { question: "Como funciona o suporte?",                    answer: "Via e-mail e WhatsApp, conforme o plano — com resposta rápida de verdade." },
   { question: "Meus dados estão seguros?",                   answer: "Sim. Criptografia de ponta e infraestrutura Supabase — seus dados protegidos e sob seu controle." },
+];
+
+/* indicadores de confiança — apenas fatos técnicos verificáveis, nada de prova social inventada */
+export const trustItems = [
+  { icon: ShieldCheck,    title: "Criptografia de ponta",       desc: "Dados protegidos com infraestrutura Supabase." },
+  { icon: Scale,          title: "Conformidade com a LGPD",     desc: "Seus dados tratados conforme a lei brasileira." },
+  { icon: Activity,       title: "99,9% de disponibilidade",    desc: "Infraestrutura em nuvem de alta disponibilidade." },
+  { icon: DatabaseBackup, title: "Backup automático diário",    desc: "Seu histórico nunca se perde." },
 ];
 
 /* pontes narrativas entre seções (usadas via SectionBridge no LandingPitch) */

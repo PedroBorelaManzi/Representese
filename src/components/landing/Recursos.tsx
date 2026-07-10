@@ -1,7 +1,7 @@
 /* Capítulo 02 · Recursos: bento grid, destaque CRM e seção de IA (dark). */
 import React from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, Brain, Check, Clock } from "lucide-react";
+import { ArrowRight, Brain, Check, Clock, ShieldCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 import { cn } from "../../lib/utils";
 import { CrmListMock } from "../LandingMockups";
@@ -201,6 +201,10 @@ export function GestaoInteligenteSection() {
             Ativar minha carteira inteligente
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </Link>
+          <p className="flex items-center justify-center gap-2 mt-4 text-[11px] font-semibold text-slate-500">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            Backup automático diário · Infraestrutura Supabase
+          </p>
         </FadeUp>
       </div>
     </section>
