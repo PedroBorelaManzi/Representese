@@ -11,6 +11,7 @@ import { Logo } from '../components/Logo';
 import { toast } from "sonner";
 import { supabase } from "../lib/supabase";
 import { posthog } from "../lib/posthog";
+import { useAuth } from "../contexts/AuthContext";
 
 const plans = {
   exclusivo: {
@@ -59,6 +60,7 @@ const inputOk = "border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ri
 const inputErr = "border-red-400 bg-red-50/40 text-red-900 focus:ring-4 focus:ring-red-500/10";
 
 export default function Checkout() {
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const rawPlanId = searchParams.get("plan")?.toLowerCase() || "profissional";
@@ -80,9 +82,25 @@ export default function Checkout() {
   const [installments, setInstallments] = useState(12);
 
   const [formData, setFormData] = useState({
-    name: "", email: "", cpfCnpj: "", phone: "", password: "",
+    name: user?.user_metadata?.full_name || "", 
+    email: user?.email || "", 
+    cpfCnpj: user?.user_metadata?.cpf_cnpj || "", 
+    phone: user?.user_metadata?.phone || user?.user_metadata?.phone_number || "", 
+    password: "",
     cardNumber: "", expiry: "", ccv: "", holderName: "", cep: "", addressNumber: ""
   });
+
+  useEffect(() => {
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        name: user.user_metadata?.full_name || prev.name,
+        email: user.email || prev.email,
+        phone: user.user_metadata?.phone || user.user_metadata?.phone_number || prev.phone,
+        cpfCnpj: user.user_metadata?.cpf_cnpj || prev.cpfCnpj
+      }));
+    }
+  }, [user]);
 
   const [passwordRequirements, setPasswordRequirements] = useState({
     length: false, upper: false, lower: false, number: false, special: false
@@ -109,7 +127,7 @@ export default function Checkout() {
   const docNameMatch = isCpf ? (isPersonalName && !/ltda|s\/?a|eireli|me|epp|cnpj/i.test(formData.name)) : (formData.name.trim().length >= 3);
   const phoneValid = isValidPhone(cleanPhone);
 
-  const isStep1Valid = formData.name && formData.email && formData.cpfCnpj && docValid && docNameMatch && formData.phone && phoneValid && isPasswordValid;
+  const isStep1Valid = formData.name && formData.email && formData.cpfCnpj && docValid && docNameMatch && formData.phone && phoneValid && (user ? true : isPasswordValid);
 
   const baseValue = selectedPlan.prices[billingCycle];
   const couponDiscount = appliedCoupon ? (baseValue * appliedCoupon.discount) / 100 : 0;
@@ -144,7 +162,7 @@ export default function Checkout() {
     if (!value) return;
     try {
       const { data } = await supabase.functions.invoke('process-checkout', {
-        body: { action: 'check-uniqueness', userId: 'temp', customer: { [fieldName]: value } }
+        body: { action: 'check-uniqueness', userId: user ? user.id : 'temp', customer: { [fieldName]: value } }
       });
       if (data && !data.success) {
         setFormErrors(prev => ({ ...prev, [fieldName]: data.message }));
@@ -163,7 +181,7 @@ export default function Checkout() {
     setIsCheckingUniqueness(true);
     try {
       const { data, error } = await supabase.functions.invoke('process-checkout', {
-        body: { action: 'check-uniqueness', userId: 'temp', customer: formData }
+        body: { action: 'check-uniqueness', userId: user ? user.id : 'temp', customer: formData }
       });
       if (error) throw error;
       if (!data.success) {
@@ -190,7 +208,7 @@ export default function Checkout() {
 
   const handleProcessPayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isPasswordValid) return toast.error("Senha não atende aos requisitos.");
+    if (!user && !isPasswordValid) return toast.error("Senha não atende aos requisitos.");
     if (paymentMethod === 'CREDIT_CARD') {
       if (formData.cardNumber.replace(/\D/g, '').length < 13) return toast.error("Número do cartão inválido.");
       if (!/^\d{2}\/\d{2}$/.test(formData.expiry)) return toast.error("Validade do cartão inválida (MM/AA).");
@@ -202,26 +220,36 @@ export default function Checkout() {
     setLoading(true);
 
     try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email, password: formData.password,
-        options: { data: { full_name: formData.name, phone: formData.phone, cpf_cnpj: formData.cpfCnpj } }
-      });
+      let userId = user?.id;
 
-      if (authError) {
-        const m = authError.message.toLowerCase();
-        // O trigger do banco (billing_identities) bloqueia CPF/WhatsApp duplicado já no signUp.
-        if (m.includes('database error') || m.includes('saving new user') || m.includes('duplicate') || m.includes('unique')) {
-          setStep(1);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-          setFormErrors(prev => ({ ...prev, cpfCnpj: 'Este CPF/CNPJ ou WhatsApp já está cadastrado em outra conta.' }));
-          throw new Error("Este CPF/CNPJ ou WhatsApp já está cadastrado em outra conta.");
+      if (!user) {
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: formData.email, password: formData.password,
+          options: { data: { full_name: formData.name, phone: formData.phone, cpf_cnpj: formData.cpfCnpj } }
+        });
+
+        if (authError) {
+          const m = authError.message.toLowerCase();
+          // O trigger do banco (billing_identities) bloqueia CPF/WhatsApp duplicado já no signUp.
+          if (m.includes('database error') || m.includes('saving new user') || m.includes('duplicate') || m.includes('unique')) {
+            setStep(1);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            setFormErrors(prev => ({ ...prev, cpfCnpj: 'Este CPF/CNPJ ou WhatsApp já está cadastrado em outra conta.' }));
+            throw new Error("Este CPF/CNPJ ou WhatsApp já está cadastrado em outra conta.");
+          }
+          throw new Error(m.includes("already") ? "E-mail já cadastrado." : `Erro: ${authError.message}`);
         }
-        throw new Error(m.includes("already") ? "E-mail já cadastrado." : `Erro: ${authError.message}`);
+        userId = authData?.user?.id;
+      } else {
+        const { error: updateError } = await supabase.auth.updateUser({
+          data: { cpf_cnpj: formData.cpfCnpj, full_name: formData.name, phone: formData.phone }
+        });
+        if (updateError) throw new Error("Erro ao salvar documento: " + updateError.message);
       }
 
       const { data, error } = await supabase.functions.invoke('process-checkout', {
         body: {
-          userId: authData?.user?.id, planId: selectedPlan.id, billingCycle, paymentMethod, coupon: appliedCoupon?.code, finalPrice,
+          userId: userId, planId: selectedPlan.id, billingCycle, paymentMethod, coupon: appliedCoupon?.code, finalPrice,
           customer: { name: formData.name, email: formData.email, cpfCnpj: formData.cpfCnpj, phone: formData.phone },
           creditCard: paymentMethod === 'CREDIT_CARD' ? {
             holderName: formData.holderName, number: formData.cardNumber.replace(/\s/g, ''),
@@ -318,46 +346,48 @@ export default function Checkout() {
                     </div>
 
                     {/* senha */}
-                    <div className="space-y-1.5">
-                      <label className="text-[13px] font-bold text-slate-700">Crie uma senha forte</label>
-                      <div className="relative">
-                        <Lock className="w-[18px] h-[18px] text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
-                        <input required type={showPassword ? "text" : "password"} autoComplete="new-password" value={formData.password}
-                          onChange={(e) => setFormData({ ...formData, password: e.target.value })} placeholder="••••••••"
-                          className={cn(inputBase, inputOk, "pr-12")} />
-                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                          {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                        </button>
-                      </div>
-                      {/* Barra de força da senha */}
-                      {formData.password && (() => {
-                        const strength = passwordStrength(formData.password);
-                        const colors = ['bg-red-500', 'bg-red-400', 'bg-amber-400', 'bg-emerald-400', 'bg-emerald-500'];
-                        const textColors = ['text-red-500', 'text-red-400', 'text-amber-500', 'text-emerald-500', 'text-emerald-600'];
-                        return (
-                          <div className="pt-2" aria-live="polite">
-                            <div className="flex gap-1.5">
-                              {[1, 2, 3, 4].map((i) => (
-                                <div key={i} className={cn(
-                                  "h-1.5 flex-1 rounded-full transition-colors duration-300",
-                                  strength.score >= i ? colors[strength.score] : "bg-slate-200"
-                                )} />
-                              ))}
+                    {!user && (
+                      <div className="space-y-1.5">
+                        <label className="text-[13px] font-bold text-slate-700">Crie uma senha forte</label>
+                        <div className="relative">
+                          <Lock className="w-[18px] h-[18px] text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                          <input required type={showPassword ? "text" : "password"} autoComplete="new-password" value={formData.password}
+                            onChange={(e) => setFormData({ ...formData, password: e.target.value })} placeholder="••••••••"
+                            className={cn(inputBase, inputOk, "pr-12")} />
+                          <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                          </button>
+                        </div>
+                        {/* Barra de força da senha */}
+                        {formData.password && (() => {
+                          const strength = passwordStrength(formData.password);
+                          const colors = ['bg-red-500', 'bg-red-400', 'bg-amber-400', 'bg-emerald-400', 'bg-emerald-500'];
+                          const textColors = ['text-red-500', 'text-red-400', 'text-amber-500', 'text-emerald-500', 'text-emerald-600'];
+                          return (
+                            <div className="pt-2" aria-live="polite">
+                              <div className="flex gap-1.5">
+                                {[1, 2, 3, 4].map((i) => (
+                                  <div key={i} className={cn(
+                                    "h-1.5 flex-1 rounded-full transition-colors duration-300",
+                                    strength.score >= i ? colors[strength.score] : "bg-slate-200"
+                                  )} />
+                                ))}
+                              </div>
+                              <p className={cn("text-[11px] font-bold pt-1.5 transition-colors", textColors[strength.score])}>
+                                Força da senha: {strength.label}
+                              </p>
                             </div>
-                            <p className={cn("text-[11px] font-bold pt-1.5 transition-colors", textColors[strength.score])}>
-                              Força da senha: {strength.label}
-                            </p>
-                          </div>
-                        );
-                      })()}
-                      <div className="grid grid-cols-2 gap-2.5 pt-2.5">
-                        <Requirement label="Mín. 8 caracteres" met={passwordRequirements.length} />
-                        <Requirement label="Letra maiúscula" met={passwordRequirements.upper} />
-                        <Requirement label="Letra minúscula" met={passwordRequirements.lower} />
-                        <Requirement label="Número" met={passwordRequirements.number} />
-                        <Requirement label="Símbolo especial" met={passwordRequirements.special} />
+                          );
+                        })()}
+                        <div className="grid grid-cols-2 gap-2.5 pt-2.5">
+                          <Requirement label="Mín. 8 caracteres" met={passwordRequirements.length} />
+                          <Requirement label="Letra maiúscula" met={passwordRequirements.upper} />
+                          <Requirement label="Letra minúscula" met={passwordRequirements.lower} />
+                          <Requirement label="Número" met={passwordRequirements.number} />
+                          <Requirement label="Símbolo especial" met={passwordRequirements.special} />
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     <div className="border-t border-slate-100" />
 

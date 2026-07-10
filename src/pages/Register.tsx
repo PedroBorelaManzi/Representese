@@ -8,13 +8,29 @@ import {
   Phone,
   Building2,
   Loader2,
-  ArrowRight
+  ArrowRight,
+  Eye,
+  EyeOff,
+  Check
 } from "lucide-react";
 import { Logo } from "../components/Logo";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
+import { passwordStrength } from "../lib/validators";
+import { cn } from "../lib/utils";
+
+function Requirement({ label, met }: { label: string; met: boolean }) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className={cn("w-4 h-4 rounded-full flex items-center justify-center transition-all duration-300", met ? "bg-emerald-500 text-white" : "bg-slate-200 text-slate-400 dark:bg-zinc-800 dark:text-zinc-500")}>
+        <Check className="w-2.5 h-2.5" strokeWidth={3} />
+      </div>
+      <span className={cn("text-[11px] font-bold transition-colors", met ? "text-emerald-700 dark:text-emerald-400" : "text-slate-400 dark:text-zinc-500")}>{label}</span>
+    </div>
+  );
+}
 
 export default function Register() {
   const [name, setName] = useState("");
@@ -22,9 +38,26 @@ export default function Register() {
   const [phone, setPhone] = useState("");
   const [company, setCompany] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
+
+  const [passwordRequirements, setPasswordRequirements] = useState({
+    length: false, upper: false, lower: false, number: false, special: false
+  });
+
+  React.useEffect(() => {
+    setPasswordRequirements({
+      length: password.length >= 8,
+      upper: /[A-Z]/.test(password),
+      lower: /[a-z]/.test(password),
+      number: /[0-9]/.test(password),
+      special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+    });
+  }, [password]);
+
+  const isPasswordValid = Object.values(passwordRequirements).every(req => req);
 
   // Se já estiver logado, manda pros planos
   if (user) {
@@ -40,8 +73,8 @@ export default function Register() {
       return;
     }
 
-    if (password.length < 6) {
-      toast.error("A senha deve ter no mínimo 6 caracteres");
+    if (!isPasswordValid) {
+      toast.error("A senha não atende aos requisitos de segurança");
       return;
     }
 
@@ -151,7 +184,7 @@ export default function Register() {
 
             <div className="space-y-1.5">
               <label className="text-[13px] font-bold text-slate-700 dark:text-zinc-300 ml-1">
-                Empresa / Segmento (Opcional)
+                Empresas que você trabalha (Opcional)
               </label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-emerald-500 transition-colors">
@@ -162,7 +195,7 @@ export default function Register() {
                   value={company}
                   onChange={(e) => setCompany(e.target.value)}
                   className="w-full pl-11 pr-4 py-3.5 bg-slate-50 dark:bg-zinc-950/50 border border-slate-200 dark:border-zinc-800 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-600"
-                  placeholder="Ex: Representações Comerciais"
+                  placeholder="Ex: Empresa A, Empresa B..."
                 />
               </div>
             </div>
@@ -188,20 +221,56 @@ export default function Register() {
 
             <div className="space-y-1.5">
               <label className="text-[13px] font-bold text-slate-700 dark:text-zinc-300 ml-1">
-                Crie uma senha *
+                Crie uma senha forte *
               </label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-emerald-500 transition-colors">
                   <Lock className="w-5 h-5" />
                 </div>
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3.5 bg-slate-50 dark:bg-zinc-950/50 border border-slate-200 dark:border-zinc-800 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-600"
-                  placeholder="No mínimo 6 caracteres"
+                  className="w-full pl-11 pr-12 py-3.5 bg-slate-50 dark:bg-zinc-950/50 border border-slate-200 dark:border-zinc-800 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-600"
+                  placeholder="••••••••"
                   required
                 />
+                <button 
+                  type="button" 
+                  onClick={() => setShowPassword(!showPassword)} 
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+
+              {/* Barra de força da senha */}
+              {password && (() => {
+                const strength = passwordStrength(password);
+                const colors = ['bg-red-500', 'bg-red-400', 'bg-amber-400', 'bg-emerald-400', 'bg-emerald-500'];
+                const textColors = ['text-red-500', 'text-red-400', 'text-amber-500', 'text-emerald-500', 'text-emerald-600', 'dark:text-emerald-400'];
+                return (
+                  <div className="pt-2 px-1" aria-live="polite">
+                    <div className="flex gap-1.5">
+                      {[1, 2, 3, 4].map((i) => (
+                        <div key={i} className={cn(
+                          "h-1.5 flex-1 rounded-full transition-colors duration-300",
+                          strength.score >= i ? colors[strength.score] : "bg-slate-200 dark:bg-zinc-800"
+                        )} />
+                      ))}
+                    </div>
+                    <p className={cn("text-[11px] font-bold pt-1.5 transition-colors", textColors[strength.score] || textColors[4])}>
+                      Força da senha: {strength.label}
+                    </p>
+                  </div>
+                );
+              })()}
+              <div className="grid grid-cols-2 gap-2.5 pt-2.5 px-1">
+                <Requirement label="Mín. 8 caracteres" met={passwordRequirements.length} />
+                <Requirement label="Letra maiúscula" met={passwordRequirements.upper} />
+                <Requirement label="Letra minúscula" met={passwordRequirements.lower} />
+                <Requirement label="Número" met={passwordRequirements.number} />
+                <Requirement label="Símbolo especial" met={passwordRequirements.special} />
               </div>
             </div>
 
