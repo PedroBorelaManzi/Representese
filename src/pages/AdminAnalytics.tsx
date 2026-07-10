@@ -32,10 +32,6 @@ export default function AdminAnalytics() {
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'sistema' | 'landing' | 'leads'>('sistema');
 
-  if (!settings.is_admin) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
   // --- QUERY 1: Sistema (Usuários Logados) ---
   const { data, isLoading } = useQuery({
     queryKey: ['admin_analytics_v2'],
@@ -138,7 +134,7 @@ export default function AdminAnalytics() {
         usersList
       };
     },
-    enabled: activeTab === 'sistema'
+    enabled: activeTab === 'sistema' && !!settings?.is_admin
   });
 
   // --- QUERY 2: Landing Page (Leads Anônimos) ---
@@ -179,7 +175,7 @@ export default function AdminAnalytics() {
         chartData
       };
     },
-    enabled: activeTab === 'landing'
+    enabled: activeTab === 'landing' && !!settings?.is_admin
   });
 
   // --- QUERY 3: Leads & Assinantes (CRM) ---
@@ -193,7 +189,7 @@ export default function AdminAnalytics() {
       if (error) throw error;
       return data.filter(d => !d.is_admin);
     },
-    enabled: activeTab === 'leads'
+    enabled: activeTab === 'leads' && !!settings?.is_admin
   });
 
   const exportToCSV = () => {
@@ -225,6 +221,10 @@ export default function AdminAnalytics() {
   const filteredUsers = data?.usersList.filter(u => 
     u.email.toLowerCase().includes(searchTerm.toLowerCase())
   ) || [];
+
+  if (!settings.is_admin) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   return (
     <div className="w-full max-w-7xl mx-auto p-4 md:p-8 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
