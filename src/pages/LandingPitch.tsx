@@ -209,9 +209,8 @@ export default function LandingPitch() {
             transition={{ duration: 0.6, delay: 0.25 }}
             className="text-lg sm:text-xl text-slate-500 font-medium leading-relaxed max-w-2xl mx-auto mb-10"
           >
-            O Represente-Se é a central de quem carrega um portfólio de marcas.
-            Pedidos, faturamento e metas separados por representada — com CRM, agenda,
-            e-mail e IA trabalhando junto por você.
+            Pedidos, faturamento e metas separados por representada.
+            CRM, agenda, e-mail e IA — tudo num só lugar.
           </motion.p>
 
           {/* CTAs */}

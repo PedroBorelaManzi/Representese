@@ -103,7 +103,7 @@ export function GestaoInteligenteSection() {
             <span className="bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent">IA cuidando do resto.</span>
           </h2>
           <p className="text-slate-400 font-medium leading-relaxed max-w-lg mx-auto">
-            Cada cliente com histórico completo — e uma IA que gera resumos, categoriza e-mails e avisa quem precisa de atenção antes que vá para o concorrente.
+            Histórico completo de cada cliente. IA gera resumos e avisa quem precisa de atenção.
           </p>
         </FadeUp>
 
