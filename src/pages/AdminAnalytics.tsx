@@ -38,7 +38,7 @@ export default function AdminAnalytics() {
 
   // --- QUERY 1: Sistema (Usuários Logados) ---
   const { data, isLoading } = useQuery({
-    queryKey: ['admin_analytics_full'],
+    queryKey: ['admin_analytics_v2'],
     queryFn: async () => {
       // 1. Busca os últimos 5000 eventos (limite razoável para client-side aggregation)
       const { data: eventsData, error: eventsError } = await supabase
