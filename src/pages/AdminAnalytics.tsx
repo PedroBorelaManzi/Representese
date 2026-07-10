@@ -55,21 +55,31 @@ export default function AdminAnalytics() {
       // 2. Extrai IDs únicos de usuários
       const userIds = Array.from(new Set(pageViews.map(e => e.user_id)));
 
-      // 3. Busca e-mails desses usuários na tabela user_settings
+      // 3. Busca e-mails e status de admin na tabela user_settings
       let emailMap = new Map<string, string>();
+      let adminIds = new Set<string>();
       if (userIds.length > 0) {
         const { data: settingsData } = await supabase
           .from('user_settings')
-          .select('user_id, email')
+          .select('user_id, email, is_admin')
           .in('user_id', userIds);
           
         if (settingsData) {
-          settingsData.forEach(s => emailMap.set(s.user_id, s.email || 'Usuário Sem Email'));
+          settingsData.forEach(s => {
+            if (s.is_admin) {
+              adminIds.add(s.user_id);
+            } else {
+              emailMap.set(s.user_id, s.email || 'Usuário Sem Email');
+            }
+          });
         }
       }
 
+      // 4. Remove todos os pageViews que pertencem a administradores
+      const filteredPageViews = pageViews.filter(e => !adminIds.has(e.user_id));
+
       // === Processamento Global ===
-      const timeByRouteGlobal = pageViews.reduce((acc, curr) => {
+      const timeByRouteGlobal = filteredPageViews.reduce((acc, curr) => {
         const route = formatRouteName(curr.route || 'unknown');
         acc[route] = (acc[route] || 0) + (curr.duration_seconds || 0);
         return acc;
@@ -88,7 +98,7 @@ export default function AdminAnalytics() {
       // === Processamento Por Usuário ===
       const userStatsMap = new Map<string, { totalTime: number, routes: Record<string, number> }>();
       
-      pageViews.forEach(curr => {
+      filteredPageViews.forEach(curr => {
         const route = formatRouteName(curr.route || 'unknown');
         const uid = curr.user_id;
         
@@ -123,7 +133,7 @@ export default function AdminAnalytics() {
 
       return {
         totalEvents: events.length,
-        totalTimeGlobal: pageViews.reduce((acc, curr) => acc + (curr.duration_seconds || 0), 0),
+        totalTimeGlobal: filteredPageViews.reduce((acc, curr) => acc + (curr.duration_seconds || 0), 0),
         globalChartData,
         usersList
       };
