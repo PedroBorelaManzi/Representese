@@ -15,10 +15,10 @@ export function RecursosBentoSection() {
         <FadeUp className="text-center mb-16">
           <Kicker num="03" label="A plataforma" center />
           <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 mb-4">
-            Tudo que você precisa,<br />em um único lugar.
+            Menos retrabalho.<br />Mais tempo na rua vendendo.
           </h2>
           <p className="text-slate-500 font-medium max-w-xl mx-auto">
-            Ferramentas integradas que eliminam o retrabalho e devolvem horas do seu dia.
+            CRM, agenda, mapa, e-mail e faturamento integrados — para devolver horas do seu dia.
           </p>
         </FadeUp>
 
@@ -103,7 +103,7 @@ export function GestaoInteligenteSection() {
             <span className="bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent">IA cuidando do resto.</span>
           </h2>
           <p className="text-slate-400 font-medium leading-relaxed max-w-lg mx-auto">
-            Histórico completo de cada cliente. IA gera resumos e avisa quem precisa de atenção.
+            A IA sabe qual cliente precisa de atenção — e avisa você antes do concorrente.
           </p>
         </FadeUp>
 

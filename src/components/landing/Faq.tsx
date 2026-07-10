@@ -14,9 +14,12 @@ export function FaqSection() {
       <div className="max-w-3xl mx-auto">
         <FadeUp className="text-center mb-12">
           <Kicker num="05" label="Perguntas frequentes" center />
-          <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900">
+          <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 mb-4">
             Ainda em dúvida?
           </h2>
+          <p className="text-slate-500 font-medium max-w-xl mx-auto">
+            Respostas rápidas para o que mais perguntam antes de assinar.
+          </p>
         </FadeUp>
 
         <div className="space-y-3">
