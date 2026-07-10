@@ -29,8 +29,8 @@ import {
 /* ─── navegação (ordem = ordem dos capítulos na página) ───────── */
 export const NAV = [
   { id: "diferencial", label: "Diferencial", num: "01" },
-  { id: "recursos",    label: "Recursos",    num: "02" },
-  { id: "industrias",  label: "Setores",     num: "03" },
+  { id: "industrias",  label: "Setores",     num: "02" },
+  { id: "recursos",    label: "Recursos",    num: "03" },
   { id: "precos",      label: "Planos",      num: "04" },
   { id: "duvidas",     label: "Dúvidas",     num: "05" },
 ];

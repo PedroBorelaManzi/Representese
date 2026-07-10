@@ -15,12 +15,11 @@ import { cn } from "../lib/utils";
 import { NAV, NAV_IDS } from "../components/landing/data";
 import { useActiveSection } from "../components/landing/primitives";
 import { IntegrationsMarquee, DiferencialSection } from "../components/landing/Diferencial";
-import { RecursosBentoSection, CrmHighlightSection, IaSection } from "../components/landing/Recursos";
+import { RecursosBentoSection, GestaoInteligenteSection } from "../components/landing/Recursos";
 import { SetoresSection } from "../components/landing/Setores";
 import { MultiplataformaSection, ComoFuncionaSection } from "../components/landing/Plataforma";
 import { FaqSection } from "../components/landing/Faq";
 import { CtaFinalSection, LandingFooter } from "../components/landing/CtaFooter";
-import { ComparativoSection } from "../components/landing/Comparativo";
 import { useLandingTracking } from "../hooks/useLandingTracking";
 
 /* Página composta por seções em src/components/landing/ (auditoria 3.1).
@@ -292,11 +291,9 @@ export default function LandingPitch() {
 
       <IntegrationsMarquee />
       <DiferencialSection />
-      <ComparativoSection />
-      <RecursosBentoSection />
-      <CrmHighlightSection />
-      <IaSection />
       <SetoresSection />
+      <RecursosBentoSection />
+      <GestaoInteligenteSection />
       <MultiplataformaSection />
       <ComoFuncionaSection />
       <FaqSection />
