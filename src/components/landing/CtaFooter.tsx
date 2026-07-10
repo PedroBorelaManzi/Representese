@@ -42,7 +42,7 @@ export function CtaFinalSection() {
                 <span className="bg-gradient-to-br from-emerald-300 via-emerald-400 to-teal-300 bg-clip-text text-transparent">sua operação comercial?</span>
               </h2>
               <p className="text-slate-400 font-medium text-lg max-w-lg mx-auto mb-10">
-                Junte-se a mais de 2.000 representantes que já alavancaram seus resultados com a Represente-Se.
+                Centralize sua carteira, sua agenda e seu faturamento em um só lugar com a Represente-Se.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Link

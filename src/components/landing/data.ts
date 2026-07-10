@@ -88,13 +88,6 @@ export const faqs = [
   { question: "Meus dados estão seguros?",                   answer: "Utilizamos criptografia de ponta e infraestrutura de alta disponibilidade na Supabase. Seus dados e os de seus clientes ficam protegidos e sob seu controle." },
 ];
 
-export const stats = [
-  { to: 2000, prefix: "+", suffix: "",      sep: true,  label: "representantes ativos" },
-  { to: 50,   prefix: "+", suffix: "k",     sep: false, label: "clientes gerenciados" },
-  { to: 98,   prefix: "",  suffix: "%",     sep: false, label: "satisfação dos usuários" },
-  { to: 20,   prefix: "+", suffix: "h",     sep: false, label: "economizadas por mês" },
-];
-
 export const bentoFeatures = [
   {
     icon: Brain,
@@ -135,25 +128,3 @@ export const bentoFeatures = [
   },
 ];
 
-export const testimonials = [
-  {
-    quote: "O controle que tenho hoje sobre minha carteira é algo que eu nunca imaginei ser possível. Recuperei mais de 20 horas por mês.",
-    name: "Ricardo Moreira",
-    role: "Representante · São Paulo",
-    initials: "RM",
-  },
-  {
-    quote: "A IA gera o resumo do cliente em segundos. Chego na visita sabendo exatamente o que falar. Fechei 30% mais pedidos.",
-    name: "Juliana Castro",
-    role: "Representante · Curitiba",
-    initials: "JC",
-  },
-  {
-    quote: "Parei de perder cliente por esquecimento. O alerta de inatividade me avisa antes do prejuízo acontecer. Mudou meu jogo.",
-    name: "André Ferreira",
-    role: "Representante · Goiânia",
-    initials: "AF",
-  },
-];
-
-export const avatars = ["RM", "JC", "AF", "PS", "LB"];

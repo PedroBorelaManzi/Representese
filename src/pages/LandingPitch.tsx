@@ -6,18 +6,18 @@ import {
   useSpring,
   useTransform,
 } from "framer-motion";
-import { Star, Play, ArrowRight, Brain, TrendingUp } from "lucide-react";
+import { Play, ArrowRight, Brain, TrendingUp } from "lucide-react";
 import { Logo } from "../components/Logo";
 import { BrowserDashboard } from "../components/LandingMockups";
 import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { cn } from "../lib/utils";
-import { NAV, NAV_IDS, avatars } from "../components/landing/data";
+import { NAV, NAV_IDS } from "../components/landing/data";
 import { useActiveSection } from "../components/landing/primitives";
 import { IntegrationsMarquee, DiferencialSection } from "../components/landing/Diferencial";
 import { RecursosBentoSection, CrmHighlightSection, IaSection } from "../components/landing/Recursos";
 import { SetoresSection } from "../components/landing/Setores";
-import { MultiplataformaSection, ComoFuncionaSection, ProvaSocialSection } from "../components/landing/Plataforma";
+import { MultiplataformaSection, ComoFuncionaSection } from "../components/landing/Plataforma";
 import { FaqSection } from "../components/landing/Faq";
 import { CtaFinalSection, LandingFooter } from "../components/landing/CtaFooter";
 import { ComparativoSection } from "../components/landing/Comparativo";
@@ -237,33 +237,6 @@ export default function LandingPitch() {
               Ver demonstração
             </a>
           </motion.div>
-
-          {/* social proof */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, delay: 0.5 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4"
-          >
-            <div className="flex -space-x-2.5">
-              {avatars.map((a) => (
-                <div key={a} className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 border-2 border-white flex items-center justify-center text-white text-[9px] font-black shadow-sm">
-                  {a}
-                </div>
-              ))}
-            </div>
-            <div className="flex flex-col items-center sm:items-start">
-              <div className="flex items-center gap-1">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <Star key={i} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                ))}
-                <span className="text-[13px] font-black text-slate-800 ml-1">4.9/5</span>
-              </div>
-              <p className="text-slate-500 text-[12px] font-medium">
-                <span className="text-slate-800 font-semibold">2.000+ representantes</span> confiam na plataforma
-              </p>
-            </div>
-          </motion.div>
         </div>
 
         {/* dashboard mockup (codado, janela de navegador) — entra inclinado
@@ -326,7 +299,6 @@ export default function LandingPitch() {
       <SetoresSection />
       <MultiplataformaSection />
       <ComoFuncionaSection />
-      <ProvaSocialSection />
       <FaqSection />
       <CtaFinalSection />
       <LandingFooter />
