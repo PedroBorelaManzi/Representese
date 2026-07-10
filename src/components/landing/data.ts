@@ -71,14 +71,6 @@ export const painPoints = [
   { icon: AlertTriangle, title: "Cliente e pedido escapando",          desc: "No meio de tantas marcas, o pedido sem acompanhamento passa batido — e vira faturamento do concorrente." },
 ];
 
-/* representadas do painel-demonstração (seção diferencial) */
-export const representadas = [
-  { name: "Tintas Aurora",      faturamento: 48200, meta: 60000, pedidos: 32, color: "#10b981" },
-  { name: "AgroMax Insumos",    faturamento: 71500, meta: 75000, pedidos: 41, color: "#0ea5e9" },
-  { name: "Farma Distribuidora", faturamento: 23900, meta: 40000, pedidos: 18, color: "#8b5cf6" },
-];
-export const representadasTotal = representadas.reduce((s, r) => s + r.faturamento, 0);
-
 export const faqs = [
   { question: "Como funciona a garantia de 7 dias?",         answer: "Você começa sem compromisso. Se não se adaptar por qualquer motivo dentro dos primeiros 7 dias, reembolsamos 100% do valor investido." },
   { question: "Posso mudar de plano a qualquer momento?",    answer: "Sim. Upgrade e downgrade disponíveis diretamente nas configurações da conta, sem burocracia e com efeito imediato." },
@@ -127,4 +119,3 @@ export const bentoFeatures = [
     span: "lg:col-span-2",
   },
 ];
-

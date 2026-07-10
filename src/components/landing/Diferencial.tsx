@@ -1,10 +1,10 @@
 /* Capítulo 01 · Diferencial (dor → solução) + marquee de integrações. */
 import React from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, BarChart3, Building2, Layers, Target, Wallet } from "lucide-react";
+import { ArrowRight, BarChart3, Layers, Target, Wallet } from "lucide-react";
 import { Link } from "react-router-dom";
 import { FadeUp, Kicker } from "./primitives";
-import { integrations, painPoints, representadas, representadasTotal } from "./data";
+import { integrations, painPoints } from "./data";
 
 export function IntegrationsMarquee() {
   return (
@@ -109,83 +109,6 @@ export function DiferencialSection() {
             </Link>
           </FadeUp>
 
-          {/* painel de representadas */}
-          <FadeUp delay={0.15}>
-            <div className="relative">
-              <div className="absolute -inset-4 bg-emerald-400/10 blur-[80px] rounded-full -z-10" />
-              <div className="relative bg-white rounded-[28px] border border-slate-200 shadow-xl ring-1 ring-slate-900/5 overflow-hidden">
-                {/* header */}
-                <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Painel de representadas</p>
-                    <p className="text-[15px] font-black text-slate-900">Faturamento de junho</p>
-                  </div>
-                  <div className="w-10 h-10 rounded-2xl bg-emerald-50 flex items-center justify-center">
-                    <Layers className="w-5 h-5 text-emerald-600" />
-                  </div>
-                </div>
-
-                {/* linhas */}
-                <div className="p-5 space-y-3.5">
-                  {representadas.map((r, i) => {
-                    const pct = Math.min(100, Math.round((r.faturamento / r.meta) * 100));
-                    return (
-                      <div key={r.name} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
-                        <div className="flex items-center justify-between mb-2.5">
-                          <div className="flex items-center gap-2.5">
-                            <span className="w-2.5 h-2.5 rounded-full" style={{ background: r.color }} />
-                            <span className="text-[13px] font-black text-slate-800">{r.name}</span>
-                          </div>
-                          <span className="text-[11px] font-bold text-slate-400">{r.pedidos} pedidos</span>
-                        </div>
-                        <div className="flex items-end justify-between mb-2">
-                          <span className="text-[17px] font-black text-slate-900">
-                            R$ {r.faturamento.toLocaleString("pt-BR")}
-                          </span>
-                          <span className="text-[11px] font-bold text-slate-500">
-                            {pct}% da meta
-                          </span>
-                        </div>
-                        <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            whileInView={{ width: `${pct}%` }}
-                            viewport={{ once: true }}
-                            transition={{ duration: 1.1, delay: 0.2 + i * 0.15, ease: [0.22, 1, 0.36, 1] }}
-                            className="h-full rounded-full"
-                            style={{ background: r.color }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* total */}
-                <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-white">
-                  <span className="text-[12px] font-bold text-slate-500 uppercase tracking-wider">Total no mês</span>
-                  <span className="text-[19px] font-black text-emerald-600">
-                    R$ {representadasTotal.toLocaleString("pt-BR")}
-                  </span>
-                </div>
-              </div>
-
-              {/* badge flutuante */}
-              <motion.div
-                animate={{ y: [-5, 5, -5] }}
-                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                className="hidden sm:flex absolute -top-5 -right-5 bg-white rounded-2xl shadow-xl border border-slate-100 p-3.5 items-center gap-3"
-              >
-                <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center">
-                  <Building2 className="w-4 h-4 text-emerald-600" />
-                </div>
-                <div>
-                  <p className="text-[11px] font-black text-slate-900 leading-none">{representadas.length} representadas</p>
-                  <p className="text-[10px] text-slate-500 font-medium mt-0.5">controladas num lugar</p>
-                </div>
-              </motion.div>
-            </div>
-          </FadeUp>
         </div>
       </div>
     </section>
