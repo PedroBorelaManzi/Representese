@@ -25,6 +25,19 @@ export function FadeUp({
   );
 }
 
+/* ponte narrativa entre seções — frase curta que conecta um capítulo ao próximo */
+export function SectionBridge({ text }: { text: string }) {
+  return (
+    <div className="bg-white px-6 py-8">
+      <FadeUp className="flex items-center justify-center gap-3">
+        <span className="h-px w-10 bg-slate-200 shrink-0" />
+        <p className="text-[13px] font-bold text-slate-500 text-center max-w-md">{text}</p>
+        <span className="h-px w-10 bg-slate-200 shrink-0" />
+      </FadeUp>
+    </div>
+  );
+}
+
 /* eyebrow/kicker padronizado — dá identidade de "capítulo" a cada seção */
 export function Kicker({
   num,

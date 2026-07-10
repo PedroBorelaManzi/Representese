@@ -81,12 +81,23 @@ export const representadasTotal = representadas.reduce((s, r) => s + r.faturamen
 
 export const faqs = [
   { question: "Como funciona a garantia de 7 dias?",         answer: "Comece sem compromisso. Não se adaptou nos primeiros 7 dias? Reembolsamos 100% do valor." },
+  { question: "Quanto tempo leva para começar?",             answer: "Minutos. Cadastre suas representadas, importe a carteira e o painel já está rodando — sem implantação nem consultoria." },
+  { question: "Posso importar meus dados antigos?",          answer: "Sim. Suba sua carteira por planilha e a IA organiza os dados por você." },
   { question: "Posso mudar de plano a qualquer momento?",    answer: "Sim, direto nas configurações da conta — sem burocracia e com efeito imediato." },
+  { question: "Posso cancelar quando quiser?",               answer: "Sim. Sem fidelidade e sem multa — você cancela direto na conta, quando quiser." },
   { question: "O sistema funciona em dispositivos móveis?",  answer: "Sim. App nativo para iOS e Android, além da versão web — gerencie sua carteira de qualquer lugar, até offline." },
   { question: "Preciso instalar alguma coisa?",              answer: "Não. Roda no navegador e como app no celular, com sincronização automática entre dispositivos." },
+  { question: "O sistema integra com meu ERP?",              answer: "Ainda não há integração direta com ERPs — a importação é feita por planilha, e novas integrações estão no roadmap." },
   { question: "Como funciona o suporte?",                    answer: "Via e-mail e WhatsApp, conforme o plano — com resposta rápida de verdade." },
   { question: "Meus dados estão seguros?",                   answer: "Sim. Criptografia de ponta e infraestrutura Supabase — seus dados protegidos e sob seu controle." },
 ];
+
+/* pontes narrativas entre seções (usadas via SectionBridge no LandingPitch) */
+export const sectionBridges = {
+  paraSetores:    "Seja qual for o seu ramo, a dor é a mesma — e a solução também.",
+  paraRecursos:   "Independente do setor, as ferramentas que resolvem são as mesmas.",
+  paraTecnologia: "E por trás de cada ferramenta, uma IA trabalhando pela sua carteira.",
+};
 
 export const bentoFeatures = [
   {

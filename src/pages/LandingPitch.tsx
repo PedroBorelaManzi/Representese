@@ -12,8 +12,8 @@ import { BrowserDashboard } from "../components/LandingMockups";
 import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { cn } from "../lib/utils";
-import { NAV, NAV_IDS } from "../components/landing/data";
-import { useActiveSection } from "../components/landing/primitives";
+import { NAV, NAV_IDS, sectionBridges } from "../components/landing/data";
+import { useActiveSection, SectionBridge } from "../components/landing/primitives";
 import { IntegrationsMarquee, DiferencialSection } from "../components/landing/Diferencial";
 import { RecursosBentoSection, GestaoInteligenteSection } from "../components/landing/Recursos";
 import { SetoresSection } from "../components/landing/Setores";
@@ -290,8 +290,11 @@ export default function LandingPitch() {
 
       <IntegrationsMarquee />
       <DiferencialSection />
+      <SectionBridge text={sectionBridges.paraSetores} />
       <SetoresSection />
+      <SectionBridge text={sectionBridges.paraRecursos} />
       <RecursosBentoSection />
+      <SectionBridge text={sectionBridges.paraTecnologia} />
       <GestaoInteligenteSection />
       <MultiplataformaSection />
       <ComoFuncionaSection />
