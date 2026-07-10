@@ -239,6 +239,15 @@ export default function Checkout() {
           }
           throw new Error(m.includes("already") ? "E-mail já cadastrado." : `Erro: ${authError.message}`);
         }
+        
+        // Supabase retorna identities vazio se o email já existir (se a opção de confirmação de email estiver ativa ou se for fake signup)
+        if (authData?.user?.identities && authData.user.identities.length === 0) {
+          setStep(1);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          setFormErrors(prev => ({ ...prev, email: 'E-mail já cadastrado. Faça login.' }));
+          throw new Error("E-mail já cadastrado. Faça login para continuar.");
+        }
+
         userId = authData?.user?.id;
       } else {
         const { error: updateError } = await supabase.auth.updateUser({

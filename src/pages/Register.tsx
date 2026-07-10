@@ -105,6 +105,13 @@ export default function Register() {
       }
 
       if (data?.user) {
+        // Supabase retorna identities vazio se o email já existe (para evitar email enumeration)
+        if (data.user.identities && data.user.identities.length === 0) {
+          toast.error("Este e-mail já possui uma conta. Faça o login!");
+          navigate("/login");
+          return;
+        }
+
         toast.success("Conta criada! Agora escolha o seu plano.");
         // Como o signup já loga o usuário automaticamente (se não tiver verificação de email ativada),
         // redirecionamos para a tela de planos, onde ele finaliza o fluxo (assinatura).
