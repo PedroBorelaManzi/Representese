@@ -23,6 +23,8 @@ interface Settings {
   trial_ends_at?: string;
   current_period_end?: string;
   is_admin?: boolean;
+  phone?: string;
+  company?: string;
 }
 
 const defaultSettings: Settings = {
@@ -35,10 +37,12 @@ const defaultSettings: Settings = {
   categories: [],
   commissions: {},
   revenue_ceiling: 1000000,
-  subscription_status: 'active', // Grace period default
+  subscription_status: 'inactive', // Default para leads novos sem plano
   plan_id: 'exclusivo',
   avatar_url: undefined,
   is_admin: false,
+  phone: undefined,
+  company: undefined,
 };
 
 interface SettingsContextType {
@@ -108,6 +112,8 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           trial_ends_at: cached.trial_ends_at,
           current_period_end: cached.current_period_end,
           is_admin: cached.is_admin ?? defaultSettings.is_admin,
+          phone: cached.phone,
+          company: cached.company,
         });
       }
 
@@ -180,6 +186,8 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           trial_ends_at: entData?.trial_ends_at,
           current_period_end: entData?.current_period_end,
           is_admin: data.is_admin ?? defaultSettings.is_admin,
+          phone: data.phone,
+          company: data.company,
         };
 
         setSettings(freshSettings);

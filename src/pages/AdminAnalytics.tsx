@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { useSettings } from '../contexts/SettingsContext';
 import { Navigate } from 'react-router-dom';
-import { BarChart3, Clock, LayoutDashboard, MousePointerClick, Search, ChevronDown, ChevronUp, User, Users, LineChart } from 'lucide-react';
+import { BarChart3, Clock, LayoutDashboard, MousePointerClick, Search, ChevronDown, ChevronUp, User, Users, LineChart, Download, Building2, Phone } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell
@@ -30,7 +30,7 @@ export default function AdminAnalytics() {
   const { settings } = useSettings();
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'sistema' | 'landing'>('sistema');
+  const [activeTab, setActiveTab] = useState<'sistema' | 'landing' | 'leads'>('sistema');
 
   if (!settings.is_admin) {
     return <Navigate to="/dashboard" replace />;
@@ -182,6 +182,38 @@ export default function AdminAnalytics() {
     enabled: activeTab === 'landing'
   });
 
+  // --- QUERY 3: Leads & Assinantes (CRM) ---
+  const { data: leadsData, isLoading: isLoadingLeads } = useQuery({
+    queryKey: ['admin_leads_crm'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('user_settings')
+        .select('user_id, email, phone, company, subscription_status, created_at, is_admin')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data.filter(d => !d.is_admin);
+    },
+    enabled: activeTab === 'leads'
+  });
+
+  const exportToCSV = () => {
+    if (!leadsData) return;
+    const headers = ['Data de Cadastro', 'Email', 'Telefone', 'Empresa', 'Status'];
+    const csvContent = leadsData.map(lead => {
+      const date = new Date(lead.created_at).toLocaleDateString('pt-BR');
+      return `${date},${lead.email},${lead.phone || ''},${lead.company || ''},${lead.subscription_status}`;
+    });
+    
+    const blob = new Blob([headers.join(',') + '\\n' + csvContent.join('\\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `leads_representese_${new Date().getTime()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
@@ -234,6 +266,19 @@ export default function AdminAnalytics() {
             Landing Page (Leads)
           </div>
           {activeTab === 'landing' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600" />}
+        </button>
+        <button
+          onClick={() => setActiveTab('leads')}
+          className={cn(
+            "px-6 py-3 font-semibold text-sm transition-all relative",
+            activeTab === 'leads' ? "text-amber-600" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+          )}
+        >
+          <div className="flex items-center gap-2">
+            <Building2 className="w-4 h-4" />
+            CRM & Leads
+          </div>
+          {activeTab === 'leads' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600" />}
         </button>
       </div>
 
@@ -536,6 +581,80 @@ export default function AdminAnalytics() {
           </div>
         )
       )}
+
+      {activeTab === 'leads' && (
+        isLoadingLeads ? (
+          <div className="h-64 bg-zinc-100 dark:bg-zinc-800 rounded-2xl animate-pulse"></div>
+        ) : (
+          <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl overflow-hidden shadow-sm">
+            <div className="p-6 border-b border-slate-200 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Base de Leads e Clientes</h3>
+                <p className="text-sm text-slate-500 dark:text-zinc-400">Gerencie todos os cadastros feitos pelo sistema.</p>
+              </div>
+              <button
+                onClick={exportToCSV}
+                className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-4 py-2 rounded-xl font-bold text-sm hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                Exportar CSV
+              </button>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm whitespace-nowrap">
+                <thead className="bg-slate-50 dark:bg-zinc-800/50 text-slate-500 dark:text-zinc-400 font-medium">
+                  <tr>
+                    <th className="px-6 py-4">Data</th>
+                    <th className="px-6 py-4">E-mail</th>
+                    <th className="px-6 py-4">WhatsApp</th>
+                    <th className="px-6 py-4">Empresa/Segmento</th>
+                    <th className="px-6 py-4">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-zinc-800">
+                  {leadsData?.map(lead => (
+                    <tr key={lead.user_id} className="hover:bg-slate-50 dark:hover:bg-zinc-800/30 transition-colors">
+                      <td className="px-6 py-4 text-slate-600 dark:text-zinc-300">
+                        {new Date(lead.created_at).toLocaleDateString('pt-BR')}
+                      </td>
+                      <td className="px-6 py-4 text-slate-900 dark:text-white font-medium">
+                        {lead.email}
+                      </td>
+                      <td className="px-6 py-4 text-slate-600 dark:text-zinc-300">
+                        {lead.phone || '-'}
+                      </td>
+                      <td className="px-6 py-4 text-slate-600 dark:text-zinc-300">
+                        {lead.company || '-'}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={cn(
+                          "px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider",
+                          lead.subscription_status === 'active' 
+                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400"
+                            : lead.subscription_status === 'inactive'
+                            ? "bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-400"
+                            : "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400"
+                        )}>
+                          {lead.subscription_status === 'active' ? 'Assinante' : lead.subscription_status === 'inactive' ? 'Lead' : 'Inativo/Canc'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                  {leadsData?.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-12 text-center text-slate-500 dark:text-zinc-400">
+                        Nenhum lead encontrado.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )
+      )}
+
     </div>
   );
 }
