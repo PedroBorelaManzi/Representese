@@ -321,9 +321,11 @@ export default function Login() {
             )}
 
           <div className="pt-12 text-center">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-              Ainda não tem conta? <br />
-              <Link to="/planos" className="text-emerald-600 font-black mt-2 inline-block hover:text-emerald-700">Comece seu teste grátis agora</Link>
+            <p className="text-[13px] font-medium text-slate-500 dark:text-zinc-400 mt-2">
+              Não tem uma conta ainda?{" "}
+              <Link to="/register" className="text-emerald-600 dark:text-emerald-400 font-bold hover:underline">
+                Crie sua conta
+              </Link>
             </p>
           </div>
         </div>

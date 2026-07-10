@@ -46,15 +46,15 @@ export function CtaFinalSection() {
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Link
-                  to="/planos"
+                  to="/register"
                   className="group flex items-center gap-2 px-10 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-[14px] transition-all shadow-[0_12px_40px_-8px_rgba(16,185,129,0.55)] hover:-translate-y-0.5"
                 >
-                  Escolher meu plano
+                  Comece seu teste agora
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </Link>
-                <a href="#precos" className="px-10 py-4 rounded-2xl border border-white/15 bg-white/5 backdrop-blur text-white font-black text-[14px] transition-all hover:bg-white/10 hover:border-white/25">
+                <Link to="/register" className="px-10 py-4 rounded-2xl border border-white/15 bg-white/5 backdrop-blur text-white font-black text-[14px] transition-all hover:bg-white/10 hover:border-white/25">
                   Ver planos
-                </a>
+                </Link>
               </div>
               <p className="text-slate-500 text-[11px] font-medium uppercase tracking-widest mt-7">
                 Satisfação garantida · Sem compromisso · Cancele quando quiser
@@ -84,7 +84,7 @@ export function LandingFooter() {
               <li><a href="#diferencial" className="hover:text-emerald-600 transition-colors">Diferencial</a></li>
               <li><a href="#recursos" className="hover:text-emerald-600 transition-colors">Recursos</a></li>
               <li><a href="#industrias" className="hover:text-emerald-600 transition-colors">Setores</a></li>
-              <li><a href="#precos" className="hover:text-emerald-600 transition-colors">Planos</a></li>
+              <li><Link to="/register" className="hover:text-emerald-600 transition-colors">Planos</Link></li>
               <li><a href="#duvidas" className="hover:text-emerald-600 transition-colors">Dúvidas</a></li>
             </ul>
           </div>
@@ -92,7 +92,7 @@ export function LandingFooter() {
             <p className="text-[11px] font-black uppercase tracking-widest text-slate-900 mb-4">Conta</p>
             <ul className="space-y-2.5 text-[13px] font-medium">
               <li><Link to="/login" className="hover:text-emerald-600 transition-colors">Entrar</Link></li>
-              <li><Link to="/planos" className="hover:text-emerald-600 transition-colors">Criar conta</Link></li>
+              <li><Link to="/register" className="hover:text-emerald-600 transition-colors">Criar conta</Link></li>
             </ul>
           </div>
           <div>

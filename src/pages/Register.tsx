@@ -93,8 +93,7 @@ export default function Register() {
 
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-10">
-          <Logo size="lg" showText variant="light" className="dark:flex hidden" />
-          <Logo size="lg" showText variant="dark" className="dark:hidden flex" />
+          <Logo size="lg" showText />
         </div>
 
         <motion.div
