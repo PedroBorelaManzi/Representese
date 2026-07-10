@@ -198,7 +198,7 @@ export function GestaoInteligenteSection() {
 
         <FadeUp delay={0.15} className="text-center mt-12">
           <Link to="/planos" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-[13px] transition-all shadow-lg shadow-emerald-500/25 hover:-translate-y-0.5 group">
-            Começar agora
+            Ativar minha carteira inteligente
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </Link>
         </FadeUp>

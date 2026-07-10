@@ -49,7 +49,7 @@ export function CtaFinalSection() {
                   to="/register"
                   className="group flex items-center gap-2 px-10 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-[14px] transition-all shadow-[0_12px_40px_-8px_rgba(16,185,129,0.55)] hover:-translate-y-0.5"
                 >
-                  Comece seu teste agora
+                  Criar minha conta agora
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </Link>
                 <Link to="/register" className="px-10 py-4 rounded-2xl border border-white/15 bg-white/5 backdrop-blur text-white font-black text-[14px] transition-all hover:bg-white/10 hover:border-white/25">
