@@ -17,7 +17,7 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
 import { cn } from "../lib/utils";
-import { PageHeader } from "../components/ui";
+import { PageHeader, Skeleton } from "../components/ui";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -313,8 +313,17 @@ export default function Comissoes() {
         </div>
 
         {isLoading ? (
-          <div className="flex items-center justify-center h-40">
-            <Loader2 className="w-6 h-6 text-emerald-600 animate-spin" />
+          <div className="space-y-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4 p-5 rounded-3xl border border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                <Skeleton className="w-10 h-10 rounded-2xl shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-3.5 w-1/3" />
+                  <Skeleton className="h-3 w-1/5" />
+                </div>
+                <Skeleton className="h-5 w-24" />
+              </div>
+            ))}
           </div>
         ) : rows.filter((r) => r.faturamento > 0).length === 0 ? (
           <div className="rounded-3xl border border-dashed border-slate-200 dark:border-zinc-800 p-10 text-center">

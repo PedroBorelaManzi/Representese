@@ -36,6 +36,7 @@ import { TrendingUp, Clock3 } from "lucide-react";
 import ClientFollowupModal from "../components/ClientFollowupModal";
 import ClientFollowupHistory from "../components/ClientFollowupHistory";
 import { getClientFollowupStatus, type ClientFollowupStatus } from "../lib/followupService";
+import { useConfirm } from "../components/ui";
 
 import { toTitleCase } from "../lib/utils";
 
@@ -49,6 +50,7 @@ export default function ClientDetails() {
   const { settings } = useSettings();
   const { drafts, setDraft, clearDraft } = useUpload();
   const navigate = useNavigate();
+  const confirm = useConfirm();
   
   const draft = drafts[id || ""] || { file: null, category: "", value: "", isOpen: false };
   const currentFile = draft.file;
@@ -152,7 +154,7 @@ export default function ClientDetails() {
   };
 
   const handleFileDelete = async (fileId: string, filePath: string) => {
-    if (!window.confirm("Deseja realmente excluir este pedido e descontar do faturamento?")) return;
+    if (!(await confirm({ title: 'Excluir pedido', message: 'Deseja realmente excluir este pedido e descontar do faturamento?' }))) return;
     
     try {
       if (!offlineCache.isOnline()) {

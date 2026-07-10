@@ -3,7 +3,7 @@ import { Plus, ChevronLeft, ChevronRight, Clock, Home, Loader2, Globe, RefreshCw
 import { supabase, logAudit } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { cn } from "../lib/utils";
-import { PageHeader } from "../components/ui";
+import { PageHeader, useConfirm } from "../components/ui";
 import { syncGoogleEvents, pushEventToGoogle, deleteEventFromGoogle } from "../lib/googleSync";
 import { fetchHolidays, getClientLocations, Holiday } from "../lib/holidayService";
 import AppointmentForm from "../components/AppointmentForm";
@@ -37,6 +37,7 @@ const formatDateLocal = (date: Date) => {
 export default function Dashboard() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
   const [currentDate, setCurrentDate] = useState(new Date());
   const businessHourRef = React.useRef<HTMLDivElement>(null);
 
@@ -381,7 +382,7 @@ export default function Dashboard() {
   const handleGoogleConnect = () => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     if (!clientId) {
-      alert("Erro: Client ID do Google não configurado.");
+      toast.error("Erro: Client ID do Google não configurado.");
       return;
     }
     const redirectUri = `${window.location.origin}/auth/callback/google`;
@@ -494,7 +495,8 @@ export default function Dashboard() {
   };
 
   const handleDelete = async () => {
-    if (!editingEvent?.id || !user || !window.confirm("Deseja realmente excluir este compromisso?")) return;
+    if (!editingEvent?.id || !user) return;
+    if (!(await confirm({ title: 'Excluir compromisso', message: 'Deseja realmente excluir este compromisso?' }))) return;
     setIsSaving(true);
     try {
       const { error } = await supabase.from("appointments").delete().eq("id", editingEvent.id).eq("user_id", user.id);

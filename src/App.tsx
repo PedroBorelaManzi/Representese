@@ -7,6 +7,7 @@ import { SettingsProvider } from "./contexts/SettingsContext";
 import { SyncProvider } from "./contexts/SyncContext";
 import { UploadProvider } from "./contexts/UploadContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { ConfirmProvider } from "./components/ui";
 import { Toaster } from "sonner";
 import Layout from "./components/Layout";
 import { SpeedInsights } from "@vercel/speed-insights/react";
@@ -98,6 +99,7 @@ export default function App() {
             <UploadProvider>
               <PageviewTracker />
               <PageTracker />
+              <ConfirmProvider>
               <Suspense fallback={<LoadingSpinner />}>
                 <Routes>
                   <Route path="/" element={<LandingOrRedirect />} />
@@ -143,6 +145,7 @@ export default function App() {
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </Suspense>
+              </ConfirmProvider>
             </UploadProvider>
           </SettingsProvider>
         </SyncProvider>

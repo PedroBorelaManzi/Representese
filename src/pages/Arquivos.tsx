@@ -21,7 +21,7 @@ import * as tus from "tus-js-client";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { offlineCache } from "../lib/offlineCache";
-import { PageHeader } from "../components/ui";
+import { PageHeader, Skeleton, useConfirm } from "../components/ui";
 import { toast } from "sonner";
 
 const BUCKET = "user_files";
@@ -54,6 +54,7 @@ const fileMeta = (name: string) => {
 
 export default function Arquivos() {
   const { user } = useAuth();
+  const confirm = useConfirm();
   const [path, setPath] = useState<string[]>([]);
   const [items, setItems] = useState<StorageItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -232,7 +233,7 @@ export default function Arquivos() {
 
   const handleDelete = async (item: StorageItem) => {
     const label = item.isFolder ? `a pasta "${item.name}" e todo o seu conteúdo` : `o arquivo "${item.name}"`;
-    if (!window.confirm(`Deseja excluir ${label}? Esta ação não pode ser desfeita.`)) return;
+    if (!(await confirm({ title: item.isFolder ? 'Excluir pasta' : 'Excluir arquivo', message: `Deseja excluir ${label}? Esta ação não pode ser desfeita.` }))) return;
 
     let toRemove: string[];
     if (item.isFolder) {
@@ -354,8 +355,17 @@ export default function Arquivos() {
         className={`rounded-3xl border transition-colors ${dragActive ? "border-emerald-400 border-dashed bg-emerald-50/40 dark:bg-emerald-500/5" : "border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900"}`}
       >
         {loading ? (
-          <div className="flex items-center justify-center py-24 text-slate-400">
-            <Loader2 className="w-6 h-6 animate-spin" />
+          <div className="p-6 space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4 py-3">
+                <Skeleton className="w-10 h-10 rounded-2xl shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-3.5 w-1/3" />
+                  <Skeleton className="h-3 w-1/6" />
+                </div>
+                <Skeleton className="h-4 w-14" />
+              </div>
+            ))}
           </div>
         ) : !offlineCache.isOnline() ? (
           <div className="flex flex-col items-center justify-center py-24 px-6 text-center">

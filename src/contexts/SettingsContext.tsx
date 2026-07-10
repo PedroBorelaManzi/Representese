@@ -4,7 +4,7 @@ import { useLocation } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import { offlineCache, CacheKeys } from "../lib/offlineCache";
 
-export type SubscriptionStatus = 'active' | 'past_due' | 'inactive' | 'trialing';
+export type SubscriptionStatus = 'active' | 'past_due' | 'inactive' | 'trialing' | 'canceled';
 
 interface Settings {
   alerta_days: number;

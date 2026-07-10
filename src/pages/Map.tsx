@@ -11,7 +11,7 @@ import { useClients } from "../hooks/useClients";
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from "sonner";
 import { offlineCache, CacheKeys } from "../lib/offlineCache";
-import { PageHeader } from "../components/ui";
+import { PageHeader, useConfirm } from "../components/ui";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { Capacitor } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
@@ -76,6 +76,7 @@ export default function Map() {
   };
 
   const { settings } = useSettings();
+  const confirm = useConfirm();
   const { data: companies = [] } = useClients();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
@@ -317,7 +318,7 @@ export default function Map() {
   };
 
   const handleDeleteClient = async (id: string, name: string) => {
-    if (!window.confirm(`Deseja realmente excluir o cliente "${name}"? Esta ação não pode ser desfeita.`)) return;
+    if (!(await confirm({ title: 'Excluir cliente', message: `Deseja realmente excluir o cliente "${name}"? Esta ação não pode ser desfeita.` }))) return;
 
     const { data: { user } } = await supabase.auth.getUser();
     const { error } = await supabase.from("clients").delete().eq("id", id).eq("user_id", user?.id);

@@ -9,7 +9,7 @@ import { useSettings } from "../contexts/SettingsContext";
 import { processOrderFile } from "../lib/orderProcessor";
 import { getHighPrecisionCoordinates } from "../lib/geminiGeocoding";
 import { cn } from "../lib/utils";
-import { PageHeader } from "../components/ui";
+import { PageHeader, useConfirm } from "../components/ui";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Client, Order } from "../types";
@@ -38,6 +38,7 @@ export default function PedidosPage() {
   const { user } = useAuth();
   const { settings } = useSettings();
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const { drafts, setDraft, clearDraft } = useUpload();
   const manualDraft = drafts["manual_order"] || { file: null, category: "", value: "", isOpen: false, clientId: "" };
   
@@ -185,11 +186,11 @@ export default function PedidosPage() {
       }
       setBatchResults(prev => prev.filter(item => item.file !== res.file)); loadData();
       toast.success("Pedido em lote processado!");
-    } catch (err) { alert(err instanceof Error ? err.message : 'Erro desconhecido'); }
+    } catch (err) { toast.error(err instanceof Error ? err.message : 'Erro desconhecido'); }
   };
 
   const handleDeleteOrder = async (order: Order) => {
-    if (!window.confirm("Deseja realmente excluir este pedido?")) return;
+    if (!(await confirm({ title: 'Excluir pedido', message: 'Deseja realmente excluir este pedido?' }))) return;
     try {
       if (order.file_path) await supabase.storage.from("client_vault").remove([order.file_path]);
       const { error } = await supabase.from("orders").delete().eq("id", order.id).eq("user_id", user?.id);

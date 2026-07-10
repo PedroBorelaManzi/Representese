@@ -5,3 +5,4 @@ export { EmptyState } from './EmptyState';
 export { Skeleton } from './Skeleton';
 export { Badge } from './Badge';
 export { PageHeader } from './PageHeader';
+export { ConfirmProvider, useConfirm } from './ConfirmDialog';

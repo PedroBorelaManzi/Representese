@@ -27,7 +27,7 @@ import { syncQueue } from "../lib/syncQueue";
 import { offlineCache, CacheKeys } from "../lib/offlineCache";
 import { fetchHolidays, getClientLocations, Holiday } from "../lib/holidayService";
 import { cn } from "../lib/utils";
-import { PageHeader } from "../components/ui";
+import { PageHeader, useConfirm } from "../components/ui";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -60,6 +60,7 @@ const isSameDay = (d1: Date, d2String: string) => {
 
 export default function Agenda() {
   const { user } = useAuth();
+  const confirm = useConfirm();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedMobileDate, setSelectedMobileDate] = useState(new Date());
   const [selectedNoteDate, setSelectedNoteDate] = useState(new Date());
@@ -233,7 +234,8 @@ export default function Agenda() {
   };
 
   const handleDelete = async () => {
-    if (!editingEvent?.id || !window.confirm("Deseja realmente excluir este compromisso?")) return;
+    if (!editingEvent?.id) return;
+    if (!(await confirm({ title: 'Excluir compromisso', message: 'Deseja realmente excluir este compromisso?' }))) return;
     setIsSaving(true);
 
     try {

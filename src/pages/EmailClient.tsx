@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Mail, Search, ChevronLeft, ChevronRight, Inbox, Send, Edit, Trash2, Plus, Sparkles, AlertCircle, ArrowLeft, Star, Reply, Forward, X, Minimize2, Maximize2, Loader2, RefreshCw, Clock, Info, ShieldAlert, Layers, Bookmark, Users, Zap, Paperclip, Download, FileText, ChevronDown } from "lucide-react";
 import { cn } from "../lib/utils";
+import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { getGoogleEmailAuthUrl, getMicrosoftEmailAuthUrl, fetchEmailsFromApi, sendEmailViaApi, EmailMessage, EmailProvider, downloadAttachmentFromApi, fetchGoogleContacts } from "../lib/emailSync";
 import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
 import { supabase } from "../lib/supabase";
+import { useConfirm } from "../components/ui";
 
 type ConnectedAccount = {
   id: string;
@@ -24,6 +26,7 @@ interface Contact {
 export default function EmailClient() {
   const { user } = useAuth();
   const { settings } = useSettings();
+  const confirmDialog = useConfirm();
   const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<ConnectedAccount | null>(null);
   
@@ -151,7 +154,7 @@ export default function EmailClient() {
   }
 
   async function deleteAccount(id: string) {
-    if (!confirm("Tem certeza que deseja remover esta conta de e-mail?")) return;
+    if (!(await confirmDialog({ title: 'Remover conta', message: 'Tem certeza que deseja remover esta conta de e-mail?', confirmLabel: 'Remover' }))) return;
     
     const { error } = await supabase
       .from('user_email_tokens')
@@ -162,7 +165,7 @@ export default function EmailClient() {
        setAccounts(prev => prev.filter(acc => acc.id !== id));
        if (selectedAccount?.id === id) setSelectedAccount(null);
     } else {
-       alert("Erro ao remover: " + error.message);
+       toast.error("Erro ao remover: " + error.message);
     }
   }
 
@@ -217,10 +220,10 @@ export default function EmailClient() {
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
       } else {
-        alert("Erro ao baixar anexo: " + res.error);
+        toast.error("Erro ao baixar anexo: " + res.error);
       }
     } catch (err: any) {
-      alert("Falha no download: " + err.message);
+      toast.error("Falha no download: " + err.message);
     }
   }
 
@@ -287,7 +290,7 @@ export default function EmailClient() {
         const url = await getMicrosoftEmailAuthUrl();
         window.location.href = url;
       } catch (err: any) {
-        alert(err.message || "Erro ao conectar conta da Microsoft.");
+        toast.error(err.message || "Erro ao conectar conta da Microsoft.");
       }
     }
   };
@@ -880,9 +883,9 @@ function ComposeBalloon({
   };
 
   async function handleSend() {
-    if (!to) { alert("Por favor, preencha o destinatário."); return; }
-    if (!body) { alert("Por favor, preencha a mensagem."); return; }
-    if (!provider) { alert("Conta de e-mail não disponível."); return; }
+    if (!to) { toast.warning("Por favor, preencha o destinatário."); return; }
+    if (!body) { toast.warning("Por favor, preencha a mensagem."); return; }
+    if (!provider) { toast.error("Conta de e-mail não disponível."); return; }
 
     setIsSending(true);
     try {
@@ -897,10 +900,10 @@ function ComposeBalloon({
         onClose();
         setTo(""); setSubject(""); setBody(""); setAttachments([]);
       } else {
-        alert("Erro no envio: " + res.error);
+        toast.error("Erro no envio: " + res.error);
       }
     } catch (err: any) {
-      alert("Falha técnica: " + err.message);
+      toast.error("Falha técnica: " + err.message);
     } finally {
       setIsSending(false);
     }
