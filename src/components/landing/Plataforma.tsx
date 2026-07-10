@@ -30,7 +30,7 @@ export function MultiplataformaSection() {
             Onde você estiver,<br />sua operação vai junto.
           </h2>
           <p className="text-slate-400 font-medium max-w-xl mx-auto">
-            No computador, no notebook e no celular. Web responsiva e app nativo para iOS e Android — tudo sincronizado em tempo real.
+            Web, notebook e celular — app nativo iOS/Android, tudo sincronizado em tempo real.
           </p>
         </FadeUp>
 
@@ -107,7 +107,7 @@ export function ComoFuncionaSection() {
             Do zero ao controle<br />em 3 passos.
           </h2>
           <p className="text-slate-500 font-medium max-w-xl mx-auto">
-            Sem migração complicada e sem curva de aprendizado. Em minutos sua operação já está rodando.
+            Sem migração complicada. Em minutos, sua operação já está rodando.
           </p>
         </FadeUp>
 
@@ -115,9 +115,9 @@ export function ComoFuncionaSection() {
           {/* linha conectora (desktop) */}
           <div className="hidden md:block absolute top-[52px] left-[16%] right-[16%] h-0.5 bg-gradient-to-r from-emerald-200 via-emerald-300 to-emerald-200" />
           {[
-            { n: "01", icon: Building2, title: "Cadastre suas representadas", desc: "Adicione as marcas que você representa — cada uma com sua meta e seu espaço, sem misturar nada." },
-            { n: "02", icon: Users,     title: "Importe sua carteira",         desc: "Suba seus clientes por planilha ou cadastre na hora. A IA organiza e enriquece os dados por você." },
-            { n: "03", icon: BarChart3, title: "Comande tudo num painel",      desc: "Pedidos, faturamento, agenda e alertas — separados por marca, num lugar só, em qualquer tela." },
+            { n: "01", icon: Building2, title: "Cadastre suas representadas", desc: "Adicione as marcas que você representa, cada uma com sua meta." },
+            { n: "02", icon: Users,     title: "Importe sua carteira",         desc: "Suba sua carteira por planilha. A IA organiza os dados por você." },
+            { n: "03", icon: BarChart3, title: "Comande tudo num painel",      desc: "Pedidos, faturamento, agenda e alertas — separados por marca, numa tela só." },
           ].map((s, i) => (
             <FadeUp key={s.n} delay={i * 0.1}>
               <div className="relative h-full bg-white rounded-3xl border border-slate-200/80 shadow-sm p-7 text-center md:text-left overflow-hidden">

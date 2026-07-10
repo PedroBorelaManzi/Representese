@@ -43,7 +43,7 @@ export function DiferencialSection() {
             Você reconhece isso?
           </h2>
           <p className="text-slate-500 font-medium">
-            Cada representada manda de um jeito, num canal diferente. Sem um centro de comando, você vira a “ponte” manual entre todas elas — e é aí que pedido, faturamento e cliente se perdem.
+            Cada representada num canal diferente, sem centro de comando. É aí que pedido, faturamento e cliente se perdem.
           </p>
         </FadeUp>
 
@@ -80,11 +80,8 @@ export function DiferencialSection() {
             <h3 className="text-2xl sm:text-4xl font-black tracking-tight text-slate-900 mb-6 leading-[1.1]">
               Feito para representar,<br />não só para vender.
             </h3>
-            <p className="text-slate-600 font-medium leading-relaxed mb-5 max-w-md">
-              Um CRM comum enxerga você como <span className="font-bold text-slate-900">uma</span> empresa vendendo para clientes. Mas a sua realidade é outra: você carrega o portfólio de <span className="font-bold text-slate-900">várias representadas ao mesmo tempo</span> — cada uma com seus pedidos, seu faturamento e sua meta.
-            </p>
             <p className="text-slate-600 font-medium leading-relaxed mb-8 max-w-md">
-              O Represente-Se foi desenhado exatamente para isso: um centro de comando que separa cada marca, sem misturar nada — tudo isso na palma da sua mão.
+              Um CRM comum trata você como uma empresa só. Mas você carrega <span className="font-bold text-slate-900">várias representadas ao mesmo tempo</span> — cada uma com seu pedido, faturamento e meta. O Represente-Se separa cada marca, sem misturar nada.
             </p>
 
             <ul className="space-y-3.5 mb-10">

@@ -15,7 +15,7 @@ export function SetoresSection() {
             Feito para o seu mercado.
           </h2>
           <p className="text-slate-500 font-medium max-w-xl mx-auto">
-            Representação é representação, seja qual for o ramo. Atendemos representantes de todos os mercados.
+            Representação é representação, seja qual for o ramo.
           </p>
         </FadeUp>
 

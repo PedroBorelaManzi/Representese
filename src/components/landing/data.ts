@@ -66,9 +66,9 @@ export const integrations = [
 ];
 
 export const painPoints = [
-  { icon: Layers,        title: "Cada representada num canto",          desc: "WhatsApp de uma, tabela de preço de outra, planilha de uma terceira. Você passa o dia costurando a mão o que deveria estar centralizado." },
-  { icon: BarChart3,     title: "Sem visão de quanto rende cada marca", desc: "Quanto você faturou de cada representada esse mês? Quem está perto da meta? Sem isso na tela, você não sabe onde focar." },
-  { icon: AlertTriangle, title: "Cliente e pedido escapando",          desc: "No meio de tantas marcas, o pedido sem acompanhamento passa batido — e vira faturamento do concorrente." },
+  { icon: Layers,        title: "Cada representada num canto",          desc: "WhatsApp de uma, planilha de outra, tabela de preço de uma terceira. Tudo espalhado, nada centralizado." },
+  { icon: BarChart3,     title: "Sem visão de quanto rende cada marca", desc: "Quanto você faturou por marca esse mês? Sem isso na tela, você não sabe onde focar." },
+  { icon: AlertTriangle, title: "Cliente e pedido escapando",          desc: "Pedido sem acompanhamento passa batido — e vira faturamento do concorrente." },
 ];
 
 /* representadas do painel-demonstração (exemplos visuais do sistema) */
@@ -80,19 +80,19 @@ export const representadas = [
 export const representadasTotal = representadas.reduce((s, r) => s + r.faturamento, 0);
 
 export const faqs = [
-  { question: "Como funciona a garantia de 7 dias?",         answer: "Você começa sem compromisso. Se não se adaptar por qualquer motivo dentro dos primeiros 7 dias, reembolsamos 100% do valor investido." },
-  { question: "Posso mudar de plano a qualquer momento?",    answer: "Sim. Upgrade e downgrade disponíveis diretamente nas configurações da conta, sem burocracia e com efeito imediato." },
-  { question: "O sistema funciona em dispositivos móveis?",  answer: "Totalmente. App nativo para iOS e Android além da versão web responsiva — gerencie sua carteira de qualquer lugar, inclusive offline." },
-  { question: "Preciso instalar alguma coisa?",              answer: "Não. Roda direto no navegador e como app no celular. Seus dados sincronizam automaticamente entre todos os dispositivos." },
-  { question: "Como funciona o suporte?",                    answer: "Suporte via e-mail e WhatsApp conforme o plano. Nossa equipe resolve dúvidas técnicas e operacionais com rapidez de verdade." },
-  { question: "Meus dados estão seguros?",                   answer: "Utilizamos criptografia de ponta e infraestrutura de alta disponibilidade na Supabase. Seus dados e os de seus clientes ficam protegidos e sob seu controle." },
+  { question: "Como funciona a garantia de 7 dias?",         answer: "Comece sem compromisso. Não se adaptou nos primeiros 7 dias? Reembolsamos 100% do valor." },
+  { question: "Posso mudar de plano a qualquer momento?",    answer: "Sim, direto nas configurações da conta — sem burocracia e com efeito imediato." },
+  { question: "O sistema funciona em dispositivos móveis?",  answer: "Sim. App nativo para iOS e Android, além da versão web — gerencie sua carteira de qualquer lugar, até offline." },
+  { question: "Preciso instalar alguma coisa?",              answer: "Não. Roda no navegador e como app no celular, com sincronização automática entre dispositivos." },
+  { question: "Como funciona o suporte?",                    answer: "Via e-mail e WhatsApp, conforme o plano — com resposta rápida de verdade." },
+  { question: "Meus dados estão seguros?",                   answer: "Sim. Criptografia de ponta e infraestrutura Supabase — seus dados protegidos e sob seu controle." },
 ];
 
 export const bentoFeatures = [
   {
     icon: Brain,
     title: "Inteligência Artificial",
-    desc: "Nossa IA gera resumos de clientes, categoriza e-mails e antecipa quem precisa de atenção — antes do concorrente.",
+    desc: "Gera resumos de clientes, categoriza e-mails e avisa quem precisa de atenção — antes do concorrente.",
     span: "lg:col-span-2 lg:row-span-2",
     dark: true,
   },
