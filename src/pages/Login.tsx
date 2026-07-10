@@ -20,7 +20,6 @@ import {
   Layout as LayoutIcon,
   ShieldCheck,
   Store,
-  Star,
   Sparkles,
   ChevronRight,
   ChevronDown,
@@ -40,19 +39,19 @@ import { Fingerprint } from 'lucide-react';
 
 const features = [
   {
+    icon: Building2,
+    title: "Multi-empresas",
+    desc: "Carteira de todas as representadas"
+  },
+  {
+    icon: TrendingUp,
+    title: "Comissões",
+    desc: "Cálculo automático por empresa"
+  },
+  {
     icon: ShieldCheck,
-    title: "Segurança Total",
-    desc: "Criptografia avançada"
-  },
-  {
-    icon: Zap,
-    title: "Agilidade",
-    desc: "Interface ultra-rápida"
-  },
-  {
-    icon: LayoutIcon,
-    title: "Organização",
-    desc: "Gestão completa"
+    title: "Offline First",
+    desc: "Funciona sem internet no campo"
   }
 ];
 
@@ -376,23 +375,36 @@ export default function Login() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white p-12 rounded-[64px] space-y-8 shadow-2xl relative overflow-hidden group"
+            className="bg-white p-10 rounded-[48px] shadow-2xl relative overflow-hidden"
           >
-            <div className="absolute inset-0 bg-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-            <div className="relative space-y-6">
-              <div className="flex gap-1">
-                {[1,2,3,4,5].map(i => <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />)}
+            <div className="absolute inset-0 bg-emerald-500/5" />
+            <div className="relative space-y-5">
+              <div className="flex items-center gap-2 text-emerald-600">
+                <TrendingUp className="w-4 h-4" />
+                <p className="text-[10px] font-black uppercase tracking-widest">Faturamento por empresa</p>
               </div>
-              <p className="text-xl font-medium italic text-slate-900 leading-relaxed">
-                "O controle que tenho hoje sobre minha carteira de clientes é algo que eu nunca imaginei ser possível."
-              </p>
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-full bg-slate-900 flex items-center justify-center font-black text-sm text-white">RM</div>
-                <div>
-                  <p className="text-sm font-black text-slate-900 uppercase tracking-widest">Ricardo Moreira</p>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Representante Comercial</p>
+              {[
+                { name: 'Empresa A', pct: 78 },
+                { name: 'Empresa B', pct: 52 },
+                { name: 'Empresa C', pct: 30 },
+              ].map((row) => (
+                <div key={row.name} className="space-y-1.5">
+                  <div className="flex justify-between text-[11px] font-black text-slate-500 uppercase tracking-tight">
+                    <span>{row.name}</span>
+                  </div>
+                  <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${row.pct}%` }}
+                      transition={{ duration: 0.8, ease: 'easeOut' }}
+                      className="h-full bg-emerald-500 rounded-full"
+                    />
+                  </div>
                 </div>
-              </div>
+              ))}
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pt-2 border-t border-slate-100">
+                Relatórios, comissões e follow-up automáticos — direto no seu painel
+              </p>
             </div>
           </motion.div>
         </div>
