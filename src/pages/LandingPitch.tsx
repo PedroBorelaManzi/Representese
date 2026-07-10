@@ -74,6 +74,24 @@ export default function LandingPitch() {
           <div className="hidden lg:flex items-center">
             {NAV.map((item) => {
               const isActive = active === item.id;
+              
+              if (item.id === "precos") {
+                return (
+                  <Link
+                    key={item.id}
+                    to="/register"
+                    className={cn(
+                      "text-[13px] font-semibold transition-all px-3.5 py-2 rounded-full",
+                      isActive
+                        ? "text-emerald-700 bg-emerald-50"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/80"
+                    )}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              }
+
               return (
                 <a
                   key={item.id}
