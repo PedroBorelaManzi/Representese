@@ -12,12 +12,13 @@ import { BrowserDashboard } from "../components/LandingMockups";
 import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { cn } from "../lib/utils";
-import { NAV, NAV_IDS } from "../components/landing/data";
-import { useActiveSection } from "../components/landing/primitives";
+import { NAV, NAV_IDS, sectionBridges } from "../components/landing/data";
+import { useActiveSection, SectionBridge } from "../components/landing/primitives";
 import { IntegrationsMarquee, DiferencialSection } from "../components/landing/Diferencial";
 import { RecursosBentoSection, GestaoInteligenteSection } from "../components/landing/Recursos";
 import { SetoresSection } from "../components/landing/Setores";
 import { MultiplataformaSection, ComoFuncionaSection } from "../components/landing/Plataforma";
+import { TrustSection } from "../components/landing/Trust";
 import { FaqSection } from "../components/landing/Faq";
 import { CtaFinalSection, LandingFooter } from "../components/landing/CtaFooter";
 import { useLandingTracking } from "../hooks/useLandingTracking";
@@ -218,7 +219,7 @@ export default function LandingPitch() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.35 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10"
+            className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-4"
           >
             <Link
               to="/register"
@@ -235,6 +236,16 @@ export default function LandingPitch() {
               Ver demonstração
             </a>
           </motion.div>
+
+          {/* microcopy de confiança sob o CTA primário */}
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.45 }}
+            className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-10"
+          >
+            Garantia de 7 dias · Sem fidelidade
+          </motion.p>
         </div>
 
         {/* dashboard mockup (codado, janela de navegador) — entra inclinado
@@ -290,11 +301,15 @@ export default function LandingPitch() {
 
       <IntegrationsMarquee />
       <DiferencialSection />
+      <SectionBridge text={sectionBridges.paraSetores} />
       <SetoresSection />
+      <SectionBridge text={sectionBridges.paraRecursos} />
       <RecursosBentoSection />
+      <SectionBridge text={sectionBridges.paraTecnologia} />
       <GestaoInteligenteSection />
       <MultiplataformaSection />
       <ComoFuncionaSection />
+      <TrustSection />
       <FaqSection />
       <CtaFinalSection />
       <LandingFooter />

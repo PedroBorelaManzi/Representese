@@ -11,10 +11,10 @@ test.describe('Landing: seções, FAQ e planos', () => {
   });
 
   test('Deve renderizar todas as seções principais da landing', async ({ page }) => {
+    // Planos não fica na landing — fluxo de captura de leads manda pra /register → /planos.
     await expect(page.locator('#diferencial')).toBeAttached({ timeout: 15000 });
     await expect(page.locator('#recursos')).toBeAttached();
     await expect(page.locator('#industrias')).toBeAttached();
-    await expect(page.locator('#precos')).toBeAttached();
     await expect(page.locator('#duvidas')).toBeAttached();
     // hero
     await expect(page.locator('text=Comande todas em um só lugar.')).toBeVisible({ timeout: 15000 });
@@ -25,35 +25,41 @@ test.describe('Landing: seções, FAQ e planos', () => {
     await question.scrollIntoViewIfNeeded();
     await question.click();
     // resposta correspondente deve ficar visível e com conteúdo (bug histórico: accordion sem texto)
-    const answer = page.locator('text=Upgrade e downgrade disponíveis');
+    const answer = page.locator('text=sem burocracia e com efeito imediato');
     await expect(answer).toBeVisible({ timeout: 5000 });
   });
 
-  test('Planos: toggle Mensal/Anual troca os preços', async ({ page }) => {
-    const precos = page.locator('#precos');
-    await precos.scrollIntoViewIfNeeded();
-
-    // padrão é anual (147 → 132 no Profissional)
-    await expect(precos.locator('text=132').first()).toBeVisible({ timeout: 15000 });
-
-    await precos.locator('button', { hasText: 'Mensal' }).click();
-    await expect(precos.locator('text=147').first()).toBeVisible();
-
-    await precos.locator('button', { hasText: 'Anual' }).click();
-    await expect(precos.locator('text=132').first()).toBeVisible();
-  });
-
-  test('CTA do plano leva ao checkout com plano e período na URL', async ({ page }) => {
-    const precos = page.locator('#precos');
-    await precos.scrollIntoViewIfNeeded();
-    await precos.locator('a[href*="/checkout"]').first().click();
-    await expect(page).toHaveURL(/\/checkout\?plan=\w+&period=(annual|monthly)/);
-  });
-
   test('Nav: âncoras apontam para seções existentes', async ({ page }) => {
-    for (const id of ['diferencial', 'recursos', 'industrias', 'precos', 'duvidas']) {
+    for (const id of ['diferencial', 'recursos', 'industrias', 'duvidas']) {
       await expect(page.locator(`nav a[href="#${id}"]`)).toBeAttached();
       await expect(page.locator(`#${id}`)).toBeAttached();
     }
+    // "Planos" no nav manda direto pro cadastro (captura de leads antes do checkout)
+    await expect(page.locator('nav a[href="/register"]', { hasText: 'Planos' })).toBeAttached();
+  });
+});
+
+/* Página /planos — checkout público, fora do fluxo de seções da landing. */
+test.describe('Planos: toggle e checkout', () => {
+  test.beforeEach(async ({ page }) => {
+    test.slow();
+    await page.goto('/planos');
+    await page.waitForLoadState('domcontentloaded');
+  });
+
+  test('Planos: toggle Mensal/Anual troca os preços', async ({ page }) => {
+    // padrão é mensal (147 no Profissional)
+    await expect(page.locator('text=147').first()).toBeVisible({ timeout: 15000 });
+
+    await page.locator('button', { hasText: 'Anual' }).click();
+    await expect(page.locator('text=132').first()).toBeVisible();
+
+    await page.locator('button', { hasText: 'Mensal' }).click();
+    await expect(page.locator('text=147').first()).toBeVisible();
+  });
+
+  test('CTA do plano leva ao checkout com plano e período na URL', async ({ page }) => {
+    await page.locator('button', { hasText: 'Assinar agora' }).first().click();
+    await expect(page).toHaveURL(/\/checkout\?plan=\w+&period=(ANNUAL|MONTHLY)/);
   });
 });

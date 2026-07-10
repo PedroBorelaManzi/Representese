@@ -133,8 +133,9 @@ export function ComoFuncionaSection() {
         </div>
 
         <FadeUp delay={0.3} className="text-center mt-12">
-          <Link to="/planos" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[13px] transition-all shadow-lg shadow-emerald-600/20 hover:-translate-y-0.5 group">
-            Criar minha conta
+          {/* CTA secundária: o CTA primário da página fica no hero, na Gestão Inteligente e no CTA final */}
+          <Link to="/planos" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl border border-slate-300 bg-white hover:border-emerald-300 hover:text-emerald-700 text-slate-700 font-black text-[13px] transition-all shadow-sm hover:-translate-y-0.5 group">
+            Ver planos e preços
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </Link>
         </FadeUp>

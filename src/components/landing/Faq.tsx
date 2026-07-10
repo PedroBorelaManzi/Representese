@@ -1,7 +1,8 @@
 /* Capítulo 05 · Dúvidas (accordion). */
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown } from "lucide-react";
+import { ArrowRight, ChevronDown } from "lucide-react";
+import { Link } from "react-router-dom";
 import { cn } from "../../lib/utils";
 import { FadeUp, Kicker } from "./primitives";
 import { faqs } from "./data";
@@ -14,9 +15,12 @@ export function FaqSection() {
       <div className="max-w-3xl mx-auto">
         <FadeUp className="text-center mb-12">
           <Kicker num="05" label="Perguntas frequentes" center />
-          <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900">
+          <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 mb-4">
             Ainda em dúvida?
           </h2>
+          <p className="text-slate-500 font-medium max-w-xl mx-auto">
+            Respostas rápidas para o que mais perguntam antes de assinar.
+          </p>
         </FadeUp>
 
         <div className="space-y-3">
@@ -56,6 +60,16 @@ export function FaqSection() {
             </FadeUp>
           ))}
         </div>
+
+        <FadeUp delay={0.2} className="text-center mt-12">
+          <Link to="/register" className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[13px] transition-all shadow-lg shadow-emerald-600/20 hover:-translate-y-0.5 group">
+            Criar minha conta
+            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+          </Link>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mt-4">
+            Garantia de 7 dias · Sem fidelidade
+          </p>
+        </FadeUp>
       </div>
     </section>
   );

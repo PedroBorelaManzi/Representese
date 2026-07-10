@@ -191,12 +191,21 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
   const { data: leadsData, isLoading: isLoadingLeads } = useQuery({
     queryKey: ['admin_leads_crm'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('user_settings')
-        .select('user_id, email, phone, company, subscription_status, created_at, is_admin')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return data.filter(d => !d.is_admin);
+      // user_settings.subscription_status é coluna legada (default 'active' desde
+      // a criação da linha, nunca atualizada pelo webhook de pagamento) — não
+      // reflete se o usuário realmente pagou. A fonte de verdade da assinatura é
+      // user_entitlements, atualizada pelo webhook do Asaas em cada pagamento.
+      const [{ data: leads, error: leadsError }, { data: entitlements, error: entError }] = await Promise.all([
+        supabase.from('user_settings').select('user_id, email, phone, company, created_at, is_admin').order('created_at', { ascending: false }),
+        supabase.from('user_entitlements').select('user_id, subscription_status, plan_id'),
+      ]);
+      if (leadsError) throw leadsError;
+      if (entError) throw entError;
+
+      const statusByUser = new Map((entitlements || []).map(e => [e.user_id, e.subscription_status]));
+      return (leads || [])
+        .filter(d => !d.is_admin)
+        .map(d => ({ ...d, subscription_status: statusByUser.get(d.user_id) ?? 'inactive' }));
     },
     enabled: activeTab === 'leads' && !!settings?.is_admin
   });

@@ -1,7 +1,7 @@
 /* Capítulo 02 · Recursos: bento grid, destaque CRM e seção de IA (dark). */
 import React from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, Brain, Check, Clock } from "lucide-react";
+import { ArrowRight, Brain, Check, Clock, ShieldCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 import { cn } from "../../lib/utils";
 import { CrmListMock } from "../LandingMockups";
@@ -15,10 +15,10 @@ export function RecursosBentoSection() {
         <FadeUp className="text-center mb-16">
           <Kicker num="03" label="A plataforma" center />
           <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 mb-4">
-            Tudo que você precisa,<br />em um único lugar.
+            Menos retrabalho.<br />Mais tempo na rua vendendo.
           </h2>
           <p className="text-slate-500 font-medium max-w-xl mx-auto">
-            Ferramentas integradas que eliminam o retrabalho e devolvem horas do seu dia.
+            CRM, agenda, mapa, e-mail e faturamento integrados — para devolver horas do seu dia.
           </p>
         </FadeUp>
 
@@ -103,7 +103,7 @@ export function GestaoInteligenteSection() {
             <span className="bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent">IA cuidando do resto.</span>
           </h2>
           <p className="text-slate-400 font-medium leading-relaxed max-w-lg mx-auto">
-            Histórico completo de cada cliente. IA gera resumos e avisa quem precisa de atenção.
+            A IA sabe qual cliente precisa de atenção — e avisa você antes do concorrente.
           </p>
         </FadeUp>
 
@@ -198,9 +198,13 @@ export function GestaoInteligenteSection() {
 
         <FadeUp delay={0.15} className="text-center mt-12">
           <Link to="/planos" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-[13px] transition-all shadow-lg shadow-emerald-500/25 hover:-translate-y-0.5 group">
-            Começar agora
+            Ativar minha carteira inteligente
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </Link>
+          <p className="flex items-center justify-center gap-2 mt-4 text-[11px] font-semibold text-slate-500">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            Backup automático diário · Infraestrutura Supabase
+          </p>
         </FadeUp>
       </div>
     </section>

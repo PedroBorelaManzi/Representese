@@ -24,6 +24,10 @@ import {
   Package,
   Percent,
   ClipboardList,
+  ShieldCheck,
+  Scale,
+  Activity,
+  DatabaseBackup,
 } from "lucide-react";
 
 /* ─── navegação (ordem = ordem dos capítulos na página) ───────── */
@@ -81,49 +85,68 @@ export const representadasTotal = representadas.reduce((s, r) => s + r.faturamen
 
 export const faqs = [
   { question: "Como funciona a garantia de 7 dias?",         answer: "Comece sem compromisso. Não se adaptou nos primeiros 7 dias? Reembolsamos 100% do valor." },
+  { question: "Quanto tempo leva para começar?",             answer: "Minutos. Cadastre suas representadas, importe a carteira e o painel já está rodando — sem implantação nem consultoria." },
+  { question: "Posso importar meus dados antigos?",          answer: "Sim. Suba sua carteira por planilha e a IA organiza os dados por você." },
   { question: "Posso mudar de plano a qualquer momento?",    answer: "Sim, direto nas configurações da conta — sem burocracia e com efeito imediato." },
+  { question: "Posso cancelar quando quiser?",               answer: "Sim. Sem fidelidade e sem multa — você cancela direto na conta, quando quiser." },
   { question: "O sistema funciona em dispositivos móveis?",  answer: "Sim. App nativo para iOS e Android, além da versão web — gerencie sua carteira de qualquer lugar, até offline." },
   { question: "Preciso instalar alguma coisa?",              answer: "Não. Roda no navegador e como app no celular, com sincronização automática entre dispositivos." },
+  { question: "O sistema integra com meu ERP?",              answer: "Ainda não há integração direta com ERPs — a importação é feita por planilha, e novas integrações estão no roadmap." },
   { question: "Como funciona o suporte?",                    answer: "Via e-mail e WhatsApp, conforme o plano — com resposta rápida de verdade." },
   { question: "Meus dados estão seguros?",                   answer: "Sim. Criptografia de ponta e infraestrutura Supabase — seus dados protegidos e sob seu controle." },
 ];
 
+/* indicadores de confiança — apenas fatos técnicos verificáveis, nada de prova social inventada */
+export const trustItems = [
+  { icon: ShieldCheck,    title: "Criptografia de ponta",       desc: "Dados protegidos com infraestrutura Supabase." },
+  { icon: Scale,          title: "Conformidade com a LGPD",     desc: "Seus dados tratados conforme a lei brasileira." },
+  { icon: Activity,       title: "99,9% de disponibilidade",    desc: "Infraestrutura em nuvem de alta disponibilidade." },
+  { icon: DatabaseBackup, title: "Backup automático diário",    desc: "Seu histórico nunca se perde." },
+];
+
+/* pontes narrativas entre seções (usadas via SectionBridge no LandingPitch) */
+export const sectionBridges = {
+  paraSetores:    "Seja qual for o seu ramo, a dor é a mesma — e a solução também.",
+  paraRecursos:   "Independente do setor, as ferramentas que resolvem são as mesmas.",
+  paraTecnologia: "E por trás de cada ferramenta, uma IA trabalhando pela sua carteira.",
+};
+
 export const bentoFeatures = [
   {
     icon: Brain,
-    title: "Inteligência Artificial",
-    desc: "Gera resumos de clientes, categoriza e-mails e avisa quem precisa de atenção — antes do concorrente.",
+    title: "Menos tempo digitando, mais tempo vendendo",
+    desc: "A IA gera o resumo de cada cliente, categoriza e-mails e avisa quem precisa de atenção — antes do concorrente chegar.",
     span: "lg:col-span-2 lg:row-span-2",
     dark: true,
   },
   {
     icon: Users,
-    title: "CRM completo",
-    desc: "Carteira organizada com histórico, alertas de inatividade e resumo individual por cliente.",
+    title: "Nenhum cliente esquecido",
+    desc: "Histórico completo, alerta de inatividade e resumo individual. Nada cai no vácuo.",
     span: "lg:col-span-2",
   },
   {
     icon: Calendar,
-    title: "Agenda inteligente",
-    desc: "Importe seus compromissos em um só clique.",
+    title: "Sua semana já planejada",
+    desc: "Importe compromissos em um clique e visite quem importa.",
     span: "",
   },
   {
     icon: MapPin,
-    title: "Mapa de clientes",
-    desc: "Toda a carteira no mapa, com rotas inteligentes.",
+    title: "Rotas que rendem mais visitas",
+    desc: "Carteira inteira no mapa, com o melhor caminho traçado.",
     span: "",
   },
   {
     icon: BarChart3,
-    title: "Faturamento por empresa",
-    desc: "Gráfico mensal por representada, teto configurável e histórico de performance.",
+    title: "Saiba qual marca rende mais",
+    desc: "Faturamento mês a mês por representada, com meta e histórico — decida onde focar num relance.",
     span: "lg:col-span-2",
   },
   {
     icon: Mail,
-    title: "E-mail vinculado",
-    desc: "Caixa de entrada integrada ao Gmail, cada e-mail no cliente certo.",
+    title: "Cada e-mail no cliente certo",
+    desc: "Gmail integrado e organizado por representada — chega de caçar conversa.",
     span: "lg:col-span-2",
   },
 ];

@@ -1,7 +1,7 @@
 /* Capítulo 01 · Diferencial (dor → solução) + marquee de integrações. */
 import React from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, BarChart3, Building2, Layers, Target, Wallet } from "lucide-react";
+import { ArrowRight, BarChart3, Building2, Layers, ShieldCheck, Target, Wallet } from "lucide-react";
 import { Link } from "react-router-dom";
 import { FadeUp, Kicker } from "./primitives";
 import { integrations, painPoints, representadas, representadasTotal } from "./data";
@@ -104,6 +104,10 @@ export function DiferencialSection() {
               Centralizar minhas representadas
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
+            <p className="flex items-center gap-2 mt-4 text-[11px] font-semibold text-slate-400">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+              Dados criptografados · Conformidade com a LGPD
+            </p>
           </FadeUp>
 
           {/* painel de representadas */}
