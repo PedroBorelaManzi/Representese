@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ShieldCheck, CreditCard, QrCode, Lock, CheckCircle2,
-  ArrowLeft, ChevronRight, Loader2, Eye, EyeOff,
+  ArrowLeft, ChevronRight, Loader2, Eye, EyeOff, RefreshCw,
   ShieldAlert, Crown, Gem, Trophy, Check, User, Mail, Phone, Hash, Tag,
 } from "lucide-react";
 import { cn } from '../lib/utils';
@@ -629,6 +629,12 @@ export default function Checkout() {
                         : 'Renovação automática todo mês. Cancele quando quiser.'}
                     </p>
                   )}
+                </div>
+
+                <div className="flex items-center justify-center gap-4 text-slate-500">
+                  <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide"><Lock className="w-3.5 h-3.5" /> Dados criptografados</span>
+                  <span className="w-1 h-1 rounded-full bg-slate-700" />
+                  <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide"><RefreshCw className="w-3.5 h-3.5" /> Cancele quando quiser</span>
                 </div>
 
                 <button type="submit" disabled={loading || step === 1} className={cn("w-full py-4 rounded-2xl font-black text-[15px] flex items-center justify-center gap-2 transition-all shadow-xl",

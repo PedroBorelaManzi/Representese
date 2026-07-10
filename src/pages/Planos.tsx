@@ -6,14 +6,38 @@ import {
   ShieldCheck,
   RefreshCw,
   CalendarClock,
+  ChevronDown,
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
+import { useSettings } from "../contexts/SettingsContext";
 import { cn } from "../lib/utils";
 import { plans } from "../lib/plansData";
 import { PlanCards } from "../components/plans/PlanCards";
+
+const faqItems = [
+  {
+    q: "Posso cancelar quando quiser?",
+    a: "Sim. Não há fidelidade nem multa de cancelamento. Você pode cancelar a qualquer momento pelo suporte, e o acesso continua até o fim do período já pago.",
+  },
+  {
+    q: "Como funciona o teste de 7 dias?",
+    a: "Você usa o sistema completo por 7 dias sem cobrança. A cobrança só acontece automaticamente após esse período, conforme o plano e ciclo (mensal ou anual) escolhidos no cadastro.",
+  },
+  {
+    q: "Posso trocar de plano depois?",
+    a: "Sim, a qualquer momento. Se você representa mais empresas do que seu plano permite, é só fazer upgrade — o valor é ajustado proporcionalmente na próxima cobrança.",
+  },
+  {
+    q: "O que acontece se eu ultrapassar o limite de empresas do meu plano?",
+    a: "Você recebe um aviso no painel e pode fazer upgrade a qualquer momento. Seus dados nunca são apagados ou bloqueados por causa disso.",
+  },
+  {
+    q: "Meus dados ficam seguros?",
+    a: "Sim. Toda a infraestrutura roda em nuvem com criptografia e backups automáticos, e cada conta só acessa os próprios dados — clientes, pedidos e agenda ficam isolados por usuário.",
+  },
+];
 
 const trustItems = [
   { icon: ShieldCheck, title: "7 dias de garantia", desc: "Satisfação garantida ou seu dinheiro de volta." },
@@ -23,23 +47,14 @@ const trustItems = [
 
 export default function Planos() {
   const [billingCycle, setBillingCycle] = useState<'MONTHLY' | 'ANNUAL'>('MONTHLY');
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
   const { user } = useAuth();
+  const { settings } = useSettings();
   const navigate = useNavigate();
-  const [currentSubscription, setCurrentSubscription] = useState<any>(null);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
-    const fetchSubscription = async () => {
-      if (!user) return;
-      const { data } = await supabase
-        .from('user_settings')
-        .select('subscription_status, subscription_plan')
-        .eq('user_id', user.id)
-        .single();
-      setCurrentSubscription(data);
-    };
-    fetchSubscription();
-  }, [user]);
+  }, []);
 
   const handleSubscribe = (plan: typeof plans[0]) => {
     // Checkout público: cria a conta (passo 1) e processa o pagamento (passo 2).
@@ -47,10 +62,13 @@ export default function Planos() {
     navigate(`/checkout?plan=${plan.id}&period=${billingCycle}`);
   };
 
-  const isProfissional = user && (
-    currentSubscription?.subscription_plan?.toLowerCase().includes('profissional') ||
-    currentSubscription?.subscription_plan?.toLowerCase().includes('premium')
-  );
+  // Fonte de verdade é user_entitlements.plan_id (via SettingsContext) — a
+  // coluna user_settings.subscription_plan que era usada aqui antes nunca é
+  // escrita após o cadastro e ficava travada no valor padrão, fazendo o badge
+  // "plano atual" e o upsell para Master nunca refletirem a assinatura real.
+  const isPayingCustomer = settings.subscription_status === 'active' || settings.subscription_status === 'trialing';
+  const currentPlanId = user && isPayingCustomer ? settings.plan_id : undefined;
+  const isProfissional = currentPlanId === 'profissional';
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 px-4 py-10 lg:px-8 lg:py-14 transition-colors duration-300 font-sans">
@@ -136,7 +154,7 @@ export default function Planos() {
         {/* Cards */}
         <PlanCards
           billingCycle={billingCycle}
-          currentSubscriptionPlan={currentSubscription?.subscription_plan}
+          currentSubscriptionPlan={currentPlanId}
           onSubscribe={handleSubscribe}
         />
 
@@ -156,6 +174,49 @@ export default function Planos() {
               </div>
             </div>
           ))}
+        </div>
+
+        {/* FAQ — objeções comuns antes de assinar */}
+        <div className="max-w-2xl mx-auto mb-16">
+          <h3 className="text-center text-lg font-black text-slate-900 dark:text-zinc-100 mb-6">
+            Perguntas frequentes
+          </h3>
+          <div className="space-y-3">
+            {faqItems.map((item, idx) => {
+              const isOpen = openFaq === idx;
+              return (
+                <div
+                  key={item.q}
+                  className="rounded-2xl border border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setOpenFaq(isOpen ? null : idx)}
+                    className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left"
+                    aria-expanded={isOpen}
+                  >
+                    <span className="text-sm font-bold text-slate-800 dark:text-zinc-200">{item.q}</span>
+                    <ChevronDown className={cn("w-4 h-4 text-slate-400 shrink-0 transition-transform", isOpen && "rotate-180")} />
+                  </button>
+                  <AnimatePresence initial={false}>
+                    {isOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
+                      >
+                        <p className="px-5 pb-4 text-[13px] text-slate-500 dark:text-zinc-400 font-medium leading-relaxed">
+                          {item.a}
+                        </p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* Gerenciar conta */}
