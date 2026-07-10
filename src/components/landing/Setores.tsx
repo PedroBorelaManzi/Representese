@@ -9,7 +9,7 @@ export function SetoresSection() {
       <div className="max-w-[1800px] mx-auto">
         <FadeUp className="text-center mb-5">
           <div className="flex justify-center">
-            <Kicker num="03" label="Setores atendidos" center />
+            <Kicker num="02" label="Setores atendidos" center />
           </div>
           <h2 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight text-slate-900 mb-3">
             Feito para o seu mercado.
