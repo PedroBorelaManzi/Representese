@@ -33,6 +33,7 @@ function Requirement({ label, met }: { label: string; met: boolean }) {
 }
 
 export default function Register() {
+  const [isLoginMode, setIsLoginMode] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -41,7 +42,7 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, signIn } = useAuth();
 
   const [passwordRequirements, setPasswordRequirements] = useState({
     length: false, upper: false, lower: false, number: false, special: false
@@ -68,6 +69,29 @@ export default function Register() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (isLoginMode) {
+      if (!email || !password) {
+        toast.error("Preencha todos os campos");
+        return;
+      }
+      
+      setIsLoading(true);
+      try {
+        await signIn(email, password);
+        toast.success("Bem-vindo de volta! Agora escolha o seu plano.");
+        navigate("/planos");
+      } catch (error: any) {
+        if (error.status === 400 || (error.message && error.message.toLowerCase().includes("invalid"))) {
+          toast.error("Senha ou e-mail incorreto.");
+        } else {
+          toast.error(error.message || "Erro ao entrar");
+        }
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
     if (!name || !email || !phone || !password) {
       toast.error("Preencha os campos obrigatórios");
       return;
@@ -96,8 +120,8 @@ export default function Register() {
 
       if (error) {
         if (error.message.includes("User already registered")) {
-          toast.error("Este e-mail já possui uma conta. Faça o login!");
-          navigate("/login");
+          toast.error("Este e-mail já possui uma conta. Mude para a aba 'Retomar Cadastro'!");
+          setIsLoginMode(true);
         } else {
           toast.error(error.message);
         }
@@ -107,8 +131,8 @@ export default function Register() {
       if (data?.user) {
         // Supabase retorna identities vazio se o email já existe (para evitar email enumeration)
         if (data.user.identities && data.user.identities.length === 0) {
-          toast.error("Este e-mail já possui uma conta. Faça o login!");
-          navigate("/login");
+          toast.error("Este e-mail já possui uma conta. Mude para a aba 'Retomar Cadastro'!");
+          setIsLoginMode(true);
           return;
         }
 
@@ -143,25 +167,43 @@ export default function Register() {
         >
           <div className="text-center space-y-2 mb-8">
             <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-              Crie sua conta
+              {isLoginMode ? "Retomar Cadastro" : "Crie sua conta"}
             </h1>
             <p className="text-sm text-slate-500 dark:text-zinc-400 font-medium">
-              Preencha os dados abaixo para ter acesso aos planos.
+              {isLoginMode ? "Insira seu e-mail e senha para ver os planos" : "Para ver os planos e iniciar seu teste"}
             </p>
           </div>
 
+          <div className="flex bg-slate-100 dark:bg-zinc-900/50 p-1 rounded-xl mb-4">
+            <button 
+              type="button"
+              onClick={() => setIsLoginMode(false)} 
+              className={cn("flex-1 py-2 text-[13px] font-bold rounded-lg transition-all", !isLoginMode ? "bg-white dark:bg-zinc-800 shadow text-emerald-600 dark:text-emerald-400" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300")}
+            >
+              Nova Conta
+            </button>
+            <button 
+              type="button"
+              onClick={() => setIsLoginMode(true)} 
+              className={cn("flex-1 py-2 text-[13px] font-bold rounded-lg transition-all", isLoginMode ? "bg-white dark:bg-zinc-800 shadow text-emerald-600 dark:text-emerald-400" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300")}
+            >
+              Retomar Cadastro
+            </button>
+          </div>
+
           <form onSubmit={handleRegister} className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-[13px] font-bold text-slate-700 dark:text-zinc-300 ml-1">
-                Nome completo *
-              </label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-emerald-500 transition-colors">
-                  <User className="w-5 h-5" />
-                </div>
-                <input
-                  type="text"
-                  value={name}
+            {!isLoginMode && (
+              <div className="space-y-1.5">
+                <label className="text-[13px] font-bold text-slate-700 dark:text-zinc-300 ml-1">
+                  Nome completo *
+                </label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-emerald-500 transition-colors">
+                    <User className="w-5 h-5" />
+                  </div>
+                  <input
+                    type="text"
+                    value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full pl-11 pr-4 py-3.5 bg-slate-50 dark:bg-zinc-950/50 border border-slate-200 dark:border-zinc-800 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-600"
                   placeholder="Ex: João da Silva"
@@ -228,7 +270,7 @@ export default function Register() {
 
             <div className="space-y-1.5">
               <label className="text-[13px] font-bold text-slate-700 dark:text-zinc-300 ml-1">
-                Crie uma senha forte *
+                {isLoginMode ? "Senha *" : "Crie uma senha forte *"}
               </label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-emerald-500 transition-colors">
@@ -251,8 +293,8 @@ export default function Register() {
                 </button>
               </div>
 
-              {/* Barra de força da senha */}
-              {password && (() => {
+              {/* Barra de força da senha - Oculta no modo login */}
+              {!isLoginMode && password && (() => {
                 const strength = passwordStrength(password);
                 const colors = ['bg-red-500', 'bg-red-400', 'bg-amber-400', 'bg-emerald-400', 'bg-emerald-500'];
                 const textColors = ['text-red-500', 'text-red-400', 'text-amber-500', 'text-emerald-500', 'text-emerald-600', 'dark:text-emerald-400'];
@@ -272,13 +314,15 @@ export default function Register() {
                   </div>
                 );
               })()}
-              <div className="grid grid-cols-2 gap-2.5 pt-2.5 px-1">
-                <Requirement label="Mín. 8 caracteres" met={passwordRequirements.length} />
-                <Requirement label="Letra maiúscula" met={passwordRequirements.upper} />
-                <Requirement label="Letra minúscula" met={passwordRequirements.lower} />
-                <Requirement label="Número" met={passwordRequirements.number} />
-                <Requirement label="Símbolo especial" met={passwordRequirements.special} />
-              </div>
+              {!isLoginMode && (
+                <div className="grid grid-cols-2 gap-2.5 pt-2.5 px-1">
+                  <Requirement label="Mín. 8 caracteres" met={passwordRequirements.length} />
+                  <Requirement label="Letra maiúscula" met={passwordRequirements.upper} />
+                  <Requirement label="Letra minúscula" met={passwordRequirements.lower} />
+                  <Requirement label="Número" met={passwordRequirements.number} />
+                  <Requirement label="Símbolo especial" met={passwordRequirements.special} />
+                </div>
+              )}
             </div>
 
             <button
@@ -290,7 +334,7 @@ export default function Register() {
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 <>
-                  Ver Planos Disponíveis
+                  {isLoginMode ? "Entrar e Ver Planos" : "Ver Planos Disponíveis"}
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </>
               )}
