@@ -28,6 +28,15 @@ const formatRouteName = (route: string) => {
 
 export default function AdminAnalytics() {
   const { settings } = useSettings();
+  
+  if (!settings.is_admin) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <AdminAnalyticsContent settings={settings} />;
+}
+
+function AdminAnalyticsContent({ settings }: { settings: any }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'sistema' | 'landing' | 'leads'>('sistema');
@@ -222,9 +231,7 @@ export default function AdminAnalytics() {
     u.email.toLowerCase().includes(searchTerm.toLowerCase())
   ) || [];
 
-  if (!settings.is_admin) {
-    return <Navigate to="/dashboard" replace />;
-  }
+  // Check removido daqui pois o wrapper principal já o faz
 
   return (
     <div className="w-full max-w-7xl mx-auto p-4 md:p-8 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
