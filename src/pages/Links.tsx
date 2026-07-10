@@ -26,6 +26,7 @@ import { Link as LinkIcon,
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "../lib/utils";
 import { toast } from "sonner";
+import { PageHeader, useConfirm } from "../components/ui";
 
 const initialLinks = [
   { id: "1", title: "WhatsApp Web", url: "https://web.whatsapp.com", icon: "MessageSquare", color: "bg-emerald-500" },
@@ -54,6 +55,7 @@ const colorOptions = [
 ];
 
 export default function LinksPage() {
+  const confirm = useConfirm();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeLinkId = searchParams.get("id");
   const [links, setLinks] = useState<any[]>([]);
@@ -95,8 +97,8 @@ export default function LinksPage() {
     resetForm();
   };
 
-  const handleDeleteLink = (id: string) => {
-    if (!window.confirm("Desvincular este atalho permanentemente?")) return;
+  const handleDeleteLink = async (id: string) => {
+    if (!(await confirm({ title: 'Remover atalho', message: 'Desvincular este atalho permanentemente?', confirmLabel: 'Desvincular' }))) return;
     const updated = links.filter(l => l.id !== id);
     saveToStorage(updated);
     toast.success("Atalho removido.");
@@ -193,38 +195,33 @@ export default function LinksPage() {
 
   return (
     <div className="h-full flex flex-col gap-8 md:gap-10 pb-20">
-      {/* Premium Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-          <h1 className="text-4xl font-black text-slate-900 dark:text-zinc-100 flex items-center gap-4 uppercase tracking-tight">
-            <div className="p-3 bg-emerald-600 rounded-[20px]">
-              <Layers className="w-8 h-8 text-white" />
-            </div>
-            Shortcut <span className="text-slate-200 dark:text-zinc-800 ml-2">/</span> <span className="text-emerald-600">Hub</span>
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-zinc-400 mt-2 font-medium">Ecossistema centralizado de ferramentas operacionais.</p>
-        </div>
-        
-        <div className="flex items-center gap-3">
+      <PageHeader
+        icon={Layers}
+        title="Atalhos"
+        subtitle="Suas ferramentas de trabalho em um só lugar"
+        className="mb-0 lg:mb-0"
+        actions={
+          <div className="flex items-center gap-3">
             <div className="relative group max-w-md">
               <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-emerald-500 transition-colors" />
-              <input 
-                type="text" 
-                placeholder="Rastrear atalhos..." 
+              <input
+                type="text"
+                placeholder="Buscar atalhos..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="pl-12 pr-6 py-4 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-zinc-100 outline-none focus:ring-8 focus:ring-emerald-500/10 transition-all shadow-sm"
+                className="pl-12 pr-6 py-3.5 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-zinc-100 outline-none focus:ring-8 focus:ring-emerald-500/10 transition-all shadow-sm"
               />
             </div>
-            <button 
+            <button
               onClick={() => setIsModalOpen(true)}
-              className="px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-[24px] font-black uppercase text-[11px] tracking-widest transition-all shadow-[0_20px_40px_-10px_rgba(99,102,241,0.4)] active:scale-95 flex items-center gap-3 group"
+              className="px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all shadow-lg shadow-emerald-600/20 active:scale-95 flex items-center gap-2 group shrink-0"
             >
               <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
               Novo Atalho
             </button>
-        </div>
-      </div>
+          </div>
+        }
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
         <AnimatePresence mode="popLayout">

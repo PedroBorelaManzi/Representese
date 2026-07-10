@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { cn } from '../../lib/utils';
 import { offlineCache } from '../../lib/offlineCache';
+import { useConfirm } from '../ui';
 
 function Toggle({ on }: { on: boolean }) {
   return (
@@ -23,6 +24,7 @@ function Toggle({ on }: { on: boolean }) {
 
 export const SettingsAppearance = React.memo(function SettingsAppearance() {
   const { settings, updateSettings } = useSettings();
+  const confirm = useConfirm();
   const [pushEnabled, setPushEnabled] = useState(() => localStorage.getItem('rm_push_notifications') !== 'false');
   const [clearing, setClearing] = useState(false);
 
@@ -46,8 +48,8 @@ export const SettingsAppearance = React.memo(function SettingsAppearance() {
     toast.success(next ? "Notificações ativadas!" : "Notificações desativadas.");
   };
 
-  const handleClearCache = () => {
-    if (!window.confirm("Limpar os dados salvos offline neste dispositivo? Seus dados na nuvem não são afetados — eles serão baixados novamente.")) return;
+  const handleClearCache = async () => {
+    if (!(await confirm({ title: 'Limpar dados offline', message: 'Limpar os dados salvos offline neste dispositivo? Seus dados na nuvem não são afetados — eles serão baixados novamente.', confirmLabel: 'Limpar', tone: 'default' }))) return;
     setClearing(true);
     try {
       offlineCache.clear();

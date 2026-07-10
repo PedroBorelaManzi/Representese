@@ -26,7 +26,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import { cn } from "../lib/utils";
 import { SearchableClientPicker } from "../components/SearchableClientPicker";
-import { PageHeader } from "../components/ui";
+import { PageHeader, Skeleton, useConfirm } from "../components/ui";
 import { syncQueue } from "../lib/syncQueue";
 import { offlineCache, CacheKeys } from "../lib/offlineCache"; // Motor Híbrido V2
 import { EmptyState } from "../components/ui";
@@ -35,7 +35,8 @@ export default function EmpresasPage() {
   const { user } = useAuth();
   const { settings, updateSettings } = useSettings();
   const navigate = useNavigate();
-  
+  const confirm = useConfirm();
+
   const [allOrders, setAllOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -388,7 +389,7 @@ export default function EmpresasPage() {
   };
 
   const handleDeleteCompany = async (name: string) => {
-    if (!window.confirm("Deseja realmente excluir a empresa " + name + "?")) return;
+    if (!(await confirm({ title: 'Excluir empresa', message: `Deseja realmente excluir a empresa ${name}?` }))) return;
     try {
       const updatedCategories = settings.categories.filter((c: string) => c !== name);
       await updateSettings({ categories: updatedCategories });
@@ -553,7 +554,21 @@ export default function EmpresasPage() {
         <div className="lg:col-span-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 pb-20">
               {loading ? (
-                 <div className="col-span-full h-40 flex items-center justify-center"><Loader2 className="w-8 h-8 md:w-10 md:h-10 animate-spin text-emerald-600 opacity-20"/></div>
+                 <>
+                   {Array.from({ length: 4 }).map((_, i) => (
+                     <div key={i} className="p-6 rounded-[32px] border border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 space-y-4">
+                       <div className="flex items-center gap-3">
+                         <Skeleton className="w-12 h-12 rounded-2xl shrink-0" />
+                         <div className="flex-1 space-y-2">
+                           <Skeleton className="h-4 w-1/2" />
+                           <Skeleton className="h-3 w-1/3" />
+                         </div>
+                       </div>
+                       <Skeleton className="h-3 w-full" />
+                       <Skeleton className="h-3 w-2/3" />
+                     </div>
+                   ))}
+                 </>
               ) : filteredOrders.length === 0 ? (
                 allOrders.length === 0 ? (
                   <div className="col-span-full border-4 border-dashed border-slate-100 dark:border-zinc-800 rounded-[32px] md:rounded-[48px]">

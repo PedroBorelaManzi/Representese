@@ -14,7 +14,7 @@ import { parseFileForCnpjs } from '../lib/clientImport';
 import { getHighPrecisionCoordinates } from '../lib/geminiGeocoding';
 import { Client, Alert, Order } from '../types';
 import { useQueryClient } from '@tanstack/react-query';
-import { EmptyState, PageHeader } from '../components/ui';
+import { EmptyState, PageHeader, Skeleton, useConfirm } from '../components/ui';
 import { posthog } from '../lib/posthog';
 import ClientImportModal from '../components/ClientImportModal';
 
@@ -25,6 +25,7 @@ export default function CRMPage() {
   const { isOnline } = useSync();
   const navigate = useNavigate();
   const location = useLocation();
+  const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState<'Todos' | 'Alerta' | 'Crítico' | 'Inativo'>('Todos');
   const { data: clients = [], isLoading: loading, isFetching: loadingAlerts } = useClients();
   const [searchTerm, setSearchTerm] = useState('');
@@ -81,7 +82,7 @@ export default function CRMPage() {
   }, [filteredClients, displayLimit]);
 
   const handleDeleteClient = async (id: string) => {
-    if (!window.confirm('Deseja realmente excluir este cliente? Todos os pedidos associados serão mantidos, mas o vínculo será perdido.')) return;
+    if (!(await confirm({ title: 'Excluir cliente', message: 'Deseja realmente excluir este cliente? Todos os pedidos associados serão mantidos, mas o vínculo será perdido.' }))) return;
     
     if (!isOnline) {
         syncQueue.enqueue('clients', 'DELETE', null, id);
@@ -330,7 +331,18 @@ export default function CRMPage() {
         </div>
         <div className="flex-1 overflow-y-auto custom-scrollbar">
            {loading ? (
-              <div className="flex items-center justify-center h-40"><Loader2 className="w-6 h-6 text-emerald-600 animate-spin" /></div>
+              <div className="flex flex-col divide-y divide-slate-50 dark:divide-zinc-800/50">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-4 p-5">
+                    <Skeleton className="w-11 h-11 rounded-2xl shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-3.5 w-1/3" />
+                      <Skeleton className="h-3 w-1/4" />
+                    </div>
+                    <Skeleton className="h-6 w-16 rounded-full" />
+                  </div>
+                ))}
+              </div>
            ) : (
               <div className="flex flex-col">
                  {displayClients.map((client) => (

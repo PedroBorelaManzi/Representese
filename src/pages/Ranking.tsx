@@ -13,7 +13,7 @@ import {
 import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
 import { cn } from "../lib/utils";
-import { PageHeader } from "../components/ui";
+import { PageHeader, useConfirm } from "../components/ui";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
@@ -30,6 +30,7 @@ type Board = "inativos" | "visitados";
 export default function Ranking() {
   const { user } = useAuth();
   const { settings } = useSettings();
+  const confirm = useConfirm();
   const inativoDays = settings?.inativo_days ?? 90;
 
   const [loading, setLoading] = useState(true);
@@ -85,7 +86,7 @@ export default function Ranking() {
 
   const handleLeave = async () => {
     if (!user) return;
-    if (!window.confirm("Sair do ranking? Seus números deixam de aparecer para os outros.")) return;
+    if (!(await confirm({ title: 'Sair do ranking', message: 'Seus números deixam de aparecer para os outros representantes.', confirmLabel: 'Sair', tone: 'default' }))) return;
     try {
       await leaveRanking(user.id);
       setMyRow(null);
