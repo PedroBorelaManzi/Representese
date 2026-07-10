@@ -143,7 +143,12 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
         usersList
       };
     },
-    enabled: activeTab === 'sistema' && !!settings?.is_admin
+    enabled: activeTab === 'sistema' && !!settings?.is_admin,
+    // O QueryClient global usa staleTime: Infinity + cache persistido em IndexedDB
+    // (offline-first pros representantes em campo) — sem isso, o admin veria
+    // dados congelados no primeiro carregamento pra sempre, mesmo com F5.
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   // --- QUERY 2: Landing Page (Leads Anônimos) ---
@@ -184,7 +189,9 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
         chartData
       };
     },
-    enabled: activeTab === 'landing' && !!settings?.is_admin
+    enabled: activeTab === 'landing' && !!settings?.is_admin,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   // --- QUERY 3: Leads & Assinantes (CRM) ---
@@ -207,7 +214,9 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
         .filter(d => !d.is_admin)
         .map(d => ({ ...d, subscription_status: statusByUser.get(d.user_id) ?? 'inactive' }));
     },
-    enabled: activeTab === 'leads' && !!settings?.is_admin
+    enabled: activeTab === 'leads' && !!settings?.is_admin,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   const exportToCSV = () => {
