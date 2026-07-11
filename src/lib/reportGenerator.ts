@@ -326,6 +326,101 @@ function addKpiTile(
   cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
 }
 
+function buildAgendaVisualSheet(
+  workbook: ExcelJS.Workbook,
+  data: ReportData,
+  monthName: string
+): ExcelJS.Worksheet {
+  const sheet = workbook.addWorksheet('Agenda Visual', { views: [{ showGridLines: false }] });
+  const year = data.month.getFullYear();
+  const month = data.month.getMonth() + 1;
+
+  sheet.columns = Array.from({ length: 7 }, (_, i) => ({ key: `day${i}`, width: 22 }));
+
+  sheet.mergeCells('A1:G1');
+  const title = sheet.getCell('A1');
+  title.value = 'REPRESENTE-SE!';
+  title.font = { bold: true, size: 16, color: { argb: BRAND.white } };
+  title.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.primary } };
+  title.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+  sheet.getRow(1).height = 28;
+
+  sheet.mergeCells('A2:G2');
+  const sub = sheet.getCell('A2');
+  sub.value = `Agenda de Compromissos — ${monthName}`;
+  sub.font = { italic: true, size: 10, color: { argb: BRAND.primaryDark } };
+  sub.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.tint } };
+  sub.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+  sheet.getRow(2).height = 18;
+
+  const dayNames = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
+  const headerRowNum = 4;
+  const headerRow = sheet.getRow(headerRowNum);
+  dayNames.forEach((day, i) => {
+    const cell = headerRow.getCell(i + 1);
+    cell.value = day;
+    cell.border = thinBorder;
+    cell.font = { bold: true, color: { argb: BRAND.white } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.dark } };
+    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+  });
+  headerRow.height = 20;
+
+  const firstDay = new Date(year, month - 1, 1).getDay();
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const appointmentsByDate = new Map<string, typeof data.appointments>();
+  data.appointments.forEach((app) => {
+    const dateKey = app.date;
+    if (!appointmentsByDate.has(dateKey)) appointmentsByDate.set(dateKey, []);
+    appointmentsByDate.get(dateKey)!.push(app);
+  });
+
+  let currentRow = headerRowNum + 1;
+  let dayCounter = 1;
+  for (let week = 0; week < 6; week++) {
+    const row = sheet.getRow(currentRow);
+    row.height = 80;
+    for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
+      const cellNum = dayOfWeek + 1;
+      const cell = row.getCell(cellNum);
+      cell.border = thinBorder;
+      const isFirstWeek = week === 0;
+      const isAfterMonth = dayCounter > daysInMonth;
+      if ((isFirstWeek && dayOfWeek < firstDay) || isAfterMonth) {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.zebra } };
+        cell.alignment = { horizontal: 'center', vertical: 'top' };
+      } else {
+        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(dayCounter).padStart(2, '0')}`;
+        const appointments = appointmentsByDate.get(dateStr) || [];
+        const richText: ExcelJS.RichText[] = [{ text: `${dayCounter}\n\n`, font: { bold: true, size: 11 } }];
+        appointments.slice(0, 3).forEach((app, idx) => {
+          if (idx > 0) richText.push({ text: '\n' });
+          richText.push({
+            text: `• ${app.time} ${app.title.slice(0, 16)}${app.title.length > 16 ? '...' : ''}`,
+            font: { size: 8, color: { argb: BRAND.primaryDark } },
+          });
+        });
+        if (appointments.length > 3) {
+          richText.push({ text: `\n(+${appointments.length - 3} mais)`, font: { size: 7, italic: true, color: { argb: BRAND.gray } } });
+        }
+        cell.value = { richText };
+        cell.alignment = { horizontal: 'left', vertical: 'top', wrapText: true };
+        if (appointments.length > 0) {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3c7' } };
+        } else {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.white } };
+        }
+        dayCounter++;
+      }
+    }
+    currentRow++;
+    if (dayCounter > daysInMonth) break;
+  }
+
+  sheet.views = [{ showGridLines: false }];
+  return sheet;
+}
+
 function buildCapaSheet(workbook: ExcelJS.Workbook, data: ReportData, monthName: string) {
   const capa = workbook.addWorksheet('Capa', { views: [{ showGridLines: false }] });
   capa.columns = [{ key: 'a', width: 26 }, { key: 'b', width: 26 }, { key: 'c', width: 26 }, { key: 'd', width: 26 }];
@@ -450,24 +545,35 @@ export async function generateExcelReport(
   });
 
   buildSheet(workbook, {
-    name: 'Comissões',
-    subtitle: `Comissões por empresa representada — ${monthNameCap}`,
+    name: 'Empresas',
+    subtitle: `Análise por representada — ${monthNameCap}`,
     columns: [
       { header: 'Empresa', key: 'name', width: 28 },
       { header: 'Receita', key: 'revenue', width: 18, numFmt: CURRENCY_FMT, align: 'right' },
+      { header: 'Pedidos', key: 'ordersCount', width: 12, align: 'center' },
       { header: '% Comissão', key: 'pct', width: 14, numFmt: PERCENT_FMT, align: 'center' },
-      { header: 'Comissão', key: 'commission', width: 18, numFmt: CURRENCY_FMT, align: 'right' },
+      { header: 'Valor Comissão', key: 'commission', width: 16, numFmt: CURRENCY_FMT, align: 'right' },
+      { header: '% do Total', key: 'pctTotal', width: 12, numFmt: PERCENT_FMT, align: 'center' },
     ],
-    rows: data.byCompany.map((c) => ({
-      name: c.name,
-      revenue: c.revenue,
-      pct: c.commissionPct,
-      commission: c.commissionValue,
-    })),
+    rows: data.byCompany.map((c) => {
+      const ordersForCompany = data.orders.filter((o) => o.category.trim().toUpperCase() === c.name.trim().toUpperCase()).length;
+      return {
+        name: c.name,
+        revenue: c.revenue,
+        ordersCount: ordersForCompany,
+        pct: c.commissionPct,
+        commission: c.commissionValue,
+        pctTotal: data.summary.totalRevenue > 0 ? (c.revenue / data.summary.totalRevenue) * 100 : 0,
+      };
+    }),
     totalsRow: data.byCompany.length
-      ? { name: 'TOTAL', revenue: data.summary.totalRevenue, pct: '', commission: data.summary.totalCommission }
+      ? { name: 'TOTAL', revenue: data.summary.totalRevenue, ordersCount: data.summary.ordersCount, pct: '', commission: data.summary.totalCommission, pctTotal: 100 }
       : undefined,
   });
+
+  if (data.appointments.length > 0) {
+    buildAgendaVisualSheet(workbook, data, monthNameCap);
+  }
 
   const clientsSheet = buildSheet(workbook, {
     name: 'Clientes',
@@ -497,7 +603,7 @@ export async function generateExcelReport(
   if (data.appointments.length > 0) {
     buildSheet(workbook, {
       name: 'Compromissos',
-      subtitle: `Agenda do período — ${monthNameCap}`,
+      subtitle: `Detalhes dos compromissos — ${monthNameCap}`,
       columns: [
         { header: 'Título', key: 'title', width: 28 },
         { header: 'Cliente', key: 'clientName', width: 28 },
