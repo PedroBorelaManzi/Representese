@@ -474,7 +474,7 @@ export default function ReportsPage() {
                   Exportar {selected.fullLabel}
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-zinc-400 font-medium mt-0.5 max-w-md">
-                  Excel com 6 abas: Resumo, Pedidos, Comissões, Clientes, Compromissos e Follow-ups. CSV compatível com qualquer planilha.
+                  Excel em página única: indicadores do mês, vendas por empresa representada e agenda visual. CSV compatível com qualquer planilha.
                 </p>
               </div>
             </div>

@@ -1,6 +1,6 @@
 import ExcelJS from 'exceljs';
 import { supabase } from './supabase';
-import { getMethodLabel, getOutcomeLabel, FollowupLog } from './followupService';
+import { FollowupLog } from './followupService';
 
 export interface ReportData {
   month: Date;
@@ -210,8 +210,6 @@ const BRAND = {
 };
 
 const CURRENCY_FMT = '"R$" #,##0.00';
-const PERCENT_FMT = '0.00"%"';
-const DATE_FMT = 'dd/mm/yyyy';
 
 const thinBorder: Partial<ExcelJS.Borders> = {
   top: { style: 'thin', color: { argb: BRAND.border } },
@@ -220,142 +218,34 @@ const thinBorder: Partial<ExcelJS.Borders> = {
   right: { style: 'thin', color: { argb: BRAND.border } },
 };
 
-type ReportColumn = {
-  header: string;
-  key: string;
-  width: number;
-  numFmt?: string;
-  align?: 'left' | 'right' | 'center';
-};
-
-/** Cria uma aba com banner de marca (título + subtítulo), cabeçalho escuro,
- *  zebra striping, bordas, congelamento do cabeçalho e autofiltro — mesmo
- *  visual em todas as abas do relatório. */
-function buildSheet(
-  workbook: ExcelJS.Workbook,
-  opts: {
-    name: string;
-    subtitle: string;
-    columns: ReportColumn[];
-    rows: Record<string, unknown>[];
-    totalsRow?: Record<string, unknown>;
-  }
-): ExcelJS.Worksheet {
-  const { name, subtitle, columns, rows, totalsRow } = opts;
-  const colCount = columns.length;
-  const sheet = workbook.addWorksheet(name, { views: [{ showGridLines: false }] });
-
-  sheet.columns = columns.map((c) => ({ key: c.key, width: c.width }));
-
-  sheet.mergeCells(1, 1, 1, colCount);
-  const title = sheet.getCell(1, 1);
-  title.value = 'REPRESENTE-SE!';
-  title.font = { bold: true, size: 16, color: { argb: BRAND.white } };
-  title.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.primary } };
-  title.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
-  sheet.getRow(1).height = 28;
-
-  sheet.mergeCells(2, 1, 2, colCount);
-  const sub = sheet.getCell(2, 1);
-  sub.value = subtitle;
-  sub.font = { italic: true, size: 10, color: { argb: BRAND.primaryDark } };
-  sub.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.tint } };
-  sub.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
-  sheet.getRow(2).height = 18;
-
-  const headerRowNum = 3;
-  const headerRow = sheet.getRow(headerRowNum);
-  columns.forEach((c, i) => {
-    const cell = headerRow.getCell(i + 1);
-    cell.value = c.header;
-    cell.border = thinBorder;
-  });
-  headerRow.font = { bold: true, color: { argb: BRAND.white } };
-  headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.dark } };
-  headerRow.alignment = { vertical: 'middle' };
-  headerRow.height = 20;
-
-  rows.forEach((r, idx) => {
-    const zebra = idx % 2 === 1;
-    const row = sheet.getRow(headerRowNum + 1 + idx);
-    columns.forEach((c, i) => {
-      const cell = row.getCell(i + 1);
-      cell.value = r[c.key] as ExcelJS.CellValue;
-      if (c.numFmt) cell.numFmt = c.numFmt;
-      cell.alignment = { horizontal: c.align || 'left', vertical: 'middle' };
-      cell.border = thinBorder;
-      if (zebra) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.zebra } };
-    });
-  });
-
-  if (totalsRow) {
-    const row = sheet.getRow(headerRowNum + 1 + rows.length);
-    columns.forEach((c, i) => {
-      const cell = row.getCell(i + 1);
-      cell.value = totalsRow[c.key] as ExcelJS.CellValue;
-      if (c.numFmt) cell.numFmt = c.numFmt;
-      cell.alignment = { horizontal: c.align || 'left', vertical: 'middle' };
-      cell.font = { bold: true };
-      cell.border = { ...thinBorder, top: { style: 'medium', color: { argb: BRAND.dark } } };
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.tint } };
-    });
-  }
-
-  sheet.views = [{ state: 'frozen', ySplit: headerRowNum, showGridLines: false }];
-  sheet.autoFilter = { from: { row: headerRowNum, column: 1 }, to: { row: headerRowNum, column: colCount } };
-
-  return sheet;
-}
-
 function addKpiTile(
   sheet: ExcelJS.Worksheet,
   range: string,
   label: string,
   value: string,
-  bg: string
+  bg: string,
+  sub?: string
 ) {
   sheet.mergeCells(range);
   const cell = sheet.getCell(range.split(':')[0]);
-  cell.value = {
-    richText: [
-      { text: `${label}\n`, font: { size: 9, bold: true, color: { argb: BRAND.white } } },
-      { text: value, font: { size: 18, bold: true, color: { argb: BRAND.white } } },
-    ],
-  };
+  const richText: ExcelJS.RichText[] = [
+    { text: `${label}\n`, font: { size: 9, bold: true, color: { argb: BRAND.white } } },
+    { text: value, font: { size: 18, bold: true, color: { argb: BRAND.white } } },
+  ];
+  if (sub) richText.push({ text: `\n${sub}`, font: { size: 8, color: { argb: BRAND.white } } });
+  cell.value = { richText };
   cell.alignment = { wrapText: true, vertical: 'middle', horizontal: 'center' };
   cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
 }
 
-function buildAgendaVisualSheet(
-  workbook: ExcelJS.Workbook,
-  data: ReportData,
-  monthName: string
-): ExcelJS.Worksheet {
-  const sheet = workbook.addWorksheet('Agenda Visual', { views: [{ showGridLines: false }] });
+/** Desenha o calendário do mês (7 colunas, DOM–SÁB) a partir de `startRow`,
+ *  mostrando até 3 compromissos por dia. Retorna a próxima linha livre. */
+function writeCalendarGrid(sheet: ExcelJS.Worksheet, data: ReportData, startRow: number): number {
   const year = data.month.getFullYear();
   const month = data.month.getMonth() + 1;
 
-  sheet.columns = Array.from({ length: 7 }, (_, i) => ({ key: `day${i}`, width: 22 }));
-
-  sheet.mergeCells('A1:G1');
-  const title = sheet.getCell('A1');
-  title.value = 'REPRESENTE-SE!';
-  title.font = { bold: true, size: 16, color: { argb: BRAND.white } };
-  title.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.primary } };
-  title.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
-  sheet.getRow(1).height = 28;
-
-  sheet.mergeCells('A2:G2');
-  const sub = sheet.getCell('A2');
-  sub.value = `Agenda de Compromissos — ${monthName}`;
-  sub.font = { italic: true, size: 10, color: { argb: BRAND.primaryDark } };
-  sub.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.tint } };
-  sub.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
-  sheet.getRow(2).height = 18;
-
   const dayNames = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
-  const headerRowNum = 4;
-  const headerRow = sheet.getRow(headerRowNum);
+  const headerRow = sheet.getRow(startRow);
   dayNames.forEach((day, i) => {
     const cell = headerRow.getCell(i + 1);
     cell.value = day;
@@ -370,25 +260,22 @@ function buildAgendaVisualSheet(
   const daysInMonth = new Date(year, month, 0).getDate();
   const appointmentsByDate = new Map<string, typeof data.appointments>();
   data.appointments.forEach((app) => {
-    const dateKey = app.date;
-    if (!appointmentsByDate.has(dateKey)) appointmentsByDate.set(dateKey, []);
-    appointmentsByDate.get(dateKey)!.push(app);
+    if (!appointmentsByDate.has(app.date)) appointmentsByDate.set(app.date, []);
+    appointmentsByDate.get(app.date)!.push(app);
   });
 
-  let currentRow = headerRowNum + 1;
+  let currentRow = startRow + 1;
   let dayCounter = 1;
   for (let week = 0; week < 6; week++) {
     const row = sheet.getRow(currentRow);
-    row.height = 80;
+    row.height = 76;
     for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
-      const cellNum = dayOfWeek + 1;
-      const cell = row.getCell(cellNum);
+      const cell = row.getCell(dayOfWeek + 1);
       cell.border = thinBorder;
       const isFirstWeek = week === 0;
       const isAfterMonth = dayCounter > daysInMonth;
       if ((isFirstWeek && dayOfWeek < firstDay) || isAfterMonth) {
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.zebra } };
-        cell.alignment = { horizontal: 'center', vertical: 'top' };
       } else {
         const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(dayCounter).padStart(2, '0')}`;
         const appointments = appointmentsByDate.get(dateStr) || [];
@@ -405,105 +292,14 @@ function buildAgendaVisualSheet(
         }
         cell.value = { richText };
         cell.alignment = { horizontal: 'left', vertical: 'top', wrapText: true };
-        if (appointments.length > 0) {
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3c7' } };
-        } else {
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.white } };
-        }
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: appointments.length > 0 ? 'FFFEF3C7' : BRAND.white } };
         dayCounter++;
       }
     }
     currentRow++;
     if (dayCounter > daysInMonth) break;
   }
-
-  sheet.views = [{ showGridLines: false }];
-  return sheet;
-}
-
-function buildCapaSheet(workbook: ExcelJS.Workbook, data: ReportData, monthName: string) {
-  const capa = workbook.addWorksheet('Capa', { views: [{ showGridLines: false }] });
-  capa.columns = [{ key: 'a', width: 26 }, { key: 'b', width: 26 }, { key: 'c', width: 26 }, { key: 'd', width: 26 }];
-
-  capa.mergeCells('A1:D1');
-  const title = capa.getCell('A1');
-  title.value = 'REPRESENTE-SE!';
-  title.font = { bold: true, size: 20, color: { argb: BRAND.white } };
-  title.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.primary } };
-  title.alignment = { vertical: 'middle', horizontal: 'center' };
-  capa.getRow(1).height = 40;
-
-  capa.mergeCells('A2:D2');
-  const subtitle = capa.getCell('A2');
-  subtitle.value = `Relatório Mensal de Vendas — ${monthName}`;
-  subtitle.font = { bold: true, size: 12, color: { argb: BRAND.dark } };
-  subtitle.alignment = { vertical: 'middle', horizontal: 'center' };
-  capa.getRow(2).height = 22;
-
-  capa.mergeCells('A3:D3');
-  const generated = capa.getCell('A3');
-  generated.value = `Gerado em ${new Date().toLocaleString('pt-BR')}`;
-  generated.font = { size: 9, italic: true, color: { argb: BRAND.gray } };
-  generated.alignment = { horizontal: 'center' };
-  capa.getRow(3).height = 16;
-  capa.getRow(4).height = 6;
-
-  capa.getRow(5).height = 50;
-  capa.getRow(6).height = 6;
-  addKpiTile(capa, 'A5:B6', 'RECEITA TOTAL', BRL(data.summary.totalRevenue), BRAND.primary);
-  addKpiTile(capa, 'C5:D6', 'COMISSÃO ESTIMADA', BRL(data.summary.totalCommission), BRAND.primaryDark);
-
-  capa.getRow(7).height = 50;
-  capa.getRow(8).height = 6;
-  addKpiTile(capa, 'A7:B8', 'PEDIDOS NO MÊS', String(data.summary.ordersCount), BRAND.dark);
-  addKpiTile(capa, 'C7:D8', 'TICKET MÉDIO', BRL(data.summary.averageOrderValue), BRAND.darkAlt);
-
-  capa.getRow(9).height = 50;
-  capa.getRow(10).height = 6;
-  addKpiTile(capa, 'A9:B10', 'CLIENTES ATIVOS / TOTAL', `${data.summary.activeClients} / ${data.summary.totalClients}`, BRAND.primary);
-  addKpiTile(capa, 'C9:D10', 'COMPROMISSOS / FOLLOW-UPS', `${data.summary.appointmentsCount} / ${data.followups.length}`, BRAND.primaryDark);
-
-  capa.getRow(11).height = 10;
-
-  capa.mergeCells('A12:D12');
-  const sectionHeader = capa.getCell('A12');
-  sectionHeader.value = 'INDICADORES DETALHADOS';
-  sectionHeader.font = { bold: true, size: 11, color: { argb: BRAND.white } };
-  sectionHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.dark } };
-  sectionHeader.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
-  capa.getRow(12).height = 20;
-
-  const detailRows: [string, string][] = [
-    ['Período', monthName],
-    ['Receita Total', BRL(data.summary.totalRevenue)],
-    ['Comissão Estimada', BRL(data.summary.totalCommission)],
-    ['Total de Pedidos', String(data.summary.ordersCount)],
-    ['Ticket Médio', BRL(data.summary.averageOrderValue)],
-    ['Total de Clientes', String(data.summary.totalClients)],
-    ['Clientes Ativos', String(data.summary.activeClients)],
-    ['Compromissos no Período', String(data.summary.appointmentsCount)],
-    ['Follow-ups Registrados', String(data.followups.length)],
-  ];
-  detailRows.forEach(([metric, value], idx) => {
-    const rowNum = 13 + idx;
-    const zebra = idx % 2 === 1;
-    capa.mergeCells(`A${rowNum}:B${rowNum}`);
-    capa.mergeCells(`C${rowNum}:D${rowNum}`);
-    const metricCell = capa.getCell(`A${rowNum}`);
-    const valueCell = capa.getCell(`C${rowNum}`);
-    metricCell.value = metric;
-    metricCell.font = { bold: true, size: 10, color: { argb: BRAND.dark } };
-    valueCell.value = value;
-    valueCell.font = { size: 10, color: { argb: BRAND.dark } };
-    valueCell.alignment = { horizontal: 'right' };
-    [metricCell, valueCell].forEach((cell) => {
-      cell.border = thinBorder;
-      cell.alignment = { ...cell.alignment, vertical: 'middle', indent: cell === metricCell ? 1 : 0 };
-      if (zebra) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.zebra } };
-    });
-  });
-
-  capa.views = [{ showGridLines: false }];
+  return currentRow;
 }
 
 export async function generateExcelReport(
@@ -520,127 +316,163 @@ export async function generateExcelReport(
   const monthName = data.month.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
   const monthNameCap = monthName.charAt(0).toUpperCase() + monthName.slice(1);
 
-  buildCapaSheet(workbook, data, monthNameCap);
+  const sheet = workbook.addWorksheet('Relatório', { views: [{ showGridLines: false }] });
+  sheet.columns = Array.from({ length: 7 }, () => ({ width: 18 }));
 
-  buildSheet(workbook, {
-    name: 'Pedidos',
-    subtitle: `Pedidos do período — ${monthNameCap}`,
-    columns: [
-      { header: 'Cliente', key: 'clientName', width: 28 },
-      { header: 'Empresa', key: 'category', width: 22 },
-      { header: 'Valor', key: 'value', width: 16, numFmt: CURRENCY_FMT, align: 'right' },
-      { header: 'Comissão', key: 'commission', width: 16, numFmt: CURRENCY_FMT, align: 'right' },
-      { header: 'Data', key: 'createdAt', width: 14, numFmt: DATE_FMT, align: 'center' },
-    ],
-    rows: data.orders.map((o) => ({
-      clientName: o.clientName,
-      category: o.category,
-      value: o.value,
-      commission: o.commission,
-      createdAt: new Date(o.createdAt),
-    })),
-    totalsRow: data.orders.length
-      ? { clientName: '', category: 'TOTAL', value: data.summary.totalRevenue, commission: data.summary.totalCommission, createdAt: '' }
-      : undefined,
+  // Banner de marca
+  sheet.mergeCells('A1:G1');
+  const title = sheet.getCell('A1');
+  title.value = 'REPRESENTE-SE!';
+  title.font = { bold: true, size: 20, color: { argb: BRAND.white } };
+  title.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.primary } };
+  title.alignment = { vertical: 'middle', horizontal: 'center' };
+  sheet.getRow(1).height = 40;
+
+  sheet.mergeCells('A2:G2');
+  const subtitle = sheet.getCell('A2');
+  subtitle.value = `Relatório Mensal de Vendas — ${monthNameCap}`;
+  subtitle.font = { bold: true, size: 12, color: { argb: BRAND.dark } };
+  subtitle.alignment = { vertical: 'middle', horizontal: 'center' };
+  sheet.getRow(2).height = 22;
+
+  sheet.mergeCells('A3:G3');
+  const generated = sheet.getCell('A3');
+  generated.value = `Gerado em ${new Date().toLocaleString('pt-BR')}`;
+  generated.font = { size: 9, italic: true, color: { argb: BRAND.gray } };
+  generated.alignment = { horizontal: 'center' };
+  sheet.getRow(3).height = 16;
+  sheet.getRow(4).height = 8;
+
+  // KPIs — grade 2x2 nas colunas A–D
+  const avgCommissionPct = data.summary.totalRevenue > 0 ? (data.summary.totalCommission / data.summary.totalRevenue) * 100 : 0;
+  const activeClientsThisMonth = new Set(data.orders.map((o) => o.clientId)).size;
+
+  sheet.getRow(5).height = 52;
+  sheet.getRow(6).height = 6;
+  addKpiTile(sheet, 'A5:B6', 'RECEITA TOTAL', BRL(data.summary.totalRevenue), BRAND.primary);
+  addKpiTile(sheet, 'C5:D6', 'COMISSÃO', BRL(data.summary.totalCommission), BRAND.primaryDark, `Média de ${avgCommissionPct.toFixed(1)}%`);
+
+  sheet.getRow(7).height = 52;
+  sheet.getRow(8).height = 6;
+  addKpiTile(sheet, 'A7:B8', 'TICKET MÉDIO', BRL(data.summary.averageOrderValue), BRAND.dark);
+  addKpiTile(sheet, 'C7:D8', 'CLIENTES ATIVOS NO MÊS', String(activeClientsThisMonth), BRAND.darkAlt);
+
+  sheet.getRow(9).height = 12;
+  let row = 10;
+
+  // Seção: Empresas Representadas
+  sheet.mergeCells(`A${row}:G${row}`);
+  const empresasHeader = sheet.getCell(`A${row}`);
+  empresasHeader.value = 'EMPRESAS REPRESENTADAS';
+  empresasHeader.font = { bold: true, size: 12, color: { argb: BRAND.white } };
+  empresasHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.dark } };
+  empresasHeader.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+  sheet.getRow(row).height = 24;
+  row++;
+
+  const companyClientMap = new Map<string, Map<string, number>>();
+  data.orders.forEach((o) => {
+    const key = (o.category || 'Outros').trim().toUpperCase();
+    if (!companyClientMap.has(key)) companyClientMap.set(key, new Map());
+    const m = companyClientMap.get(key)!;
+    m.set(o.clientName, (m.get(o.clientName) || 0) + o.value);
   });
 
-  buildSheet(workbook, {
-    name: 'Empresas',
-    subtitle: `Análise por representada — ${monthNameCap}`,
-    columns: [
-      { header: 'Empresa', key: 'name', width: 28 },
-      { header: 'Receita', key: 'revenue', width: 18, numFmt: CURRENCY_FMT, align: 'right' },
-      { header: 'Pedidos', key: 'ordersCount', width: 12, align: 'center' },
-      { header: '% Comissão', key: 'pct', width: 14, numFmt: PERCENT_FMT, align: 'center' },
-      { header: 'Valor Comissão', key: 'commission', width: 16, numFmt: CURRENCY_FMT, align: 'right' },
-      { header: '% do Total', key: 'pctTotal', width: 12, numFmt: PERCENT_FMT, align: 'center' },
-    ],
-    rows: data.byCompany.map((c) => {
-      const ordersForCompany = data.orders.filter((o) => o.category.trim().toUpperCase() === c.name.trim().toUpperCase()).length;
-      return {
-        name: c.name,
-        revenue: c.revenue,
-        ordersCount: ordersForCompany,
-        pct: c.commissionPct,
-        commission: c.commissionValue,
-        pctTotal: data.summary.totalRevenue > 0 ? (c.revenue / data.summary.totalRevenue) * 100 : 0,
-      };
-    }),
-    totalsRow: data.byCompany.length
-      ? { name: 'TOTAL', revenue: data.summary.totalRevenue, ordersCount: data.summary.ordersCount, pct: '', commission: data.summary.totalCommission, pctTotal: 100 }
-      : undefined,
+  if (data.byCompany.length === 0) {
+    sheet.mergeCells(`A${row}:G${row}`);
+    const empty = sheet.getCell(`A${row}`);
+    empty.value = 'Nenhum pedido registrado neste período.';
+    empty.font = { italic: true, size: 10, color: { argb: BRAND.gray } };
+    empty.alignment = { horizontal: 'center', vertical: 'middle' };
+    sheet.getRow(row).height = 20;
+    row++;
+  }
+
+  data.byCompany.forEach((company) => {
+    sheet.mergeCells(`A${row}:E${row}`);
+    sheet.mergeCells(`F${row}:G${row}`);
+    const nameCell = sheet.getCell(`A${row}`);
+    const revenueCell = sheet.getCell(`F${row}`);
+    nameCell.value = company.name;
+    nameCell.font = { bold: true, size: 11, color: { argb: BRAND.white } };
+    nameCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+    revenueCell.value = company.revenue;
+    revenueCell.numFmt = CURRENCY_FMT;
+    revenueCell.font = { bold: true, size: 11, color: { argb: BRAND.white } };
+    revenueCell.alignment = { vertical: 'middle', horizontal: 'right', indent: 1 };
+    [nameCell, revenueCell].forEach((c) => {
+      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.primaryDark } };
+    });
+    sheet.getRow(row).height = 22;
+    row++;
+
+    sheet.mergeCells(`A${row}:E${row}`);
+    sheet.mergeCells(`F${row}:G${row}`);
+    const clientHeaderCell = sheet.getCell(`A${row}`);
+    const valueHeaderCell = sheet.getCell(`F${row}`);
+    clientHeaderCell.value = 'Cliente';
+    valueHeaderCell.value = 'Valor';
+    [clientHeaderCell, valueHeaderCell].forEach((c) => {
+      c.font = { bold: true, size: 9, color: { argb: BRAND.gray } };
+      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.zebra } };
+      c.border = thinBorder;
+    });
+    clientHeaderCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 2 };
+    valueHeaderCell.alignment = { vertical: 'middle', horizontal: 'right', indent: 1 };
+    sheet.getRow(row).height = 16;
+    row++;
+
+    const clientsMap = companyClientMap.get(company.name.trim().toUpperCase()) || new Map();
+    const clientEntries = Array.from(clientsMap.entries()).sort((a, b) => b[1] - a[1]);
+    clientEntries.forEach(([clientName, value], idx) => {
+      sheet.mergeCells(`A${row}:E${row}`);
+      sheet.mergeCells(`F${row}:G${row}`);
+      const nameC = sheet.getCell(`A${row}`);
+      const valueC = sheet.getCell(`F${row}`);
+      nameC.value = clientName;
+      nameC.font = { size: 10, color: { argb: BRAND.dark } };
+      nameC.alignment = { vertical: 'middle', horizontal: 'left', indent: 2 };
+      valueC.value = value;
+      valueC.numFmt = CURRENCY_FMT;
+      valueC.font = { size: 10, color: { argb: BRAND.dark } };
+      valueC.alignment = { vertical: 'middle', horizontal: 'right', indent: 1 };
+      const zebra = idx % 2 === 1;
+      [nameC, valueC].forEach((c) => {
+        c.border = thinBorder;
+        if (zebra) c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.zebra } };
+      });
+      sheet.getRow(row).height = 16;
+      row++;
+    });
+
+    row++; // espaço entre empresas
   });
+
+  // Seção: Agenda do Mês
+  sheet.getRow(row).height = 10;
+  row++;
+  sheet.mergeCells(`A${row}:G${row}`);
+  const agendaHeader = sheet.getCell(`A${row}`);
+  agendaHeader.value = `AGENDA DO MÊS — ${monthNameCap}`;
+  agendaHeader.font = { bold: true, size: 12, color: { argb: BRAND.white } };
+  agendaHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.dark } };
+  agendaHeader.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+  sheet.getRow(row).height = 24;
+  row++;
 
   if (data.appointments.length > 0) {
-    buildAgendaVisualSheet(workbook, data, monthNameCap);
+    row = writeCalendarGrid(sheet, data, row);
+  } else {
+    sheet.mergeCells(`A${row}:G${row}`);
+    const empty = sheet.getCell(`A${row}`);
+    empty.value = 'Nenhum compromisso registrado neste período.';
+    empty.font = { italic: true, size: 10, color: { argb: BRAND.gray } };
+    empty.alignment = { horizontal: 'center', vertical: 'middle' };
+    sheet.getRow(row).height = 20;
+    row++;
   }
 
-  const clientsSheet = buildSheet(workbook, {
-    name: 'Clientes',
-    subtitle: `Carteira de clientes — ${monthNameCap}`,
-    columns: [
-      { header: 'Nome', key: 'name', width: 32 },
-      { header: 'Cidade', key: 'city', width: 20 },
-      { header: 'Status', key: 'status', width: 14, align: 'center' },
-      { header: 'Último Contato', key: 'lastContact', width: 16, align: 'center' },
-    ],
-    rows: data.clients.map((c) => ({
-      name: c.name,
-      city: c.city,
-      status: c.status,
-      lastContact: c.lastContact ? new Date(c.lastContact).toLocaleDateString('pt-BR') : 'Nunca',
-    })),
-  });
-  data.clients.forEach((c, idx) => {
-    const cell = clientsSheet.getCell(4 + idx, 3);
-    if (c.status === 'Ativo') {
-      cell.font = { bold: true, color: { argb: BRAND.primaryDark } };
-    } else if (c.status === 'Inativo') {
-      cell.font = { color: { argb: BRAND.gray } };
-    }
-  });
-
-  if (data.appointments.length > 0) {
-    buildSheet(workbook, {
-      name: 'Compromissos',
-      subtitle: `Detalhes dos compromissos — ${monthNameCap}`,
-      columns: [
-        { header: 'Título', key: 'title', width: 28 },
-        { header: 'Cliente', key: 'clientName', width: 28 },
-        { header: 'Data', key: 'date', width: 14, numFmt: DATE_FMT, align: 'center' },
-        { header: 'Horário', key: 'time', width: 14, align: 'center' },
-      ],
-      rows: data.appointments.map((a) => ({
-        title: a.title,
-        clientName: a.clientName,
-        date: new Date(`${a.date}T12:00:00`),
-        time: a.time,
-      })),
-    });
-  }
-
-  if (data.followups.length > 0) {
-    buildSheet(workbook, {
-      name: 'Follow-ups',
-      subtitle: `Histórico de follow-ups — ${monthNameCap}`,
-      columns: [
-        { header: 'Data', key: 'date', width: 14, numFmt: DATE_FMT, align: 'center' },
-        { header: 'Cliente', key: 'clientName', width: 28 },
-        { header: 'Método', key: 'method', width: 16 },
-        { header: 'Resultado', key: 'outcome', width: 16 },
-        { header: 'Notas', key: 'notes', width: 44 },
-        { header: 'Próximo Contato', key: 'next', width: 16, align: 'center' },
-      ],
-      rows: data.followups.map((f) => ({
-        date: new Date(`${f.contactDate}T12:00:00`),
-        clientName: f.clientName,
-        method: getMethodLabel(f.method),
-        outcome: getOutcomeLabel(f.outcome),
-        notes: f.notes,
-        next: f.nextFollowup ? new Date(`${f.nextFollowup}T12:00:00`).toLocaleDateString('pt-BR') : '—',
-      })),
-    });
-  }
+  sheet.views = [{ showGridLines: false, state: 'frozen', ySplit: 4 }];
 
   const buffer = await workbook.xlsx.writeBuffer();
   return buffer as unknown as Buffer;
