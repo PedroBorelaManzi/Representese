@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FileUp, X, Loader2, Check, AlertCircle, ChevronRight, Upload, MapPin, Building2, Phone, Mail } from 'lucide-react';
 import Papa from 'papaparse';
-import ExcelJS from 'exceljs';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
@@ -86,7 +85,8 @@ export default function ClientImportModal({ isOpen, onClose, onImportComplete }:
 
   const parseExcel = async (file: File): Promise<ParsedClient[]> => {
     const buffer = await file.arrayBuffer();
-    const workbook = new ExcelJS.Workbook();
+    const { default: ExcelJS } = await import('exceljs'); // ~940 kB: só carrega quando o usuário importa/exporta planilha
+        const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(buffer);
     const worksheet = workbook.worksheets[0];
 

@@ -64,6 +64,8 @@ app.use(async (req, res, next) => {
         Authorization: `Bearer ${token}`,
         apikey: supabaseAnonKey,
       },
+      // Auth fora do ar não pode segurar a função serverless até o limite da Vercel
+      signal: AbortSignal.timeout(10_000),
     });
 
     if (!authRes.ok) {
@@ -97,6 +99,15 @@ function isTransientGeminiError(error: any): boolean {
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Só os modelos que o produto realmente usa. Sem isso, qualquer usuário
+// autenticado podia apontar payload.model para um modelo mais caro (Pro etc.)
+// e a conta da API pagava a diferença.
+const ALLOWED_MODELS = new Set(['gemini-2.5-flash']);
+const resolveModel = (requested?: string): string => {
+  const model = requested || 'gemini-2.5-flash';
+  return ALLOWED_MODELS.has(model) ? model : 'gemini-2.5-flash';
+};
 
 /**
  * Executa uma chamada ao Gemini com tentativas automáticas.
@@ -222,7 +233,7 @@ ou null`;
 
     if (action === 'gemini_proxy') {
       const { contents, model: modelName, systemInstruction, generationConfig } = payload;
-      const modelConfig: any = { model: modelName || 'gemini-2.5-flash' };
+      const modelConfig: any = { model: resolveModel(modelName) };
       if (systemInstruction) modelConfig.systemInstruction = systemInstruction;
       if (generationConfig) modelConfig.generationConfig = generationConfig;
       const model = genAI.getGenerativeModel(modelConfig);
@@ -232,13 +243,12 @@ ou null`;
 
     if (action === 'gemini_text' || action === 'gemini_system') {
       const { prompt, systemInstruction } = payload;
-      const modelName = payload?.model || "gemini-2.5-flash";
-      
-      const modelConfig: any = { model: modelName };
+
+      const modelConfig: any = { model: resolveModel(payload?.model) };
       if (systemInstruction) {
         modelConfig.systemInstruction = systemInstruction;
       }
-      
+
       const model = genAI.getGenerativeModel(modelConfig);
       const result = await withGeminiRetry(() => model.generateContent(prompt));
       return res.status(200).json({ text: result.response.text() });
@@ -252,7 +262,10 @@ ou null`;
         error: 'A IA está sobrecarregada no momento. Tente novamente em alguns segundos.',
       });
     }
-    return res.status(500).json({ error: error.message });
+    // Detalhe fica no log do servidor; o cliente recebe mensagem genérica
+    // (error.message cru vazava internals do SDK/infra para o navegador).
+    console.error('[api/ai] erro não transitório:', error);
+    return res.status(500).json({ error: 'Erro interno ao processar a solicitação de IA.' });
   }
 });
 

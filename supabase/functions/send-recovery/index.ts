@@ -33,9 +33,21 @@ serve(async (req) => {
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE)
 
-    // Gera o link de recuperação. Isso também serve como checagem de existência:
-    // o Supabase retorna erro para e-mails sem conta cadastrada — ao contrário
-    // do resetPasswordForEmail, que responde 200 mesmo para e-mails inexistentes.
+    // Função pública (roda antes do login): rate limit por IP contra
+    // e-mail bombing, e por e-mail alvo contra spam a uma vítima específica.
+    const clientIp = (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || 'unknown'
+    const emailKey = email.toLowerCase().trim()
+    const [ipLimit, emailLimit] = await Promise.all([
+      admin.rpc('hit_rate_limit', { p_key: `recovery-ip:${clientIp}`, p_max: 5, p_window_seconds: 3600 }),
+      admin.rpc('hit_rate_limit', { p_key: `recovery-email:${emailKey}`, p_max: 3, p_window_seconds: 3600 }),
+    ])
+    if (ipLimit.data === false || emailLimit.data === false) {
+      return json({ success: false, message: 'Muitas tentativas. Aguarde uma hora e tente novamente.' }, 429)
+    }
+
+    // Gera o link de recuperação. O erro de "usuário não existe" NÃO é
+    // repassado ao cliente: resposta idêntica com ou sem conta cadastrada,
+    // senão a tela de recuperação vira um oráculo de enumeração da base.
     const { data, error } = await admin.auth.admin.generateLink({
       type: 'recovery',
       email,
@@ -51,8 +63,8 @@ serve(async (req) => {
         msg.includes('user not found')
 
       if (notFound) {
-        // E-mail sem conta ativa: não enviamos nada.
-        return json({ success: true, exists: false })
+        // E-mail sem conta: não enviamos nada, mas respondemos igual ao sucesso.
+        return json({ success: true })
       }
       console.error('generateLink error:', error)
       return json({ success: false, message: 'Não foi possível gerar o link de recuperação.' })
@@ -67,7 +79,7 @@ serve(async (req) => {
     if (!resendApiKey) {
       console.error('RESEND_API_KEY ausente — impossível enviar o e-mail de recuperação.')
       // Não fingimos sucesso: o front mostra erro real em vez de "enviado".
-      return json({ success: false, exists: true, message: 'Serviço de e-mail indisponível no momento.' })
+      return json({ success: false, message: 'Serviço de e-mail indisponível no momento.' })
     }
 
     const res = await fetch('https://api.resend.com/emails', {
@@ -125,10 +137,10 @@ serve(async (req) => {
     const resData = await res.json()
     if (!res.ok) {
       console.error('Erro do Resend:', resData)
-      return json({ success: false, exists: true, message: 'Falha ao enviar o e-mail de recuperação.' })
+      return json({ success: false, message: 'Falha ao enviar o e-mail de recuperação.' })
     }
 
-    return json({ success: true, exists: true })
+    return json({ success: true })
   } catch (error) {
     console.error(error)
     return json({ success: false, message: (error as Error).message }, 500)

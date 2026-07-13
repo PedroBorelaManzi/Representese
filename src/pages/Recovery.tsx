@@ -42,26 +42,21 @@ export default function Recovery() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      // Enviamos via edge function (Resend) em vez do resetPasswordForEmail nativo:
-      // isso valida se o e-mail tem conta ativa e só reporta sucesso quando o
-      // e-mail é realmente aceito para envio.
+      // Enviamos via edge function (Resend). A resposta é neutra de propósito:
+      // o servidor não revela se o e-mail tem conta (anti-enumeração da base).
       const { data, error } = await supabase.functions.invoke('send-recovery', {
         body: { email, redirectTo: window.location.origin + '/recovery?reset=true' },
       });
 
       if (error) throw error;
 
-      if (data?.exists === false) {
-        toast.error("Este e-mail não está cadastrado no Represente-Se.");
-        return;
-      }
       if (data?.success === false) {
         toast.error(data.message || "Não foi possível enviar o e-mail de recuperação.");
         return;
       }
 
       setEmailSent(true);
-      toast.success("E-mail de recuperação enviado com sucesso!");
+      toast.success("Se o e-mail estiver cadastrado, o link de recuperação chega em instantes!");
     } catch (error: any) {
       toast.error(error?.message || "Erro ao enviar e-mail de recuperação.");
     } finally {

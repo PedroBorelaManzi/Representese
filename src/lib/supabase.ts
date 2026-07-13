@@ -55,6 +55,17 @@ supabase.auth.onAuthStateChange((event, session) => {
   }
 });
 
+// Sem isso, até 9 eventos ficavam no buffer e se perdiam ao fechar a aba
+// (o flush só acontecia com 10 eventos ou após 30s). 'visibilitychange' para
+// hidden cobre fechar aba, trocar de app no celular e minimizar.
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      void sendAuditBatch();
+    }
+  });
+}
+
 async function sendAuditBatch() {
   if (auditBuffer.length === 0) return;
 
