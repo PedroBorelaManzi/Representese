@@ -1,4 +1,3 @@
-import ExcelJS from "exceljs";
 import { geminiWithSystem } from "./geminiProxy";
 
 // pdfjs (~1,3 MB) só é carregado quando um PDF é de fato processado,
@@ -170,7 +169,8 @@ export async function processOrderFile(file: File, knownClients = [], categories
       }
     } else if (detected.type === "excel") {
       const buffer = await file.arrayBuffer();
-      const workbook = new ExcelJS.Workbook();
+      const { default: ExcelJS } = await import("exceljs"); // ~940 kB: só carrega quando o usuário importa/exporta planilha
+        const workbook = new ExcelJS.Workbook();
       await workbook.xlsx.load(buffer);
       if (workbook.worksheets.length > 0) {
         workbook.worksheets[0].eachRow(row => {

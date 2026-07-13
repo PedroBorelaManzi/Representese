@@ -18,6 +18,9 @@ const SYNC_QUEUE_KEY = 'rm_sync_queue';
 const DEAD_LETTER_KEY = 'rm_sync_dead_letter';
 export const MAX_SYNC_ATTEMPTS = 5;
 
+// Evita processamento concorrente da mesma fila (ver processQueue).
+let isProcessing = false;
+
 export const syncQueue = {
   getQueue: (): SyncOperation[] => {
     try {
@@ -39,6 +42,12 @@ export const syncQueue = {
 
   enqueue: (table: string, action: SyncAction, payload: any, recordId?: string) => {
     const queue = syncQueue.getQueue();
+    // Idempotência: INSERT ganha id gerado aqui e vira UPSERT no processamento.
+    // Se a rede cair depois do servidor gravar (mas antes do ACK), o retry
+    // regrava a MESMA linha em vez de criar uma duplicata.
+    if (action === 'INSERT' && payload && typeof payload === 'object' && !payload.id) {
+      payload = { ...payload, id: crypto.randomUUID() };
+    }
     queue.push({
       id: crypto.randomUUID(),
       table,
@@ -81,8 +90,21 @@ export const syncQueue = {
     localStorage.removeItem(DEAD_LETTER_KEY);
   },
 
-  // Processa a fila inteira contra o Supabase
+  // Processa a fila inteira contra o Supabase.
+  // Lock de execução: sem ele, dois disparos concorrentes (evento 'online' +
+  // clique manual em "Sincronizar") liam a mesma fila e executavam os mesmos
+  // INSERTs duas vezes — pedidos/clientes duplicados no banco.
   processQueue: async (): Promise<{ success: boolean; errors: any[] }> => {
+    if (isProcessing) return { success: true, errors: [] };
+    isProcessing = true;
+    try {
+      return await syncQueue._processQueueUnlocked();
+    } finally {
+      isProcessing = false;
+    }
+  },
+
+  _processQueueUnlocked: async (): Promise<{ success: boolean; errors: any[] }> => {
     const queue = syncQueue.getQueue();
     if (queue.length === 0) return { success: true, errors: [] };
 
@@ -94,7 +116,11 @@ export const syncQueue = {
     for (const op of queue) {
       try {
         if (op.action === 'INSERT') {
-          const { error } = await supabase.from(op.table).insert([op.payload]);
+          // Com id no payload o INSERT vira UPSERT: retries são idempotentes.
+          // (Fila antiga pode ter ops sem id — para essas mantém o insert puro.)
+          const { error } = op.payload?.id
+            ? await supabase.from(op.table).upsert([op.payload], { onConflict: 'id' })
+            : await supabase.from(op.table).insert([op.payload]);
           if (error) throw error;
         } else if (op.action === 'UPDATE' && op.recordId) {
           const { error } = await supabase.from(op.table).update(op.payload).eq('id', op.recordId);

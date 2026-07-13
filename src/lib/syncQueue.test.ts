@@ -53,6 +53,15 @@ describe('syncQueue', () => {
     expect(syncQueue.getPendingCount()).toBe(2);
   });
 
+  it('INSERT ganha id no payload para idempotência (e preserva id existente)', () => {
+    syncQueue.enqueue('clients', 'INSERT', { name: 'sem id' });
+    syncQueue.enqueue('clients', 'INSERT', { id: 'meu-id', name: 'com id' });
+
+    const [semId, comId] = syncQueue.getQueue();
+    expect(semId.payload.id).toBeTruthy();
+    expect(comId.payload.id).toBe('meu-id');
+  });
+
   it('sobrevive a JSON corrompido no storage', () => {
     localStorage.setItem('rm_sync_queue', '{corrompido');
     expect(syncQueue.getQueue()).toEqual([]);
@@ -77,15 +86,34 @@ describe('syncQueue', () => {
 
     expect(result.success).toBe(true);
     expect(result.errors).toEqual([]);
-    expect(table.insert).toHaveBeenCalledWith([{ name: 'A' }]);
+    // INSERT com id injetado vira UPSERT idempotente
+    expect(table.upsert).toHaveBeenCalledWith(
+      [expect.objectContaining({ name: 'A', id: expect.any(String) })],
+      { onConflict: 'id' }
+    );
     expect(table.update).toHaveBeenCalledWith({ name: 'B' });
     expect(table.upsert).toHaveBeenCalledWith({ id: 'id-3' }, { onConflict: 'id' });
     expect(syncQueue.getPendingCount()).toBe(0);
   });
 
+  it('ops legadas de INSERT sem id no payload usam insert puro', async () => {
+    const table = supabaseTableOk();
+    fromMock.mockReturnValue(table);
+
+    // Simula fila gravada por versão antiga do app (payload sem id)
+    syncQueue.setQueue([{
+      id: 'op-legada', table: 'clients', action: 'INSERT',
+      payload: { name: 'Legado' }, timestamp: Date.now(),
+    }]);
+
+    await syncQueue.processQueue();
+    expect(table.insert).toHaveBeenCalledWith([{ name: 'Legado' }]);
+    expect(table.upsert).not.toHaveBeenCalled();
+  });
+
   it('mantém na fila apenas as operações que falharam', async () => {
     const table = supabaseTableOk();
-    table.insert = vi.fn().mockResolvedValue({ error: new Error('rede caiu') });
+    table.upsert = vi.fn().mockResolvedValue({ error: new Error('rede caiu') });
     fromMock.mockReturnValue(table);
 
     syncQueue.enqueue('clients', 'INSERT', { name: 'falha' });
@@ -100,6 +128,26 @@ describe('syncQueue', () => {
     expect(remaining[0].action).toBe('INSERT');
   });
 
+  it('duas chamadas concorrentes não processam a fila duas vezes', async () => {
+    let resolveUpsert: (v: { error: null }) => void;
+    const upsertPromise = new Promise<{ error: null }>((r) => { resolveUpsert = r; });
+    const table = supabaseTableOk();
+    table.upsert = vi.fn().mockReturnValue(upsertPromise);
+    fromMock.mockReturnValue(table);
+
+    syncQueue.enqueue('orders', 'INSERT', { value: 100 });
+
+    // Dispara duas sincronizações "simultâneas" (evento online + clique manual)
+    const p1 = syncQueue.processQueue();
+    const p2 = syncQueue.processQueue();
+    resolveUpsert!({ error: null });
+    await Promise.all([p1, p2]);
+
+    // Sem o lock, o pedido seria gravado duas vezes
+    expect(table.upsert).toHaveBeenCalledTimes(1);
+    expect(syncQueue.getPendingCount()).toBe(0);
+  });
+
   it('processQueue com fila vazia é no-op de sucesso', async () => {
     const result = await syncQueue.processQueue();
     expect(result).toEqual({ success: true, errors: [] });
@@ -108,7 +156,7 @@ describe('syncQueue', () => {
 
   it('incrementa attempts a cada falha e mantém a operação na fila', async () => {
     const table = supabaseTableOk();
-    table.insert = vi.fn().mockResolvedValue({ error: new Error('offline') });
+    table.upsert = vi.fn().mockResolvedValue({ error: new Error('offline') });
     fromMock.mockReturnValue(table);
 
     syncQueue.enqueue('clients', 'INSERT', { name: 'X' });
@@ -121,7 +169,7 @@ describe('syncQueue', () => {
 
   it('move para dead-letter após MAX_SYNC_ATTEMPTS falhas', async () => {
     const table = supabaseTableOk();
-    table.insert = vi.fn().mockResolvedValue({ error: new Error('constraint violada') });
+    table.upsert = vi.fn().mockResolvedValue({ error: new Error('constraint violada') });
     fromMock.mockReturnValue(table);
 
     syncQueue.enqueue('clients', 'INSERT', { name: 'ruim' });
@@ -140,7 +188,7 @@ describe('syncQueue', () => {
 
   it('dead-letter não afeta operações saudáveis na mesma rodada', async () => {
     const table = supabaseTableOk();
-    table.insert = vi.fn().mockResolvedValue({ error: new Error('sempre falha') });
+    table.upsert = vi.fn().mockResolvedValue({ error: new Error('sempre falha') });
     fromMock.mockReturnValue(table);
 
     // Uma op já à beira da dead-letter + uma op saudável

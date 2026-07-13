@@ -13,11 +13,10 @@ export const SettingsSecurity = React.memo(function SettingsSecurity() {
   const [is2FASetup, setIs2FASetup] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordStep, setPasswordStep] = useState(1);
-  const [verificationCode, setVerificationCode] = useState('');
-  const [inputCode, setInputCode] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [isSendingCode, setIsSendingCode] = useState(false);
+  const [isVerifyingPassword, setIsVerifyingPassword] = useState(false);
   const [isSavingPassword, setIsSavingPassword] = useState(false);
   const [isBiometricEnabled, setIsBiometricEnabled] = useState(() => localStorage.getItem("rm_biometric_enabled") === "true");
   const [isBiometricAvailable, setIsBiometricAvailable] = useState(false);
@@ -81,7 +80,7 @@ export const SettingsSecurity = React.memo(function SettingsSecurity() {
             onClick={() => {
               setIsChangingPassword(true);
               setPasswordStep(1);
-              setInputCode('');
+              setCurrentPassword('');
               setNewPassword('');
               setConfirmPassword('');
             }}
@@ -122,81 +121,50 @@ export const SettingsSecurity = React.memo(function SettingsSecurity() {
             {passwordStep === 1 && (
               <div className="space-y-4">
                 <p className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase leading-relaxed">
-                  Para sua segurança, enviaremos um código de 6 dígitos para o e-mail cadastrado <span className="text-emerald-500 font-black">{user?.email}</span> antes de liberar a troca de senha.
+                  Para sua segurança, confirme a senha atual da conta <span className="text-emerald-500 font-black">{user?.email}</span> antes de definir uma nova.
                 </p>
-                <button
-                  onClick={async () => {
-                    setIsSendingCode(true);
-                    const code = Math.floor(100000 + Math.random() * 900000).toString();
-                    setVerificationCode(code);
-                    
-                    try {
-                      const { data, error } = await supabase.functions.invoke('reset-user-password', {
-                        body: { email: user?.email, code }
-                      });
-                      
-                      if (error) throw error;
-                      if (data && data.success === false) {
-                        console.warn("Edge function failed internally:", data.message);
-                        toast.error(`Falha no servidor de e-mail: ${data.message}`, { duration: 8000 });
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    placeholder="Senha atual"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    className="flex-1 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
+                  />
+                  <button
+                    onClick={async () => {
+                      if (!currentPassword || !user?.email) {
+                        toast.error("Digite sua senha atual.");
                         return;
                       }
-                      
-                      setPasswordStep(2);
-                      toast.success("Código de segurança enviado com sucesso para o seu e-mail!");
-                    } catch (error) {
-                      console.error("Erro ao enviar código:", error);
-                      toast.error("Erro ao enviar e-mail com o código de segurança. Tente novamente.");
-                    } finally {
-                      setIsSendingCode(false);
-                    }
-                  }}
-                  disabled={isSendingCode}
-                  className="w-full py-4 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 transition-all flex items-center justify-center gap-2"
-                >
-                  {isSendingCode ? "Enviando Código..." : "Enviar Código de Verificação"}
-                </button>
+                      setIsVerifyingPassword(true);
+                      try {
+                        // Verificação REAL no servidor: só avança quem conhece a
+                        // senha atual (o Supabase Auth aplica rate limit próprio).
+                        const { error } = await supabase.auth.signInWithPassword({
+                          email: user.email,
+                          password: currentPassword,
+                        });
+                        if (error) {
+                          toast.error("Senha atual incorreta.");
+                          return;
+                        }
+                        setPasswordStep(2);
+                        toast.success("Identidade confirmada! Defina a nova senha.");
+                      } finally {
+                        setIsVerifyingPassword(false);
+                      }
+                    }}
+                    disabled={isVerifyingPassword}
+                    className="bg-emerald-600 text-white px-6 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all disabled:opacity-50"
+                  >
+                    {isVerifyingPassword ? "Verificando..." : "Confirmar"}
+                  </button>
+                </div>
               </div>
             )}
 
             {passwordStep === 2 && (
-              <div className="space-y-4">
-                <p className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase leading-relaxed">
-                  Insira o código de 6 dígitos enviado para seu e-mail para validar a sua identidade.
-                </p>
-                <div className="flex gap-2">
-                  <input 
-                    type="text" 
-                    maxLength={6}
-                    placeholder="Digite o código" 
-                    value={inputCode}
-                    onChange={(e) => setInputCode(e.target.value.replace(/\D/g, ''))}
-                    className="flex-1 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm font-bold outline-none text-center tracking-widest focus:ring-4 focus:ring-emerald-500/10 transition-all" 
-                  />
-                  <button 
-                    onClick={() => {
-                      if (inputCode === verificationCode) {
-                        setPasswordStep(3);
-                        toast.success("Código confirmado! Insira a nova senha.");
-                      } else {
-                        toast.error("Código inválido! Tente novamente.");
-                      }
-                    }}
-                    className="bg-emerald-600 text-white px-6 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all"
-                  >
-                    Confirmar
-                  </button>
-                </div>
-                <button
-                  onClick={() => setPasswordStep(1)}
-                  className="text-[9px] font-black text-slate-400 uppercase hover:text-slate-600 dark:hover:text-white transition-colors block text-center w-full"
-                >
-                  Reenviar Código
-                </button>
-              </div>
-            )}
-
-            {passwordStep === 3 && (
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Nova Senha</label>
@@ -250,29 +218,20 @@ export const SettingsSecurity = React.memo(function SettingsSecurity() {
                       toast.error("As senhas não coincidem!");
                       return;
                     }
-                    
-                    setIsSavingPassword(true);
-                    
-                    // Verifica se a nova senha é a mesma que a atual usando o email do usuário logado
-                    if (user?.email) {
-                      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-                        email: user.email,
-                        password: newPassword
-                      });
-                      
-                      if (!signInError && signInData.session) {
-                        toast.error("A nova senha não pode ser igual à senha atual.");
-                        setIsSavingPassword(false);
-                        return;
-                      }
+                    // A senha atual já foi confirmada no passo 1 — comparação local basta.
+                    if (newPassword === currentPassword) {
+                      toast.error("A nova senha não pode ser igual à senha atual.");
+                      return;
                     }
 
+                    setIsSavingPassword(true);
                     const { error } = await supabase.auth.updateUser({ password: newPassword });
                     setIsSavingPassword(false);
-                    
+
                     if (error) {
                       toast.error("Erro ao alterar senha: " + error.message);
                     } else {
+                      setCurrentPassword('');
                       toast.success("Senha alterada com sucesso!");
                       setIsChangingPassword(false);
                     }

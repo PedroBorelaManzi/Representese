@@ -1,4 +1,6 @@
-import ExcelJS from 'exceljs';
+// Só os TIPOS entram no bundle — o runtime (~940 kB) é carregado sob demanda
+// dentro de generateExcelReport, no clique de exportar.
+import type ExcelJS from 'exceljs';
 import { supabase } from './supabase';
 import { FollowupLog } from './followupService';
 
@@ -308,8 +310,11 @@ export async function generateExcelReport(
   month: number,
   commissions: CommissionMap = {}
 ): Promise<Buffer> {
-  const data = await fetchReportData(userId, year, month, commissions);
-  const workbook = new ExcelJS.Workbook();
+  const [{ default: Excel }, data] = await Promise.all([
+    import('exceljs'),
+    fetchReportData(userId, year, month, commissions),
+  ]);
+  const workbook = new Excel.Workbook();
   workbook.creator = 'Represente-Se!';
   workbook.created = new Date();
 
