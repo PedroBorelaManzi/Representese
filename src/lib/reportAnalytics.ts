@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { CommissionMap, commissionPctFor, monthRange } from './reportGenerator';
+import { FollowupLog } from './followupService';
 
 export interface TrendPoint {
   /** "2026-07" — chave estável do bucket */
@@ -38,6 +39,51 @@ export interface PortfolioHealth {
   total: number;
 }
 
+export interface WeekdayPoint {
+  /** 0 = domingo ... 6 = sábado */
+  key: number;
+  label: string;
+  revenue: number;
+  orders: number;
+}
+
+export interface NewVsReturning {
+  newRevenue: number;
+  returningRevenue: number;
+  newOrders: number;
+  returningOrders: number;
+  newClientsCount: number;
+  returningClientsCount: number;
+}
+
+export interface RetentionStats {
+  activeLastMonth: number;
+  retained: number;
+  /** 0..1 */
+  retentionRate: number;
+}
+
+export interface CityBreakdown {
+  city: string;
+  revenue: number;
+  clients: number;
+  /** participação na receita do mês, 0..1 */
+  share: number;
+}
+
+export interface FollowupStats {
+  total: number;
+  byOutcome: Record<FollowupLog['outcome'], number>;
+  /** % de follow-ups com desfecho positivo, 0..1 */
+  conversionRate: number;
+}
+
+export interface YtdStats {
+  revenue: number;
+  commission: number;
+  orders: number;
+}
+
 export interface ReportKpis {
   revenue: number;
   revenuePrev: number;
@@ -58,6 +104,12 @@ export interface ReportAnalytics {
   topClients: TopClient[];
   byCompany: CompanySlice[];
   health: PortfolioHealth;
+  weekday: WeekdayPoint[];
+  newVsReturning: NewVsReturning;
+  retention: RetentionStats;
+  topCities: CityBreakdown[];
+  followups: FollowupStats;
+  ytd: YtdStats;
 }
 
 export interface HealthThresholds {
@@ -67,12 +119,13 @@ export interface HealthThresholds {
 }
 
 const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+const WEEKDAY_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 /**
  * Uma leitura só para toda a página de Relatórios: pedidos dos últimos 12 meses
- * (alimenta tendência + KPIs + tops), clientes (saúde da carteira, novos) e
- * compromissos do mês. Erros sobem — a página trata, nada de dashboard zerado
- * fingindo que está tudo bem.
+ * (alimenta tendência + KPIs + tops + análises derivadas), clientes (saúde da
+ * carteira, novos, cidade), compromissos e follow-ups do mês. Erros sobem — a
+ * página trata, nada de dashboard zerado fingindo que está tudo bem.
  */
 export async function fetchReportAnalytics(
   userId: string,
@@ -83,8 +136,9 @@ export async function fetchReportAnalytics(
 ): Promise<ReportAnalytics> {
   const { start, end, startDateStr, endDateStr } = monthRange(year, month);
   const trendStart = new Date(year, month - 12, 1); // 12 buckets, terminando no mês selecionado
+  const yearStart = new Date(year, 0, 1);
 
-  const [ordersRes, clientsRes, appointmentsRes] = await Promise.all([
+  const [ordersRes, clientsRes, appointmentsRes, followupsRes] = await Promise.all([
     supabase
       .from('orders')
       .select('id, client_id, category, value, created_at')
@@ -93,7 +147,7 @@ export async function fetchReportAnalytics(
       .lte('created_at', end.toISOString()),
     supabase
       .from('clients')
-      .select('id, name, status, last_contact, created_at')
+      .select('id, name, city, status, last_contact, created_at')
       .eq('user_id', userId),
     supabase
       .from('appointments')
@@ -101,9 +155,15 @@ export async function fetchReportAnalytics(
       .eq('user_id', userId)
       .gte('date', startDateStr)
       .lte('date', endDateStr),
+    supabase
+      .from('client_followup_logs')
+      .select('outcome')
+      .eq('user_id', userId)
+      .gte('contact_date', startDateStr)
+      .lte('contact_date', endDateStr),
   ]);
 
-  const firstError = ordersRes.error || clientsRes.error || appointmentsRes.error;
+  const firstError = ordersRes.error || clientsRes.error || appointmentsRes.error || followupsRes.error;
   if (firstError) throw firstError;
 
   const orders = ordersRes.data || [];
@@ -125,27 +185,46 @@ export async function fetchReportAnalytics(
 
   const selectedKey = monthKey(start);
   const prevKey = monthKey(new Date(year, month - 2, 1));
+  const clientCreatedAt = new Map(clients.map((c) => [c.id, c.created_at ? new Date(c.created_at) : null]));
+  const clientCity = new Map(clients.map((c) => [c.id, (c.city || '').trim() || 'Não informado']));
 
   const clientAgg = new Map<string, { revenue: number; orders: number }>();
   const companyAgg = new Map<string, { name: string; revenue: number }>();
+  const weekdayAgg = WEEKDAY_LABELS.map((label, key) => ({ key, label, revenue: 0, orders: 0 }));
+  const prevMonthClientIds = new Set<string>();
   let revenue = 0;
   let ordersCount = 0;
   let commission = 0;
   let revenuePrev = 0;
   let ordersPrev = 0;
   let commissionPrev = 0;
+  let newRevenue = 0;
+  let returningRevenue = 0;
+  let newOrders = 0;
+  let returningOrders = 0;
+  const newClientIds = new Set<string>();
+  const returningClientIds = new Set<string>();
+  let ytdRevenue = 0;
+  let ytdCommission = 0;
+  let ytdOrders = 0;
 
   orders.forEach((o) => {
     const created = new Date(o.created_at);
     const key = monthKey(created);
     const value = Number(o.value) || 0;
+    const pct = commissionPctFor(o.category, commissions);
     const bucket = buckets.get(key);
     if (bucket) {
       bucket.revenue += value;
       bucket.orders += 1;
     }
 
-    const pct = commissionPctFor(o.category, commissions);
+    if (created >= yearStart && created <= end) {
+      ytdRevenue += value;
+      ytdCommission += value * (pct / 100);
+      ytdOrders += 1;
+    }
+
     if (key === selectedKey) {
       revenue += value;
       ordersCount += 1;
@@ -160,10 +239,27 @@ export async function fetchReportAnalytics(
       const comp = companyAgg.get(compKey) || { name: (o.category || 'Outros').trim(), revenue: 0 };
       comp.revenue += value;
       companyAgg.set(compKey, comp);
+
+      const wd = weekdayAgg[created.getDay()];
+      wd.revenue += value;
+      wd.orders += 1;
+
+      const clientCreated = clientCreatedAt.get(o.client_id);
+      const isNewClient = !!clientCreated && monthKey(clientCreated) === selectedKey;
+      if (isNewClient) {
+        newRevenue += value;
+        newOrders += 1;
+        newClientIds.add(o.client_id);
+      } else {
+        returningRevenue += value;
+        returningOrders += 1;
+        returningClientIds.add(o.client_id);
+      }
     } else if (key === prevKey) {
       revenuePrev += value;
       ordersPrev += 1;
       commissionPrev += value * (pct / 100);
+      prevMonthClientIds.add(o.client_id);
     }
   });
 
@@ -194,6 +290,25 @@ export async function fetchReportAnalytics(
     })
     .sort((a, b) => b.revenue - a.revenue);
 
+  // ---- Receita por cidade --------------------------------------------------
+  const cityAgg = new Map<string, { revenue: number; clients: Set<string> }>();
+  clientAgg.forEach((agg, clientId) => {
+    const city = clientCity.get(clientId) || 'Não informado';
+    const entry = cityAgg.get(city) || { revenue: 0, clients: new Set<string>() };
+    entry.revenue += agg.revenue;
+    entry.clients.add(clientId);
+    cityAgg.set(city, entry);
+  });
+  const topCities: CityBreakdown[] = Array.from(cityAgg.entries())
+    .map(([city, agg]) => ({
+      city,
+      revenue: agg.revenue,
+      clients: agg.clients.size,
+      share: revenue > 0 ? agg.revenue / revenue : 0,
+    }))
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 5);
+
   // ---- Saúde da carteira (mesma régua dos alertas de inatividade) ---------
   const now = Date.now();
   const health: PortfolioHealth = { emDia: 0, alerta: 0, critico: 0, inativo: 0, total: clients.length };
@@ -220,6 +335,29 @@ export async function fetchReportAnalytics(
     else if (key === monthKey(prevStart)) newClientsPrev += 1;
   });
 
+  // ---- Retenção: quem comprou no mês anterior comprou de novo neste mês? --
+  let retained = 0;
+  prevMonthClientIds.forEach((id) => {
+    if (clientAgg.has(id)) retained += 1;
+  });
+  const retention: RetentionStats = {
+    activeLastMonth: prevMonthClientIds.size,
+    retained,
+    retentionRate: prevMonthClientIds.size > 0 ? retained / prevMonthClientIds.size : 0,
+  };
+
+  // ---- Eficácia dos follow-ups do mês --------------------------------------
+  const followupRows = (followupsRes.data || []) as { outcome: FollowupLog['outcome'] }[];
+  const byOutcome: Record<FollowupLog['outcome'], number> = { positive: 0, pending: 0, negative: 0, no_response: 0 };
+  followupRows.forEach((f) => {
+    if (f.outcome in byOutcome) byOutcome[f.outcome] += 1;
+  });
+  const followups: FollowupStats = {
+    total: followupRows.length,
+    byOutcome,
+    conversionRate: followupRows.length > 0 ? byOutcome.positive / followupRows.length : 0,
+  };
+
   return {
     kpis: {
       revenue,
@@ -238,5 +376,18 @@ export async function fetchReportAnalytics(
     topClients,
     byCompany,
     health,
+    weekday: weekdayAgg,
+    newVsReturning: {
+      newRevenue,
+      returningRevenue,
+      newOrders,
+      returningOrders,
+      newClientsCount: newClientIds.size,
+      returningClientsCount: returningClientIds.size,
+    },
+    retention,
+    topCities,
+    followups,
+    ytd: { revenue: ytdRevenue, commission: ytdCommission, orders: ytdOrders },
   };
 }

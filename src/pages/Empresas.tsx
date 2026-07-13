@@ -687,10 +687,6 @@ export default function EmpresasPage() {
                 <div className="flex justify-between items-center mb-8 md:mb-14">
                    <div>
                       <h3 className="text-2xl md:text-4xl font-black uppercase text-slate-900 dark:text-zinc-100 tracking-tighter mb-1">ENVIAR PEDIDOS</h3>
-                      <div className="flex items-center gap-2 md:gap-3">
-                        <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <p className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest">Processamento Neural Ativo</p>
-                      </div>
                    </div>
                    <button onClick={() => !isUploading && setIsUploadModalOpen(false)} className="p-3 md:p-5 bg-slate-50 dark:bg-zinc-800 rounded-2xl md:rounded-3xl text-slate-400 hover:text-red-500 transition-all shadow-sm active:scale-90"><X className="w-6 h-6 md:w-7 md:h-7"/></button>
                 </div>

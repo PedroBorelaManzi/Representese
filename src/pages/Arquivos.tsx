@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useRef } from "react";
 import {
   FolderPlus,
   Upload,
@@ -17,7 +17,7 @@ import {
   Eye,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import * as tus from "tus-js-client";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { offlineCache } from "../lib/offlineCache";
@@ -52,12 +52,30 @@ const fileMeta = (name: string) => {
   return { Icon: FileIcon, color: "text-slate-500 bg-slate-100 dark:bg-zinc-800" };
 };
 
+async function listFolder(prefix: string): Promise<StorageItem[]> {
+  const { data, error } = await supabase.storage
+    .from(BUCKET)
+    .list(prefix, { limit: 1000, sortBy: { column: "name", order: "asc" } });
+  if (error) throw error;
+
+  const mapped: StorageItem[] = (data || [])
+    .filter((it) => it.name !== PLACEHOLDER && it.name !== ".emptyFolderPlaceholder")
+    .map((it) => ({
+      name: it.name,
+      isFolder: it.id === null,
+      size: (it as any).metadata?.size || 0,
+      updatedAt: (it as any).updated_at || null,
+    }));
+
+  // pastas primeiro, depois arquivos
+  mapped.sort((a, b) => (a.isFolder === b.isFolder ? a.name.localeCompare(b.name) : a.isFolder ? -1 : 1));
+  return mapped;
+}
+
 export default function Arquivos() {
   const { user } = useAuth();
   const confirm = useConfirm();
   const [path, setPath] = useState<string[]>([]);
-  const [items, setItems] = useState<StorageItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ name: string; pct: number } | null>(null);
   const [creatingFolder, setCreatingFolder] = useState(false);
@@ -67,41 +85,14 @@ export default function Arquivos() {
 
   const prefix = user ? [user.id, ...path].join("/") : "";
 
-  const loadItems = useCallback(async () => {
-    if (!user) return;
-    if (!offlineCache.isOnline()) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    const { data, error } = await supabase.storage
-      .from(BUCKET)
-      .list(prefix, { limit: 1000, sortBy: { column: "name", order: "asc" } });
-
-    if (error) {
-      toast.error("Erro ao carregar arquivos.");
-      setLoading(false);
-      return;
-    }
-
-    const mapped: StorageItem[] = (data || [])
-      .filter((it) => it.name !== PLACEHOLDER && it.name !== ".emptyFolderPlaceholder")
-      .map((it) => ({
-        name: it.name,
-        isFolder: it.id === null,
-        size: (it as any).metadata?.size || 0,
-        updatedAt: (it as any).updated_at || null,
-      }));
-
-    // pastas primeiro, depois arquivos
-    mapped.sort((a, b) => (a.isFolder === b.isFolder ? a.name.localeCompare(b.name) : a.isFolder ? -1 : 1));
-    setItems(mapped);
-    setLoading(false);
-  }, [user, prefix]);
-
-  useEffect(() => {
-    loadItems();
-  }, [loadItems]);
+  // Cache por pasta: reabrir uma pasta já visitada nesta sessão mostra a lista
+  // na hora (sem esperar a rede) enquanto revalida em segundo plano.
+  const { data: items = [], isLoading: loading, refetch: loadItems } = useQuery({
+    queryKey: ["storage-list", user?.id, prefix],
+    queryFn: () => listFolder(prefix),
+    enabled: !!user && offlineCache.isOnline(),
+    staleTime: 60 * 1000,
+  });
 
   const handleCreateFolder = async () => {
     const name = newFolderName.trim().replace(/[\/\\]/g, "");
@@ -125,8 +116,11 @@ export default function Arquivos() {
 
   // Upload retomável (TUS) em partes de 6MB — não perde o progresso se a conexão cair
   // no meio do envio, o que é essencial para arquivos grandes em redes instáveis.
-  const uploadResumable = (file: File, objectPath: string, accessToken: string) =>
-    new Promise<void>((resolve, reject) => {
+  // Import dinâmico: a lib só é baixada quando alguém realmente envia um
+  // arquivo grande, em vez de pesar no carregamento inicial da página.
+  const uploadResumable = async (file: File, objectPath: string, accessToken: string) => {
+    const tus = await import("tus-js-client");
+    return new Promise<void>((resolve, reject) => {
       const upload = new tus.Upload(file, {
         endpoint: `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/upload/resumable`,
         retryDelays: [0, 3000, 5000, 10000, 20000],
@@ -151,6 +145,7 @@ export default function Arquivos() {
       });
       upload.start();
     });
+  };
 
   const handleUpload = async (files: FileList | null) => {
     if (!files || files.length === 0 || !user) return;
