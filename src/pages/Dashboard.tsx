@@ -10,6 +10,7 @@ import AppointmentForm from "../components/AppointmentForm";
 import RevenueChart from "../components/RevenueChart";
 import DailyNotes from "../components/DailyNotes";
 import GettingStartedCard from "../components/GettingStartedCard";
+import { WeatherWidget } from "../components/WeatherWidget";
 import { offlineCache, CacheKeys } from "../lib/offlineCache";
 import { toast } from "sonner";
 import { LocalNotifications } from '@capacitor/local-notifications';
@@ -595,6 +596,9 @@ export default function Dashboard() {
           </span>
         ) : undefined}
       />
+
+      {/* Previsão do tempo do dia atual (cidade escolhida na Agenda) */}
+      <WeatherWidget />
 
       {/* Jornada inicial: só renderiza com dados frescos (online) para não marcar
           passos errados a partir de cache parcial. */}

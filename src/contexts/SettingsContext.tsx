@@ -25,6 +25,11 @@ interface Settings {
   is_admin?: boolean;
   phone?: string;
   company?: string;
+  /** Cidade escolhida para a previsão do tempo na Agenda (coordenadas já resolvidas). */
+  weather_city?: string;
+  weather_state?: string;
+  weather_lat?: number;
+  weather_lng?: number;
 }
 
 const defaultSettings: Settings = {
@@ -43,6 +48,10 @@ const defaultSettings: Settings = {
   is_admin: false,
   phone: undefined,
   company: undefined,
+  weather_city: undefined,
+  weather_state: undefined,
+  weather_lat: undefined,
+  weather_lng: undefined,
 };
 
 interface SettingsContextType {
@@ -114,6 +123,10 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           is_admin: cached.is_admin ?? defaultSettings.is_admin,
           phone: cached.phone,
           company: cached.company,
+          weather_city: cached.weather_city,
+          weather_state: cached.weather_state,
+          weather_lat: cached.weather_lat,
+          weather_lng: cached.weather_lng,
         });
       }
 
@@ -188,6 +201,10 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           is_admin: data.is_admin ?? defaultSettings.is_admin,
           phone: data.phone,
           company: data.company,
+          weather_city: data.weather_city ?? undefined,
+          weather_state: data.weather_state ?? undefined,
+          weather_lat: data.weather_lat ?? undefined,
+          weather_lng: data.weather_lng ?? undefined,
         };
 
         setSettings(freshSettings);
