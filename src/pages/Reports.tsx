@@ -19,12 +19,28 @@ import {
   Flame,
   XCircle,
   RefreshCw,
+  CalendarDays,
+  UserPlus,
+  Repeat,
+  Target,
+  PhoneCall,
+  MapPin,
+  CalendarRange,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
 import { downloadExcelReport, downloadCSVReport } from '../lib/reportGenerator';
-import { fetchReportAnalytics, TrendPoint } from '../lib/reportAnalytics';
+import {
+  fetchReportAnalytics,
+  TrendPoint,
+  WeekdayPoint,
+  NewVsReturning,
+  RetentionStats,
+  FollowupStats,
+  CityBreakdown,
+} from '../lib/reportAnalytics';
+import { getOutcomeLabel } from '../lib/followupService';
 import { PageHeader, Skeleton } from '../components/ui';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
@@ -217,6 +233,194 @@ function CardShell({ icon: Icon, title, subtitle, children }: { icon: typeof Wal
   );
 }
 
+/** Faixa compacta com os 3 acumulados do ano — contexto rápido sem precisar trocar de mês. */
+function YtdBanner({ revenue, commission, orders, year }: { revenue: number; commission: number; orders: number; year: number }) {
+  const items = [
+    { label: 'Receita no ano', value: BRL(revenue) },
+    { label: 'Comissão no ano', value: BRL(commission) },
+    { label: 'Pedidos no ano', value: String(orders) },
+  ];
+  return (
+    <div className="bg-slate-900 dark:bg-zinc-950 rounded-3xl border border-slate-800 dark:border-zinc-800 p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-8">
+      <div className="flex items-center gap-2 shrink-0">
+        <CalendarRange className="w-4 h-4 text-emerald-400" />
+        <span className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.18em]">Acumulado {year}</span>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
+        {items.map((it) => (
+          <div key={it.label} className="flex items-baseline gap-2">
+            <span className="text-sm sm:text-base font-black text-white tabular-nums">{it.value}</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{it.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Barras simples por dia da semana — ajuda a identificar o melhor dia para focar visitas/ligações. */
+function WeekdayChart({ weekday }: { weekday: WeekdayPoint[] }) {
+  const max = Math.max(...weekday.map((d) => d.revenue), 1);
+  const bestIdx = weekday.reduce((best, d, i) => (d.revenue > weekday[best].revenue ? i : best), 0);
+  const hasData = weekday.some((d) => d.revenue > 0);
+  return (
+    <div>
+      <div className="flex items-end gap-2 sm:gap-3 h-40">
+        {weekday.map((d, i) => {
+          const h = Math.max((d.revenue / max) * 100, d.revenue > 0 ? 3 : 0);
+          const isBest = hasData && i === bestIdx;
+          return (
+            <div key={d.key} className="flex-1 flex flex-col items-center justify-end gap-2 h-full min-w-0">
+              <div className="w-full flex-1 flex items-end">
+                <motion.div
+                  initial={{ height: 0 }}
+                  animate={{ height: `${h}%` }}
+                  transition={{ duration: 0.5, ease: 'easeOut' }}
+                  className={cn('w-full rounded-t-[4px]', isBest ? 'bg-emerald-600 dark:bg-emerald-500' : 'bg-emerald-500/40 dark:bg-emerald-500/30')}
+                  title={`${d.label}: ${BRLfull(d.revenue)} · ${d.orders} pedido${d.orders === 1 ? '' : 's'}`}
+                />
+              </div>
+              <span className={cn('text-[9px] font-black uppercase tracking-tight', isBest ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-zinc-500')}>
+                {d.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      {hasData && (
+        <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mt-4 text-center">
+          Melhor dia: <span className="text-emerald-600 dark:text-emerald-400">{weekday[bestIdx].label}</span> — {BRL(weekday[bestIdx].revenue)}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Split de receita entre clientes novos (primeira compra no mês) e recorrentes. */
+function NewVsReturningCard({ data }: { data: NewVsReturning }) {
+  const total = data.newRevenue + data.returningRevenue;
+  const newPct = total > 0 ? (data.newRevenue / total) * 100 : 0;
+  if (total === 0) {
+    return <p className="text-sm text-slate-400 dark:text-zinc-500 font-medium py-8 text-center">Sem pedidos no período.</p>;
+  }
+  return (
+    <div className="space-y-5">
+      <div className="h-3 rounded-full overflow-hidden bg-slate-100 dark:bg-zinc-800 flex">
+        <motion.div initial={{ width: 0 }} animate={{ width: `${newPct}%` }} transition={{ duration: 0.5 }} className="h-full bg-emerald-500" />
+        <motion.div initial={{ width: 0 }} animate={{ width: `${100 - newPct}%` }} transition={{ duration: 0.5 }} className="h-full bg-slate-300 dark:bg-zinc-700" />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 mb-1">
+            <UserPlus className="w-3.5 h-3.5" />
+            <span className="text-[10px] font-black uppercase tracking-widest">Clientes novos</span>
+          </div>
+          <p className="text-lg font-black text-slate-900 dark:text-zinc-100 tabular-nums">{BRL(data.newRevenue)}</p>
+          <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500">{data.newClientsCount} cliente{data.newClientsCount === 1 ? '' : 's'}</p>
+        </div>
+        <div>
+          <div className="flex items-center gap-1.5 text-slate-500 dark:text-zinc-400 mb-1">
+            <Repeat className="w-3.5 h-3.5" />
+            <span className="text-[10px] font-black uppercase tracking-widest">Recorrentes</span>
+          </div>
+          <p className="text-lg font-black text-slate-900 dark:text-zinc-100 tabular-nums">{BRL(data.returningRevenue)}</p>
+          <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500">{data.returningClientsCount} cliente{data.returningClientsCount === 1 ? '' : 's'}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** % de clientes do mês anterior que voltaram a comprar neste mês. */
+function RetentionCard({ retention, prevLabel }: { retention: RetentionStats; prevLabel: string }) {
+  if (retention.activeLastMonth === 0) {
+    return <p className="text-sm text-slate-400 dark:text-zinc-500 font-medium py-8 text-center">Nenhum pedido em {prevLabel} para comparar.</p>;
+  }
+  const pct = Math.round(retention.retentionRate * 100);
+  const good = retention.retentionRate >= 0.5;
+  return (
+    <div className="flex items-center gap-6">
+      <div className={cn('shrink-0 w-20 h-20 rounded-full border-4 flex items-center justify-center', good ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-amber-500 text-amber-600 dark:text-amber-400')}>
+        <span className="text-xl font-black tabular-nums">{pct}%</span>
+      </div>
+      <div>
+        <p className="text-sm font-bold text-slate-700 dark:text-zinc-300 leading-relaxed">
+          <span className="font-black text-slate-900 dark:text-zinc-100">{retention.retained}</span> de{' '}
+          <span className="font-black text-slate-900 dark:text-zinc-100">{retention.activeLastMonth}</span> clientes que compraram em {prevLabel} voltaram a comprar este mês.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/** Funil de eficácia dos follow-ups registrados no CRM durante o período. */
+function FollowupCard({ followups }: { followups: FollowupStats }) {
+  if (followups.total === 0) {
+    return <p className="text-sm text-slate-400 dark:text-zinc-500 font-medium py-8 text-center">Nenhum follow-up registrado no período.</p>;
+  }
+  const order: Array<keyof FollowupStats['byOutcome']> = ['positive', 'pending', 'negative', 'no_response'];
+  const barColor: Record<keyof FollowupStats['byOutcome'], string> = {
+    positive: 'bg-emerald-500',
+    pending: 'bg-amber-500',
+    negative: 'bg-red-500',
+    no_response: 'bg-slate-400 dark:bg-zinc-600',
+  };
+  return (
+    <div className="space-y-4">
+      <div className="flex items-baseline gap-2">
+        <span className="text-2xl font-black text-slate-900 dark:text-zinc-100 tabular-nums">{Math.round(followups.conversionRate * 100)}%</span>
+        <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+          de conversão positiva em {followups.total} follow-up{followups.total === 1 ? '' : 's'}
+        </span>
+      </div>
+      <div className="space-y-2.5">
+        {order.map((key) => {
+          const count = followups.byOutcome[key] || 0;
+          const pct = followups.total > 0 ? (count / followups.total) * 100 : 0;
+          return (
+            <div key={key}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[11px] font-bold text-slate-600 dark:text-zinc-300">{getOutcomeLabel(key)}</span>
+                <span className="text-[11px] font-black text-slate-900 dark:text-zinc-100 tabular-nums">{count}</span>
+              </div>
+              <div className="h-1.5 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.5 }} className={cn('h-full rounded-full', barColor[key])} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** Reaproveita o mesmo padrão de "lista com barra" usado em Receita por empresa. */
+function CityBreakdownCard({ cities }: { cities: CityBreakdown[] }) {
+  if (cities.length === 0) {
+    return <p className="text-sm text-slate-400 dark:text-zinc-500 font-medium py-8 text-center">Nenhum pedido lançado no período.</p>;
+  }
+  return (
+    <div className="space-y-4">
+      {cities.map((c) => (
+        <div key={c.city}>
+          <div className="flex items-center justify-between gap-3 mb-1.5">
+            <span className="flex items-center gap-1.5 text-sm font-bold text-slate-800 dark:text-zinc-200 truncate">
+              <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" /> {c.city}
+            </span>
+            <div className="flex items-baseline gap-3 shrink-0">
+              <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500">{c.clients} cliente{c.clients === 1 ? '' : 's'}</span>
+              <span className="text-sm font-black text-slate-900 dark:text-zinc-100 tabular-nums">{BRL(c.revenue)}</span>
+            </div>
+          </div>
+          <div className="h-1.5 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+            <motion.div initial={{ width: 0 }} animate={{ width: `${c.share * 100}%` }} transition={{ duration: 0.5, ease: 'easeOut' }} className="h-full bg-emerald-500 rounded-full" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function LoadingSkeleton() {
   return (
     <div className="space-y-6">
@@ -225,7 +429,12 @@ function LoadingSkeleton() {
           <Skeleton key={i} className="h-32 rounded-3xl" />
         ))}
       </div>
+      <Skeleton className="h-20 rounded-3xl" />
       <Skeleton className="h-72 rounded-3xl" />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Skeleton className="h-64 rounded-3xl" />
+        <Skeleton className="h-64 rounded-3xl" />
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Skeleton className="h-64 rounded-3xl" />
         <Skeleton className="h-64 rounded-3xl" />
@@ -340,6 +549,9 @@ export default function ReportsPage() {
         </div>
       ) : data && kpis ? (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+          {/* Acumulado do ano */}
+          <YtdBanner revenue={data.ytd.revenue} commission={data.ytd.commission} orders={data.ytd.orders} year={selected.year} />
+
           {/* KPIs */}
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
             <KpiTile icon={Wallet} label="Receita" value={BRL(kpis.revenue)} current={kpis.revenue} prev={kpis.revenuePrev} />
@@ -353,6 +565,18 @@ export default function ReportsPage() {
           <CardShell icon={TrendingUp} title="Receita — últimos 12 meses" subtitle={`Terminando em ${selected.fullLabel}`}>
             <TrendChart trend={data.trend} />
           </CardShell>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Vendas por dia da semana */}
+            <CardShell icon={CalendarDays} title="Vendas por dia da semana" subtitle={`Receita em ${selected.fullLabel}`}>
+              <WeekdayChart weekday={data.weekday} />
+            </CardShell>
+
+            {/* Novos vs. recorrentes */}
+            <CardShell icon={UserPlus} title="Novos vs. recorrentes" subtitle="De onde veio a receita do mês">
+              <NewVsReturningCard data={data.newVsReturning} />
+            </CardShell>
+          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Top clientes */}
@@ -430,38 +654,57 @@ export default function ReportsPage() {
             </CardShell>
           </div>
 
-          {/* Receita por empresa */}
-          <CardShell icon={Building2} title="Receita por empresa" subtitle="Com comissão estimada pelo percentual configurado">
-            {data.byCompany.length === 0 ? (
-              <p className="text-sm text-slate-400 dark:text-zinc-500 font-medium py-8 text-center">
-                Nenhum pedido lançado em {selected.fullLabel}.
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {data.byCompany.map((company) => (
-                  <div key={company.name}>
-                    <div className="flex items-center justify-between gap-3 mb-1.5">
-                      <span className="text-sm font-bold text-slate-800 dark:text-zinc-200 truncate uppercase tracking-tight">{company.name}</span>
-                      <div className="flex items-baseline gap-3 shrink-0">
-                        <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 tabular-nums">
-                          {company.commissionPct > 0 ? `${company.commissionPct}% → ${BRL(company.commissionValue)}` : 'comissão não configurada'}
-                        </span>
-                        <span className="text-sm font-black text-slate-900 dark:text-zinc-100 tabular-nums">{BRL(company.revenue)}</span>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Retenção */}
+            <CardShell icon={Target} title="Retenção de clientes" subtitle="Quem comprou de novo este mês">
+              <RetentionCard retention={data.retention} prevLabel={data.trend[data.trend.length - 2]?.fullLabel || 'mês anterior'} />
+            </CardShell>
+
+            {/* Follow-ups */}
+            <CardShell icon={PhoneCall} title="Eficácia dos follow-ups" subtitle="Desfechos registrados no CRM no período">
+              <FollowupCard followups={data.followups} />
+            </CardShell>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Receita por empresa */}
+            <CardShell icon={Building2} title="Receita por empresa" subtitle="Com comissão estimada pelo percentual configurado">
+              {data.byCompany.length === 0 ? (
+                <p className="text-sm text-slate-400 dark:text-zinc-500 font-medium py-8 text-center">
+                  Nenhum pedido lançado em {selected.fullLabel}.
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {data.byCompany.map((company) => (
+                    <div key={company.name}>
+                      <div className="flex items-center justify-between gap-3 mb-1.5">
+                        <span className="text-sm font-bold text-slate-800 dark:text-zinc-200 truncate uppercase tracking-tight">{company.name}</span>
+                        <div className="flex items-baseline gap-3 shrink-0">
+                          <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 tabular-nums">
+                            {company.commissionPct > 0 ? `${company.commissionPct}% → ${BRL(company.commissionValue)}` : 'comissão não configurada'}
+                          </span>
+                          <span className="text-sm font-black text-slate-900 dark:text-zinc-100 tabular-nums">{BRL(company.revenue)}</span>
+                        </div>
+                      </div>
+                      <div className="h-1.5 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${company.share * 100}%` }}
+                          transition={{ duration: 0.5, ease: 'easeOut' }}
+                          className="h-full bg-emerald-500 rounded-full"
+                        />
                       </div>
                     </div>
-                    <div className="h-1.5 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${company.share * 100}%` }}
-                        transition={{ duration: 0.5, ease: 'easeOut' }}
-                        className="h-full bg-emerald-500 rounded-full"
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardShell>
+                  ))}
+                </div>
+              )}
+            </CardShell>
+
+            {/* Receita por cidade */}
+            <CardShell icon={MapPin} title="Receita por cidade" subtitle="Onde está concentrada a carteira ativa do mês">
+              <CityBreakdownCard cities={data.topCities} />
+            </CardShell>
+          </div>
 
           {/* Exportação */}
           <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200/80 dark:border-zinc-800/80 p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
