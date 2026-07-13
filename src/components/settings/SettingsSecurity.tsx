@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Key, Check, Smartphone, Lock, AlertCircle, QrCode, ChevronRight } from 'lucide-react';
+import { Shield, Key, Check, Smartphone, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { NativeBiometric } from '@capgo/capacitor-native-biometric';
@@ -10,7 +10,6 @@ import { cn } from '../../lib/utils';
 export const SettingsSecurity = React.memo(function SettingsSecurity() {
   const { user } = useAuth();
   
-  const [is2FASetup, setIs2FASetup] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordStep, setPasswordStep] = useState(1);
   const [currentPassword, setCurrentPassword] = useState('');
@@ -291,65 +290,6 @@ export const SettingsSecurity = React.memo(function SettingsSecurity() {
             )}
           </div>
         )}
-        
-        {/* 2FA Section */}
-        <div className="p-4 md:p-6 rounded-2xl md:rounded-[32px] bg-slate-50 dark:bg-zinc-950 border border-slate-100 dark:border-zinc-800 space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-6">
-              <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 shadow-sm text-blue-500">
-                <Lock className="w-6 h-6" />
-              </div>
-              <div className="text-left">
-                <p className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Autenticação em Duas Etapas (2FA)</p>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Camada extra de proteção para seu login</p>
-              </div>
-            </div>
-            <button 
-              onClick={() => setIs2FASetup(!is2FASetup)}
-              className={cn(
-                "px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                is2FASetup ? "bg-red-50 dark:bg-red-900/20 text-red-500" : "bg-emerald-600 text-white shadow-lg shadow-emerald-500/20"
-              )}
-            >
-              {is2FASetup ? "Desativar" : "Configurar"}
-            </button>
-          </div>
-
-          <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/30 rounded-2xl flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-[10px] font-black text-amber-800 dark:text-amber-400 uppercase tracking-wider mb-1">
-                Aviso Importante (2FA Exclusivo para Computador)
-              </p>
-              <p className="text-[9px] font-medium text-amber-700 dark:text-zinc-400 leading-relaxed uppercase">
-                A autenticação em duas etapas (2FA) só está disponível e funciona perfeitamente ao acessar o sistema de um computador. A sincronização e leitura em smartphones ou tablets não é suportada.
-              </p>
-            </div>
-          </div>
-
-          {is2FASetup && (
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="pt-6 border-t border-slate-100 dark:border-zinc-800 space-y-6"
-            >
-              <div className="flex flex-col md:flex-row items-center gap-8">
-                <div className="p-4 bg-white dark:bg-zinc-900 rounded-3xl border border-slate-100 dark:border-zinc-800 shadow-inner">
-                  <QrCode className="w-32 h-32 text-slate-900 dark:text-white" />
-                </div>
-                <div className="space-y-4 flex-1">
-                  <p className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase leading-relaxed">
-                    Escaneie o QR Code acima com seu app de autenticação (Google Authenticator ou Authy) para ativar o 2FA.
-                  </p>
-                  <div className="flex gap-2">
-                    <input type="text" placeholder="Código de 6 dígitos" className="flex-1 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm font-bold outline-none" />
-                    <button className="bg-slate-900 dark:bg-emerald-600 text-white px-6 rounded-xl text-[10px] font-black uppercase tracking-widest">Validar</button>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </div>
       </div>
     </div>
   );
