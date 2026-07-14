@@ -103,7 +103,7 @@ export function WeatherCitySelector({ className }: { className?: string }) {
             initial={{ opacity: 0, y: -8, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.97 }}
-            className="absolute right-0 mt-2 w-72 bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-2xl z-[9000] overflow-hidden"
+            className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-72 max-w-[calc(100vw-2rem)] bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-2xl z-[9000] overflow-hidden"
           >
             <div className="p-3 border-b border-slate-100 dark:border-zinc-800 flex items-center gap-2">
               <Search className="w-4 h-4 text-slate-400 shrink-0" />

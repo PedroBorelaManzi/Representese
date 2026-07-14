@@ -404,11 +404,12 @@ function CityBreakdownCard({ cities }: { cities: CityBreakdown[] }) {
       {cities.map((c) => (
         <div key={c.city}>
           <div className="flex items-center justify-between gap-3 mb-1.5">
-            <span className="flex items-center gap-1.5 text-sm font-bold text-slate-800 dark:text-zinc-200 truncate">
-              <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" /> {c.city}
+            <span className="flex items-center gap-1.5 min-w-0 text-sm font-bold text-slate-800 dark:text-zinc-200">
+              <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <span className="truncate">{c.city}</span>
             </span>
             <div className="flex items-baseline gap-3 shrink-0">
-              <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500">{c.clients} cliente{c.clients === 1 ? '' : 's'}</span>
+              <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 whitespace-nowrap">{c.clients} cliente{c.clients === 1 ? '' : 's'}</span>
               <span className="text-sm font-black text-slate-900 dark:text-zinc-100 tabular-nums">{BRL(c.revenue)}</span>
             </div>
           </div>

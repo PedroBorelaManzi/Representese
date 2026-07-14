@@ -47,5 +47,13 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Usamos sua localização para mostrar sua posição no mapa de clientes e calcular distâncias até eles.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Use o Face ID para entrar no Represente-Se! mais rápido, sem digitar sua senha.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Permita o acesso à câmera para fotografar pedidos, documentos e comprovantes.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Permita o acesso às fotos para anexar imagens de pedidos, documentos e comprovantes.</string>
 </dict>
 </plist>

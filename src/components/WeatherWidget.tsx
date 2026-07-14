@@ -21,16 +21,16 @@ export function WeatherWidget() {
   if (!hasCity) {
     return (
       <div className="bg-white dark:bg-zinc-900 rounded-[24px] border border-slate-200/80 dark:border-zinc-800/80 p-4 shadow-sm flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-2xl bg-sky-50 dark:bg-sky-950/30 flex items-center justify-center shrink-0">
             <MapPin className="w-5 h-5 text-sky-500" />
           </div>
-          <div>
-            <p className="text-sm font-black text-slate-900 dark:text-zinc-100 uppercase tracking-tight">Previsão do tempo</p>
-            <p className="text-[11px] font-medium text-slate-400 dark:text-zinc-500">Escolha uma cidade para acompanhar</p>
+          <div className="min-w-0">
+            <p className="text-sm font-black text-slate-900 dark:text-zinc-100 uppercase tracking-tight truncate">Previsão do tempo</p>
+            <p className="text-[11px] font-medium text-slate-400 dark:text-zinc-500 truncate">Escolha uma cidade para acompanhar</p>
           </div>
         </div>
-        <WeatherCitySelector />
+        <WeatherCitySelector className="shrink-0" />
       </div>
     );
   }
@@ -53,17 +53,17 @@ export function WeatherWidget() {
           </div>
         ) : (
           <>
-            <div>
-              <div className="flex items-center gap-1.5 text-sky-100 mb-1">
-                <MapPin className="w-3.5 h-3.5" />
-                <span className="text-[10px] font-black uppercase tracking-widest truncate max-w-[180px]">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 text-sky-100 mb-1 min-w-0">
+                <MapPin className="w-3.5 h-3.5 shrink-0" />
+                <span className="text-[10px] font-black uppercase tracking-widest truncate">
                   {settings.weather_city}
                   {settings.weather_state ? ` · ${settings.weather_state}` : ''}
                 </span>
               </div>
-              <div className="flex items-baseline gap-2">
+              <div className="flex items-baseline gap-2 flex-wrap">
                 <span className="text-4xl font-black text-white tabular-nums leading-none">{data.current.temp}°</span>
-                <span className="text-sm font-bold text-sky-50">{data.current.info.label}</span>
+                <span className="text-sm font-bold text-sky-50 truncate">{data.current.info.label}</span>
               </div>
               {today && (
                 <p className="text-[11px] font-bold text-sky-100 mt-1.5 tabular-nums">
