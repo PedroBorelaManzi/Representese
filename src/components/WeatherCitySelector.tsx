@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MapPin, Search, X, Loader2, CloudSun } from 'lucide-react';
+import { MapPin, Search, X, Loader2, CloudSun, AlertTriangle, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSettings } from '../contexts/SettingsContext';
 import { geocodeCity, GeocodeResult } from '../lib/weatherService';
@@ -13,6 +13,8 @@ export function WeatherCitySelector({ className }: { className?: string }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<GeocodeResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState(false);
+  const [retryTick, setRetryTick] = useState(0);
   const boxRef = useRef<HTMLDivElement>(null);
 
   // Busca com debounce; cancela requisições em voo ao digitar de novo.
@@ -21,16 +23,26 @@ export function WeatherCitySelector({ className }: { className?: string }) {
     const q = query.trim();
     if (q.length < 2) {
       setResults([]);
+      setSearchError(false);
       return;
     }
     const controller = new AbortController();
     setSearching(true);
+    setSearchError(false);
     const t = setTimeout(async () => {
       try {
         const found = await geocodeCity(q, controller.signal);
         setResults(found);
-      } catch {
-        // abortos e falhas de rede não viram erro visível — o usuário só re-digita
+      } catch (err) {
+        // Abort por causa do próprio debounce não é erro de verdade — só a
+        // busca seguinte que importa. Qualquer outra falha (rede, CSP, API
+        // fora do ar) precisa aparecer pro usuário, senão fica indistinguível
+        // de "a cidade não existe".
+        if ((err as Error)?.name !== 'AbortError') {
+          console.error('Erro ao buscar cidade:', err);
+          setSearchError(true);
+          setResults([]);
+        }
       } finally {
         setSearching(false);
       }
@@ -39,7 +51,7 @@ export function WeatherCitySelector({ className }: { className?: string }) {
       controller.abort();
       clearTimeout(t);
     };
-  }, [query, open]);
+  }, [query, open, retryTick]);
 
   // Fecha ao clicar fora
   useEffect(() => {
@@ -112,10 +124,24 @@ export function WeatherCitySelector({ className }: { className?: string }) {
             </div>
 
             <div className="max-h-64 overflow-y-auto custom-scrollbar">
-              {results.length === 0 && query.trim().length >= 2 && !searching && (
+              {searchError && !searching && (
+                <div className="flex flex-col items-center gap-2 text-center py-6 px-4">
+                  <AlertTriangle className="w-5 h-5 text-amber-500" />
+                  <p className="text-xs text-slate-500 dark:text-zinc-400 font-medium">
+                    Não foi possível buscar agora. Verifique sua conexão e tente de novo.
+                  </p>
+                  <button
+                    onClick={() => setRetryTick((t) => t + 1)}
+                    className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-sky-600 hover:text-sky-700 transition-colors mt-1"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" /> Tentar de novo
+                  </button>
+                </div>
+              )}
+              {!searchError && results.length === 0 && query.trim().length >= 2 && !searching && (
                 <p className="text-xs text-slate-400 font-medium text-center py-6 px-4">Nenhuma cidade encontrada.</p>
               )}
-              {results.length === 0 && query.trim().length < 2 && (
+              {!searchError && results.length === 0 && query.trim().length < 2 && (
                 <p className="text-xs text-slate-400 font-medium text-center py-6 px-4">Digite o nome de uma cidade.</p>
               )}
               {results.map((r, i) => {
