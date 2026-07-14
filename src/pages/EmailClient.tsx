@@ -3,11 +3,13 @@ import { Mail, Search, ChevronLeft, ChevronRight, Inbox, Send, Edit, Trash2, Plu
 import { cn } from "../lib/utils";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { getGoogleEmailAuthUrl, getMicrosoftEmailAuthUrl, fetchEmailsFromApi, sendEmailViaApi, EmailMessage, EmailProvider, downloadAttachmentFromApi, fetchGoogleContacts } from "../lib/emailSync";
+import { getGoogleEmailAuthUrl, getMicrosoftEmailAuthUrl, fetchEmailsFromApi, sendEmailViaApi, EmailMessage, EmailProvider, downloadAttachmentFromApi, fetchGoogleContacts, GOOGLE_EMAIL_SCOPE } from "../lib/emailSync";
 import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
 import { supabase } from "../lib/supabase";
 import { useConfirm } from "../components/ui";
+import { Capacitor } from "@capacitor/core";
+import { startNativeGoogleAuth } from "../lib/nativeGoogleAuth";
 
 type ConnectedAccount = {
   id: string;
@@ -284,7 +286,17 @@ export default function EmailClient() {
   }
 
   const handleConnectProvider = async (provider: EmailProvider) => {
-    if (provider === 'google') window.location.href = getGoogleEmailAuthUrl();
+    if (provider === 'google') {
+      if (Capacitor.isNativePlatform()) {
+        try {
+          await startNativeGoogleAuth('email', GOOGLE_EMAIL_SCOPE);
+        } catch (err: any) {
+          toast.error(err.message || "Erro ao conectar com o Google.");
+        }
+        return;
+      }
+      window.location.href = getGoogleEmailAuthUrl();
+    }
     else {
       try {
         const url = await getMicrosoftEmailAuthUrl();

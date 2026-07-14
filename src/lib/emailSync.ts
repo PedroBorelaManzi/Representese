@@ -25,6 +25,21 @@ export interface EmailMessage {
 }
 
 // 1. GERAÇÃO DE URLS DE AUTENTICAÇÃO
+
+// gmail.modify é escopo "restrito" (exige avaliação de segurança CASA paga
+// e demorada). O app só lê mensagens/anexos e envia e-mails — não há
+// nenhuma chamada de modify/trash/delete na Gmail API — então
+// gmail.readonly + gmail.send bastam e são apenas "sensíveis" (verificação
+// padrão do Google, sem CASA). Se um dia implementarmos arquivar/excluir
+// e-mail de verdade, aí sim precisaria voltar para gmail.modify.
+export const GOOGLE_EMAIL_SCOPE = [
+  'https://www.googleapis.com/auth/userinfo.email',
+  'https://www.googleapis.com/auth/gmail.readonly',
+  'https://www.googleapis.com/auth/gmail.send',
+  'https://www.googleapis.com/auth/contacts.readonly',
+  'https://www.googleapis.com/auth/directory.readonly'
+].join(' ');
+
 export function getGoogleEmailAuthUrl() {
   const rootUrl = 'https://accounts.google.com/o/oauth2/v2/auth';
   const options = {
@@ -33,19 +48,7 @@ export function getGoogleEmailAuthUrl() {
     access_type: 'offline',
     response_type: 'code',
     prompt: 'consent',
-    // gmail.modify é escopo "restrito" (exige avaliação de segurança CASA paga
-    // e demorada). O app só lê mensagens/anexos e envia e-mails — não há
-    // nenhuma chamada de modify/trash/delete na Gmail API — então
-    // gmail.readonly + gmail.send bastam e são apenas "sensíveis" (verificação
-    // padrão do Google, sem CASA). Se um dia implementarmos arquivar/excluir
-    // e-mail de verdade, aí sim precisaria voltar para gmail.modify.
-    scope: [
-      'https://www.googleapis.com/auth/userinfo.email',
-      'https://www.googleapis.com/auth/gmail.readonly',
-      'https://www.googleapis.com/auth/gmail.send',
-      'https://www.googleapis.com/auth/contacts.readonly',
-      'https://www.googleapis.com/auth/directory.readonly'
-    ].join(' ')
+    scope: GOOGLE_EMAIL_SCOPE
   };
   const qs = new URLSearchParams(options);
   return `${rootUrl}?${qs.toString()}`;

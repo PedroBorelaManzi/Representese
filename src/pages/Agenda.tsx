@@ -23,6 +23,8 @@ import { Link } from "react-router-dom";
 import AppointmentForm from "../components/AppointmentForm";
 import DailyNotes from "../components/DailyNotes";
 import { syncGoogleEvents, pushEventToGoogle, deleteEventFromGoogle } from "../lib/googleSync";
+import { Capacitor } from "@capacitor/core";
+import { startNativeGoogleAuth } from "../lib/nativeGoogleAuth";
 import { syncQueue } from "../lib/syncQueue";
 import { offlineCache, CacheKeys } from "../lib/offlineCache";
 import { fetchHolidays, getClientLocations, Holiday } from "../lib/holidayService";
@@ -286,13 +288,21 @@ export default function Agenda() {
   };
 
   const handleGoogleConnect = () => {
+    const scope = "https://www.googleapis.com/auth/calendar.events";
+
+    if (Capacitor.isNativePlatform()) {
+      startNativeGoogleAuth('calendar', scope).catch((err: any) => {
+        toast.error(err.message || "Erro ao conectar com o Google.");
+      });
+      return;
+    }
+
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     if (!clientId) {
       toast.error("Google Client ID não configurado.");
       return;
     }
     const redirectUri = `${window.location.origin}/auth/callback/google`;
-    const scope = "https://www.googleapis.com/auth/calendar.events";
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&response_type=code&access_type=offline&prompt=consent`;
     window.location.href = authUrl;
   };

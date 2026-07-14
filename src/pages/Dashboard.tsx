@@ -15,6 +15,8 @@ import { offlineCache, CacheKeys } from "../lib/offlineCache";
 import { toast } from "sonner";
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
+import { Capacitor } from '@capacitor/core';
+import { startNativeGoogleAuth } from '../lib/nativeGoogleAuth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Client, Order, Appointment } from "../types";
 
@@ -381,13 +383,21 @@ export default function Dashboard() {
   };
 
   const handleGoogleConnect = () => {
+    const scope = "https://www.googleapis.com/auth/calendar.events";
+
+    if (Capacitor.isNativePlatform()) {
+      startNativeGoogleAuth('calendar', scope).catch((err: any) => {
+        toast.error(err.message || "Erro ao conectar com o Google.");
+      });
+      return;
+    }
+
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     if (!clientId) {
       toast.error("Erro: Client ID do Google não configurado.");
       return;
     }
     const redirectUri = `${window.location.origin}/auth/callback/google`;
-    const scope = "https://www.googleapis.com/auth/calendar.events";
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&response_type=code&access_type=offline&prompt=consent`;
     window.location.href = authUrl;
   };
