@@ -31,6 +31,11 @@ import { PageHeader, useConfirm } from "../components/ui";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSettings } from "../contexts/SettingsContext";
+import { useWeatherForecast } from "../hooks/useWeather";
+import { WeatherCitySelector } from "../components/WeatherCitySelector";
+import { WeatherIcon } from "../components/WeatherIcon";
+import { WeeklyForecast } from "../components/WeeklyForecast";
 
 type Appointment = {
   id: string;
@@ -61,6 +66,8 @@ const isSameDay = (d1: Date, d2String: string) => {
 export default function Agenda() {
   const { user } = useAuth();
   const confirm = useConfirm();
+  const { settings } = useSettings();
+  const { data: weather } = useWeatherForecast(settings.weather_lat, settings.weather_lng);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedMobileDate, setSelectedMobileDate] = useState(new Date());
   const [selectedNoteDate, setSelectedNoteDate] = useState(new Date());
@@ -379,6 +386,7 @@ export default function Agenda() {
               />
               <Sparkles className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500" />
             </div>
+            <WeatherCitySelector />
             {googleConnected && (
               <button
                 onClick={handleSync}
@@ -411,6 +419,9 @@ export default function Agenda() {
       />
 
       <div className="flex-1 flex flex-col gap-6 mt-4 min-h-0">
+        {weather && settings.weather_city && (
+          <WeeklyForecast data={weather} city={settings.weather_city} />
+        )}
         <div className="flex-1 bg-white dark:bg-zinc-950 rounded-[32px] border border-slate-200/80 dark:border-zinc-800/80 shadow-2xl flex flex-col min-h-[600px] relative overflow-hidden">
           <div className="p-3 lg:p-4 border-b border-slate-300/60 dark:border-zinc-800 flex items-center justify-between bg-emerald-600/5 dark:bg-emerald-900/10">
             <div className="flex items-center gap-3 lg:gap-4">
@@ -445,6 +456,7 @@ export default function Agenda() {
                 const isToday = dateIso === formatDateLocal(new Date());
                 const dayEvents = dateIso ? events.filter(e => e.date === dateIso && (e.title.toLowerCase().includes(searchFilter.toLowerCase()) || clients.find(c => c.id === e.client_id)?.name.toLowerCase().includes(searchFilter.toLowerCase()))) : [];
                 const dayHolidays = holidays.filter(h => h.date === dateIso);
+                const dayWeather = dateIso ? weather?.daily[dateIso] : undefined;
 
                 return (
                   <div 
@@ -483,9 +495,20 @@ export default function Agenda() {
                               </button>
                             )}
                           </div>
-                          {dayHolidays.length > 0 && (
-                            <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shadow-sm shadow-amber-200" />
-                          )}
+                          <div className="flex items-center gap-1.5">
+                            {dayWeather && (
+                              <div
+                                className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-sky-50 dark:bg-sky-950/30 border border-sky-100 dark:border-sky-900/40"
+                                title={`${dayWeather.info.label} · máx ${dayWeather.tempMax}° / mín ${dayWeather.tempMin}°`}
+                              >
+                                <WeatherIcon category={dayWeather.info.category} className="w-3.5 h-3.5" />
+                                <span className="text-[9px] font-black text-sky-700 dark:text-sky-300 tabular-nums">{dayWeather.tempMax}°</span>
+                              </div>
+                            )}
+                            {dayHolidays.length > 0 && (
+                              <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shadow-sm shadow-amber-200" />
+                            )}
+                          </div>
                         </div>
                         
                         <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 max-h-[148px] pr-1">
@@ -532,9 +555,10 @@ export default function Agenda() {
                       const isToday = dateIso === formatDateLocal(new Date());
                       const hasEvents = events.some(e => e.date === dateIso);
                       const hasHolidays = holidays.some(h => h.date === dateIso);
+                      const dayWeather = weather?.daily[dateIso];
 
                       return (
-                          <button 
+                          <button
                               key={i}
                               onClick={() => { setSelectedMobileDate(date); setSelectedNoteDate(date); }}
                               className={cn(
@@ -545,7 +569,13 @@ export default function Agenda() {
                               <span className={cn("text-sm font-black", isSelected ? "text-white" : isToday ? "text-emerald-600" : "text-slate-700 dark:text-zinc-200")}>
                                   {date.getDate()}
                               </span>
-                              <div className="flex gap-0.5 mt-1">
+                              {dayWeather ? (
+                                <div className="flex items-center gap-0.5 mt-0.5">
+                                  <WeatherIcon category={dayWeather.info.category} className={cn("w-2.5 h-2.5", isSelected && "text-white")} />
+                                  <span className={cn("text-[8px] font-black tabular-nums", isSelected ? "text-white" : "text-slate-400 dark:text-zinc-500")}>{dayWeather.tempMax}°</span>
+                                </div>
+                              ) : null}
+                              <div className="flex gap-0.5 mt-0.5">
                                   {hasEvents && <div className={cn("w-1 h-1 rounded-full", isSelected ? "bg-white" : "bg-emerald-500")} />}
                                   {hasHolidays && <div className={cn("w-1 h-1 rounded-full", isSelected ? "bg-white" : "bg-amber-500")} />}
                               </div>
