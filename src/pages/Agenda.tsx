@@ -566,18 +566,20 @@ export default function Agenda() {
                                   isSelected ? "bg-emerald-600 text-white shadow-xl scale-110 z-10" : "hover:bg-slate-100 dark:hover:bg-zinc-800"
                               )}
                           >
-                              <span className={cn("text-sm font-black", isSelected ? "text-white" : isToday ? "text-emerald-600" : "text-slate-700 dark:text-zinc-200")}>
+                              <span className={cn("text-sm font-black leading-none", isSelected ? "text-white" : isToday ? "text-emerald-600" : "text-slate-700 dark:text-zinc-200")}>
                                   {date.getDate()}
                               </span>
-                              {dayWeather ? (
-                                <div className="flex items-center gap-0.5 mt-0.5">
-                                  <WeatherIcon category={dayWeather.info.category} className={cn("w-2.5 h-2.5", isSelected && "text-white")} />
-                                  <span className={cn("text-[8px] font-black tabular-nums", isSelected ? "text-white" : "text-slate-400 dark:text-zinc-500")}>{dayWeather.tempMax}°</span>
-                                </div>
-                              ) : null}
-                              <div className="flex gap-0.5 mt-0.5">
-                                  {hasEvents && <div className={cn("w-1 h-1 rounded-full", isSelected ? "bg-white" : "bg-emerald-500")} />}
-                                  {hasHolidays && <div className={cn("w-1 h-1 rounded-full", isSelected ? "bg-white" : "bg-amber-500")} />}
+                              {/* Clima + indicadores numa linha só — 3 linhas empilhadas (número,
+                                  clima, pontinhos) não cabiam na célula quadrada em telas pequenas. */}
+                              <div className="flex items-center gap-0.5 mt-1 h-2.5">
+                                  {dayWeather && (
+                                    <>
+                                      <WeatherIcon category={dayWeather.info.category} className={cn("w-2 h-2 shrink-0", isSelected && "text-white")} />
+                                      <span className={cn("text-[7px] font-black tabular-nums leading-none", isSelected ? "text-white" : "text-slate-400 dark:text-zinc-500")}>{dayWeather.tempMax}°</span>
+                                    </>
+                                  )}
+                                  {hasEvents && <div className={cn("w-1 h-1 rounded-full shrink-0", isSelected ? "bg-white" : "bg-emerald-500")} />}
+                                  {hasHolidays && <div className={cn("w-1 h-1 rounded-full shrink-0", isSelected ? "bg-white" : "bg-amber-500")} />}
                               </div>
                               {isToday && !isSelected && <div className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-emerald-600" />}
                           </button>
