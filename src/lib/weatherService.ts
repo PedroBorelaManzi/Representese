@@ -51,12 +51,25 @@ function weatherCodeToInfo(code: number): WeatherInfo {
   return { category: 'cloud', label: 'Instável' };
 }
 
+/** Combina o AbortSignal do chamador (cancelamento por debounce) com um
+ *  timeout próprio — sem isso, uma rede travada deixa a busca girando pra
+ *  sempre em vez de falhar e permitir tentar de novo. `AbortSignal.any` não
+ *  existe em WebViews Android mais antigos (o app roda em Capacitor) — nesse
+ *  caso cai para o signal do chamador puro em vez de quebrar a busca. */
+function withTimeout(signal: AbortSignal | undefined, ms: number): AbortSignal | undefined {
+  if (typeof AbortSignal.timeout !== 'function') return signal;
+  const timeoutSignal = AbortSignal.timeout(ms);
+  if (!signal) return timeoutSignal;
+  if (typeof AbortSignal.any !== 'function') return signal;
+  return AbortSignal.any([signal, timeoutSignal]);
+}
+
 /** Busca cidades pelo nome (prioriza Brasil). Retorna até 6 sugestões. */
 export async function geocodeCity(query: string, signal?: AbortSignal): Promise<GeocodeResult[]> {
   const q = query.trim();
   if (q.length < 2) return [];
   const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=6&language=pt&format=json`;
-  const res = await fetch(url, { signal });
+  const res = await fetch(url, { signal: withTimeout(signal, 8000) });
   if (!res.ok) throw new Error('Falha ao buscar cidades.');
   const data = await res.json();
   const mapped = (data?.results || []).map((r: any) => ({
@@ -81,7 +94,7 @@ export async function fetchWeather(lat: number, lng: number, signal?: AbortSigna
     forecast_days: '16',
     timezone: 'auto',
   });
-  const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`, { signal });
+  const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`, { signal: withTimeout(signal, 8000) });
   if (!res.ok) throw new Error('Falha ao carregar a previsão do tempo.');
   const data = await res.json();
 
