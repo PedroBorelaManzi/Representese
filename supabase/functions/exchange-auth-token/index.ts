@@ -12,10 +12,26 @@ Deno.serve(async (req)=>{
     });
   }
   try {
-    const { code, redirect_uri, refresh_token, grant_type } = await req.json();
-    const clientId = Deno.env.get("GOOGLE_CLIENT_ID");
-    const clientSecret = Deno.env.get("GOOGLE_CLIENT_SECRET");
-    if (!clientId || !clientSecret) {
+    const { code, redirect_uri, refresh_token, grant_type, code_verifier, platform } = await req.json();
+
+    // Native flow (iOS/Android app via system browser + PKCE): the app uses a
+    // dedicated "public" OAuth client (no secret exists for this client type).
+    // Web flow (dashboard in a regular browser): confidential client with secret.
+    const isNative = platform === "ios" || platform === "android";
+
+    let clientId: string | undefined;
+    let clientSecret: string | undefined;
+
+    if (isNative) {
+      clientId = platform === "ios"
+        ? Deno.env.get("GOOGLE_IOS_CLIENT_ID")
+        : Deno.env.get("GOOGLE_ANDROID_CLIENT_ID");
+    } else {
+      clientId = Deno.env.get("GOOGLE_CLIENT_ID");
+      clientSecret = Deno.env.get("GOOGLE_CLIENT_SECRET");
+    }
+
+    if (!clientId || (!isNative && !clientSecret)) {
       return new Response(JSON.stringify({
         error: "Google OAuth not configured on server"
       }), {
@@ -26,10 +42,10 @@ Deno.serve(async (req)=>{
         }
       });
     }
-    const body = {
-      client_id: clientId,
-      client_secret: clientSecret
-    };
+
+    const body: Record<string, string> = { client_id: clientId };
+    if (clientSecret) body.client_secret = clientSecret;
+
     if (grant_type === "refresh_token" && refresh_token) {
       body.refresh_token = refresh_token;
       body.grant_type = "refresh_token";
@@ -37,6 +53,7 @@ Deno.serve(async (req)=>{
       body.code = code;
       body.redirect_uri = redirect_uri;
       body.grant_type = "authorization_code";
+      if (isNative && code_verifier) body.code_verifier = code_verifier;
     } else {
       return new Response(JSON.stringify({
         error: "Missing required parameters (code+redirect_uri or refresh_token)"

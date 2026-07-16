@@ -55,5 +55,16 @@
 	<string>Permita o acesso à câmera para fotografar pedidos, documentos e comprovantes.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Permita o acesso às fotos para anexar imagens de pedidos, documentos e comprovantes.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.representese.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.representese.app</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

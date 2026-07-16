@@ -20,6 +20,7 @@ function PageviewTracker() {
 }
 
 import PageTracker from "./components/PageTracker";
+import NativeAuthListener from "./components/NativeAuthListener";
 
 // Lazy Loaded Pages (com retry automático em chunk órfão após deploy)
 const Landing = lazyWithRetry(() => import("./pages/LandingPitch"));
@@ -99,6 +100,7 @@ export default function App() {
             <UploadProvider>
               <PageviewTracker />
               <PageTracker />
+              <NativeAuthListener />
               <ConfirmProvider>
               <Suspense fallback={<LoadingSpinner />}>
                 <Routes>
