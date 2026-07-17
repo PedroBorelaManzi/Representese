@@ -452,7 +452,11 @@ export default function ReportsPage() {
   const [exporting, setExporting] = useState<'excel' | 'csv' | null>(null);
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['reportAnalytics', user?.id, selected.year, selected.month],
+    // 'v2': dados persistidos em IndexedDB de antes da expansão do relatório
+    // (ytd, weekday, newVsReturning, ...) não tinham esses campos — reidratar
+    // esse formato velho quebrava a tela com "Cannot read properties of
+    // undefined". Versionar a key invalida o cache antigo em vez de servi-lo.
+    queryKey: ['reportAnalytics', 'v2', user?.id, selected.year, selected.month],
     queryFn: () =>
       fetchReportAnalytics(user!.id, selected.year, selected.month, settings.commissions || {}, {
         alertaDays: settings.alerta_days || 30,

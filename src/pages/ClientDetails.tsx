@@ -222,26 +222,24 @@ export default function ClientDetails() {
     }
   };
 
+  // URL assinada + download nativo do navegador em vez de baixar o blob
+  // inteiro pra memória do JS antes de salvar — mesmo ganho de velocidade já
+  // aplicado em Arquivos.tsx, mas esse fluxo de anexos do cliente ainda usava
+  // o padrão antigo (.download), que fica lento em arquivos maiores/redes ruins.
   const handleDownload = async (fileName: string, filePath: string) => {
     try {
-      const { data, error } = await supabase.storage
+      let { data, error } = await supabase.storage
         .from('client_vault')
-        .download(filePath);
-      
-      if (error) {
-          const { data: d2, error: e2 } = await supabase.storage.from('orders').download(filePath);
-          if (e2) throw e2;
-          const url = URL.createObjectURL(d2);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = fileName;
-          a.click();
-          return;
+        .createSignedUrl(filePath, 60, { download: fileName });
+
+      if (error || !data?.signedUrl) {
+        const fallback = await supabase.storage.from('orders').createSignedUrl(filePath, 60, { download: fileName });
+        if (fallback.error || !fallback.data?.signedUrl) throw fallback.error || error;
+        data = fallback.data;
       }
-      
-      const url = URL.createObjectURL(data);
+
       const a = document.createElement('a');
-      a.href = url;
+      a.href = data.signedUrl;
       a.download = fileName;
       a.click();
     } catch (err) {
