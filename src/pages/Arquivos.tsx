@@ -22,6 +22,7 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { offlineCache } from "../lib/offlineCache";
 import { PageHeader, Skeleton, useConfirm } from "../components/ui";
+import { PdfViewerModal } from "../components/PdfViewerModal";
 import { toast } from "sonner";
 
 const BUCKET = "user_files";
@@ -81,6 +82,7 @@ export default function Arquivos() {
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [dragActive, setDragActive] = useState(false);
+  const [pdfPreview, setPdfPreview] = useState<{ url: string; name: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const prefix = user ? [user.id, ...path].join("/") : "";
@@ -181,10 +183,13 @@ export default function Arquivos() {
     loadItems();
   };
 
-  // Abre o arquivo para VISUALIZAR (nova aba / visualizador do celular, com compartilhar nativo).
-  // Abrimos a janela de forma síncrona pra não ser bloqueada por popup blocker no mobile.
+  // Abre o arquivo para VISUALIZAR. PDFs abrem no visualizador interno
+  // (renderiza só as páginas próximas da área visível, então o scroll
+  // continua leve mesmo em arquivos de centenas de páginas); os demais
+  // tipos abrem numa nova aba / visualizador do celular, com compartilhar nativo.
   const handleOpen = async (name: string) => {
-    const win = window.open("", "_blank");
+    const isPdf = name.toLowerCase().endsWith(".pdf");
+    const win = isPdf ? null : window.open("", "_blank");
     const { data, error } = await supabase.storage
       .from(BUCKET)
       .createSignedUrl(`${prefix}/${name}`, 60 * 60);
@@ -193,8 +198,13 @@ export default function Arquivos() {
       toast.error("Erro ao abrir arquivo.");
       return;
     }
-    if (win) win.location.href = data.signedUrl;
-    else window.open(data.signedUrl, "_blank");
+    if (isPdf) {
+      setPdfPreview({ url: data.signedUrl, name });
+    } else if (win) {
+      win.location.href = data.signedUrl;
+    } else {
+      window.open(data.signedUrl, "_blank");
+    }
   };
 
   // Baixa o arquivo (salvar no dispositivo) — ação explícita.
@@ -434,6 +444,14 @@ export default function Arquivos() {
           </div>
         )}
       </div>
+
+      <PdfViewerModal
+        isOpen={!!pdfPreview}
+        onClose={() => setPdfPreview(null)}
+        url={pdfPreview?.url ?? null}
+        fileName={pdfPreview?.name}
+        onDownload={() => pdfPreview && handleDownload(pdfPreview.name)}
+      />
     </div>
   );
 }

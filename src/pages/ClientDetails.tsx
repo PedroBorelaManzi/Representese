@@ -9,6 +9,7 @@ import {
   ArrowLeft,
   FileText,
   Download,
+  Eye,
   Trash2,
   Plus,
   X,
@@ -35,6 +36,7 @@ import { computeCompanyCycles, cycleLabel, type CompanyCycle } from "../lib/purc
 import { TrendingUp, Clock3 } from "lucide-react";
 import ClientFollowupModal from "../components/ClientFollowupModal";
 import ClientFollowupHistory from "../components/ClientFollowupHistory";
+import { PdfViewerModal } from "../components/PdfViewerModal";
 import { getClientFollowupStatus, type ClientFollowupStatus } from "../lib/followupService";
 import { useConfirm } from "../components/ui";
 
@@ -71,6 +73,7 @@ export default function ClientDetails() {
   const [uploadCategory, setUploadCategory] = useState(draft.category || "");
   const [isFollowupModalOpen, setIsFollowupModalOpen] = useState(false);
   const [followupStatus, setFollowupStatus] = useState<ClientFollowupStatus | null>(null);
+  const [pdfPreview, setPdfPreview] = useState<{ url: string; name: string } | null>(null);
 
   const initializedRef = useRef(false);
 
@@ -244,6 +247,26 @@ export default function ClientDetails() {
       a.click();
     } catch (err) {
       toast.error("Erro ao baixar arquivo.");
+    }
+  };
+
+  // Abre PDFs no visualizador interno — renderiza só as páginas próximas da
+  // área visível, então o scroll continua leve mesmo em documentos grandes.
+  const handleOpenPdf = async (fileName: string, filePath: string) => {
+    try {
+      let { data, error } = await supabase.storage
+        .from('client_vault')
+        .createSignedUrl(filePath, 60 * 60);
+
+      if (error || !data?.signedUrl) {
+        const fallback = await supabase.storage.from('orders').createSignedUrl(filePath, 60 * 60);
+        if (fallback.error || !fallback.data?.signedUrl) throw fallback.error || error;
+        data = fallback.data;
+      }
+
+      setPdfPreview({ url: data.signedUrl, name: fileName });
+    } catch (err) {
+      toast.error("Erro ao abrir arquivo.");
     }
   };
 
@@ -672,6 +695,7 @@ export default function ClientDetails() {
                     const parts = file.file_name?.split("___") || [];
                     const actualName = parts.length > 2 ? parts.slice(2).join("___") : (parts.length > 1 ? parts.slice(1).join("___") : file.file_name);
                     const orderValueStr = file.value ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(file.value) : null;
+                    const isPdf = (actualName || "").toLowerCase().endsWith(".pdf");
 
                     return (
                       <div key={file.id} className="flex items-center justify-between p-6 bg-slate-50 dark:bg-zinc-950 border border-slate-100 dark:border-zinc-800 rounded-3xl hover:border-emerald-200 transition-all group">
@@ -692,6 +716,9 @@ export default function ClientDetails() {
                         </div>
 
                         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                           {isPdf && (
+                             <button onClick={() => handleOpenPdf(file.file_name || "", file.file_path || "")} className="p-3 bg-white dark:bg-zinc-800 text-slate-400 hover:text-emerald-600 rounded-xl shadow-sm border border-slate-100 dark:border-zinc-800"><Eye className="w-4 h-4" /></button>
+                           )}
                            <button onClick={() => handleDownload(file.file_name || "", file.file_path || "")} className="p-3 bg-white dark:bg-zinc-800 text-slate-400 hover:text-emerald-600 rounded-xl shadow-sm border border-slate-100 dark:border-zinc-800"><Download className="w-4 h-4" /></button>
                            <button onClick={() => handleFileDelete(file.id, file.file_path || "")} className="p-3 bg-white dark:bg-zinc-800 text-slate-400 hover:text-red-500 rounded-xl shadow-sm border border-slate-100 dark:border-zinc-800"><Trash2 className="w-4 h-4" /></button>
                         </div>
@@ -826,6 +853,14 @@ export default function ClientDetails() {
           }}
         />
       )}
+
+      <PdfViewerModal
+        isOpen={!!pdfPreview}
+        onClose={() => setPdfPreview(null)}
+        url={pdfPreview?.url ?? null}
+        fileName={pdfPreview?.name}
+        onDownload={() => pdfPreview && handleDownload(pdfPreview.name, files.find(f => f.file_name === pdfPreview.name)?.file_path || "")}
+      />
     </div>
   );
 }
