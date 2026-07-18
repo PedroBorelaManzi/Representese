@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { X, Loader2, AlertTriangle, Download, ZoomIn, ZoomOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { loadPdfjs } from "../lib/pdfjsLoader";
@@ -19,16 +19,18 @@ const RENDER_MARGIN_PX = 1200;
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2.5;
 
-export function PdfViewerModal({ isOpen, onClose, url, fileName, onDownload }: PdfViewerModalProps) {
+export const PdfViewerModal = React.memo(function PdfViewerModal({ isOpen, onClose, url, fileName, onDownload }: PdfViewerModalProps) {
   const [pdf, setPdf] = useState<any>(null);
   const [numPages, setNumPages] = useState(0);
   const [pageSize, setPageSize] = useState<{ width: number; height: number } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [zoom, setZoom] = useState(1);
+  const [pendingZoom, setPendingZoom] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
   const [containerWidth, setContainerWidth] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const zoomTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Páginas com pelo menos parte visível na tela agora — usado só pro
   // indicador "Página X de Y", que deve mostrar a mais no topo, não a
   // última cujo observer disparou (senão fica pulando pra qualquer uma).
@@ -83,12 +85,19 @@ export function PdfViewerModal({ isOpen, onClose, url, fileName, onDownload }: P
     if (!isOpen) return;
     const el = containerRef.current;
     if (!el) return;
+    let resizeTimer: NodeJS.Timeout;
     const ro = new ResizeObserver((entries) => {
       const w = entries[0]?.contentRect.width;
-      if (w) setContainerWidth(w);
+      if (w) {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => setContainerWidth(w), 100);
+      }
     });
     ro.observe(el);
-    return () => ro.disconnect();
+    return () => {
+      clearTimeout(resizeTimer);
+      ro.disconnect();
+    };
   }, [isOpen]);
 
   useEffect(() => {
@@ -99,6 +108,16 @@ export function PdfViewerModal({ isOpen, onClose, url, fileName, onDownload }: P
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [isOpen, onClose]);
+
+  useEffect(() => {
+    if (zoomTimeoutRef.current) clearTimeout(zoomTimeoutRef.current);
+    zoomTimeoutRef.current = setTimeout(() => {
+      setZoom(pendingZoom);
+    }, 50);
+    return () => {
+      if (zoomTimeoutRef.current) clearTimeout(zoomTimeoutRef.current);
+    };
+  }, [pendingZoom]);
 
   if (!isOpen) return null;
 
@@ -133,14 +152,14 @@ export function PdfViewerModal({ isOpen, onClose, url, fileName, onDownload }: P
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <button
-                onClick={() => setZoom((z) => Math.max(0.6, +(z - 0.15).toFixed(2)))}
+                onClick={() => setPendingZoom((z) => Math.max(0.6, +(z - 0.15).toFixed(2)))}
                 className="p-2.5 rounded-xl text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
                 title="Diminuir zoom"
               >
                 <ZoomOut className="w-4 h-4" />
               </button>
               <button
-                onClick={() => setZoom((z) => Math.min(1.8, +(z + 0.15).toFixed(2)))}
+                onClick={() => setPendingZoom((z) => Math.min(1.8, +(z + 0.15).toFixed(2)))}
                 className="p-2.5 rounded-xl text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
                 title="Aumentar zoom"
               >
@@ -197,9 +216,9 @@ export function PdfViewerModal({ isOpen, onClose, url, fileName, onDownload }: P
       </div>
     </AnimatePresence>
   );
-}
+});
 
-function PdfPage({
+const PdfPage = React.memo(function PdfPage({
   pdf,
   pageNumber,
   scale,
@@ -307,4 +326,4 @@ function PdfPage({
       <canvas ref={canvasRef} />
     </div>
   );
-}
+});
