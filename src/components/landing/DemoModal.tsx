@@ -16,19 +16,95 @@ import {
   Building2,
   CalendarClock,
   PhoneCall,
+  MessageCircle,
+  Mail,
+  Sun,
+  CloudRain,
+  MousePointer2,
+  BarChart3,
+  WifiOff,
+  Smartphone,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { cn } from "../../lib/utils";
 
 /* ────────────────────────────────────────────────────────────────
-   Demonstração animada de ~30s (estilo "stories"), aberta pelo botão
-   "Ver demonstração" do hero. Cada cena mostra, de forma concreta,
-   uma maneira do app ajudar o representante. Tudo codado (vetorial),
-   com a identidade do Represente-se — nítido em qualquer tela, leve
-   e fácil de atualizar.
+   Demonstração animada (~35s, estilo "stories"), aberta pelo botão
+   "Ver demonstração" do hero. Cada cena mostra, com exemplos
+   concretos, uma maneira do app ajudar o representante. Tudo codado
+   (vetorial) com a identidade do Represente-se — nítido em qualquer
+   tela, leve e fácil de atualizar.
    ──────────────────────────────────────────────────────────────── */
 
 const EASE = [0.22, 1, 0.36, 1] as const;
+
+/* número que "conta" até o valor (dá vida aos KPIs) */
+function CountUp({
+  to,
+  prefix = "",
+  duration = 1.1,
+  delay = 0,
+}: {
+  to: number;
+  prefix?: string;
+  duration?: number;
+  delay?: number;
+}) {
+  const [val, setVal] = useState(0);
+  useEffect(() => {
+    let raf = 0;
+    let start: number | null = null;
+    const timer = setTimeout(() => {
+      const step = (ts: number) => {
+        if (start == null) start = ts;
+        const p = Math.min(1, (ts - start) / (duration * 1000));
+        const eased = 1 - Math.pow(1 - p, 3);
+        setVal(Math.round(to * eased));
+        if (p < 1) raf = requestAnimationFrame(step);
+      };
+      raf = requestAnimationFrame(step);
+    }, delay * 1000);
+    return () => {
+      clearTimeout(timer);
+      cancelAnimationFrame(raf);
+    };
+  }, [to, duration, delay]);
+  return (
+    <>
+      {prefix}
+      {val.toLocaleString("pt-BR")}
+    </>
+  );
+}
+
+/* texto que se digita sozinho (resposta no WhatsApp) */
+function Typewriter({ text, delay = 0, speed = 38 }: { text: string; delay?: number; speed?: number }) {
+  const [len, setLen] = useState(0);
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    const timer = setTimeout(() => {
+      interval = setInterval(() => {
+        setLen((l) => {
+          if (l >= text.length) {
+            clearInterval(interval);
+            return l;
+          }
+          return l + 1;
+        });
+      }, speed);
+    }, delay * 1000);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+    };
+  }, [text, delay, speed]);
+  return (
+    <>
+      {text.slice(0, len)}
+      {len < text.length && <span className="inline-block w-[2px] h-[1em] align-middle bg-emerald-600 animate-pulse ml-0.5" />}
+    </>
+  );
+}
 
 interface Scene {
   id: string;
@@ -39,12 +115,7 @@ interface Scene {
   Visual: React.ComponentType;
 }
 
-/* ── Cena 1 · Painel unificado ─────────────────────────────────── */
-const kpis = [
-  { label: "Faturamento", value: "R$ 143.600", trend: "+18%" },
-  { label: "Pedidos", value: "91", trend: "+12%" },
-  { label: "Clientes ativos", value: "248", trend: "+6%" },
-];
+/* ── Cena 1 · Painel unificado (KPIs que contam sozinhos) ──────── */
 const reps = [
   { name: "Tintas Aurora", value: "R$ 48.200", pct: 80, color: "#10b981" },
   { name: "AgroMax Insumos", value: "R$ 71.500", pct: 95, color: "#0ea5e9" },
@@ -55,7 +126,11 @@ const SceneDashboard = React.memo(function SceneDashboard() {
   return (
     <div className="w-full max-w-xl mx-auto space-y-3">
       <div className="grid grid-cols-3 gap-2.5">
-        {kpis.map((k, i) => (
+        {[
+          { label: "Faturamento", to: 143600, prefix: "R$ ", trend: "+18%" },
+          { label: "Pedidos", to: 91, prefix: "", trend: "+12%" },
+          { label: "Clientes ativos", to: 248, prefix: "", trend: "+6%" },
+        ].map((k, i) => (
           <motion.div
             key={k.label}
             initial={{ opacity: 0, y: 14, scale: 0.96 }}
@@ -66,7 +141,9 @@ const SceneDashboard = React.memo(function SceneDashboard() {
             <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400 leading-none mb-2 truncate">
               {k.label}
             </p>
-            <p className="text-[18px] sm:text-[20px] font-black text-slate-900 leading-none">{k.value}</p>
+            <p className="text-[18px] sm:text-[20px] font-black text-slate-900 leading-none tabular-nums">
+              <CountUp to={k.to} prefix={k.prefix} delay={0.25 + i * 0.12} />
+            </p>
             <p className="mt-2 inline-flex items-center gap-1 text-[11px] font-black text-emerald-600">
               <ArrowUpRight className="w-3.5 h-3.5" /> {k.trend}
             </p>
@@ -195,7 +272,7 @@ const SceneOrderAI = React.memo(function SceneOrderAI() {
   );
 });
 
-/* ── Cena 3 · CRM com resumo da IA ─────────────────────────────── */
+/* ── Cena 3 · CRM com cursor "clicando" no resumo da IA ────────── */
 const crmRows = [
   { initials: "CV", name: "Comercial Vale Verde", city: "São Paulo · SP", value: "R$ 12.4k", highlight: true },
   { initials: "DH", name: "Distribuidora Horizonte", city: "Curitiba · PR", value: "R$ 9.1k" },
@@ -204,7 +281,7 @@ const crmRows = [
 
 const SceneCRM = React.memo(function SceneCRM() {
   return (
-    <div className="w-full max-w-xl mx-auto">
+    <div className="w-full max-w-xl mx-auto relative">
       <div className="rounded-2xl bg-white border border-slate-100 shadow-sm overflow-hidden">
         <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-50">
           {["Todos", "Ativos", "Por empresa"].map((f, i) => (
@@ -236,9 +313,14 @@ const SceneCRM = React.memo(function SceneCRM() {
                 <p className="text-[11px] font-medium text-slate-400 truncate">{c.city}</p>
               </div>
               {c.highlight && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-black shrink-0">
+                <motion.span
+                  initial={{ scale: 1 }}
+                  animate={{ scale: [1, 1, 1.12, 1] }}
+                  transition={{ duration: 0.5, delay: 1.15, times: [0, 0.5, 0.75, 1] }}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-black shrink-0"
+                >
                   <Sparkles className="w-3 h-3" /> Resumo IA
-                </span>
+                </motion.span>
               )}
               <span className="text-[12px] font-black text-slate-700 shrink-0">{c.value}</span>
             </motion.div>
@@ -246,11 +328,22 @@ const SceneCRM = React.memo(function SceneCRM() {
         </div>
       </div>
 
-      {/* popover do resumo da IA */}
+      {/* cursor simulado indo até o chip "Resumo IA" e clicando */}
+      <motion.div
+        initial={{ opacity: 0, x: 120, y: 150 }}
+        animate={{ opacity: [0, 1, 1, 1, 0], x: [120, 120, 0, 0, 0], y: [150, 150, 0, 0, 0], scale: [1, 1, 1, 0.8, 1] }}
+        transition={{ duration: 1.6, delay: 0.35, times: [0, 0.15, 0.6, 0.78, 1], ease: "easeInOut" }}
+        className="absolute pointer-events-none z-10"
+        style={{ right: "96px", top: "64px" }}
+      >
+        <MousePointer2 className="w-5 h-5 text-slate-700 fill-white drop-shadow-md" />
+      </motion.div>
+
+      {/* popover do resumo da IA (abre "após o clique") */}
       <motion.div
         initial={{ opacity: 0, y: 12, scale: 0.96 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.5, delay: 0.9, ease: EASE }}
+        transition={{ duration: 0.5, delay: 1.5, ease: EASE }}
         className="mt-3 rounded-2xl bg-slate-900 text-white p-4 shadow-xl"
       >
         <div className="flex items-center gap-2 mb-1.5">
@@ -265,11 +358,73 @@ const SceneCRM = React.memo(function SceneCRM() {
   );
 });
 
-/* ── Cena 4 · Agenda + follow-up ───────────────────────────────── */
+/* ── Cena 4 · WhatsApp + e-mail no mesmo lugar (resposta digitada) ─ */
+const SceneInbox = React.memo(function SceneInbox() {
+  return (
+    <div className="w-full max-w-xl mx-auto space-y-3">
+      {/* conversa WhatsApp */}
+      <motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: EASE }}
+        className="rounded-2xl bg-white border border-slate-100 shadow-sm p-4"
+      >
+        <div className="flex items-center gap-2 mb-3">
+          <span className="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center">
+            <MessageCircle className="w-4 h-4 text-white" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-[12px] font-black text-slate-900 leading-none">Comercial Vale Verde</p>
+            <p className="text-[10px] font-medium text-emerald-600 leading-none mt-0.5">WhatsApp · online</p>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <motion.div
+            initial={{ opacity: 0, x: -12 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.4, delay: 0.35, ease: EASE }}
+            className="max-w-[75%] rounded-2xl rounded-tl-md bg-slate-100 px-3.5 py-2.5"
+          >
+            <p className="text-[12px] font-semibold text-slate-700">Tem previsão de entrega do pedido da Aurora?</p>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, x: 12 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.4, delay: 1.0, ease: EASE }}
+            className="max-w-[75%] ml-auto rounded-2xl rounded-tr-md bg-emerald-600 px-3.5 py-2.5"
+          >
+            <p className="text-[12px] font-semibold text-white min-h-[1.2em]">
+              <Typewriter text="Chega quinta! Já te envio a nota. 👍" delay={1.3} />
+            </p>
+          </motion.div>
+        </div>
+      </motion.div>
+
+      {/* e-mail na mesma central */}
+      <motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, delay: 2.9, ease: EASE }}
+        className="rounded-2xl bg-white border border-slate-100 shadow-sm p-3.5 flex items-center gap-3"
+      >
+        <span className="w-9 h-9 rounded-xl bg-sky-50 flex items-center justify-center shrink-0">
+          <Mail className="w-4 h-4 text-sky-500" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[12px] font-black text-slate-900 truncate">Tabela de preços — AgroMax (jul/2026)</p>
+          <p className="text-[11px] font-medium text-slate-400 truncate">Anexo salvo automaticamente na pasta do cliente</p>
+        </div>
+        <span className="px-2.5 py-1 rounded-full bg-sky-50 text-sky-600 text-[10px] font-black shrink-0">E-mail</span>
+      </motion.div>
+    </div>
+  );
+});
+
+/* ── Cena 5 · Agenda com previsão do tempo + follow-up ─────────── */
 const agenda = [
-  { t: "09:00", l: "Reunião · Tintas Aurora", c: "bg-emerald-500" },
-  { t: "11:30", l: "Visita · Comercial Vale Verde", c: "bg-sky-400" },
-  { t: "14:00", l: "Demonstração · AgroMax", c: "bg-violet-400" },
+  { t: "09:00", l: "Reunião · Tintas Aurora", c: "bg-emerald-500", Icon: Sun, temp: "27°", iconColor: "text-amber-500" },
+  { t: "11:30", l: "Visita · Comercial Vale Verde", c: "bg-sky-400", Icon: Sun, temp: "29°", iconColor: "text-amber-500" },
+  { t: "14:00", l: "Demonstração · AgroMax", c: "bg-violet-400", Icon: CloudRain, temp: "22°", iconColor: "text-sky-500" },
 ];
 
 const SceneAgenda = React.memo(function SceneAgenda() {
@@ -281,9 +436,14 @@ const SceneAgenda = React.memo(function SceneAgenda() {
         transition={{ duration: 0.5, ease: EASE }}
         className="rounded-2xl bg-white border border-slate-100 shadow-sm p-4"
       >
-        <div className="flex items-center gap-2 mb-3">
-          <CalendarClock className="w-4 h-4 text-emerald-600" />
-          <p className="text-[13px] font-black text-slate-900">Agenda de hoje</p>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <CalendarClock className="w-4 h-4 text-emerald-600" />
+            <p className="text-[13px] font-black text-slate-900">Agenda de hoje</p>
+          </div>
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 text-amber-600 text-[10px] font-black">
+            <Sun className="w-3 h-3" /> Previsão do tempo
+          </span>
         </div>
         <div className="space-y-3">
           {agenda.map((e, i) => (
@@ -296,7 +456,10 @@ const SceneAgenda = React.memo(function SceneAgenda() {
             >
               <span className="text-[11px] font-black text-slate-400 w-10 shrink-0">{e.t}</span>
               <span className={cn("w-2 h-2 rounded-full shrink-0", e.c)} />
-              <span className="text-[12px] font-semibold text-slate-700 truncate">{e.l}</span>
+              <span className="text-[12px] font-semibold text-slate-700 truncate flex-1">{e.l}</span>
+              <span className="inline-flex items-center gap-1 text-[11px] font-black text-slate-500 shrink-0">
+                <e.Icon className={cn("w-3.5 h-3.5", e.iconColor)} /> {e.temp}
+              </span>
             </motion.div>
           ))}
         </div>
@@ -305,7 +468,7 @@ const SceneAgenda = React.memo(function SceneAgenda() {
       <motion.div
         initial={{ opacity: 0, y: 14, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.5, delay: 0.8, ease: EASE }}
+        transition={{ duration: 0.5, delay: 0.9, ease: EASE }}
         className="rounded-2xl bg-white border border-emerald-100 shadow-sm p-4"
       >
         <div className="flex items-center gap-2 mb-1.5">
@@ -321,7 +484,7 @@ const SceneAgenda = React.memo(function SceneAgenda() {
   );
 });
 
-/* ── Cena 5 · Mapa + rota ──────────────────────────────────────── */
+/* ── Cena 6 · Mapa + rota ──────────────────────────────────────── */
 const pins = [
   { x: 60, y: 70 },
   { x: 150, y: 120 },
@@ -340,14 +503,12 @@ const SceneMap = React.memo(function SceneMap() {
         style={{ aspectRatio: "16 / 9" }}
       >
         <svg viewBox="0 0 400 225" className="w-full h-full" preserveAspectRatio="xMidYMid slice">
-          {/* malha de ruas */}
           {[40, 90, 140, 190].map((y) => (
             <line key={`h${y}`} x1="0" y1={y} x2="400" y2={y} stroke="#e2e8f0" strokeWidth="2" />
           ))}
           {[70, 150, 230, 310].map((x) => (
             <line key={`v${x}`} x1={x} y1="0" x2={x} y2="225" stroke="#e2e8f0" strokeWidth="2" />
           ))}
-          {/* rota que se desenha */}
           <motion.path
             d="M60 70 L150 120 L250 80 L320 150"
             fill="none"
@@ -382,12 +543,108 @@ const SceneMap = React.memo(function SceneMap() {
           <MapPin className="w-4 h-4 text-emerald-600" />
           <span className="text-[11px] font-black text-slate-800">4 visitas · rota otimizada</span>
         </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 2.2, ease: EASE }}
+          className="absolute right-3 top-3 flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900/90 backdrop-blur text-white shadow-lg"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+          <span className="text-[10px] font-black">2h a menos no trânsito</span>
+        </motion.div>
       </motion.div>
     </div>
   );
 });
 
-/* ── Cena 6 · Fecho + CTA ──────────────────────────────────────── */
+/* ── Cena 7 · Relatórios (gráfico que se desenha + insight) ────── */
+const SceneReports = React.memo(function SceneReports() {
+  return (
+    <div className="w-full max-w-xl mx-auto space-y-3">
+      <motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: EASE }}
+        className="rounded-2xl bg-white border border-slate-100 shadow-sm p-4"
+      >
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="w-4 h-4 text-emerald-600" />
+            <p className="text-[13px] font-black text-slate-900">Crescimento de vendas</p>
+          </div>
+          <span className="inline-flex items-center gap-1 text-[11px] font-black text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
+            <ArrowUpRight className="w-3.5 h-3.5" /> +18% no ano
+          </span>
+        </div>
+        <svg viewBox="0 0 320 110" className="w-full h-[96px]" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="demoSalesFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#10b981" stopOpacity="0.28" />
+              <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          {[22, 52, 82].map((y) => (
+            <line key={y} x1="0" y1={y} x2="320" y2={y} stroke="#e2e8f0" strokeWidth="1" strokeDasharray="3 5" />
+          ))}
+          <motion.path
+            d="M0 88 L40 76 L80 82 L120 58 L160 66 L200 40 L240 48 L280 22 L320 16 L320 110 L0 110 Z"
+            fill="url(#demoSalesFill)"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, delay: 1.4 }}
+          />
+          <motion.path
+            d="M0 88 L40 76 L80 82 L120 58 L160 66 L200 40 L240 48 L280 22 L320 16"
+            fill="none"
+            stroke="#10b981"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            initial={{ pathLength: 0 }}
+            animate={{ pathLength: 1 }}
+            transition={{ duration: 1.6, delay: 0.3, ease: EASE }}
+          />
+          <motion.circle
+            cx="280"
+            cy="22"
+            r="5"
+            fill="#10b981"
+            stroke="#fff"
+            strokeWidth="2.5"
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.35, delay: 1.7 }}
+          />
+        </svg>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 12, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.5, delay: 1.9, ease: EASE }}
+        className="rounded-2xl bg-slate-900 text-white p-4 shadow-xl"
+      >
+        <div className="flex items-center gap-2 mb-1.5">
+          <Brain className="w-4 h-4 text-emerald-400" />
+          <span className="text-[10px] font-black uppercase tracking-wide text-emerald-400">Insight da IA</span>
+        </div>
+        <p className="text-[12px] font-semibold text-slate-200 leading-relaxed">
+          Seu melhor mês com a <span className="font-black text-white">Tintas Aurora</span> foi setembro.
+          Clientes do interior de SP puxaram 62% do crescimento.
+        </p>
+      </motion.div>
+    </div>
+  );
+});
+
+/* ── Cena 8 · Fecho + CTA ──────────────────────────────────────── */
+const closingPills = [
+  { Icon: Brain, label: "IA integrada" },
+  { Icon: WifiOff, label: "Funciona offline" },
+  { Icon: Smartphone, label: "iOS & Android" },
+];
+
 const SceneClosing = React.memo(function SceneClosing() {
   return (
     <div className="w-full max-w-lg mx-auto text-center px-4">
@@ -395,7 +652,7 @@ const SceneClosing = React.memo(function SceneClosing() {
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5, ease: EASE }}
-        className="inline-flex items-center gap-2 mb-5"
+        className="inline-flex items-center gap-2 mb-4"
       >
         <Building2 className="w-7 h-7 text-emerald-600" />
         <span className="text-[26px] font-black tracking-tighter text-slate-900 uppercase leading-none">
@@ -405,15 +662,28 @@ const SceneClosing = React.memo(function SceneClosing() {
       <motion.p
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.25, ease: EASE }}
-        className="text-[17px] sm:text-[19px] font-black text-slate-800 leading-snug mb-6"
+        transition={{ duration: 0.5, delay: 0.2, ease: EASE }}
+        className="text-[17px] sm:text-[19px] font-black text-slate-800 leading-snug mb-4"
       >
         Comande todas as suas representadas em um só lugar.
       </motion.p>
+      <div className="flex items-center justify-center gap-2 flex-wrap mb-6">
+        {closingPills.map((p, i) => (
+          <motion.span
+            key={p.label}
+            initial={{ opacity: 0, y: 10, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.4, delay: 0.45 + i * 0.14, ease: EASE }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-black"
+          >
+            <p.Icon className="w-3.5 h-3.5" /> {p.label}
+          </motion.span>
+        ))}
+      </div>
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.45, ease: EASE }}
+        transition={{ duration: 0.5, delay: 0.9, ease: EASE }}
       >
         <Link
           to="/register"
@@ -433,7 +703,7 @@ const SceneClosing = React.memo(function SceneClosing() {
 const SCENES: Scene[] = [
   {
     id: "painel",
-    duration: 5200,
+    duration: 4800,
     eyebrow: "Painel unificado",
     title: "Todas as suas representadas num só painel",
     subtitle: "Faturamento, pedidos e metas separados por empresa — sem planilha.",
@@ -441,7 +711,7 @@ const SCENES: Scene[] = [
   },
   {
     id: "pedido-ia",
-    duration: 5600,
+    duration: 5400,
     eyebrow: "Pedidos com IA",
     title: "Fotografou o pedido? A IA preenche pra você",
     subtitle: "Tire uma foto ou anexe o PDF — cliente, empresa e valor entram sozinhos.",
@@ -456,20 +726,36 @@ const SCENES: Scene[] = [
     Visual: SceneCRM,
   },
   {
+    id: "inbox",
+    duration: 5400,
+    eyebrow: "Comunicação centralizada",
+    title: "WhatsApp e e-mail sem sair do app",
+    subtitle: "Responda clientes e receba tabelas — tudo ligado à ficha de cada um.",
+    Visual: SceneInbox,
+  },
+  {
     id: "agenda",
     duration: 4800,
     eyebrow: "Agenda & follow-up",
-    title: "Nunca mais perca um follow-up",
-    subtitle: "Sua agenda do dia e lembretes automáticos de quem cobrar.",
+    title: "Sua agenda já sabe até o tempo que vai fazer",
+    subtitle: "Visitas com previsão do tempo e lembretes de quem cobrar.",
     Visual: SceneAgenda,
   },
   {
     id: "mapa",
-    duration: 4800,
+    duration: 4600,
     eyebrow: "Mapa de clientes",
     title: "Planeje a rota e visite mais clientes",
     subtitle: "Veja seus clientes no mapa e monte o roteiro do dia.",
     Visual: SceneMap,
+  },
+  {
+    id: "relatorios",
+    duration: 4800,
+    eyebrow: "Relatórios",
+    title: "Enxergue o que faz seu número crescer",
+    subtitle: "Gráficos por empresa e insights da IA sobre onde investir seu tempo.",
+    Visual: SceneReports,
   },
   {
     id: "fecho",
@@ -519,7 +805,18 @@ export function DemoModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
     if (elapsed >= TOTAL_MS) setPlaying(false);
   }, [elapsed]);
 
-  // Esc fecha
+  const finished = elapsed >= TOTAL_MS;
+
+  const togglePlay = useCallback(() => {
+    if (finished) {
+      setElapsed(0);
+      setPlaying(true);
+    } else {
+      setPlaying((p) => !p);
+    }
+  }, [finished]);
+
+  // Esc fecha; espaço pausa/continua
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -531,19 +828,7 @@ export function DemoModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, onClose]);
-
-  const finished = elapsed >= TOTAL_MS;
-
-  const togglePlay = useCallback(() => {
-    if (finished) {
-      setElapsed(0);
-      setPlaying(true);
-    } else {
-      setPlaying((p) => !p);
-    }
-  }, [finished]);
+  }, [isOpen, onClose, togglePlay]);
 
   const goToScene = useCallback((index: number) => {
     let acc = 0;
