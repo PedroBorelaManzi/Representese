@@ -205,14 +205,11 @@ export default function EmailClient() {
       const res = await downloadAttachmentFromApi(user.id, selectedAccount.provider, selectedEmail.id, attachmentId, selectedAccount.email);
       if (res.success && res.data) {
         const base64Data = res.data.replace(/-/g, '+').replace(/_/g, '/');
-        const byteCharacters = atob(base64Data);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray]);
-        
+        // Decodifica via fetch de data: URL (nativo, fora da thread de JS) em vez
+        // do loop manual atob + charCodeAt byte a byte — esse loop travava a UI
+        // por vários segundos em anexos grandes (dezenas de MB).
+        const blob = await (await fetch(`data:application/octet-stream;base64,${base64Data}`)).blob();
+
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
