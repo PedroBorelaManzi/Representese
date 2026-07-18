@@ -21,6 +21,7 @@ import { MultiplataformaSection, ComoFuncionaSection } from "../components/landi
 import { TrustSection } from "../components/landing/Trust";
 import { FaqSection } from "../components/landing/Faq";
 import { CtaFinalSection, LandingFooter } from "../components/landing/CtaFooter";
+import { DemoModal } from "../components/landing/DemoModal";
 import { useLandingTracking } from "../hooks/useLandingTracking";
 
 /* Página composta por seções em src/components/landing/ (auditoria 3.1).
@@ -29,6 +30,7 @@ export default function LandingPitch() {
   const { scrollY, scrollYProgress } = useScroll();
   const progressX = useSpring(scrollYProgress, { stiffness: 120, damping: 30, restDelta: 0.001 });
   const [scrolled, setScrolled] = useState(false);
+  const [demoOpen, setDemoOpen] = useState(false);
   const { user } = useAuth();
   const active = useActiveSection(NAV_IDS);
   
@@ -229,12 +231,16 @@ export default function LandingPitch() {
               Criar minha conta
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
-            <a href="#recursos" className="flex items-center gap-2 px-8 py-4 rounded-2xl border border-slate-200 bg-white/70 backdrop-blur hover:bg-white hover:border-slate-300 text-slate-700 font-semibold text-sm transition-all shadow-sm">
+            <button
+              type="button"
+              onClick={() => setDemoOpen(true)}
+              className="flex items-center gap-2 px-8 py-4 rounded-2xl border border-slate-200 bg-white/70 backdrop-blur hover:bg-white hover:border-slate-300 text-slate-700 font-semibold text-sm transition-all shadow-sm"
+            >
               <span className="w-7 h-7 rounded-full bg-emerald-50 flex items-center justify-center">
                 <Play className="w-3 h-3 text-emerald-600 fill-emerald-600" />
               </span>
               Ver demonstração
-            </a>
+            </button>
           </motion.div>
 
           {/* microcopy de confiança sob o CTA primário */}
@@ -330,6 +336,8 @@ export default function LandingPitch() {
           </Link>
         </div>
       )}
+
+      <DemoModal isOpen={demoOpen} onClose={() => setDemoOpen(false)} />
     </div>
   );
 }
