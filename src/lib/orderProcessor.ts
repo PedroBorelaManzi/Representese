@@ -1,15 +1,5 @@
 import { geminiWithSystem } from "./geminiProxy";
-
-// pdfjs (~1,3 MB) só é carregado quando um PDF é de fato processado,
-// não junto com o chunk das páginas que importam este módulo.
-async function loadPdfjs() {
-  const [pdfjs, worker] = await Promise.all([
-    import("pdfjs-dist"),
-    import("pdfjs-dist/build/pdf.worker.min.mjs?url"),
-  ]);
-  pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
-  return pdfjs;
-}
+import { loadPdfjs } from "./pdfjsLoader";
 
 export interface OrderExtractionResult {
   client: string;
