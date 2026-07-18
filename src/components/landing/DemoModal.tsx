@@ -39,7 +39,7 @@ import { cn } from "../../lib/utils";
 const EASE = [0.22, 1, 0.36, 1] as const;
 
 /* número que "conta" até o valor (dá vida aos KPIs) */
-function CountUp({
+const CountUp = React.memo(function CountUp({
   to,
   prefix = "",
   duration = 1.1,
@@ -75,10 +75,10 @@ function CountUp({
       {val.toLocaleString("pt-BR")}
     </>
   );
-}
+});
 
 /* texto que se digita sozinho (resposta no WhatsApp) */
-function Typewriter({ text, delay = 0, speed = 38 }: { text: string; delay?: number; speed?: number }) {
+const Typewriter = React.memo(function Typewriter({ text, delay = 0, speed = 38 }: { text: string; delay?: number; speed?: number }) {
   const [len, setLen] = useState(0);
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
@@ -104,7 +104,7 @@ function Typewriter({ text, delay = 0, speed = 38 }: { text: string; delay?: num
       {len < text.length && <span className="inline-block w-[2px] h-[1em] align-middle bg-emerald-600 animate-pulse ml-0.5" />}
     </>
   );
-}
+});
 
 interface Scene {
   id: string;
