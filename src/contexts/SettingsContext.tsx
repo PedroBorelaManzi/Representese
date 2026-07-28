@@ -24,7 +24,6 @@ interface Settings {
   current_period_end?: string;
   is_admin?: boolean;
   phone?: string;
-  company?: string;
   /** Cidade escolhida para a previsão do tempo na Agenda (coordenadas já resolvidas). */
   weather_city?: string;
   weather_state?: string;
@@ -47,7 +46,6 @@ const defaultSettings: Settings = {
   avatar_url: undefined,
   is_admin: false,
   phone: undefined,
-  company: undefined,
   weather_city: undefined,
   weather_state: undefined,
   weather_lat: undefined,
@@ -122,7 +120,6 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           current_period_end: cached.current_period_end,
           is_admin: cached.is_admin ?? defaultSettings.is_admin,
           phone: cached.phone,
-          company: cached.company,
           weather_city: cached.weather_city,
           weather_state: cached.weather_state,
           weather_lat: cached.weather_lat,
@@ -200,7 +197,6 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           current_period_end: entData?.current_period_end,
           is_admin: data.is_admin ?? defaultSettings.is_admin,
           phone: data.phone,
-          company: data.company,
           weather_city: data.weather_city ?? undefined,
           weather_state: data.weather_state ?? undefined,
           weather_lat: data.weather_lat ?? undefined,

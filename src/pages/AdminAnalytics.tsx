@@ -203,7 +203,7 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
       // reflete se o usuário realmente pagou. A fonte de verdade da assinatura é
       // user_entitlements, atualizada pelo webhook do Asaas em cada pagamento.
       const [{ data: leads, error: leadsError }, { data: entitlements, error: entError }] = await Promise.all([
-        supabase.from('user_settings').select('user_id, email, phone, company, created_at, is_admin').order('created_at', { ascending: false }),
+        supabase.from('user_settings').select('user_id, email, phone, created_at, is_admin').order('created_at', { ascending: false }),
         supabase.from('user_entitlements').select('user_id, subscription_status, plan_id'),
       ]);
       if (leadsError) throw leadsError;
@@ -221,10 +221,10 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
 
   const exportToCSV = () => {
     if (!leadsData) return;
-    const headers = ['Data de Cadastro', 'Email', 'Telefone', 'Empresa', 'Status'];
+    const headers = ['Data de Cadastro', 'Email', 'Telefone', 'Status'];
     const csvContent = leadsData.map(lead => {
       const date = new Date(lead.created_at).toLocaleDateString('pt-BR');
-      return `${date},${lead.email},${lead.phone || ''},${lead.company || ''},${lead.subscription_status}`;
+      return `${date},${lead.email},${lead.phone || ''},${lead.subscription_status}`;
     });
     
     const blob = new Blob([headers.join(',') + '\\n' + csvContent.join('\\n')], { type: 'text/csv;charset=utf-8;' });
@@ -633,7 +633,6 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
                     <th className="px-6 py-4">Data</th>
                     <th className="px-6 py-4">E-mail</th>
                     <th className="px-6 py-4">WhatsApp</th>
-                    <th className="px-6 py-4">Empresa/Segmento</th>
                     <th className="px-6 py-4">Status</th>
                   </tr>
                 </thead>
@@ -648,9 +647,6 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
                       </td>
                       <td className="px-6 py-4 text-slate-600 dark:text-zinc-300">
                         {lead.phone || '-'}
-                      </td>
-                      <td className="px-6 py-4 text-slate-600 dark:text-zinc-300">
-                        {lead.company || '-'}
                       </td>
                       <td className="px-6 py-4">
                         <span className={cn(
@@ -668,7 +664,7 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
                   ))}
                   {leadsData?.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center text-slate-500 dark:text-zinc-400">
+                      <td colSpan={4} className="px-6 py-12 text-center text-slate-500 dark:text-zinc-400">
                         Nenhum lead encontrado.
                       </td>
                     </tr>
