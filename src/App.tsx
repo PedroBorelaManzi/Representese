@@ -13,6 +13,7 @@ import Layout from "./components/Layout";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { lazyWithRetry } from "./lib/lazyWithRetry";
 import { useTrackPageview } from "./hooks/useTrackPageview";
+import { applyTrackingOptOutFromUrl } from "./lib/trackingOptOut";
 
 function PageviewTracker() {
   useTrackPageview();
@@ -90,6 +91,7 @@ function LandingOrRedirect() {
 export default function App() {
   React.useEffect(() => {
     NotificationService.initialize();
+    applyTrackingOptOutFromUrl();
   }, []);
   return (
     <AuthProvider>

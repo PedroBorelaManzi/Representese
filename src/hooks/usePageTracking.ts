@@ -4,15 +4,20 @@ import { useMutation } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
+import { isTrackingDisabled } from '../lib/trackingOptOut';
 
 export function usePageTracking() {
   const location = useLocation();
   const { user } = useAuth();
-  const { settings } = useSettings();
+  const { settings, loading: settingsLoading } = useSettings();
   const startTimeRef = useRef<number>(Date.now());
   const currentPathRef = useRef<string>(location.pathname);
   // Token capturado fora do handler de unload: lá não dá pra await getSession().
   const accessTokenRef = useRef<string | null>(null);
+  // Enquanto as settings ainda não carregaram, is_admin fica no valor padrão (false) —
+  // por isso não dá pra confiar nesse campo até settingsLoading terminar, senão a
+  // primeira navegação de um admin (antes do fetch resolver) entra como visitante comum.
+  const canTrack = () => !settingsLoading && !settings.is_admin && !isTrackingDisabled();
 
   useEffect(() => {
     let active = true;
@@ -49,7 +54,7 @@ export function usePageTracking() {
       const durationSeconds = Math.floor(timeSpentMs / 1000);
 
       // Only track if spent more than 1 second to avoid rapid click noise
-      if (durationSeconds > 1 && user && !settings.is_admin) {
+      if (durationSeconds > 1 && user && canTrack()) {
         trackEventMutation.mutate({
           event_type: 'page_view',
           route: oldPath,
@@ -70,7 +75,7 @@ export function usePageTracking() {
       const durationSeconds = Math.floor(timeSpentMs / 1000);
       
       const token = accessTokenRef.current;
-      if (durationSeconds > 1 && user && !settings.is_admin && token) {
+      if (durationSeconds > 1 && user && canTrack() && token) {
         // fetch + keepalive (não sendBeacon): o beacon não deixa setar headers,
         // então apikey/Authorization nunca iam junto e o RLS derrubava o insert.
         // keepalive mantém a requisição viva mesmo com a aba fechando.
@@ -98,7 +103,7 @@ export function usePageTracking() {
 
   return {
     trackAction: (actionName: string, metadata?: any) => {
-      if (user && !settings.is_admin) {
+      if (user && canTrack()) {
         trackEventMutation.mutate({
           event_type: 'action',
           route: location.pathname,
