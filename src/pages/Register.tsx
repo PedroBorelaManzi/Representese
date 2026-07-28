@@ -25,7 +25,9 @@ export default function Register() {
   }
 
   const cleanPhone = phone.replace(/\D/g, "");
-  const isFormValid = name.trim().length >= 3 && email.trim() && isValidPhone(cleanPhone);
+  const isPhoneValid = isValidPhone(cleanPhone);
+  const showPhoneError = cleanPhone.length >= 10 && !isPhoneValid;
+  const isFormValid = name.trim().length >= 3 && email.trim() && isPhoneValid;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,11 +121,21 @@ export default function Register() {
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(formatPhone(e.target.value))}
-                  className="w-full pl-11 pr-4 py-3.5 bg-slate-50 dark:bg-zinc-950/50 border border-slate-200 dark:border-zinc-800 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-600"
+                  className={cn(
+                    "w-full pl-11 pr-4 py-3.5 bg-slate-50 dark:bg-zinc-950/50 border rounded-2xl text-sm font-medium focus:ring-2 outline-none transition-all dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-600",
+                    showPhoneError
+                      ? "border-red-400 focus:ring-red-500/20 focus:border-red-500"
+                      : "border-slate-200 dark:border-zinc-800 focus:ring-emerald-500/20 focus:border-emerald-500"
+                  )}
                   placeholder="(00) 00000-0000"
                   required
                 />
               </div>
+              {showPhoneError && (
+                <p className="text-[12px] text-red-500 font-bold pt-1 ml-1">
+                  Informe um WhatsApp válido, com DDD (ex: (11) 98765-4321)
+                </p>
+              )}
             </div>
 
             <div className="space-y-1.5">
