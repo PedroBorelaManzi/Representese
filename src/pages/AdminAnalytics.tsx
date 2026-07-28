@@ -219,6 +219,39 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
     refetchOnMount: 'always',
   });
 
+  // --- QUERY 4: Contatos capturados no formulário simples de /register (nome/e-mail/telefone) ---
+  const { data: rawLeadsData, isLoading: isLoadingRawLeads } = useQuery({
+    queryKey: ['admin_raw_leads'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('leads')
+        .select('id, name, email, phone, company, created_at')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: activeTab === 'leads' && !!settings?.is_admin,
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
+
+  const exportRawLeadsToCSV = () => {
+    if (!rawLeadsData) return;
+    const headers = ['Data', 'Nome', 'Email', 'Telefone', 'Empresa'];
+    const csvContent = rawLeadsData.map(lead => {
+      const date = new Date(lead.created_at).toLocaleDateString('pt-BR');
+      return `${date},${lead.name},${lead.email},${lead.phone},${lead.company || ''}`;
+    });
+    const blob = new Blob([headers.join(',') + '\\n' + csvContent.join('\\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `contatos_representese_${new Date().getTime()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const exportToCSV = () => {
     if (!leadsData) return;
     const headers = ['Data de Cadastro', 'Email', 'Telefone', 'Status'];
@@ -608,7 +641,68 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
       )}
 
       {activeTab === 'leads' && (
-        isLoadingLeads ? (
+        <div className="space-y-6">
+        {isLoadingRawLeads ? (
+          <div className="h-48 bg-zinc-100 dark:bg-zinc-800 rounded-2xl animate-pulse"></div>
+        ) : (
+          <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl overflow-hidden shadow-sm">
+            <div className="p-6 border-b border-slate-200 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Contatos capturados (antes dos planos)</h3>
+                <p className="text-sm text-slate-500 dark:text-zinc-400">Quem preencheu nome/e-mail/telefone no formulário de /register, mas ainda não necessariamente virou cliente.</p>
+              </div>
+              <button
+                onClick={exportRawLeadsToCSV}
+                className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-4 py-2 rounded-xl font-bold text-sm hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                Exportar CSV
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm whitespace-nowrap">
+                <thead className="bg-slate-50 dark:bg-zinc-800/50 text-slate-500 dark:text-zinc-400 font-medium">
+                  <tr>
+                    <th className="px-6 py-4">Data</th>
+                    <th className="px-6 py-4">Nome</th>
+                    <th className="px-6 py-4">E-mail</th>
+                    <th className="px-6 py-4">WhatsApp</th>
+                    <th className="px-6 py-4">Empresa</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-zinc-800">
+                  {rawLeadsData?.map(lead => (
+                    <tr key={lead.id} className="hover:bg-slate-50 dark:hover:bg-zinc-800/30 transition-colors">
+                      <td className="px-6 py-4 text-slate-600 dark:text-zinc-300">
+                        {new Date(lead.created_at).toLocaleDateString('pt-BR')}
+                      </td>
+                      <td className="px-6 py-4 text-slate-900 dark:text-white font-medium">
+                        {lead.name}
+                      </td>
+                      <td className="px-6 py-4 text-slate-600 dark:text-zinc-300">
+                        {lead.email}
+                      </td>
+                      <td className="px-6 py-4 text-slate-600 dark:text-zinc-300">
+                        {lead.phone}
+                      </td>
+                      <td className="px-6 py-4 text-slate-600 dark:text-zinc-300">
+                        {lead.company || '-'}
+                      </td>
+                    </tr>
+                  ))}
+                  {rawLeadsData?.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-12 text-center text-slate-500 dark:text-zinc-400">
+                        Nenhum contato capturado ainda.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+        {isLoadingLeads ? (
           <div className="h-64 bg-zinc-100 dark:bg-zinc-800 rounded-2xl animate-pulse"></div>
         ) : (
           <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl overflow-hidden shadow-sm">
@@ -673,7 +767,8 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
               </table>
             </div>
           </div>
-        )
+        )}
+        </div>
       )}
 
     </div>
