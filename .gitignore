@@ -10,3 +10,8 @@ coverage/
 playwright-report/
 test-results/
 .idea/
+
+# Credenciais de assinatura Android — nunca versionar
+*.keystore
+*.jks
+keystore.properties

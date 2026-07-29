@@ -1,5 +1,16 @@
 apply plugin: 'com.android.application'
 
+// Assinatura de release: lida de android/keystore.properties, que NÃO vai pro Git
+// (veja android/keystore.properties.example para o formato). Sem esse arquivo,
+// o build de release continua funcionando sem assinatura customizada — só o
+// bundleRelease/assembleRelease final pra subir na Play Store exige ele configurado.
+def keystorePropertiesFile = rootProject.file('keystore.properties')
+def keystoreProperties = new Properties()
+def hasKeystoreProperties = keystorePropertiesFile.exists()
+if (hasKeystoreProperties) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace = "com.representese.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,10 +27,21 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (hasKeystoreProperties) {
+                storeFile rootProject.file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig hasKeystoreProperties ? signingConfigs.release : null
         }
     }
 }
