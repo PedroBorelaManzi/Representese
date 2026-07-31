@@ -237,15 +237,22 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       localStorage.setItem('theme', newSettings.theme);
     }
 
+    // Grava SÓ o que mudou, não o objeto inteiro. Mandando tudo, um estado local
+    // desatualizado (fetch que falhou, cache vazio) sobrescrevia o banco — foi
+    // assim que a lista de representadas do usuário acabou zerada uma vez.
+    //
     // Do NOT write plan_id, subscription_status, trial_ends_at to DB from client.
     // is_admin também nunca é escrito pelo cliente — quem manda é a tabela
     // support_admins (e um trigger no banco reverte qualquer tentativa); tirar
     // do payload evita ruído e reforça a proteção do lado do app.
-    const { avatar_url, plan_id, subscription_status, trial_ends_at, current_period_end, is_admin, ...dbSettings } = updated;
+    const { avatar_url, plan_id, subscription_status, trial_ends_at, current_period_end, is_admin, ...changed } =
+      { ...newSettings, ...(avatarUrl ? { avatar_url: avatarUrl } : {}) };
+
+    if (Object.keys(changed).length === 0) return;
 
     await supabase.from("user_settings").upsert({
       user_id: user.id,
-      ...dbSettings,
+      ...changed,
       updated_at: new Date().toISOString(),
     });
   }, [user, settings]);
