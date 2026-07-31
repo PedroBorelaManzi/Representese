@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeClientAlerts, resolveOrderCategory } from "./clientAlerts";
+import { computeClientAlerts, resolveOrderCategory, computeWalletHealth } from "./clientAlerts";
 
 const LIMITES = { alerta: 30, critico: 45, inativo: 90 };
 const HOJE = new Date("2026-07-31T12:00:00Z").getTime();
@@ -225,5 +225,62 @@ describe("resolveOrderCategory", () => {
   it("normaliza para a grafia cadastrada pelo usuário", () => {
     const order = { client_id: "c", created_at: "", category: "COZIMAX" };
     expect(resolveOrderCategory(order, ["Cozimax"])).toBe("Cozimax");
+  });
+});
+
+describe("computeWalletHealth", () => {
+  it("reproduz o bug relatado: cliente comprou há poucos dias não pode ser inativo", () => {
+    const clientes = [{ id: "c1", name: "Angelo Paiotti Comercio Varejista Ltda" }];
+    // pedido lançado sem file_name (ex.: lançamento manual na tela do cliente),
+    // que era exatamente o caso que ficava de fora antes
+    const pedidos = [{ client_id: "c1", created_at: diasAtras(7), category: "Cozimax" }];
+
+    const r = computeWalletHealth(clientes, pedidos, LIMITES, HOJE);
+    expect(r.get("c1")).toBe("emDia");
+  });
+
+  it("classifica cada faixa corretamente", () => {
+    const clientes = [
+      { id: "a", name: "A" }, { id: "b", name: "B" }, { id: "c", name: "C" }, { id: "d", name: "D" },
+    ];
+    const pedidos = [
+      { client_id: "a", created_at: diasAtras(5), category: "Cozimax" },
+      { client_id: "b", created_at: diasAtras(31), category: "Cozimax" },
+      { client_id: "c", created_at: diasAtras(50), category: "Cozimax" },
+      { client_id: "d", created_at: diasAtras(120), category: "Cozimax" },
+    ];
+
+    const r = computeWalletHealth(clientes, pedidos, LIMITES, HOJE);
+    expect(r.get("a")).toBe("emDia");
+    expect(r.get("b")).toBe("alerta");
+    expect(r.get("c")).toBe("critico");
+    expect(r.get("d")).toBe("inativo");
+  });
+
+  it("cliente sem nenhum pedido registrado conta como inativo", () => {
+    const clientes = [{ id: "c1", name: "Nunca Comprou Nada" }];
+    const r = computeWalletHealth(clientes, [], LIMITES, HOJE);
+    expect(r.get("c1")).toBe("inativo");
+  });
+
+  it("usa a compra em qualquer representada, não uma categoria específica", () => {
+    const clientes = [{ id: "c1", name: "Cliente Duas Marcas" }];
+    const pedidos = [
+      { client_id: "c1", created_at: diasAtras(120), category: "Cozimax" },
+      { client_id: "c1", created_at: diasAtras(3), category: "LA GRANITOS" },
+    ];
+    // comprou LA GRANITOS há 3 dias: pela carteira, está em dia
+    expect(computeWalletHealth(clientes, pedidos, LIMITES, HOJE).get("c1")).toBe("emDia");
+  });
+
+  it("agrupa matriz e filiais pela compra mais recente do grupo", () => {
+    const grupo = [
+      { id: "matriz", name: "Grupo Com Filiais" },
+      { id: "filial", name: "Grupo Com Filiais" },
+    ];
+    const pedidos = [{ client_id: "filial", created_at: diasAtras(2), category: "Cozimax" }];
+    const r = computeWalletHealth(grupo, pedidos, LIMITES, HOJE);
+    expect(r.get("matriz")).toBe("emDia");
+    expect(r.get("filial")).toBe("emDia");
   });
 });

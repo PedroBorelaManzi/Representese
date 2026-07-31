@@ -163,3 +163,57 @@ export function computeClientAlerts(
   return result;
 }
 
+export type HealthBucket = "emDia" | "alerta" | "critico" | "inativo";
+
+/**
+ * Classifica cada cliente pela COMPRA MAIS RECENTE em qualquer representada
+ * (não por categoria — é a visão "carteira" do relatório, diferente da lista
+ * de avisos do CRM, que é por representada). Cliente sem nenhum pedido
+ * registrado conta como inativo: nunca comprou, não tem como estar "em dia".
+ *
+ * Não usa client.last_contact: esse campo só muda em ações manuais de
+ * follow-up, então ficava desencontrado de quem realmente comprou — daí a
+ * carteira aparecer quase toda "inativa" mesmo com pedido lançado há dias.
+ */
+export function computeWalletHealth(
+  clients: ClientRef[],
+  orders: OrderLike[],
+  thresholds: AlertThresholds,
+  now: number = Date.now()
+): Map<string, HealthBucket> {
+  const perClientLast = new Map<string, number>();
+  for (const order of orders) {
+    if (!order?.client_id || !order.created_at) continue;
+    const time = new Date(order.created_at).getTime();
+    if (!Number.isFinite(time)) continue;
+    const current = perClientLast.get(order.client_id);
+    if (current === undefined || time > current) perClientLast.set(order.client_id, time);
+  }
+
+  // Agrupa por nome (matriz + filiais): comprar por um CNPJ do grupo conta para todos.
+  const groupLast = new Map<string, number>();
+  for (const client of clients) {
+    const time = perClientLast.get(client.id);
+    if (time === undefined) continue;
+    const key = clientGroupKey(client);
+    const current = groupLast.get(key);
+    if (current === undefined || time > current) groupLast.set(key, time);
+  }
+
+  const result = new Map<string, HealthBucket>();
+  for (const client of clients) {
+    const time = groupLast.get(clientGroupKey(client));
+    if (time === undefined) {
+      result.set(client.id, "inativo");
+      continue;
+    }
+    const days = Math.floor((now - time) / (1000 * 60 * 60 * 24));
+    if (days >= thresholds.inativo) result.set(client.id, "inativo");
+    else if (days >= thresholds.critico) result.set(client.id, "critico");
+    else if (days >= thresholds.alerta) result.set(client.id, "alerta");
+    else result.set(client.id, "emDia");
+  }
+
+  return result;
+}
+

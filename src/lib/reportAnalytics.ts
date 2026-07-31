@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { CommissionMap, commissionPctFor, monthRange } from './reportGenerator';
 import { FollowupLog } from './followupService';
+import { computeWalletHealth } from './clientAlerts';
 
 export interface TrendPoint {
   /** "2026-07" — chave estável do bucket */
@@ -310,19 +311,19 @@ export async function fetchReportAnalytics(
     .slice(0, 5);
 
   // ---- Saúde da carteira (mesma régua dos alertas de inatividade) ---------
+  // Pela última compra registrada em qualquer representada — não por
+  // last_contact, que só muda em follow-up manual e ficava desencontrado de
+  // quem realmente comprou (a carteira aparecia quase toda "inativa" mesmo
+  // com pedido lançado há poucos dias).
   const now = Date.now();
+  const healthByClient = computeWalletHealth(
+    clients,
+    orders,
+    { alerta: thresholds.alertaDays, critico: thresholds.criticoDays, inativo: thresholds.inativoDays },
+    now
+  );
   const health: PortfolioHealth = { emDia: 0, alerta: 0, critico: 0, inativo: 0, total: clients.length };
-  clients.forEach((c) => {
-    if (!c.last_contact) {
-      health.inativo += 1;
-      return;
-    }
-    const days = Math.floor((now - new Date(c.last_contact).getTime()) / 86400000);
-    if (days >= thresholds.inativoDays) health.inativo += 1;
-    else if (days >= thresholds.criticoDays) health.critico += 1;
-    else if (days >= thresholds.alertaDays) health.alerta += 1;
-    else health.emDia += 1;
-  });
+  healthByClient.forEach((bucket) => { health[bucket] += 1; });
 
   // ---- Clientes novos no mês e no anterior ---------------------------------
   const prevStart = new Date(year, month - 2, 1);
