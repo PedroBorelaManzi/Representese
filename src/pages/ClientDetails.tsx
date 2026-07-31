@@ -68,6 +68,8 @@ export default function ClientDetails() {
   
   const [notes, setNotes] = useState("");
   const [isSavingNotes, setIsSavingNotes] = useState(false);
+  /** Empresas que aparecem em qualquer pedido do usuário — não só nos deste cliente. */
+  const [userCategories, setUserCategories] = useState<string[]>([]);
   
   const [uploadValue, setUploadValue] = useState(draft.value || "");
   const [uploadCategory, setUploadCategory] = useState(draft.category || "");
@@ -145,6 +147,17 @@ export default function ClientDetails() {
         .order('created_at', { ascending: false });
       
       setFiles((ordersData as Order[]) || []);
+
+      // As representadas do usuário vêm de todos os pedidos dele, não só deste
+      // cliente: senão a lista de empresas some quando o cliente ainda não tem
+      // pedido daquela fábrica — e a IA fica sem referência para reconhecê-la.
+      const { data: catRows } = await supabase
+        .from('orders')
+        .select('category')
+        .eq('user_id', user?.id);
+      setUserCategories(
+        Array.from(new Set((catRows || []).map(r => r.category).filter(Boolean) as string[]))
+      );
 
       import('../lib/supabase').then(({ logAudit }) => logAudit('ACCESS_CLIENT_DETAILS', { client_id: id, client_name: clientData.name }));
 
@@ -292,6 +305,8 @@ export default function ClientDetails() {
 
       if (uploadError) throw uploadError;
 
+      // Não incluir campos que não existem na tabela orders (ex.: "description"):
+      // o PostgREST rejeita o insert inteiro e o pedido não é salvo.
       const orderPayload = {
           id: crypto.randomUUID(),
           user_id: user.id,
@@ -300,7 +315,6 @@ export default function ClientDetails() {
           category: uploadCategory,
           file_name: currentFile.name,
           file_path: filePath,
-          description: `Pedido via Upload: ${currentFile.name}`,
           created_at: new Date().toISOString()
       };
       
@@ -357,7 +371,9 @@ export default function ClientDetails() {
     setIsProcessingFile(true);
     
     try {
-        const result = await processOrderFile(file, [client?.name || ""], settings.categories || []);
+        // Passa todas as representadas conhecidas: com a lista vazia a IA não
+        // tem como reconhecer de qual fábrica é o pedido.
+        const result = await processOrderFile(file, [client?.name || ""], allAvailableCategories);
         if (result.value) {
             handleUpdateValue(result.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 }));
         }
@@ -424,20 +440,17 @@ export default function ClientDetails() {
   };
 
   const allAvailableCategories = useMemo(() => {
-    const categoryMap = new Map();
-    (settings.categories || []).forEach(cat => {
-      if (cat) categoryMap.set(cat.toLowerCase().trim(), cat);
-    });
-    files.forEach(f => {
-      if (f.category) {
-        const normalized = f.category.toLowerCase().trim();
-        if (!categoryMap.has(normalized)) {
-          categoryMap.set(normalized, f.category);
-        }
-      }
-    });
+    const categoryMap = new Map<string, string>();
+    const add = (cat?: string | null) => {
+      if (!cat || !cat.trim()) return;
+      const key = cat.toLowerCase().trim();
+      if (!categoryMap.has(key)) categoryMap.set(key, cat.trim());
+    };
+    (settings.categories || []).forEach(add);
+    userCategories.forEach(add);
+    files.forEach(f => add(f.category));
     return Array.from(categoryMap.values()).sort();
-  }, [settings.categories, files]);
+  }, [settings.categories, userCategories, files]);
 
   if (loading) {
     return (
