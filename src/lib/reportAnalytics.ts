@@ -1,7 +1,7 @@
 import { supabase } from './supabase';
 import { CommissionMap, commissionPctFor, monthRange } from './reportGenerator';
 import { FollowupLog } from './followupService';
-import { computeWalletHealth } from './clientAlerts';
+import { computeWalletHealthGrouped } from './clientAlerts';
 
 export interface TrendPoint {
   /** "2026-07" — chave estável do bucket */
@@ -315,15 +315,19 @@ export async function fetchReportAnalytics(
   // last_contact, que só muda em follow-up manual e ficava desencontrado de
   // quem realmente comprou (a carteira aparecia quase toda "inativa" mesmo
   // com pedido lançado há poucos dias).
+  //
+  // Agrupada por nome de cliente (matriz + filiais viram um só): senão um
+  // cliente com várias filiais cadastradas infla o número de inativos —
+  // 3 cadastros sem pedido nenhum contavam como 3 inativos, não como 1.
   const now = Date.now();
-  const healthByClient = computeWalletHealth(
+  const healthByGroup = computeWalletHealthGrouped(
     clients,
     orders,
     { alerta: thresholds.alertaDays, critico: thresholds.criticoDays, inativo: thresholds.inativoDays },
     now
   );
-  const health: PortfolioHealth = { emDia: 0, alerta: 0, critico: 0, inativo: 0, total: clients.length };
-  healthByClient.forEach((bucket) => { health[bucket] += 1; });
+  const health: PortfolioHealth = { emDia: 0, alerta: 0, critico: 0, inativo: 0, total: healthByGroup.size };
+  healthByGroup.forEach((bucket) => { health[bucket] += 1; });
 
   // ---- Clientes novos no mês e no anterior ---------------------------------
   const prevStart = new Date(year, month - 2, 1);

@@ -166,10 +166,45 @@ export function computeClientAlerts(
 export type HealthBucket = "emDia" | "alerta" | "critico" | "inativo";
 
 /**
- * Classifica cada cliente pela COMPRA MAIS RECENTE em qualquer representada
- * (não por categoria — é a visão "carteira" do relatório, diferente da lista
- * de avisos do CRM, que é por representada). Cliente sem nenhum pedido
- * registrado conta como inativo: nunca comprou, não tem como estar "em dia".
+ * Última compra (em qualquer representada) de cada GRUPO de cliente — matriz
+ * e filiais de mesmo nome contam como um só. `undefined` quer dizer que
+ * nenhum cadastro do grupo tem pedido nenhum registrado.
+ */
+function groupLastPurchase(clients: ClientRef[], orders: OrderLike[]): Map<string, number> {
+  const perClientLast = new Map<string, number>();
+  for (const order of orders) {
+    if (!order?.client_id || !order.created_at) continue;
+    const time = new Date(order.created_at).getTime();
+    if (!Number.isFinite(time)) continue;
+    const current = perClientLast.get(order.client_id);
+    if (current === undefined || time > current) perClientLast.set(order.client_id, time);
+  }
+
+  const groupLast = new Map<string, number>();
+  for (const client of clients) {
+    const time = perClientLast.get(client.id);
+    if (time === undefined) continue;
+    const key = clientGroupKey(client);
+    const current = groupLast.get(key);
+    if (current === undefined || time > current) groupLast.set(key, time);
+  }
+  return groupLast;
+}
+
+function bucketFor(time: number | undefined, thresholds: AlertThresholds, now: number): HealthBucket {
+  if (time === undefined) return "inativo";
+  const days = Math.floor((now - time) / (1000 * 60 * 60 * 24));
+  if (days >= thresholds.inativo) return "inativo";
+  if (days >= thresholds.critico) return "critico";
+  if (days >= thresholds.alerta) return "alerta";
+  return "emDia";
+}
+
+/**
+ * Classifica cada CLIENTE (cada cadastro/linha) pela compra mais recente do
+ * seu grupo (matriz + filiais de mesmo nome). Cliente sem nenhum pedido
+ * registrado no grupo conta como inativo: nunca comprou, não tem como estar
+ * "em dia".
  *
  * Não usa client.last_contact: esse campo só muda em ações manuais de
  * follow-up, então ficava desencontrado de quem realmente comprou — daí a
@@ -181,39 +216,35 @@ export function computeWalletHealth(
   thresholds: AlertThresholds,
   now: number = Date.now()
 ): Map<string, HealthBucket> {
-  const perClientLast = new Map<string, number>();
-  for (const order of orders) {
-    if (!order?.client_id || !order.created_at) continue;
-    const time = new Date(order.created_at).getTime();
-    if (!Number.isFinite(time)) continue;
-    const current = perClientLast.get(order.client_id);
-    if (current === undefined || time > current) perClientLast.set(order.client_id, time);
-  }
-
-  // Agrupa por nome (matriz + filiais): comprar por um CNPJ do grupo conta para todos.
-  const groupLast = new Map<string, number>();
-  for (const client of clients) {
-    const time = perClientLast.get(client.id);
-    if (time === undefined) continue;
-    const key = clientGroupKey(client);
-    const current = groupLast.get(key);
-    if (current === undefined || time > current) groupLast.set(key, time);
-  }
-
+  const groupLast = groupLastPurchase(clients, orders);
   const result = new Map<string, HealthBucket>();
   for (const client of clients) {
-    const time = groupLast.get(clientGroupKey(client));
-    if (time === undefined) {
-      result.set(client.id, "inativo");
-      continue;
-    }
-    const days = Math.floor((now - time) / (1000 * 60 * 60 * 24));
-    if (days >= thresholds.inativo) result.set(client.id, "inativo");
-    else if (days >= thresholds.critico) result.set(client.id, "critico");
-    else if (days >= thresholds.alerta) result.set(client.id, "alerta");
-    else result.set(client.id, "emDia");
+    result.set(client.id, bucketFor(groupLast.get(clientGroupKey(client)), thresholds, now));
   }
+  return result;
+}
 
+/**
+ * Mesma classificação, mas UMA linha por nome de cliente (matriz + filiais
+ * agrupadas), não uma por cadastro. Evita que um cliente com várias filiais
+ * duplicadas infle o número de "inativos" na visão geral da carteira — usada
+ * no card "Saúde da Carteira" dos Relatórios.
+ */
+export function computeWalletHealthGrouped(
+  clients: ClientRef[],
+  orders: OrderLike[],
+  thresholds: AlertThresholds,
+  now: number = Date.now()
+): Map<string, HealthBucket> {
+  const groupLast = groupLastPurchase(clients, orders);
+  const seenGroups = new Set<string>();
+  const result = new Map<string, HealthBucket>();
+  for (const client of clients) {
+    const key = clientGroupKey(client);
+    if (seenGroups.has(key)) continue;
+    seenGroups.add(key);
+    result.set(key, bucketFor(groupLast.get(key), thresholds, now));
+  }
   return result;
 }
 

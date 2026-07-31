@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeClientAlerts, resolveOrderCategory, computeWalletHealth } from "./clientAlerts";
+import { computeClientAlerts, resolveOrderCategory, computeWalletHealth, computeWalletHealthGrouped } from "./clientAlerts";
 
 const LIMITES = { alerta: 30, critico: 45, inativo: 90 };
 const HOJE = new Date("2026-07-31T12:00:00Z").getTime();
@@ -282,5 +282,37 @@ describe("computeWalletHealth", () => {
     const r = computeWalletHealth(grupo, pedidos, LIMITES, HOJE);
     expect(r.get("matriz")).toBe("emDia");
     expect(r.get("filial")).toBe("emDia");
+  });
+});
+
+describe("computeWalletHealthGrouped", () => {
+  it("3 filiais sem pedido nenhum contam como 1 inativo, não como 3", () => {
+    const grupo = [
+      { id: "matriz", name: "Comercial Jimenez Ltda" },
+      { id: "filial1", name: "Comercial Jimenez Ltda" },
+      { id: "filial2", name: "COMERCIAL JIMENEZ LTDA" },
+    ];
+    const r = computeWalletHealthGrouped(grupo, [], LIMITES, HOJE);
+    expect(r.size).toBe(1);
+    expect(r.get("COMERCIAL JIMENEZ LTDA")).toBe("inativo");
+  });
+
+  it("uma linha por cliente sem filial, exatamente como antes", () => {
+    const clientes = [{ id: "a", name: "Cliente Sozinho" }, { id: "b", name: "Outro Cliente" }];
+    const pedidos = [{ client_id: "a", created_at: diasAtras(5), category: "Cozimax" }];
+    const r = computeWalletHealthGrouped(clientes, pedidos, LIMITES, HOJE);
+    expect(r.size).toBe(2);
+    expect(r.get("CLIENTE SOZINHO")).toBe("emDia");
+    expect(r.get("OUTRO CLIENTE")).toBe("inativo");
+  });
+
+  it("total de grupos é sempre menor ou igual ao total de cadastros quando há filiais", () => {
+    const clientes = [
+      { id: "1", name: "A" }, { id: "2", name: "A" }, { id: "3", name: "A" }, // 3 cadastros, 1 grupo
+      { id: "4", name: "B" }, // 1 cadastro, 1 grupo
+    ];
+    const r = computeWalletHealthGrouped(clientes, [], LIMITES, HOJE);
+    expect(clientes.length).toBe(4);
+    expect(r.size).toBe(2);
   });
 });
