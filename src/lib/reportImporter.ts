@@ -225,15 +225,52 @@ export function normalizeName(name: string): string {
     .trim();
 }
 
-export interface ClientLike { id: string; name: string }
+export interface ClientLike { id: string; name: string; cnpj?: string | null; created_at?: string | null }
 
-export type MatchStatus = "matched" | "ambiguous" | "unmatched";
+export type MatchStatus = "matched" | "unmatched";
+
+/** Como o cliente foi escolhido quando havia mais de um cadastro com o mesmo nome. */
+export type PickedBy = "matriz" | "first";
 
 export interface ClientMatch {
   status: MatchStatus;
   clientId?: string;
-  /** Nomes candidatos quando há mais de um cliente possível. */
+  /** Todos os cadastros que serviam para esse nome (matriz + filiais). */
   candidates: ClientLike[];
+  pickedBy?: PickedBy;
+}
+
+/**
+ * Matriz é o CNPJ cujo bloco de filial (9º ao 12º dígito) é 0001 — as filiais
+ * seguem em 0002, 0003 e assim por diante.
+ */
+export function isMatrizCnpj(cnpj?: string | null): boolean {
+  const digits = (cnpj || "").replace(/\D/g, "");
+  return digits.length === 14 && digits.slice(8, 12) === "0001";
+}
+
+/** O cadastro mais antigo da lista; sem data, mantém a ordem em que veio. */
+function firstRegistered(list: ClientLike[]): ClientLike {
+  return [...list].sort((a, b) => {
+    const ta = a.created_at ? Date.parse(a.created_at) : Number.POSITIVE_INFINITY;
+    const tb = b.created_at ? Date.parse(b.created_at) : Number.POSITIVE_INFINITY;
+    return (Number.isNaN(ta) ? Number.POSITIVE_INFINITY : ta) - (Number.isNaN(tb) ? Number.POSITIVE_INFINITY : tb);
+  })[0];
+}
+
+/**
+ * Desempata quando o mesmo nome tem vários cadastros (o caso de matriz e filiais).
+ * Preferimos a matriz (CNPJ 0001); não havendo nenhuma, fica o cadastro mais antigo.
+ */
+function resolveCandidates(candidates: ClientLike[]): ClientMatch {
+  if (candidates.length === 1) {
+    return { status: "matched", clientId: candidates[0].id, candidates };
+  }
+  const matrizes = candidates.filter(c => isMatrizCnpj(c.cnpj));
+  if (matrizes.length) {
+    return { status: "matched", clientId: firstRegistered(matrizes).id, candidates, pickedBy: "matriz" };
+  }
+  return { status: "matched", clientId: firstRegistered(candidates).id, candidates, pickedBy: "first" };
 }
 
 /**
@@ -241,23 +278,22 @@ export interface ClientMatch {
  *
  * O nome do relatório costuma vir cortado (ex.: "GRANTEL COMERCIO DE MATER"),
  * por isso além da igualdade exata aceitamos que o nome cadastrado comece com
- * o nome do relatório. Se mais de um cliente casar, devolvemos como ambíguo
- * para o usuário escolher — nunca chutamos.
+ * o nome do relatório. Quando o mesmo nome tem vários cadastros (matriz e
+ * filiais), já deixamos um escolhido — a matriz na frente — e sinalizamos na
+ * tela de conferência para o usuário poder trocar se quiser.
  */
 export function matchClient(reportName: string, clients: ClientLike[]): ClientMatch {
   const target = normalizeName(reportName);
   if (!target) return { status: "unmatched", candidates: [] };
 
   const exact = clients.filter(c => normalizeName(c.name) === target);
-  if (exact.length === 1) return { status: "matched", clientId: exact[0].id, candidates: exact };
-  if (exact.length > 1) return { status: "ambiguous", candidates: exact };
+  if (exact.length) return resolveCandidates(exact);
 
   const prefix = clients.filter(c => {
     const n = normalizeName(c.name);
     return n.startsWith(target) || target.startsWith(n);
   });
-  if (prefix.length === 1) return { status: "matched", clientId: prefix[0].id, candidates: prefix };
-  if (prefix.length > 1) return { status: "ambiguous", candidates: prefix };
+  if (prefix.length) return resolveCandidates(prefix);
 
   return { status: "unmatched", candidates: [] };
 }

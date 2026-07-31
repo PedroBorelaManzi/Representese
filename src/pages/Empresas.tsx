@@ -87,9 +87,11 @@ export default function EmpresasPage() {
       offlineCache.set(CacheKeys.ORDERS, data);
       setAllOrders(data || []);
 
+      // cnpj e created_at são usados na importação de relatório para escolher a
+      // matriz (CNPJ 0001) quando o mesmo nome tem matriz e filiais cadastradas
       const { data: c } = await supabase
         .from("clients")
-        .select("id, name, cnpj")
+        .select("id, name, cnpj, created_at")
         .eq("user_id", user?.id)
         .order("name");
       if (c) offlineCache.set(CacheKeys.CLIENTS, c);

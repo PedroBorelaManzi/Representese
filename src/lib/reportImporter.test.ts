@@ -6,6 +6,7 @@ import {
   matchClient,
   normalizeName,
   orderDateToTimestamp,
+  isMatrizCnpj,
 } from "./reportImporter";
 
 /**
@@ -100,17 +101,69 @@ describe("matchClient", () => {
     expect(m.clientId).toBe("c");
   });
 
-  it("marca como ambíguo em vez de chutar quando o nome truncado serve a dois clientes", () => {
-    const m = matchClient("DEPOSITO CENTRAL CASA", [
-      { id: "x", name: "Deposito Central Casa & Construcao Ltda" },
-      { id: "y", name: "Deposito Central Casa Forte ME" },
+  it("escolhe a matriz (CNPJ 0001) quando o mesmo nome tem matriz e filiais", () => {
+    const m = matchClient("PADOVANI & PADOVANI LTDA.", [
+      { id: "filial1", name: "Padovani & Padovani Ltda.", cnpj: "12.345.678/0002-70" },
+      { id: "matriz", name: "Padovani & Padovani Ltda.", cnpj: "12.345.678/0001-99" },
+      { id: "filial2", name: "Padovani & Padovani Ltda.", cnpj: "12.345.678/0003-51" },
     ]);
-    expect(m.status).toBe("ambiguous");
-    expect(m.candidates).toHaveLength(2);
+    expect(m.status).toBe("matched");
+    expect(m.clientId).toBe("matriz");
+    expect(m.pickedBy).toBe("matriz");
+    expect(m.candidates).toHaveLength(3);
+  });
+
+  it("sem nenhuma matriz, fica com o cadastro mais antigo", () => {
+    const m = matchClient("RIVAIL MATERIAIS", [
+      { id: "novo", name: "Rivail Materiais", cnpj: "11.111.111/0003-00", created_at: "2026-05-10T10:00:00Z" },
+      { id: "antigo", name: "Rivail Materiais", cnpj: "11.111.111/0002-00", created_at: "2024-01-02T10:00:00Z" },
+    ]);
+    expect(m.clientId).toBe("antigo");
+    expect(m.pickedBy).toBe("first");
+  });
+
+  it("sem CNPJ e sem data, fica com o primeiro da lista", () => {
+    const m = matchClient("SEM DADOS", [
+      { id: "p1", name: "Sem Dados" },
+      { id: "p2", name: "Sem Dados" },
+    ]);
+    expect(m.clientId).toBe("p1");
+    expect(m.pickedBy).toBe("first");
+  });
+
+  it("resolve também quando o nome vem truncado e serve a mais de um cadastro", () => {
+    const m = matchClient("DEPOSITO CENTRAL CASA", [
+      { id: "x", name: "Deposito Central Casa & Construcao Ltda", cnpj: "22.222.222/0002-10" },
+      { id: "y", name: "Deposito Central Casa Forte ME", cnpj: "22.222.222/0001-10" },
+    ]);
+    expect(m.clientId).toBe("y");
+    expect(m.pickedBy).toBe("matriz");
+  });
+
+  it("não marca pickedBy quando só havia um cadastro possível", () => {
+    expect(matchClient("GRANTEL COMERCIO DE MATER", carteira).pickedBy).toBeUndefined();
   });
 
   it("marca como não encontrado quem não está na carteira", () => {
     expect(matchClient("EMPRESA INEXISTENTE SA", carteira).status).toBe("unmatched");
+  });
+});
+
+describe("isMatrizCnpj", () => {
+  it("reconhece matriz pelo bloco 0001, com ou sem máscara", () => {
+    expect(isMatrizCnpj("12.345.678/0001-99")).toBe(true);
+    expect(isMatrizCnpj("12345678000199")).toBe(true);
+  });
+
+  it("não confunde filial com matriz", () => {
+    expect(isMatrizCnpj("12.345.678/0002-70")).toBe(false);
+    expect(isMatrizCnpj("12.345.678/0010-70")).toBe(false);
+  });
+
+  it("trata CNPJ ausente ou incompleto como não-matriz", () => {
+    expect(isMatrizCnpj(undefined)).toBe(false);
+    expect(isMatrizCnpj("")).toBe(false);
+    expect(isMatrizCnpj("123")).toBe(false);
   });
 });
 

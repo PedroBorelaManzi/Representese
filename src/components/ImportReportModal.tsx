@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { X, Upload, Loader2, FileText, Check, AlertTriangle, UserPlus, Sparkles } from "lucide-react";
+import { X, Upload, Loader2, Check, AlertTriangle, UserPlus, Sparkles, Building } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../lib/supabase";
 import { cn } from "../lib/utils";
@@ -15,9 +15,10 @@ import {
   type ParsedReport,
   type ParsedReportRow,
   type MatchStatus,
+  type PickedBy,
 } from "../lib/reportImporter";
 
-interface ClientLite { id: string; name: string; cnpj?: string; city?: string }
+interface ClientLite { id: string; name: string; cnpj?: string | null; city?: string; created_at?: string | null }
 
 interface Props {
   open: boolean;
@@ -36,6 +37,10 @@ interface RowState {
   createNew: boolean;
   status: MatchStatus;
   duplicate: boolean;
+  /** Quando o nome tinha matriz + filiais, como o sistema escolheu. */
+  pickedBy?: PickedBy;
+  /** Quantos cadastros existiam com esse mesmo nome. */
+  candidateCount: number;
 }
 
 const brl = (v: number) =>
@@ -118,6 +123,8 @@ export default function ImportReportModal({ open, onClose, userId, clients, cate
             createNew: false,
             status: m.status,
             duplicate,
+            pickedBy: m.pickedBy,
+            candidateCount: m.candidates.length,
           };
         })
       );
@@ -486,9 +493,16 @@ export default function ImportReportModal({ open, onClose, userId, clients, cate
                               )}
                             </div>
                           )}
-                          {st.status === "ambiguous" && !st.clientId && !st.createNew && (
+                          {st.pickedBy && st.clientId && !st.createNew && (
+                            <p className="text-[9px] font-bold text-slate-400 mt-1 px-1 flex items-center gap-1">
+                              <Building className="w-3 h-3" />
+                              {st.pickedBy === "matriz" ? "Matriz escolhida" : "1º cadastro escolhido"}
+                              {" · "}{st.candidateCount} cadastros com esse nome
+                            </p>
+                          )}
+                          {!st.clientId && !st.createNew && (
                             <p className="text-[9px] font-bold text-amber-600 mt-1 px-1 flex items-center gap-1">
-                              <AlertTriangle className="w-3 h-3" /> Mais de um cliente parecido — escolha qual
+                              <AlertTriangle className="w-3 h-3" /> Cliente não encontrado na carteira
                             </p>
                           )}
                         </td>
