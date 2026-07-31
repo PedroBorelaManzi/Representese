@@ -16,7 +16,8 @@ import {
   Zap,
   LayoutGrid,
   Trash2,
-  Sparkles
+  Sparkles,
+  FileSpreadsheet
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
@@ -30,6 +31,9 @@ import { PageHeader, Skeleton, useConfirm } from "../components/ui";
 import { syncQueue } from "../lib/syncQueue";
 import { offlineCache, CacheKeys } from "../lib/offlineCache"; // Motor Híbrido V2
 import { EmptyState } from "../components/ui";
+
+// Modal de importação de relatório: carrega sob demanda (puxa o pdfjs junto)
+const ImportReportModal = React.lazy(() => import("../components/ImportReportModal"));
 
 export default function EmpresasPage() {
   const { user } = useAuth();
@@ -45,6 +49,7 @@ export default function EmpresasPage() {
   const companyLimit = currentPlan === 'exclusivo' ? 1 : (currentPlan === 'profissional' ? 5 : Infinity);
   const isLimitExceeded = (settings.categories || []).length >= companyLimit;
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isImportReportOpen, setIsImportReportOpen] = useState(false);
   const [newCat, setNewCat] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [viewDate, setViewDate] = useState(new Date());
@@ -443,6 +448,11 @@ export default function EmpresasPage() {
               </button>
             </div>
 
+            <button onClick={() => setIsImportReportOpen(true)} className="flex items-center gap-2 px-5 py-3 bg-white dark:bg-zinc-900 hover:bg-slate-50 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-800 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-sm active:scale-95 whitespace-nowrap">
+              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+              Importar Relatório
+            </button>
+
             <button onClick={() => setIsUploadModalOpen(true)} className="flex items-center gap-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-lg shadow-emerald-600/25 active:scale-95 whitespace-nowrap">
               <Upload className="w-4 h-4" />
               Enviar Pedidos
@@ -450,6 +460,19 @@ export default function EmpresasPage() {
           </>
         }
       />
+
+      <React.Suspense fallback={null}>
+        {isImportReportOpen && (
+          <ImportReportModal
+            open={isImportReportOpen}
+            onClose={() => setIsImportReportOpen(false)}
+            userId={user?.id}
+            clients={clients}
+            categories={combinedCategories}
+            onImported={loadOrders}
+          />
+        )}
+      </React.Suspense>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
         <div className="bg-white dark:bg-zinc-900 p-5 sm:p-6 lg:p-8 rounded-[32px] md:rounded-[40px] border border-slate-200 dark:border-zinc-800 ring-1 ring-slate-200/80 shadow-none hover:ring-emerald-300 transition-all group">
