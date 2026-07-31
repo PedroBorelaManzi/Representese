@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from "react-router-dom";
-import { Search, MapPin, Building2, Trash2, ChevronRight, Plus, Loader2, FileUp, X, ChevronDown, Users } from 'lucide-react';
+import { Search, MapPin, Building2, Trash2, ChevronRight, Plus, Loader2, FileUp, X, ChevronDown, Users, BellOff } from 'lucide-react';
 import { supabase, logAudit } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
@@ -27,7 +27,7 @@ export default function CRMPage() {
   const location = useLocation();
   const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState<'Todos' | 'Alerta' | 'Crítico' | 'Inativo'>('Todos');
-  const { data: clients = [], isLoading: loading, isFetching: loadingAlerts } = useClients();
+  const { data: clients = [], isLoading: loading, isFetching: loadingAlerts, dismissAlert } = useClients();
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearchTerm = useDebounce(searchTerm, 200);
 
@@ -99,6 +99,25 @@ export default function CRMPage() {
     } catch (err) {
       console.error('Delete Error:', err);
       toast.error('Erro ao remover cliente.');
+    }
+  };
+
+  const handleDismissAlert = async (client: Client, alert: Alert) => {
+    if (!isOnline) {
+      toast.error('Ignorar aviso precisa de internet.');
+      return;
+    }
+    if (!(await confirm({
+      title: 'Ignorar aviso',
+      message: `O aviso de ${alert.company} para ${toTitleCase(client.name || '')} não vai mais aparecer, a menos que ele compre de novo dessa representada.`,
+    }))) return;
+
+    try {
+      await dismissAlert(client, alert);
+      toast.success('Aviso ignorado.');
+    } catch (err) {
+      console.error('Dismiss alert error:', err);
+      toast.error('Erro ao ignorar o aviso.');
     }
   };
 
@@ -360,8 +379,15 @@ export default function CRMPage() {
                              {client.alerts && client.alerts.length > 0 && (
                                <span className="flex gap-1 shrink-0">
                                  {client.alerts.filter((a: Alert) => activeTab === 'Todos' ? true : a.type === activeTab).slice(0, 1).map((a: Alert, i: number) => (
-                                   <span key={i} className={cn("px-2 py-0.5 rounded-md text-[8px] font-black uppercase border flex items-center gap-1", a.type === 'Inativo' ? 'bg-red-50 text-red-600 border-red-100 dark:bg-red-950/30 dark:border-red-900/40' : a.type === 'Crítico' ? 'bg-orange-50 text-orange-600 border-orange-100 dark:bg-orange-950/30 dark:border-orange-900/40' : 'bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-950/30 dark:border-amber-900/40') }>
+                                   <span key={i} className={cn("pl-2 pr-1 py-0.5 rounded-md text-[8px] font-black uppercase border flex items-center gap-1", a.type === 'Inativo' ? 'bg-red-50 text-red-600 border-red-100 dark:bg-red-950/30 dark:border-red-900/40' : a.type === 'Crítico' ? 'bg-orange-50 text-orange-600 border-orange-100 dark:bg-orange-950/30 dark:border-orange-900/40' : 'bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-950/30 dark:border-amber-900/40') }>
                                      <span className="opacity-60">{a.company}</span> <span className="w-1 h-1 rounded-full bg-current opacity-30" /> <span>{a.type}: {a.days}D</span>
+                                     <button
+                                       onClick={(e) => { e.stopPropagation(); handleDismissAlert(client, a); }}
+                                       title={`Ignorar aviso de ${a.company} para este cliente`}
+                                       className="ml-0.5 p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 opacity-60 hover:opacity-100 transition-opacity"
+                                     >
+                                       <BellOff className="w-2.5 h-2.5" />
+                                     </button>
                                    </span>
                                  ))}
                                </span>

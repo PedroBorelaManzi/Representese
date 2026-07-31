@@ -6,6 +6,8 @@ export interface AlertLike {
   company: string;
   type: AlertType;
   days: number;
+  /** Data (ISO) da compra que este alerta está considerando — usada para "ignorar" o aviso. */
+  lastOrderAt: string;
 }
 
 export interface OrderLike {
@@ -33,6 +35,23 @@ export interface ClientAlertResult {
   lastOrdersByCategory: Record<string, OrderLike>;
 }
 
+/** Um aviso de inatividade "ignorado" pelo usuário para um cliente + representada. */
+export interface DismissalLike {
+  /** Chave normalizada do nome do cliente (mesmo agrupamento de matriz/filiais). */
+  clientNameKey: string;
+  company: string;
+  /** Data (ISO) do último pedido no momento em que o aviso foi ignorado. */
+  lastOrderAt: string;
+}
+
+/**
+ * Chave de agrupamento de um cliente (matriz + filiais compartilham a mesma):
+ * o nome normalizado, ou o próprio id quando o nome está vazio.
+ */
+export function clientGroupKey(client: ClientRef): string {
+  return normalizeKey(client.name || "") || `id:${client.id}`;
+}
+
 /**
  * Descobre a representada de um pedido. O nome do arquivo carrega a empresa no
  * prefixo ("EMPRESA___VALOR_x___arquivo.pdf"); sem esse prefixo vale a coluna
@@ -58,13 +77,18 @@ export function resolveOrderCategory(order: OrderLike, categories: string[] = []
  *    costuma comprar por um CNPJ só, a compra de qualquer cadastro do grupo
  *    conta para todos: senão os outros aparecem como crítico/inativo mesmo o
  *    cliente tendo comprado.
+ * 3. Um aviso "ignorado" pelo usuário (ex.: "esse cliente trocou de fornecedor")
+ *    fica fora da lista até o cliente comprar de novo daquela representada
+ *    depois da data em que o aviso foi ignorado — aí ele reaparece sozinho se
+ *    ficar inativo outra vez.
  */
 export function computeClientAlerts(
   clients: ClientRef[],
   orders: OrderLike[],
   thresholds: AlertThresholds,
   categories: string[] = [],
-  now: number = Date.now()
+  now: number = Date.now(),
+  dismissals: DismissalLike[] = []
 ): Map<string, ClientAlertResult> {
   const perClient = new Map<string, { lastDates: Record<string, number>; lastOrders: Record<string, OrderLike> }>();
 
@@ -92,13 +116,12 @@ export function computeClientAlerts(
   }
 
   // Agrupa cadastros de mesmo nome (matriz + filiais) pela compra mais recente
-  const groupKeyOf = (client: ClientRef) => normalizeKey(client.name || "") || `id:${client.id}`;
   const groupLastDates = new Map<string, Record<string, number>>();
 
   for (const client of clients) {
     const entry = perClient.get(client.id);
     if (!entry) continue;
-    const key = groupKeyOf(client);
+    const key = clientGroupKey(client);
     const acc = groupLastDates.get(key) || {};
     for (const [category, time] of Object.entries(entry.lastDates)) {
       if (!acc[category] || time > acc[category]) acc[category] = time;
@@ -106,16 +129,29 @@ export function computeClientAlerts(
     groupLastDates.set(key, acc);
   }
 
+  // dismiss[grupo|empresa] = timestamp do último pedido no momento em que o aviso foi ignorado
+  const dismissedAt = new Map<string, number>();
+  for (const d of dismissals) {
+    const t = new Date(d.lastOrderAt).getTime();
+    if (Number.isFinite(t)) dismissedAt.set(`${d.clientNameKey}|${normalizeKey(d.company)}`, t);
+  }
+
   const result = new Map<string, ClientAlertResult>();
   for (const client of clients) {
-    const lastDates = groupLastDates.get(groupKeyOf(client)) || {};
+    const key = clientGroupKey(client);
+    const lastDates = groupLastDates.get(key) || {};
     const alerts: AlertLike[] = [];
 
     for (const [category, time] of Object.entries(lastDates)) {
+      const dismissedTime = dismissedAt.get(`${key}|${normalizeKey(category)}`);
+      // Sem compra nova desde que o aviso foi ignorado: continua escondido.
+      if (dismissedTime !== undefined && dismissedTime >= time) continue;
+
       const days = Math.floor((now - time) / (1000 * 60 * 60 * 24));
-      if (days >= thresholds.inativo) alerts.push({ company: category, type: "Inativo", days });
-      else if (days >= thresholds.critico) alerts.push({ company: category, type: "Crítico", days });
-      else if (days >= thresholds.alerta) alerts.push({ company: category, type: "Alerta", days });
+      const lastOrderAt = new Date(time).toISOString();
+      if (days >= thresholds.inativo) alerts.push({ company: category, type: "Inativo", days, lastOrderAt });
+      else if (days >= thresholds.critico) alerts.push({ company: category, type: "Crítico", days, lastOrderAt });
+      else if (days >= thresholds.alerta) alerts.push({ company: category, type: "Alerta", days, lastOrderAt });
     }
 
     result.set(client.id, {
@@ -126,3 +162,4 @@ export function computeClientAlerts(
 
   return result;
 }
+

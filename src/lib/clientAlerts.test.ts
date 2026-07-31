@@ -149,6 +149,68 @@ describe("computeClientAlerts", () => {
   });
 });
 
+describe("computeClientAlerts com dispensas (ignorar aviso)", () => {
+  it("esconde o aviso ignorado enquanto não houver compra nova", () => {
+    const clientes = [{ id: "c1", name: "Cliente Trocou De Fornecedor" }];
+    const pedidos = [{ client_id: "c1", created_at: diasAtras(120), category: "Cozimax" }];
+
+    // sem dispensa: aparece Inativo normalmente
+    const semDispensa = computeClientAlerts(clientes, pedidos, LIMITES, ["Cozimax"], HOJE);
+    expect(semDispensa.get("c1")!.alerts).toHaveLength(1);
+
+    const lastOrderAt = semDispensa.get("c1")!.alerts[0].lastOrderAt;
+    const dispensas = [{ clientNameKey: "CLIENTE TROCOU DE FORNECEDOR", company: "Cozimax", lastOrderAt }];
+
+    const comDispensa = computeClientAlerts(clientes, pedidos, LIMITES, ["Cozimax"], HOJE, dispensas);
+    expect(comDispensa.get("c1")!.alerts).toEqual([]);
+  });
+
+  it("o aviso reaparece se o cliente comprar de novo depois de ignorado", () => {
+    const clientes = [{ id: "c1", name: "Cliente Voltou A Comprar" }];
+    const primeiraCompra = diasAtras(120);
+
+    // ignora o aviso com base na primeira compra (feita há 120 dias)
+    const dispensas = [{ clientNameKey: "CLIENTE VOLTOU A COMPRAR", company: "Cozimax", lastOrderAt: primeiraCompra }];
+
+    // depois disso o cliente compra de novo, e essa nova compra já fica velha (95 dias)
+    const pedidos = [
+      { client_id: "c1", created_at: primeiraCompra, category: "Cozimax" },
+      { client_id: "c1", created_at: diasAtras(95), category: "Cozimax" },
+    ];
+
+    const r = computeClientAlerts(clientes, pedidos, LIMITES, ["Cozimax"], HOJE, dispensas);
+    expect(r.get("c1")!.alerts).toHaveLength(1);
+    expect(r.get("c1")!.alerts[0]).toMatchObject({ type: "Inativo", days: 95 });
+  });
+
+  it("dispensa vale para o grupo inteiro (matriz + filiais), não só para um cadastro", () => {
+    const grupo = [
+      { id: "matriz", name: "Grupo Com Filiais" },
+      { id: "filial", name: "Grupo Com Filiais" },
+    ];
+    const pedidos = [{ client_id: "matriz", created_at: diasAtras(100), category: "Cozimax" }];
+    const dispensas = [{ clientNameKey: "GRUPO COM FILIAIS", company: "Cozimax", lastOrderAt: diasAtras(100) }];
+
+    const r = computeClientAlerts(grupo, pedidos, LIMITES, ["Cozimax"], HOJE, dispensas);
+    expect(r.get("matriz")!.alerts).toEqual([]);
+    expect(r.get("filial")!.alerts).toEqual([]);
+  });
+
+  it("dispensar uma representada não afeta o aviso de outra representada do mesmo cliente", () => {
+    const clientes = [{ id: "c1", name: "Cliente Duas Marcas" }];
+    const pedidos = [
+      { client_id: "c1", created_at: diasAtras(120), category: "Cozimax" },
+      { client_id: "c1", created_at: diasAtras(120), category: "LA GRANITOS" },
+    ];
+    const dispensas = [{ clientNameKey: "CLIENTE DUAS MARCAS", company: "Cozimax", lastOrderAt: diasAtras(120) }];
+
+    const r = computeClientAlerts(clientes, pedidos, LIMITES, ["Cozimax", "LA GRANITOS"], HOJE, dispensas);
+    const alerts = r.get("c1")!.alerts;
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0].company).toBe("LA GRANITOS");
+  });
+});
+
 describe("resolveOrderCategory", () => {
   it("usa o prefixo do nome do arquivo quando existe", () => {
     const order = { client_id: "c", created_at: "", file_name: "Cozimax___VALOR_500___pedido.pdf", category: "GERAL" };

@@ -2,6 +2,8 @@ export interface Alert {
   company: string;
   type: 'Todos' | 'Alerta' | 'Crítico' | 'Inativo';
   days: number;
+  /** Data (ISO) da compra que este alerta está considerando — usada para "ignorar" o aviso. */
+  lastOrderAt?: string;
 }
 
 export interface Client {
