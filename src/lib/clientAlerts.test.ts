@@ -16,6 +16,20 @@ describe("computeClientAlerts", () => {
     expect(r.get("c1")!.alerts).toEqual([]);
   });
 
+  it("respeita o limite configurado: 22 dias não é alerta quando o limite é 25", () => {
+    const clientes = [{ id: "c1", name: "Ramalho & Rosa Ltda" }];
+    const pedidos = [{ client_id: "c1", created_at: diasAtras(22), category: "Cozimax" }];
+
+    const limite25 = { alerta: 25, critico: 45, inativo: 90 };
+    expect(computeClientAlerts(clientes, pedidos, limite25, ["Cozimax"], HOJE).get("c1")!.alerts).toEqual([]);
+
+    // e com o limite em 20 o mesmo cliente entra em alerta
+    const limite20 = { alerta: 20, critico: 45, inativo: 90 };
+    const comLimite20 = computeClientAlerts(clientes, pedidos, limite20, ["Cozimax"], HOJE).get("c1")!.alerts;
+    expect(comLimite20).toHaveLength(1);
+    expect(comLimite20[0]).toMatchObject({ type: "Alerta", days: 22 });
+  });
+
   it("classifica em Alerta, Crítico e Inativo conforme os dias", () => {
     const clientes = [{ id: "a", name: "A" }, { id: "b", name: "B" }, { id: "c", name: "C" }];
     const pedidos = [
