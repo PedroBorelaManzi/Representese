@@ -30,6 +30,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
 import { useSync } from '../contexts/SyncContext';
 import { cn } from '../lib/utils';
+import { computeClientAlerts } from '../lib/clientAlerts';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import { Capacitor } from '@capacitor/core';
@@ -185,36 +186,36 @@ export default function Layout() {
           const alertaDays = settings?.alerta_days || 30;
           const criticoDays = settings?.critico_days || 45;
           const inativoDays = settings?.inativo_days || 90;
-          const today = now.getTime();
+
+          // A mensagem fala "sem comprar", então quem manda são os pedidos — não o
+          // last_contact, que só muda em follow-up e ficava desencontrado do CRM.
+          // Usa a mesma regra da carteira, inclusive agrupando matriz e filiais.
+          const { data: ordersForAlerts } = await supabase
+            .from("orders")
+            .select("client_id, file_name, created_at, category, file_path")
+            .eq("user_id", user.id);
+
+          const alertsByClient = computeClientAlerts(
+            clientsData as any[],
+            (ordersForAlerts || []) as any[],
+            { alerta: alertaDays, critico: criticoDays, inativo: inativoDays },
+            settings?.categories || []
+          );
 
           clientsData.forEach((client: any) => {
-            if (!client.last_contact) return;
-            const contactDate = new Date(client.last_contact).getTime();
-            const daysInactive = Math.floor((today - contactDate) / (1000 * 60 * 60 * 24));
-            
-            let stateName = "";
-            let targetDays = 0;
-            
-            if (daysInactive >= inativoDays) {
-              stateName = "Inativo";
-              targetDays = inativoDays;
-            } else if (daysInactive >= criticoDays) {
-              stateName = "Crítico";
-              targetDays = criticoDays;
-            } else if (daysInactive >= alertaDays) {
-              stateName = "Alerta";
-              targetDays = alertaDays;
-            }
-            
-            if (stateName) {
-              // Etiqueta por cliente + último contato: alerta de inatividade vai 1x só.
-              // Só volta a alertar se o cliente comprar (last_contact muda) e ficar inativo de novo.
-              sendNotification(
-                "Representese 📈 🔔",
-                "Alerta de Inatividade (" + stateName + "): " + client.name + " está há " + daysInactive + " dias sem comprar (limiar: " + targetDays + " dias).",
-                "client_inactive_" + client.id + "_" + client.last_contact
-              );
-            }
+            const worst = alertsByClient.get(client.id)?.alerts?.[0];
+            if (!worst) return;
+
+            const targetDays =
+              worst.type === "Inativo" ? inativoDays : worst.type === "Crítico" ? criticoDays : alertaDays;
+
+            // Etiqueta por cliente + estado + dia da última compra: o aviso vai 1x só.
+            // Volta a alertar se o cliente comprar e ficar inativo de novo.
+            sendNotification(
+              "Representese 📈 🔔",
+              "Alerta de Inatividade (" + worst.type + "): " + client.name + " está há " + worst.days + " dias sem comprar em " + worst.company + " (limiar: " + targetDays + " dias).",
+              "client_inactive_" + client.id + "_" + worst.company + "_" + worst.type
+            );
           });
 
           // 3. Check for holidays today (National, State & Municipal) based on client locations
