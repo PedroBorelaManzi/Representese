@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FileSpreadsheet,
@@ -26,6 +27,9 @@ import {
   PhoneCall,
   MapPin,
   CalendarRange,
+  ArrowLeft,
+  ChevronRight,
+  ExternalLink,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
@@ -39,6 +43,9 @@ import {
   RetentionStats,
   FollowupStats,
   CityBreakdown,
+  TopClient,
+  CompanySlice,
+  PortfolioHealthClient,
 } from '../lib/reportAnalytics';
 import { getOutcomeLabel } from '../lib/followupService';
 import { PageHeader, Skeleton } from '../components/ui';
@@ -218,17 +225,48 @@ const healthRows = [
   { key: 'inativo' as const, label: 'Inativo', icon: XCircle, color: 'text-red-600 dark:text-red-400', bar: 'bg-red-500' },
 ];
 
-function CardShell({ icon: Icon, title, subtitle, children }: { icon: typeof Wallet; title: string; subtitle?: string; children: React.ReactNode }) {
+function CardShell({
+  icon: Icon,
+  title,
+  subtitle,
+  children,
+  onExpand,
+  expandLabel = 'Ver todos',
+}: {
+  icon: typeof Wallet;
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+  /** Se informado, o card vira clicável e ganha um rodapé "ver todos". */
+  onExpand?: () => void;
+  expandLabel?: string;
+}) {
   return (
     <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200/80 dark:border-zinc-800/80 p-5 sm:p-6">
-      <div className="flex items-center gap-2 mb-5">
+      <div
+        className={cn('flex items-center gap-2 mb-5', onExpand && 'cursor-pointer group')}
+        onClick={onExpand}
+        role={onExpand ? 'button' : undefined}
+      >
         <Icon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-        <div>
-          <h3 className="text-[11px] font-black text-slate-500 dark:text-zinc-400 uppercase tracking-[0.18em] leading-none">{title}</h3>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-[11px] font-black text-slate-500 dark:text-zinc-400 uppercase tracking-[0.18em] leading-none group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+            {title}
+          </h3>
           {subtitle && <p className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium mt-1">{subtitle}</p>}
         </div>
+        {onExpand && <ChevronRight className="w-4 h-4 text-slate-300 dark:text-zinc-600 group-hover:text-emerald-500 transition-colors shrink-0" />}
       </div>
       {children}
+      {onExpand && (
+        <button
+          onClick={onExpand}
+          className="w-full mt-4 pt-3 border-t border-slate-100 dark:border-zinc-800 text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors flex items-center justify-center gap-1.5"
+        >
+          {expandLabel}
+          <ChevronRight className="w-3 h-3" />
+        </button>
+      )}
     </div>
   );
 }
@@ -422,6 +460,139 @@ function CityBreakdownCard({ cities }: { cities: CityBreakdown[] }) {
   );
 }
 
+/** Cabeçalho padrão das telas de detalhe (lista completa) com botão de voltar. */
+function DetailHeader({ icon: Icon, title, subtitle, onBack }: { icon: typeof Wallet; title: string; subtitle?: string; onBack: () => void }) {
+  return (
+    <div className="flex items-center gap-3">
+      <button
+        onClick={onBack}
+        aria-label="Voltar"
+        className="p-2.5 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 hover:border-emerald-500/40 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors shrink-0"
+      >
+        <ArrowLeft className="w-4 h-4 text-slate-600 dark:text-zinc-300" />
+      </button>
+      <div className="flex items-center gap-2 min-w-0">
+        <Icon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+        <div className="min-w-0">
+          <h2 className="text-sm font-black text-slate-900 dark:text-zinc-100 uppercase tracking-tight truncate">{title}</h2>
+          {subtitle && <p className="text-[11px] text-slate-400 dark:text-zinc-500 font-medium truncate">{subtitle}</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Lista completa de clientes do mês por receita (a versão "ver todos" do card Top Clientes). */
+function TopClientsDetail({ clients }: { clients: TopClient[] }) {
+  if (clients.length === 0) {
+    return <p className="text-sm text-slate-400 dark:text-zinc-500 font-medium py-8 text-center">Nenhum pedido lançado no período.</p>;
+  }
+  return (
+    <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200/80 dark:border-zinc-800/80 p-3 sm:p-4">
+      <div className="space-y-1">
+        {clients.map((client, idx) => (
+          <Link
+            key={client.id}
+            to={`/dashboard/clientes/${client.id}`}
+            className="flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors group"
+          >
+            <span className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-[10px] font-black text-slate-500 dark:text-zinc-400 shrink-0 tabular-nums">
+              {idx + 1}
+            </span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-bold text-slate-800 dark:text-zinc-200 truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                  {client.name}
+                </span>
+                <span className="text-sm font-black text-slate-900 dark:text-zinc-100 tabular-nums shrink-0">{BRL(client.revenue)}</span>
+              </div>
+              <div className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 mt-0.5">
+                {client.orders} pedido{client.orders === 1 ? '' : 's'} · {(client.share * 100).toFixed(1)}% do mês
+              </div>
+              <div className="h-1 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden mt-1.5">
+                <div style={{ width: `${client.share * 100}%` }} className="h-full bg-emerald-500 rounded-full" />
+              </div>
+            </div>
+            <ExternalLink className="w-3.5 h-3.5 text-slate-300 dark:text-zinc-700 group-hover:text-emerald-500 transition-colors shrink-0" />
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Saúde da carteira detalhada: um cliente pode ser aberto direto da lista. */
+function HealthDetail({ clients }: { clients: PortfolioHealthClient[] }) {
+  return (
+    <div className="space-y-4">
+      {healthRows.map((row) => {
+        const group = clients.filter((c) => c.bucket === row.key);
+        return (
+          <div key={row.key} className="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200/80 dark:border-zinc-800/80 p-5 sm:p-6">
+            <div className={cn('flex items-center gap-2 mb-4', row.color)}>
+              <row.icon className="w-4 h-4" />
+              <h3 className="text-[11px] font-black uppercase tracking-[0.18em]">{row.label}</h3>
+              <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 ml-auto tabular-nums">
+                {group.length} cliente{group.length === 1 ? '' : 's'}
+              </span>
+            </div>
+            {group.length === 0 ? (
+              <p className="text-xs text-slate-400 dark:text-zinc-500 font-medium py-2">Nenhum cliente neste grupo.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {group.map((c) => (
+                  <Link
+                    key={c.key}
+                    to={`/dashboard/clientes/${c.clientId}`}
+                    className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800/50 border border-slate-100 dark:border-zinc-800 transition-colors group"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-slate-800 dark:text-zinc-200 truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                        {c.name}
+                      </div>
+                      <div className="text-[10px] text-slate-400 dark:text-zinc-500 truncate">{c.city}</div>
+                    </div>
+                    <ExternalLink className="w-3.5 h-3.5 text-slate-300 dark:text-zinc-700 group-hover:text-emerald-500 transition-colors shrink-0" />
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Lista completa de empresas representadas (a versão "ver todos" do card Receita por empresa). */
+function ByCompanyDetail({ companies }: { companies: CompanySlice[] }) {
+  if (companies.length === 0) {
+    return <p className="text-sm text-slate-400 dark:text-zinc-500 font-medium py-8 text-center">Nenhum pedido lançado no período.</p>;
+  }
+  return (
+    <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200/80 dark:border-zinc-800/80 p-5 sm:p-6">
+      <div className="space-y-4">
+        {companies.map((company) => (
+          <div key={company.name}>
+            <div className="flex items-center justify-between gap-3 mb-1.5">
+              <span className="text-sm font-bold text-slate-800 dark:text-zinc-200 truncate uppercase tracking-tight">{company.name}</span>
+              <div className="flex items-baseline gap-3 shrink-0">
+                <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 tabular-nums">
+                  {company.commissionPct > 0 ? `${company.commissionPct}% → ${BRL(company.commissionValue)}` : 'comissão não configurada'}
+                </span>
+                <span className="text-sm font-black text-slate-900 dark:text-zinc-100 tabular-nums">{BRL(company.revenue)}</span>
+              </div>
+            </div>
+            <div className="h-1.5 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+              <div style={{ width: `${company.share * 100}%` }} className="h-full bg-emerald-500 rounded-full" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function LoadingSkeleton() {
   return (
     <div className="space-y-6">
@@ -450,6 +621,7 @@ export default function ReportsPage() {
   const monthOptions = useMemo(buildMonthOptions, []);
   const [selected, setSelected] = useState<MonthOption>(monthOptions[0]);
   const [exporting, setExporting] = useState<'excel' | 'csv' | null>(null);
+  const [detailView, setDetailView] = useState<'topClients' | 'health' | 'byCompany' | 'byCity' | null>(null);
 
   const { data, isLoading, isError, refetch } = useQuery({
     // 'v2': dados persistidos em IndexedDB de antes da expansão do relatório
@@ -519,7 +691,7 @@ export default function ReportsPage() {
           return (
             <button
               key={`${m.year}-${m.month}`}
-              onClick={() => setSelected(m)}
+              onClick={() => { setSelected(m); setDetailView(null); }}
               className={cn(
                 'shrink-0 px-4 py-2 rounded-2xl text-[11px] font-black uppercase tracking-wider transition-all',
                 isActive
@@ -552,6 +724,35 @@ export default function ReportsPage() {
             <RefreshCw className="w-4 h-4" /> Tentar novamente
           </button>
         </div>
+      ) : data && kpis && detailView ? (
+        <motion.div key={detailView} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+          {detailView === 'topClients' && (
+            <>
+              <DetailHeader icon={Trophy} title="Todos os clientes do mês" subtitle={`Ordenados por receita em ${selected.fullLabel}`} onBack={() => setDetailView(null)} />
+              <TopClientsDetail clients={data.topClients} />
+            </>
+          )}
+          {detailView === 'health' && (
+            <>
+              <DetailHeader icon={HeartPulse} title="Saúde da carteira" subtitle={`${data.health.total} cliente${data.health.total === 1 ? '' : 's'} · régua de ${settings.alerta_days || 30}/${settings.critico_days || 45}/${settings.inativo_days || 90} dias`} onBack={() => setDetailView(null)} />
+              <HealthDetail clients={data.health.clients} />
+            </>
+          )}
+          {detailView === 'byCompany' && (
+            <>
+              <DetailHeader icon={Building2} title="Receita por empresa" subtitle={`Todas as representadas em ${selected.fullLabel}`} onBack={() => setDetailView(null)} />
+              <ByCompanyDetail companies={data.byCompany} />
+            </>
+          )}
+          {detailView === 'byCity' && (
+            <>
+              <DetailHeader icon={MapPin} title="Receita por cidade" subtitle={`Todas as cidades em ${selected.fullLabel}`} onBack={() => setDetailView(null)} />
+              <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200/80 dark:border-zinc-800/80 p-5 sm:p-6">
+                <CityBreakdownCard cities={data.topCities} />
+              </div>
+            </>
+          )}
+        </motion.div>
       ) : data && kpis ? (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
           {/* Acumulado do ano */}
@@ -585,14 +786,19 @@ export default function ReportsPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Top clientes */}
-            <CardShell icon={Trophy} title="Top clientes do mês" subtitle="Participação na receita do período">
+            <CardShell
+              icon={Trophy}
+              title="Top clientes do mês"
+              subtitle="Participação na receita do período"
+              onExpand={data.topClients.length > 5 ? () => setDetailView('topClients') : undefined}
+            >
               {data.topClients.length === 0 ? (
                 <p className="text-sm text-slate-400 dark:text-zinc-500 font-medium py-8 text-center">
                   Nenhum pedido lançado em {selected.fullLabel}.
                 </p>
               ) : (
                 <div className="space-y-4">
-                  {data.topClients.map((client, idx) => (
+                  {data.topClients.slice(0, 5).map((client, idx) => (
                     <div key={client.id}>
                       <div className="flex items-center justify-between gap-3 mb-1.5">
                         <div className="flex items-center gap-2.5 min-w-0">
@@ -625,6 +831,8 @@ export default function ReportsPage() {
               icon={HeartPulse}
               title="Saúde da carteira"
               subtitle={`Régua de inatividade: ${settings.alerta_days || 30} / ${settings.critico_days || 45} / ${settings.inativo_days || 90} dias sem contato`}
+              onExpand={data.health.total > 0 ? () => setDetailView('health') : undefined}
+              expandLabel="Ver clientes por status"
             >
               <div className="space-y-4">
                 {healthRows.map((row) => {
@@ -673,14 +881,19 @@ export default function ReportsPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Receita por empresa */}
-            <CardShell icon={Building2} title="Receita por empresa" subtitle="Com comissão estimada pelo percentual configurado">
+            <CardShell
+              icon={Building2}
+              title="Receita por empresa"
+              subtitle="Com comissão estimada pelo percentual configurado"
+              onExpand={data.byCompany.length > 5 ? () => setDetailView('byCompany') : undefined}
+            >
               {data.byCompany.length === 0 ? (
                 <p className="text-sm text-slate-400 dark:text-zinc-500 font-medium py-8 text-center">
                   Nenhum pedido lançado em {selected.fullLabel}.
                 </p>
               ) : (
                 <div className="space-y-4">
-                  {data.byCompany.map((company) => (
+                  {data.byCompany.slice(0, 5).map((company) => (
                     <div key={company.name}>
                       <div className="flex items-center justify-between gap-3 mb-1.5">
                         <span className="text-sm font-bold text-slate-800 dark:text-zinc-200 truncate uppercase tracking-tight">{company.name}</span>
@@ -706,8 +919,13 @@ export default function ReportsPage() {
             </CardShell>
 
             {/* Receita por cidade */}
-            <CardShell icon={MapPin} title="Receita por cidade" subtitle="Onde está concentrada a carteira ativa do mês">
-              <CityBreakdownCard cities={data.topCities} />
+            <CardShell
+              icon={MapPin}
+              title="Receita por cidade"
+              subtitle="Onde está concentrada a carteira ativa do mês"
+              onExpand={data.topCities.length > 5 ? () => setDetailView('byCity') : undefined}
+            >
+              <CityBreakdownCard cities={data.topCities.slice(0, 5)} />
             </CardShell>
           </div>
 

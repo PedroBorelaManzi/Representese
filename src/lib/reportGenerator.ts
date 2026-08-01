@@ -287,6 +287,71 @@ function writeCalendarGrid(
   return currentRow;
 }
 
+/** Faixa colorida de título de seção dentro de uma aba com várias tabelas empilhadas. */
+function addSectionHeader(
+  sheet: ExcelJS.Worksheet,
+  row: number,
+  cols: number,
+  title: string,
+  color: string,
+  theme: typeof import('./excelTheme')
+): number {
+  const { BRAND } = theme;
+  sheet.mergeCells(row, 1, row, cols);
+  const cell = sheet.getCell(row, 1);
+  cell.value = title;
+  cell.font = { bold: true, size: 11, color: { argb: BRAND.white } };
+  cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
+  cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+  sheet.getRow(row).height = 22;
+  return row + 1;
+}
+
+/** Escreve uma tabela simples (header + linhas) a partir de `startRow`, usando
+ *  células por posição — várias tabelas cabem lado a lado na mesma aba, cada
+ *  uma seguida da próxima assim que a anterior termina. */
+function addSimpleTable(
+  sheet: ExcelJS.Worksheet,
+  startRow: number,
+  headers: string[],
+  rows: (string | number)[][],
+  opts: { theme: typeof import('./excelTheme'); numFmtByCol?: Record<number, string>; headerColor?: string; dataBarCol?: number; emptyLabel?: string }
+): { nextRow: number; dataStart: number; dataEnd: number } {
+  const { BRAND, styleTableHeader, addDataBars, colLetter } = opts.theme;
+  const headerRow = sheet.getRow(startRow);
+  headers.forEach((h, i) => { headerRow.getCell(i + 1).value = h; });
+  styleTableHeader(headerRow, opts.headerColor || BRAND.primary);
+
+  let r = startRow + 1;
+  const dataStart = r;
+  rows.forEach((values, idx) => {
+    const dataRow = sheet.getRow(r);
+    values.forEach((v, i) => {
+      const cell = dataRow.getCell(i + 1);
+      cell.value = v;
+      const fmt = opts.numFmtByCol?.[i + 1];
+      if (fmt) cell.numFmt = fmt;
+    });
+    if (idx % 2 === 1) dataRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.zebra } };
+    r++;
+  });
+  const dataEnd = r - 1;
+
+  if (rows.length === 0) {
+    sheet.mergeCells(startRow + 1, 1, startRow + 1, headers.length);
+    const emptyCell = sheet.getCell(startRow + 1, 1);
+    emptyCell.value = opts.emptyLabel || 'Sem dados neste período.';
+    emptyCell.font = { italic: true, size: 9, color: { argb: BRAND.slateLight } };
+    emptyCell.alignment = { horizontal: 'center' };
+    r = startRow + 2;
+  } else if (opts.dataBarCol) {
+    const cl = colLetter(opts.dataBarCol);
+    addDataBars(sheet, `${cl}${dataStart}:${cl}${dataEnd}`, opts.headerColor || BRAND.primary);
+  }
+
+  return { nextRow: r + 1, dataStart, dataEnd };
+}
+
 function deltaSub(current: number, prev: number, suffix = 'vs. mês anterior'): string {
   if (prev === 0 && current === 0) return `estável ${suffix}`;
   if (prev === 0) return `novo ${suffix}`;
@@ -307,7 +372,7 @@ export async function generateExcelReport(
     import('./excelTheme'),
     fetchReportData(userId, year, month, commissions),
   ]);
-  const { BRAND, CURRENCY_FMT, INT_FMT, PERCENT_FMT, addBanner, addKpiGrid, addDataBars, addFootnote, styleTableHeader, zebraStripe, autoFilter } = theme;
+  const { BRAND, CURRENCY_FMT, INT_FMT, PERCENT_FMT, addBanner, addKpiGrid, addFootnote, autoFilter } = theme;
 
   const workbook = new Excel.Workbook();
   workbook.creator = 'Represente-Se!';
@@ -356,55 +421,93 @@ export async function generateExcelReport(
   addFootnote(summarySheet, row, 8);
 
   // ═════════════════════════════════════════════════════════════════
-  // ABA 2: TENDÊNCIA 12 MESES
+  // ABA 2: DESEMPENHO (tendência 12 meses + dia da semana + novos vs. recorrentes)
   // ═════════════════════════════════════════════════════════════════
-  if (analytics?.trend?.length) {
-    const trendSheet = workbook.addWorksheet('📈 Tendência 12 Meses');
-    trendSheet.columns = [
-      { header: 'Mês', key: 'label', width: 20 },
-      { header: 'Receita', key: 'revenue', width: 18 },
-      { header: 'Pedidos', key: 'orders', width: 12 },
-    ];
-    analytics.trend.forEach((t) => trendSheet.addRow({ label: t.fullLabel, revenue: t.revenue, orders: t.orders }));
-    trendSheet.getColumn('revenue').numFmt = CURRENCY_FMT;
-    styleTableHeader(trendSheet.getRow(1), BRAND.primary);
-    zebraStripe(trendSheet, 2, analytics.trend.length + 1);
+  if (analytics) {
+    const perfSheet = workbook.addWorksheet('📈 Desempenho', { views: [{ showGridLines: false }] });
+    for (let i = 1; i <= 5; i++) perfSheet.getColumn(i).width = i === 1 ? 26 : 16;
+    let prow = 1;
+
+    prow = addSectionHeader(perfSheet, prow, 5, 'TENDÊNCIA — ÚLTIMOS 12 MESES', BRAND.primary, theme);
+    const trend = addSimpleTable(
+      perfSheet, prow, ['Mês', 'Receita', 'Pedidos'],
+      analytics.trend.map((t) => [t.fullLabel, t.revenue, t.orders]),
+      { theme, numFmtByCol: { 2: CURRENCY_FMT }, dataBarCol: 2, headerColor: BRAND.primary }
+    );
     analytics.trend.forEach((t, i) => {
-      if (t.isSelected) {
-        trendSheet.getRow(i + 2).font = { bold: true };
-        trendSheet.getRow(i + 2).getCell('label').font = { bold: true, color: { argb: BRAND.primaryDark } };
-      }
+      if (t.isSelected) perfSheet.getRow(trend.dataStart + i).font = { bold: true, color: { argb: BRAND.primaryDark } };
     });
-    addDataBars(trendSheet, `B2:B${analytics.trend.length + 1}`, BRAND.primary);
+    prow = trend.nextRow;
+
+    prow = addSectionHeader(perfSheet, prow, 5, 'VENDAS POR DIA DA SEMANA', BRAND.accentAmber, theme);
+    prow = addSimpleTable(
+      perfSheet, prow, ['Dia', 'Receita', 'Pedidos'],
+      analytics.weekday.map((w) => [w.label, w.revenue, w.orders]),
+      { theme, numFmtByCol: { 2: CURRENCY_FMT }, dataBarCol: 2, headerColor: BRAND.accentAmber }
+    ).nextRow;
+
+    prow = addSectionHeader(perfSheet, prow, 5, 'NOVOS VS. RECORRENTES', BRAND.accentIndigo, theme);
+    const nv = analytics.newVsReturning;
+    const nvTotal = nv.newRevenue + nv.returningRevenue;
+    addSimpleTable(
+      perfSheet, prow, ['Categoria', 'Receita', '% do Mês', 'Clientes', 'Pedidos'],
+      [
+        ['Novos', nv.newRevenue, nvTotal ? nv.newRevenue / nvTotal : 0, nv.newClientsCount, nv.newOrders],
+        ['Recorrentes', nv.returningRevenue, nvTotal ? nv.returningRevenue / nvTotal : 0, nv.returningClientsCount, nv.returningOrders],
+      ],
+      { theme, numFmtByCol: { 2: CURRENCY_FMT, 3: PERCENT_FMT }, dataBarCol: 2, headerColor: BRAND.accentIndigo }
+    );
   }
 
   // ═════════════════════════════════════════════════════════════════
-  // ABA 3: TOP CLIENTES
+  // ABA 3: CLIENTES & EMPRESAS (top clientes + saúde da carteira + empresas + cidades)
   // ═════════════════════════════════════════════════════════════════
-  if (analytics?.topClients?.length) {
-    const topSheet = workbook.addWorksheet('⭐ Top Clientes');
-    topSheet.columns = [
-      { header: '#', key: 'rank', width: 6 },
-      { header: 'Cliente', key: 'name', width: 28 },
-      { header: 'Receita', key: 'revenue', width: 18 },
-      { header: 'Pedidos', key: 'orders', width: 12 },
-      { header: '% do Mês', key: 'share', width: 14 },
+  const clientsSheet = workbook.addWorksheet('🏆 Clientes & Empresas', { views: [{ showGridLines: false }] });
+  for (let i = 1; i <= 8; i++) clientsSheet.getColumn(i).width = i === 1 ? 8 : i === 2 ? 26 : 16;
+  let srow = 1;
+
+  if (analytics?.topClients) {
+    srow = addSectionHeader(clientsSheet, srow, 8, 'CLIENTES DO MÊS, POR RECEITA', BRAND.accentIndigo, theme);
+    srow = addSimpleTable(
+      clientsSheet, srow, ['#', 'Cliente', 'Receita', 'Pedidos', '% do Mês'],
+      analytics.topClients.map((c, i) => [i + 1, c.name, c.revenue, c.orders, c.share]),
+      { theme, numFmtByCol: { 3: CURRENCY_FMT, 5: PERCENT_FMT }, dataBarCol: 3, headerColor: BRAND.accentIndigo, emptyLabel: 'Nenhum pedido lançado neste período.' }
+    ).nextRow;
+  }
+
+  if (analytics?.health) {
+    const h = analytics.health;
+    const healthRowsData: { label: string; count: number; fill: string; font: string; bucket: string }[] = [
+      { label: 'Em Dia', count: h.emDia, fill: 'FFD1FAE5', font: 'FF065F46', bucket: 'emDia' },
+      { label: 'Alerta', count: h.alerta, fill: 'FFFEF3C7', font: 'FF78350F', bucket: 'alerta' },
+      { label: 'Crítico', count: h.critico, fill: 'FFFED7AA', font: 'FF7C2D12', bucket: 'critico' },
+      { label: 'Inativo', count: h.inativo, fill: 'FFFECACA', font: 'FF7F1D1D', bucket: 'inativo' },
     ];
-    analytics.topClients.forEach((c, i) => topSheet.addRow({ rank: i + 1, name: c.name, revenue: c.revenue, orders: c.orders, share: c.share }));
-    topSheet.getColumn('revenue').numFmt = CURRENCY_FMT;
-    topSheet.getColumn('share').numFmt = PERCENT_FMT;
-    styleTableHeader(topSheet.getRow(1), BRAND.accentIndigo);
-    zebraStripe(topSheet, 2, analytics.topClients.length + 1);
-    addDataBars(topSheet, `C2:C${analytics.topClients.length + 1}`, BRAND.accentIndigo);
+    srow = addSectionHeader(clientsSheet, srow, 8, 'SAÚDE DA CARTEIRA', BRAND.danger, theme);
+    const healthSummary = addSimpleTable(
+      clientsSheet, srow, ['Status', 'Quantidade', 'Percentual'],
+      healthRowsData.map((r) => [r.label, r.count, h.total ? r.count / h.total : 0]),
+      { theme, numFmtByCol: { 3: PERCENT_FMT }, headerColor: BRAND.danger }
+    );
+    healthRowsData.forEach((r, i) => {
+      const statusCell = clientsSheet.getRow(healthSummary.dataStart + i).getCell(1);
+      statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: r.fill } };
+      statusCell.font = { color: { argb: r.font }, bold: true };
+    });
+    srow = healthSummary.nextRow;
+
+    const bucketOrder = ['emDia', 'alerta', 'critico', 'inativo'];
+    const sortedHealthClients = [...h.clients].sort((a, b) => bucketOrder.indexOf(a.bucket) - bucketOrder.indexOf(b.bucket) || a.name.localeCompare(b.name, 'pt-BR'));
+    const bucketLabel: Record<string, string> = { emDia: 'Em Dia', alerta: 'Alerta', critico: 'Crítico', inativo: 'Inativo' };
+    srow = addSectionHeader(clientsSheet, srow, 8, 'CLIENTES POR STATUS DE ATIVIDADE', BRAND.danger, theme);
+    srow = addSimpleTable(
+      clientsSheet, srow, ['Cliente', 'Cidade', 'Status'],
+      sortedHealthClients.map((c) => [c.name, c.city, bucketLabel[c.bucket] || c.bucket]),
+      { theme, headerColor: BRAND.danger, emptyLabel: 'Nenhum cliente cadastrado.' }
+    ).nextRow;
   }
 
-  // ═════════════════════════════════════════════════════════════════
-  // ABA 4: EMPRESAS REPRESENTADAS (com clientes por empresa)
-  // ═════════════════════════════════════════════════════════════════
-  const companySheet = workbook.addWorksheet('🏢 Empresas Representadas', { views: [{ showGridLines: false }] });
-  companySheet.columns = Array.from({ length: 7 }, () => ({ width: 18 }));
-  let crow = 1;
-
+  srow = addSectionHeader(clientsSheet, srow, 8, 'EMPRESAS REPRESENTADAS', BRAND.primary, theme);
   const companyClientMap = new Map<string, Map<string, number>>();
   data.orders.forEach((o) => {
     const key = (o.category || 'Outros').trim().toUpperCase();
@@ -412,24 +515,23 @@ export async function generateExcelReport(
     const m = companyClientMap.get(key)!;
     m.set(o.clientName, (m.get(o.clientName) || 0) + o.value);
   });
-
   const companiesForSheet = analytics?.byCompany?.length ? analytics.byCompany : data.byCompany.map((c) => ({ ...c, share: 0 }));
 
   if (companiesForSheet.length === 0) {
-    companySheet.mergeCells(`A${crow}:G${crow}`);
-    const empty = companySheet.getCell(`A${crow}`);
+    clientsSheet.mergeCells(srow, 1, srow, 8);
+    const empty = clientsSheet.getCell(srow, 1);
     empty.value = 'Nenhum pedido registrado neste período.';
     empty.font = { italic: true, size: 10, color: { argb: BRAND.slateLight } };
     empty.alignment = { horizontal: 'center', vertical: 'middle' };
-    companySheet.getRow(crow).height = 20;
-    crow++;
+    clientsSheet.getRow(srow).height = 20;
+    srow++;
   }
 
   companiesForSheet.forEach((company) => {
-    companySheet.mergeCells(`A${crow}:E${crow}`);
-    companySheet.mergeCells(`F${crow}:G${crow}`);
-    const nameCell = companySheet.getCell(`A${crow}`);
-    const revenueCell = companySheet.getCell(`F${crow}`);
+    clientsSheet.mergeCells(srow, 1, srow, 6);
+    clientsSheet.mergeCells(srow, 7, srow, 8);
+    const nameCell = clientsSheet.getCell(srow, 1);
+    const revenueCell = clientsSheet.getCell(srow, 7);
     nameCell.value = company.name;
     nameCell.font = { bold: true, size: 11, color: { argb: BRAND.white } };
     nameCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
@@ -437,16 +539,14 @@ export async function generateExcelReport(
     revenueCell.numFmt = CURRENCY_FMT;
     revenueCell.font = { bold: true, size: 11, color: { argb: BRAND.white } };
     revenueCell.alignment = { vertical: 'middle', horizontal: 'right', indent: 1 };
-    [nameCell, revenueCell].forEach((c) => {
-      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.primary } };
-    });
-    companySheet.getRow(crow).height = 22;
-    crow++;
+    [nameCell, revenueCell].forEach((c) => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.primary } }; });
+    clientsSheet.getRow(srow).height = 22;
+    srow++;
 
-    companySheet.mergeCells(`A${crow}:E${crow}`);
-    companySheet.mergeCells(`F${crow}:G${crow}`);
-    const clientHeaderCell = companySheet.getCell(`A${crow}`);
-    const valueHeaderCell = companySheet.getCell(`F${crow}`);
+    clientsSheet.mergeCells(srow, 1, srow, 6);
+    clientsSheet.mergeCells(srow, 7, srow, 8);
+    const clientHeaderCell = clientsSheet.getCell(srow, 1);
+    const valueHeaderCell = clientsSheet.getCell(srow, 7);
     clientHeaderCell.value = 'Cliente';
     valueHeaderCell.value = 'Valor';
     [clientHeaderCell, valueHeaderCell].forEach((c) => {
@@ -456,16 +556,16 @@ export async function generateExcelReport(
     });
     clientHeaderCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 2 };
     valueHeaderCell.alignment = { vertical: 'middle', horizontal: 'right', indent: 1 };
-    companySheet.getRow(crow).height = 16;
-    crow++;
+    clientsSheet.getRow(srow).height = 16;
+    srow++;
 
     const clientsMap = companyClientMap.get(company.name.trim().toUpperCase()) || new Map();
     const clientEntries = Array.from(clientsMap.entries()).sort((a, b) => b[1] - a[1]);
     clientEntries.forEach(([clientName, value], idx) => {
-      companySheet.mergeCells(`A${crow}:E${crow}`);
-      companySheet.mergeCells(`F${crow}:G${crow}`);
-      const nameC = companySheet.getCell(`A${crow}`);
-      const valueC = companySheet.getCell(`F${crow}`);
+      clientsSheet.mergeCells(srow, 1, srow, 6);
+      clientsSheet.mergeCells(srow, 7, srow, 8);
+      const nameC = clientsSheet.getCell(srow, 1);
+      const valueC = clientsSheet.getCell(srow, 7);
       nameC.value = clientName;
       nameC.font = { size: 10, color: { argb: BRAND.ink } };
       nameC.alignment = { vertical: 'middle', horizontal: 'left', indent: 2 };
@@ -478,157 +578,55 @@ export async function generateExcelReport(
         c.border = border;
         if (zebra) c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.zebra } };
       });
-      companySheet.getRow(crow).height = 16;
-      crow++;
+      clientsSheet.getRow(srow).height = 16;
+      srow++;
     });
-
-    crow++; // espaço entre empresas
+    srow++; // espaço entre empresas
   });
+  srow++;
 
-  // ═════════════════════════════════════════════════════════════════
-  // ABA 5: SAÚDE DA CARTEIRA
-  // ═════════════════════════════════════════════════════════════════
-  if (analytics?.health) {
-    const h = analytics.health;
-    const healthSheet = workbook.addWorksheet('🩺 Saúde da Carteira');
-    healthSheet.columns = [
-      { header: 'Status', key: 'status', width: 16 },
-      { header: 'Quantidade', key: 'count', width: 14 },
-      { header: 'Percentual', key: 'pct', width: 14 },
-    ];
-    const rows = [
-      { status: 'Em Dia', count: h.emDia, fill: 'FFD1FAE5', font: 'FF065F46' },
-      { status: 'Alerta', count: h.alerta, fill: 'FFFEF3C7', font: 'FF78350F' },
-      { status: 'Crítico', count: h.critico, fill: 'FFFED7AA', font: 'FF7C2D12' },
-      { status: 'Inativo', count: h.inativo, fill: 'FFFECACA', font: 'FF7F1D1D' },
-    ];
-    rows.forEach((r) => healthSheet.addRow({ status: r.status, count: r.count, pct: h.total ? r.count / h.total : 0 }));
-    healthSheet.getColumn('pct').numFmt = PERCENT_FMT;
-    styleTableHeader(healthSheet.getRow(1), BRAND.danger);
-    rows.forEach((r, i) => {
-      const statusCell = healthSheet.getRow(i + 2).getCell('status');
-      statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: r.fill } };
-      statusCell.font = { color: { argb: r.font }, bold: true };
-      healthSheet.getRow(i + 2).getCell('count').alignment = { horizontal: 'center' };
-    });
-    addDataBars(healthSheet, `B2:B${rows.length + 1}`, BRAND.danger);
-  }
-
-  // ═════════════════════════════════════════════════════════════════
-  // ABA 6: VENDAS POR DIA DA SEMANA
-  // ═════════════════════════════════════════════════════════════════
-  if (analytics?.weekday?.length) {
-    const weekdaySheet = workbook.addWorksheet('📅 Por Dia da Semana');
-    weekdaySheet.columns = [
-      { header: 'Dia', key: 'label', width: 16 },
-      { header: 'Receita', key: 'revenue', width: 18 },
-      { header: 'Pedidos', key: 'orders', width: 12 },
-    ];
-    analytics.weekday.forEach((w) => weekdaySheet.addRow({ label: w.label, revenue: w.revenue, orders: w.orders }));
-    weekdaySheet.getColumn('revenue').numFmt = CURRENCY_FMT;
-    styleTableHeader(weekdaySheet.getRow(1), BRAND.accentAmber);
-    zebraStripe(weekdaySheet, 2, analytics.weekday.length + 1);
-    addDataBars(weekdaySheet, `B2:B${analytics.weekday.length + 1}`, BRAND.accentAmber);
-  }
-
-  // ═════════════════════════════════════════════════════════════════
-  // ABA 7: NOVOS VS. RECORRENTES
-  // ═════════════════════════════════════════════════════════════════
-  if (analytics?.newVsReturning) {
-    const nv = analytics.newVsReturning;
-    const nvSheet = workbook.addWorksheet('🔁 Novos vs Recorrentes');
-    nvSheet.columns = Array.from({ length: 8 }, () => ({ width: 15 }));
-    let nrow = addBanner(nvSheet, { title: 'Novos vs. Recorrentes', subtitle: `De onde veio a receita de ${monthNameCap}`, cols: 8 });
-    nrow += 1;
-    const totalRevenue = nv.newRevenue + nv.returningRevenue;
-    addKpiGrid(nvSheet, nrow, [
-      { label: 'Receita de Novos', value: nv.newRevenue, numFmt: CURRENCY_FMT, accent: BRAND.accentBlue, sub: `${totalRevenue ? ((nv.newRevenue / totalRevenue) * 100).toFixed(0) : 0}% do mês` },
-      { label: 'Receita Recorrente', value: nv.returningRevenue, numFmt: CURRENCY_FMT, accent: BRAND.primary, sub: `${totalRevenue ? ((nv.returningRevenue / totalRevenue) * 100).toFixed(0) : 0}% do mês` },
-      { label: 'Clientes Novos', value: nv.newClientsCount, numFmt: INT_FMT, accent: BRAND.accentIndigo, sub: `${nv.newOrders} pedidos` },
-      { label: 'Clientes Recorrentes', value: nv.returningClientsCount, numFmt: INT_FMT, accent: BRAND.accentPurple, sub: `${nv.returningOrders} pedidos` },
-    ], { tileCols: 2, perRow: 2 });
-  }
-
-  // ═════════════════════════════════════════════════════════════════
-  // ABA 8: RECEITA POR CIDADE
-  // ═════════════════════════════════════════════════════════════════
-  if (analytics?.topCities?.length) {
-    const citySheet = workbook.addWorksheet('📍 Por Cidade');
-    citySheet.columns = [
-      { header: 'Cidade', key: 'city', width: 22 },
-      { header: 'Receita', key: 'revenue', width: 18 },
-      { header: 'Clientes', key: 'clients', width: 12 },
-      { header: '% do Mês', key: 'share', width: 14 },
-    ];
-    analytics.topCities.forEach((c) => citySheet.addRow(c));
-    citySheet.getColumn('revenue').numFmt = CURRENCY_FMT;
-    citySheet.getColumn('share').numFmt = PERCENT_FMT;
-    styleTableHeader(citySheet.getRow(1), BRAND.accentPurple);
-    zebraStripe(citySheet, 2, analytics.topCities.length + 1);
-    addDataBars(citySheet, `B2:B${analytics.topCities.length + 1}`, BRAND.accentPurple);
-  }
-
-  // ═════════════════════════════════════════════════════════════════
-  // ABA 9: PEDIDOS DO MÊS
-  // ═════════════════════════════════════════════════════════════════
-  const ordersSheet = workbook.addWorksheet('📋 Pedidos do Mês');
-  ordersSheet.columns = [
-    { header: 'Cliente', key: 'clientName', width: 26 },
-    { header: 'Empresa', key: 'category', width: 22 },
-    { header: 'Valor', key: 'value', width: 16 },
-    { header: 'Comissão', key: 'commission', width: 16 },
-    { header: 'Data', key: 'date', width: 14 },
-  ];
-  data.orders.forEach((o) =>
-    ordersSheet.addRow({ clientName: o.clientName, category: o.category, value: o.value, commission: o.commission, date: new Date(o.createdAt).toLocaleDateString('pt-BR') })
-  );
-  ordersSheet.getColumn('value').numFmt = CURRENCY_FMT;
-  ordersSheet.getColumn('commission').numFmt = CURRENCY_FMT;
-  styleTableHeader(ordersSheet.getRow(1), BRAND.primary);
-  zebraStripe(ordersSheet, 2, data.orders.length + 1);
-  if (data.orders.length > 0) autoFilter(ordersSheet, 1, 5, data.orders.length + 1);
-  ordersSheet.views = [{ state: 'frozen', ySplit: 1 }];
-
-  // ═════════════════════════════════════════════════════════════════
-  // ABA 10: FOLLOW-UPS DO MÊS
-  // ═════════════════════════════════════════════════════════════════
-  if (data.followups.length > 0) {
-    const followupSheet = workbook.addWorksheet('📞 Follow-ups');
-    followupSheet.columns = [
-      { header: 'Cliente', key: 'clientName', width: 26 },
-      { header: 'Data', key: 'date', width: 14 },
-      { header: 'Canal', key: 'method', width: 14 },
-      { header: 'Resultado', key: 'outcome', width: 16 },
-      { header: 'Observações', key: 'notes', width: 32 },
-    ];
-    data.followups.forEach((f) =>
-      followupSheet.addRow({
-        clientName: f.clientName,
-        date: new Date(f.contactDate).toLocaleDateString('pt-BR'),
-        method: f.method,
-        outcome: OUTCOME_LABELS[f.outcome] || f.outcome,
-        notes: f.notes || '—',
-      })
+  if (analytics?.topCities) {
+    srow = addSectionHeader(clientsSheet, srow, 8, 'RECEITA POR CIDADE', BRAND.accentPurple, theme);
+    addSimpleTable(
+      clientsSheet, srow, ['Cidade', 'Receita', 'Clientes', '% do Mês'],
+      analytics.topCities.map((c) => [c.city, c.revenue, c.clients, c.share]),
+      { theme, numFmtByCol: { 2: CURRENCY_FMT, 4: PERCENT_FMT }, dataBarCol: 2, headerColor: BRAND.accentPurple, emptyLabel: 'Nenhum pedido lançado neste período.' }
     );
-    styleTableHeader(followupSheet.getRow(1), BRAND.accentIndigo);
-    zebraStripe(followupSheet, 2, data.followups.length + 1);
-    autoFilter(followupSheet, 1, 5, data.followups.length + 1);
   }
 
   // ═════════════════════════════════════════════════════════════════
-  // ABA 11: AGENDA DO MÊS
+  // ABA 4: DETALHAMENTO (pedidos + follow-ups + agenda do mês)
   // ═════════════════════════════════════════════════════════════════
-  const agendaSheet = workbook.addWorksheet('🗓️ Agenda do Mês', { views: [{ showGridLines: false }] });
-  agendaSheet.columns = Array.from({ length: 7 }, () => ({ width: 18 }));
+  const detailSheet = workbook.addWorksheet('📋 Detalhamento', { views: [{ showGridLines: false }] });
+  for (let i = 1; i <= 7; i++) detailSheet.getColumn(i).width = 18;
+  let drow = 1;
+
+  drow = addSectionHeader(detailSheet, drow, 7, 'PEDIDOS DO MÊS', BRAND.primary, theme);
+  const ordersTable = addSimpleTable(
+    detailSheet, drow, ['Cliente', 'Empresa', 'Valor', 'Comissão', 'Data'],
+    data.orders.map((o) => [o.clientName, o.category, o.value, o.commission, new Date(o.createdAt).toLocaleDateString('pt-BR')]),
+    { theme, numFmtByCol: { 3: CURRENCY_FMT, 4: CURRENCY_FMT }, headerColor: BRAND.primary, emptyLabel: 'Nenhum pedido lançado neste período.' }
+  );
+  if (data.orders.length > 0) autoFilter(detailSheet, drow, 5, ordersTable.dataEnd);
+  drow = ordersTable.nextRow;
+
+  drow = addSectionHeader(detailSheet, drow, 7, 'FOLLOW-UPS DO MÊS', BRAND.accentIndigo, theme);
+  drow = addSimpleTable(
+    detailSheet, drow, ['Cliente', 'Data', 'Canal', 'Resultado', 'Observações'],
+    data.followups.map((f) => [f.clientName, new Date(f.contactDate).toLocaleDateString('pt-BR'), f.method, OUTCOME_LABELS[f.outcome] || f.outcome, f.notes || '—']),
+    { theme, headerColor: BRAND.accentIndigo, emptyLabel: 'Nenhum follow-up registrado neste período.' }
+  ).nextRow;
+
+  drow = addSectionHeader(detailSheet, drow, 7, 'AGENDA DO MÊS', BRAND.ink, theme);
   if (data.appointments.length > 0) {
-    writeCalendarGrid(agendaSheet, data, 1, theme);
+    writeCalendarGrid(detailSheet, data, drow, theme);
   } else {
-    agendaSheet.mergeCells('A1:G1');
-    const empty = agendaSheet.getCell('A1');
+    detailSheet.mergeCells(drow, 1, drow, 7);
+    const empty = detailSheet.getCell(drow, 1);
     empty.value = 'Nenhum compromisso registrado neste período.';
     empty.font = { italic: true, size: 10, color: { argb: BRAND.slateLight } };
     empty.alignment = { horizontal: 'center', vertical: 'middle' };
-    agendaSheet.getRow(1).height = 20;
+    detailSheet.getRow(drow).height = 20;
   }
 
   summarySheet.views = [{ showGridLines: false, state: 'frozen', ySplit: 4 }];

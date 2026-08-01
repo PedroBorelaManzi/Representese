@@ -1,7 +1,7 @@
 import { supabase } from './supabase';
 import { CommissionMap, commissionPctFor, monthRange } from './reportGenerator';
 import { FollowupLog } from './followupService';
-import { computeWalletHealthGrouped } from './clientAlerts';
+import { computeWalletHealthGrouped, clientGroupKey, HealthBucket } from './clientAlerts';
 
 export interface TrendPoint {
   /** "2026-07" — chave estável do bucket */
@@ -32,12 +32,23 @@ export interface CompanySlice {
   share: number;
 }
 
+export interface PortfolioHealthClient {
+  /** Chave de agrupamento (matriz + filiais de mesmo nome compartilham uma). */
+  key: string;
+  /** Primeiro id de cadastro do grupo — usado pra abrir a ficha do cliente. */
+  clientId: string;
+  name: string;
+  city: string;
+  bucket: HealthBucket;
+}
+
 export interface PortfolioHealth {
   emDia: number;
   alerta: number;
   critico: number;
   inativo: number;
   total: number;
+  clients: PortfolioHealthClient[];
 }
 
 export interface WeekdayPoint {
@@ -264,7 +275,8 @@ export async function fetchReportAnalytics(
     }
   });
 
-  // ---- Top clientes do mês ------------------------------------------------
+  // ---- Clientes do mês, por receita (lista completa — a tela mostra os 5
+  //      primeiros e oferece "ver todos" pra essa lista inteira) -----------
   const clientNames = new Map(clients.map((c) => [c.id, c.name]));
   const topClients: TopClient[] = Array.from(clientAgg.entries())
     .map(([id, agg]) => ({
@@ -274,8 +286,7 @@ export async function fetchReportAnalytics(
       orders: agg.orders,
       share: revenue > 0 ? agg.revenue / revenue : 0,
     }))
-    .sort((a, b) => b.revenue - a.revenue)
-    .slice(0, 5);
+    .sort((a, b) => b.revenue - a.revenue);
 
   // ---- Receita por empresa ------------------------------------------------
   const byCompany: CompanySlice[] = Array.from(companyAgg.values())
@@ -307,8 +318,7 @@ export async function fetchReportAnalytics(
       clients: agg.clients.size,
       share: revenue > 0 ? agg.revenue / revenue : 0,
     }))
-    .sort((a, b) => b.revenue - a.revenue)
-    .slice(0, 5);
+    .sort((a, b) => b.revenue - a.revenue);
 
   // ---- Saúde da carteira (mesma régua dos alertas de inatividade) ---------
   // Pela última compra registrada em qualquer representada — não por
@@ -326,8 +336,21 @@ export async function fetchReportAnalytics(
     { alerta: thresholds.alertaDays, critico: thresholds.criticoDays, inativo: thresholds.inativoDays },
     now
   );
-  const health: PortfolioHealth = { emDia: 0, alerta: 0, critico: 0, inativo: 0, total: healthByGroup.size };
+  const health: PortfolioHealth = { emDia: 0, alerta: 0, critico: 0, inativo: 0, total: healthByGroup.size, clients: [] };
   healthByGroup.forEach((bucket) => { health[bucket] += 1; });
+
+  // Um representante por grupo (matriz + filiais de mesmo nome) pra listar na
+  // tela — sem isso um cliente com 3 cadastros apareceria 3x na mesma lista.
+  const seenHealthGroups = new Set<string>();
+  clients.forEach((c) => {
+    const key = clientGroupKey(c);
+    if (seenHealthGroups.has(key)) return;
+    seenHealthGroups.add(key);
+    const bucket = healthByGroup.get(key);
+    if (!bucket) return;
+    health.clients.push({ key, clientId: c.id, name: c.name || 'Sem nome', city: (c.city || '').trim() || 'Não informado', bucket });
+  });
+  health.clients.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 
   // ---- Clientes novos no mês e no anterior ---------------------------------
   const prevStart = new Date(year, month - 2, 1);
