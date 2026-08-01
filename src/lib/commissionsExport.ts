@@ -1,6 +1,23 @@
 /* Gerador do extrato mensal de comissões — PDF (impressão) e Excel.
-   Redesign do antigo exportPdf() inline em pages/Comissoes.tsx. */
+   O Excel usa o mesmo sistema de design (excelTheme.ts) do relatório de
+   leads: banner de capa, cards de KPI, barras de dados e tabelas com
+   zebra stripe — além de mais métricas (ticket médio, comissão média por
+   pedido, projeção anual, ranking das 3 maiores empresas). */
 import ExcelJS from 'exceljs';
+import {
+  BRAND,
+  CURRENCY_FMT,
+  INT_FMT,
+  SIGNED_PERCENT_FMT,
+  addBanner,
+  addDataBars,
+  addFootnote,
+  addKpiGrid,
+  autoFilter,
+  styleTableHeader,
+  zebraStripe,
+  type KpiTile,
+} from './excelTheme';
 
 export interface CommissionRow {
   key: string;
@@ -37,6 +54,7 @@ export function exportCommissionsAsPDF(
   const active = rows.filter((r) => r.faturamento > 0);
   const totalPedidos = active.reduce((s, r) => s + r.pedidos, 0);
   const deltaPct = deltaOf(totals.comissao, totals.comissaoPrev);
+  const ticketMedio = totalPedidos > 0 ? totals.faturamento / totalPedidos : 0;
   const generatedAt = new Date().toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 
   const rowsHtml = active
@@ -74,7 +92,7 @@ export function exportCommissionsAsPDF(
   .kpis{display:flex;gap:16px;margin-bottom:32px}
   .kpi{flex:1;border:1px solid #e2e8f0;border-radius:16px;padding:18px 20px}
   .kpi-label{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;font-weight:800}
-  .kpi-value{font-size:26px;font-weight:900;margin-top:6px;color:#0f172a}
+  .kpi-value{font-size:24px;font-weight:900;margin-top:6px;color:#0f172a}
   .kpi.highlight{background:linear-gradient(135deg,#059669,#10b981);border:none}
   .kpi.highlight .kpi-label{color:#d1fae5}
   .kpi.highlight .kpi-value{color:#fff}
@@ -125,6 +143,10 @@ export function exportCommissionsAsPDF(
       <div class="kpi-label">Pedidos no mês</div>
       <div class="kpi-value">${totalPedidos}</div>
     </div>
+    <div class="kpi">
+      <div class="kpi-label">Ticket médio</div>
+      <div class="kpi-value">${BRL(ticketMedio)}</div>
+    </div>
   </div>
 
   ${totals.semConfig > 0 ? `<div style="margin-bottom:20px;padding:12px 16px;border-radius:12px;background:#fffbeb;border:1px solid #fde68a;font-size:12px;color:#92400e;font-weight:700">⚠️ ${totals.semConfig} empresa(s) com faturamento mas sem % de comissão configurado.</div>` : ""}
@@ -157,29 +179,43 @@ export async function exportCommissionsAsExcel(
   const active = rows.filter((r) => r.faturamento > 0);
   const totalPedidos = active.reduce((s, r) => s + r.pedidos, 0);
   const deltaPct = deltaOf(totals.comissao, totals.comissaoPrev);
+  const ticketMedio = totalPedidos > 0 ? totals.faturamento / totalPedidos : 0;
+  const comissaoMediaPedido = totalPedidos > 0 ? totals.comissao / totalPedidos : 0;
+  const top3 = [...active].sort((a, b) => b.comissao - a.comissao).slice(0, 3);
 
   // ── Aba 1: Resumo ──
   const summarySheet = workbook.addWorksheet('📊 Resumo');
-  summarySheet.columns = [
-    { header: 'Métrica', key: 'metric', width: 32 },
-    { header: 'Valor', key: 'value', width: 22 },
+  summarySheet.columns = Array.from({ length: 8 }, () => ({ width: 15 }));
+  let row = addBanner(summarySheet, {
+    title: 'Extrato de Comissões',
+    subtitle: `${month} de ${year} · gerado em ${new Date().toLocaleString('pt-BR')}`,
+    cols: 8,
+  });
+  row += 1;
+
+  const tiles: KpiTile[] = [
+    { label: 'Comissão Total', value: totals.comissao, numFmt: CURRENCY_FMT, accent: BRAND.primaryDark, sub: deltaPct !== null ? `${deltaPct >= 0 ? '▲' : '▼'} ${Math.abs(deltaPct).toFixed(1)}% vs. mês anterior` : 'sem base de comparação' },
+    { label: 'Faturamento Total', value: totals.faturamento, numFmt: CURRENCY_FMT, accent: BRAND.primary },
+    { label: 'Pedidos no Mês', value: totalPedidos, numFmt: INT_FMT, accent: BRAND.accentBlue },
+    { label: 'Empresas Ativas', value: active.length, numFmt: INT_FMT, accent: BRAND.accentIndigo },
+    { label: 'Ticket Médio', value: ticketMedio, numFmt: CURRENCY_FMT, accent: BRAND.accentPurple, sub: 'por pedido' },
+    { label: 'Comissão Média', value: comissaoMediaPedido, numFmt: CURRENCY_FMT, accent: BRAND.accentPurple, sub: 'por pedido' },
+    { label: 'Projeção Anual', value: totals.comissao * 12, numFmt: CURRENCY_FMT, accent: BRAND.accentAmber, sub: 'comissão do mês × 12' },
+    { label: 'Sem % Configurado', value: totals.semConfig, numFmt: INT_FMT, accent: BRAND.danger },
   ];
-  summarySheet.addRows([
-    { metric: '📅 Período', value: `${month} de ${year}` },
-    { metric: '💰 Comissão Total', value: BRL(totals.comissao) },
-    { metric: '📈 Faturamento Total', value: BRL(totals.faturamento) },
-    { metric: '🧾 Pedidos no Mês', value: totalPedidos },
-    { metric: '🏢 Empresas com Faturamento', value: active.length },
-    { metric: deltaPct !== null ? '📊 Variação vs. Mês Anterior' : '📊 Variação', value: deltaPct !== null ? `${deltaPct >= 0 ? '+' : ''}${deltaPct.toFixed(1)}%` : '—' },
-    { metric: '⚠️  Sem % Configurado', value: totals.semConfig },
-    { metric: '🗓️  Gerado em', value: new Date().toLocaleString('pt-BR') },
-  ]);
-  summarySheet.getRow(1).font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
-  summarySheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF10b981' } };
-  summarySheet.getRow(1).alignment = { horizontal: 'center', vertical: 'middle' };
-  for (let i = 2; i <= 9; i++) {
-    summarySheet.getRow(i).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: i % 2 === 0 ? 'FFFFFFFF' : 'FFF5F5F7' } };
+  row = addKpiGrid(summarySheet, row, tiles, { tileCols: 2, perRow: 4 }) + 1;
+
+  if (top3.length > 0) {
+    summarySheet.mergeCells(`A${row}:H${row}`);
+    const rankCell = summarySheet.getCell(`A${row}`);
+    const parts = top3.map((r, i) => `${i + 1}º ${r.name} (${BRL(r.comissao)})`).join('  ·  ');
+    rankCell.value = { richText: [
+      { text: 'Top 3 empresas do mês: ', font: { bold: true, size: 10, color: { argb: BRAND.ink } } },
+      { text: parts, font: { size: 10, color: { argb: BRAND.slate } } },
+    ] };
+    row += 2;
   }
+  addFootnote(summarySheet, row, 8);
 
   // ── Aba 2: Detalhe por Empresa ──
   const detailSheet = workbook.addWorksheet('🏢 Detalhe por Empresa');
@@ -187,6 +223,7 @@ export async function exportCommissionsAsExcel(
     { header: 'Empresa', key: 'name', width: 28 },
     { header: 'Faturamento', key: 'faturamento', width: 18 },
     { header: 'Pedidos', key: 'pedidos', width: 12 },
+    { header: 'Ticket Médio', key: 'ticket', width: 16 },
     { header: 'Comissão %', key: 'pct', width: 14 },
     { header: 'Comissão (R$)', key: 'comissao', width: 18 },
     { header: 'Faturamento Mês Anterior', key: 'faturamentoPrev', width: 22 },
@@ -199,39 +236,46 @@ export async function exportCommissionsAsExcel(
       name: r.name,
       faturamento: r.faturamento,
       pedidos: r.pedidos,
-      pct: r.pct > 0 ? `${r.pct}%` : 'Não configurado',
+      ticket: r.pedidos > 0 ? r.faturamento / r.pedidos : 0,
+      pct: r.pct > 0 ? r.pct / 100 : null,
       comissao: r.comissao,
       faturamentoPrev: r.faturamentoPrev,
-      delta: delta !== null ? `${delta >= 0 ? '+' : ''}${delta.toFixed(1)}%` : '—',
+      delta: delta !== null ? delta / 100 : null,
     });
   });
 
-  detailSheet.getColumn('faturamento').numFmt = '"R$" #,##0.00';
-  detailSheet.getColumn('comissao').numFmt = '"R$" #,##0.00';
-  detailSheet.getColumn('faturamentoPrev').numFmt = '"R$" #,##0.00';
+  detailSheet.getColumn('faturamento').numFmt = CURRENCY_FMT;
+  detailSheet.getColumn('ticket').numFmt = CURRENCY_FMT;
+  detailSheet.getColumn('comissao').numFmt = CURRENCY_FMT;
+  detailSheet.getColumn('faturamentoPrev').numFmt = CURRENCY_FMT;
+  detailSheet.getColumn('pct').numFmt = '0.0%';
+  detailSheet.getColumn('delta').numFmt = SIGNED_PERCENT_FMT;
 
-  const detailHeader = detailSheet.getRow(1);
-  detailHeader.font = { bold: true, size: 11, color: { argb: 'FFFFFFFF' } };
-  detailHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF059669' } };
-  detailHeader.alignment = { horizontal: 'center', vertical: 'middle' };
+  styleTableHeader(detailSheet.getRow(1), BRAND.primary);
 
   for (let i = 2; i <= active.length + 1; i++) {
-    const row = detailSheet.getRow(i);
-    if (i % 2 === 0) {
-      row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
+    const r = detailSheet.getRow(i);
+    const pctCell = r.getCell('pct');
+    if (pctCell.value === null) {
+      pctCell.value = 'Não configurado';
+      pctCell.font = { color: { argb: BRAND.accentAmber }, bold: true };
+      pctCell.numFmt = 'General';
     }
-    const pctCell = row.getCell('pct');
-    if (pctCell.value === 'Não configurado') {
-      pctCell.font = { color: { argb: 'FFD97706' }, bold: true };
+    const deltaCell = r.getCell('delta');
+    if (deltaCell.value === null) {
+      deltaCell.value = '—';
+      deltaCell.numFmt = 'General';
+    } else if ((deltaCell.value as number) >= 0) {
+      deltaCell.font = { color: { argb: BRAND.primaryDark }, bold: true };
+    } else {
+      deltaCell.font = { color: { argb: BRAND.danger }, bold: true };
     }
-    const deltaCell = row.getCell('delta');
-    const deltaVal = String(deltaCell.value || '');
-    if (deltaVal.startsWith('+')) {
-      deltaCell.font = { color: { argb: 'FF059669' }, bold: true };
-    } else if (deltaVal.startsWith('-')) {
-      deltaCell.font = { color: { argb: 'FFDC2626' }, bold: true };
-    }
-    row.getCell('comissao').font = { bold: true, color: { argb: 'FF059669' } };
+    r.getCell('comissao').font = { bold: true, color: { argb: BRAND.primaryDark } };
+  }
+  zebraStripe(detailSheet, 2, active.length + 1);
+  if (active.length > 0) {
+    addDataBars(detailSheet, `F2:F${active.length + 1}`, BRAND.primary);
+    autoFilter(detailSheet, 1, 8, active.length + 1);
   }
 
   // Linha de total
@@ -240,15 +284,21 @@ export async function exportCommissionsAsExcel(
       name: 'TOTAL',
       faturamento: totals.faturamento,
       pedidos: totalPedidos,
-      pct: '',
+      ticket: ticketMedio,
+      pct: null,
       comissao: totals.comissao,
       faturamentoPrev: '',
-      delta: '',
+      delta: null,
     });
     totalRow.font = { bold: true, size: 11 };
-    totalRow.border = { top: { style: 'double', color: { argb: 'FF0f172a' } } };
-    totalRow.getCell('faturamento').numFmt = '"R$" #,##0.00';
-    totalRow.getCell('comissao').numFmt = '"R$" #,##0.00';
+    totalRow.border = { top: { style: 'double', color: { argb: BRAND.ink } } };
+    totalRow.getCell('faturamento').numFmt = CURRENCY_FMT;
+    totalRow.getCell('ticket').numFmt = CURRENCY_FMT;
+    totalRow.getCell('comissao').numFmt = CURRENCY_FMT;
+    totalRow.getCell('pct').value = '';
+    totalRow.getCell('pct').numFmt = 'General';
+    totalRow.getCell('delta').value = '';
+    totalRow.getCell('delta').numFmt = 'General';
   }
 
   detailSheet.views = [{ state: 'frozen', ySplit: 1 }];
