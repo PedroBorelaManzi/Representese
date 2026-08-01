@@ -17,6 +17,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { EmptyState, PageHeader, Skeleton, useConfirm } from '../components/ui';
 import { posthog } from '../lib/posthog';
 import ClientImportModal from '../components/ClientImportModal';
+import { ExportLeadsButton } from '../components/ExportLeadsButton';
 
 export default function CRMPage() {
   const queryClient = useQueryClient();
@@ -327,6 +328,7 @@ export default function CRMPage() {
               <FileUp className="w-4 h-4" />
               Importar Clientes
             </button>
+            <ExportLeadsButton leads={clients} userName={user?.email} />
           </>
         }
       />

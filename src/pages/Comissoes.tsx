@@ -9,7 +9,6 @@ import {
   Loader2,
   Settings2,
   Check,
-  FileDown,
   Building2,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -20,6 +19,7 @@ import { cn } from "../lib/utils";
 import { PageHeader, Skeleton } from "../components/ui";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import { ExportCommissionsButton } from "../components/ExportCommissionsButton";
 
 const BRL = (n: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0);
@@ -102,14 +102,16 @@ export default function Comissoes() {
     staleTime: 60_000,
   });
 
-  // Faturamento por empresa (mês atual e anterior)
+  // Faturamento e nº de pedidos por empresa (mês atual e anterior)
   const computeByCompany = (orders: MonthOrder[]) => {
-    const map = new Map<string, number>();
+    const value = new Map<string, number>();
+    const count = new Map<string, number>();
     orders.forEach((o) => {
       const key = norm(o.category);
-      map.set(key, (map.get(key) || 0) + (Number(o.value) || 0));
+      value.set(key, (value.get(key) || 0) + (Number(o.value) || 0));
+      count.set(key, (count.get(key) || 0) + 1);
     });
-    return map;
+    return { value, count };
   };
 
   const rows = useMemo(() => {
@@ -119,7 +121,7 @@ export default function Comissoes() {
     // Considera todas as empresas: as cadastradas + quaisquer que apareçam nos pedidos
     const allKeys = new Set<string>();
     companies.forEach((c) => allKeys.add(norm(c)));
-    cur.forEach((_, k) => allKeys.add(k));
+    cur.value.forEach((_, k) => allKeys.add(k));
 
     // Mapeia a chave normalizada de volta para o nome "bonito" cadastrado
     const prettyName = new Map<string, string>();
@@ -131,11 +133,12 @@ export default function Comissoes() {
 
     return Array.from(allKeys).map((key) => {
       const name = prettyName.get(key) || key;
-      const faturamento = cur.get(key) || 0;
-      const faturamentoPrev = prev.get(key) || 0;
+      const faturamento = cur.value.get(key) || 0;
+      const faturamentoPrev = prev.value.get(key) || 0;
+      const pedidos = cur.count.get(key) || 0;
       const pct = Number(commissions[name] ?? commissions[key] ?? 0);
       const comissao = faturamento * (pct / 100);
-      return { key, name, faturamento, faturamentoPrev, pct, comissao };
+      return { key, name, faturamento, faturamentoPrev, pedidos, pct, comissao };
     }).sort((a, b) => b.comissao - a.comissao);
   }, [data, companies, commissions]);
 
@@ -173,44 +176,6 @@ export default function Comissoes() {
     } finally {
       setSaving(false);
     }
-  };
-
-  const exportPdf = () => {
-    const win = window.open("", "_blank");
-    if (!win) {
-      toast.error("Permita pop-ups para gerar o relatório.");
-      return;
-    }
-    const rowsHtml = rows
-      .filter((r) => r.faturamento > 0)
-      .map(
-        (r) =>
-          `<tr><td>${r.name}</td><td>${BRL(r.faturamento)}</td><td style="text-align:center">${r.pct}%</td><td style="text-align:right;font-weight:700;color:#10b981">${BRL(r.comissao)}</td></tr>`
-      )
-      .join("");
-    win.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
-<title>Extrato de Comissões — ${MONTHS[month]}/${year}</title>
-<style>
-  body{font-family:-apple-system,"Segoe UI",Roboto,sans-serif;color:#0f172a;padding:40px;margin:0}
-  .head{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #10b981;padding-bottom:16px;margin-bottom:24px}
-  .brand{font-size:22px;font-weight:900;letter-spacing:-.5px}.brand span{color:#10b981}
-  .date{font-size:12px;color:#64748b;font-weight:600}
-  .total{font-size:32px;font-weight:900;color:#10b981;margin:8px 0 24px}
-  table{width:100%;border-collapse:collapse;font-size:13px}
-  th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;border-bottom:2px solid #e2e8f0;padding:8px 10px}
-  td{padding:9px 10px;border-bottom:1px solid #f1f5f9}
-  tr:nth-child(even) td{background:#f8fafc}
-  .foot{margin-top:32px;font-size:11px;color:#94a3b8;text-align:center;border-top:1px solid #e2e8f0;padding-top:16px}
-</style></head><body>
-  <div class="head"><div class="brand">Represente<span>-Se!</span></div><div class="date">Extrato de Comissões · ${MONTHS[month]} de ${year}</div></div>
-  <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#94a3b8;font-weight:700">Comissão total no mês</div>
-  <div class="total">${BRL(totals.comissao)}</div>
-  <table><thead><tr><th>Empresa</th><th>Faturamento</th><th style="text-align:center">%</th><th style="text-align:right">Comissão</th></tr></thead>
-  <tbody>${rowsHtml || `<tr><td colspan="4" style="color:#94a3b8">Nenhum pedido neste mês.</td></tr>`}</tbody></table>
-  <div class="foot">Gerado pelo Represente-Se! · www.representese.com</div>
-  <script>window.onload=()=>setTimeout(()=>window.print(),400)</script>
-</body></html>`);
-    win.document.close();
   };
 
   return (
@@ -301,15 +266,13 @@ export default function Comissoes() {
           <h2 className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-zinc-500">
             Detalhe por empresa
           </h2>
-          {rows.some((r) => r.faturamento > 0) && (
-            <button
-              onClick={exportPdf}
-              className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-zinc-400 hover:text-emerald-600 transition-colors"
-            >
-              <FileDown className="w-3.5 h-3.5" />
-              Extrato PDF
-            </button>
-          )}
+          <ExportCommissionsButton
+            rows={rows}
+            totals={totals}
+            month={MONTHS[month]}
+            year={year}
+            userName={user?.email}
+          />
         </div>
 
         {isLoading ? (
