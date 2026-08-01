@@ -3,7 +3,7 @@
    garante que todo relatório gerado pelo app tenha a mesma identidade visual
    (cores da marca, tipografia, cards de KPI, tabelas) em vez de cada um
    inventar o próprio estilo. */
-import ExcelJS from 'exceljs';
+import type ExcelJS from 'exceljs';
 
 export const BRAND = {
   primaryDark: 'FF065F46', // emerald-800

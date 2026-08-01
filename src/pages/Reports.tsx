@@ -471,8 +471,8 @@ export default function ReportsPage() {
     if (!user || exporting) return;
     setExporting(format);
     try {
-      if (format === 'excel') await downloadExcelReport(user.id, selected.year, selected.month, settings.commissions || {});
-      else await downloadCSVReport(user.id, selected.year, selected.month, settings.commissions || {});
+      if (format === 'excel') await downloadExcelReport(user.id, selected.year, selected.month, settings.commissions || {}, data);
+      else await downloadCSVReport(user.id, selected.year, selected.month, settings.commissions || {}, data);
       toast.success(`Relatório de ${selected.fullLabel} gerado com sucesso!`);
     } catch (error) {
       console.error('Erro ao gerar relatório:', error);
