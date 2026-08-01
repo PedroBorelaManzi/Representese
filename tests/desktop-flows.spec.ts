@@ -23,13 +23,15 @@ test.describe('Etapa 1: Revisão Frontend (Web Desktop) - Fluxos Principais', ()
     await expect(toast).toBeVisible({ timeout: 5000 });
   });
 
-  test('Deve carregar a página de cadastro', async ({ page }) => {
-    // /register mostra o formulário de cadastro; a seleção de plano acontece
-    // depois, em /planos, para onde o usuário é levado após criar a conta.
+  test('Deve carregar a página de cadastro (captura de lead)', async ({ page }) => {
+    // /register captura nome/whatsapp/empresa(opcional)/e-mail — sem senha e
+    // sem login (simplificado em 3b5187b). A seleção de plano acontece depois,
+    // em /planos, para onde o usuário é levado após deixar o contato.
     await page.goto('/register');
     await page.waitForLoadState('domcontentloaded');
+    await expect(page.locator('input[type="text"]').first()).toBeVisible();
+    await expect(page.locator('input[type="tel"]')).toBeVisible();
     await expect(page.locator('input[type="email"]')).toBeVisible();
-    await expect(page.locator('input[type="password"]')).toBeVisible();
   });
 
   test('Deve carregar a página de planos com seleção de planos', async ({ page }) => {
