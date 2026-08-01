@@ -9,6 +9,8 @@ import {
   PieChart, Pie, Cell
 } from 'recharts';
 import { cn } from '../lib/utils';
+import { exportRawLeadsAsExcel, exportSubscriptionLeadsAsExcel } from '../lib/rawLeadsExport';
+import { toast } from 'sonner';
 
 const COLORS = [
   '#10b981', '#6366f1', '#f59e0b', '#ef4444', 
@@ -235,39 +237,22 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
     refetchOnMount: 'always',
   });
 
-  const exportRawLeadsToCSV = () => {
-    if (!rawLeadsData) return;
-    const headers = ['Data', 'Nome', 'Email', 'Telefone', 'Empresa'];
-    const csvContent = rawLeadsData.map(lead => {
-      const date = new Date(lead.created_at).toLocaleDateString('pt-BR');
-      return `${date},${lead.name},${lead.email},${lead.phone},${lead.company || ''}`;
-    });
-    const blob = new Blob([headers.join(',') + '\\n' + csvContent.join('\\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `contatos_representese_${new Date().getTime()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const exportRawLeadsToCSV = async () => {
+    if (!rawLeadsData || rawLeadsData.length === 0) return;
+    try {
+      await exportRawLeadsAsExcel(rawLeadsData);
+    } catch {
+      toast.error('Erro ao gerar o Excel dos contatos.');
+    }
   };
 
-  const exportToCSV = () => {
-    if (!leadsData) return;
-    const headers = ['Data de Cadastro', 'Email', 'Telefone', 'Status'];
-    const csvContent = leadsData.map(lead => {
-      const date = new Date(lead.created_at).toLocaleDateString('pt-BR');
-      return `${date},${lead.email},${lead.phone || ''},${lead.subscription_status}`;
-    });
-    
-    const blob = new Blob([headers.join(',') + '\\n' + csvContent.join('\\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `leads_representese_${new Date().getTime()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const exportToCSV = async () => {
+    if (!leadsData || leadsData.length === 0) return;
+    try {
+      await exportSubscriptionLeadsAsExcel(leadsData);
+    } catch {
+      toast.error('Erro ao gerar o Excel da base de leads.');
+    }
   };
 
   const formatTime = (seconds: number) => {
@@ -653,10 +638,11 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
               </div>
               <button
                 onClick={exportRawLeadsToCSV}
-                className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-4 py-2 rounded-xl font-bold text-sm hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors"
+                disabled={!rawLeadsData || rawLeadsData.length === 0}
+                className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-4 py-2 rounded-xl font-bold text-sm hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Download className="w-4 h-4" />
-                Exportar CSV
+                Exportar Excel
               </button>
             </div>
             <div className="overflow-x-auto">
@@ -713,10 +699,11 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
               </div>
               <button
                 onClick={exportToCSV}
-                className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-4 py-2 rounded-xl font-bold text-sm hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors"
+                disabled={!leadsData || leadsData.length === 0}
+                className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-4 py-2 rounded-xl font-bold text-sm hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Download className="w-4 h-4" />
-                Exportar CSV
+                Exportar Excel
               </button>
             </div>
             
