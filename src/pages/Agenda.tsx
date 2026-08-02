@@ -37,7 +37,6 @@ import { useSettings } from "../contexts/SettingsContext";
 import { useWeatherForecast } from "../hooks/useWeather";
 import { WeatherCitySelector } from "../components/WeatherCitySelector";
 import { WeatherIcon } from "../components/WeatherIcon";
-import { WeeklyForecast } from "../components/WeeklyForecast";
 
 type Appointment = {
   id: string;
@@ -429,9 +428,6 @@ export default function Agenda() {
       />
 
       <div className="flex-1 flex flex-col gap-6 mt-4 min-h-0">
-        {weather && settings.weather_city && (
-          <WeeklyForecast data={weather} city={settings.weather_city} />
-        )}
         <div className="flex-1 bg-white dark:bg-zinc-950 rounded-[32px] border border-slate-200/80 dark:border-zinc-800/80 shadow-2xl flex flex-col min-h-[600px] relative overflow-hidden">
           <div className="p-3 lg:p-4 border-b border-slate-300/60 dark:border-zinc-800 flex items-center justify-between bg-emerald-600/5 dark:bg-emerald-900/10">
             <div className="flex items-center gap-3 lg:gap-4">
@@ -508,8 +504,11 @@ export default function Agenda() {
                           <div className="flex items-center gap-1.5">
                             {dayWeather && (
                               <div
-                                className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-sky-50 dark:bg-sky-950/30 border border-sky-100 dark:border-sky-900/40"
-                                title={`${dayWeather.info.label} · máx ${dayWeather.tempMax}° / mín ${dayWeather.tempMin}°`}
+                                className={cn(
+                                  "flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-sky-50 dark:bg-sky-950/30 border border-sky-100 dark:border-sky-900/40",
+                                  dayWeather.isExtended && "opacity-60"
+                                )}
+                                title={`${dayWeather.info.label} · máx ${dayWeather.tempMax}° / mín ${dayWeather.tempMin}°${dayWeather.isExtended ? ' (tendência)' : ''}`}
                               >
                                 <WeatherIcon category={dayWeather.info.category} className="w-3.5 h-3.5" />
                                 <span className="text-[9px] font-black text-sky-700 dark:text-sky-300 tabular-nums">{dayWeather.tempMax}°</span>
@@ -583,10 +582,10 @@ export default function Agenda() {
                                   clima, pontinhos) não cabiam na célula quadrada em telas pequenas. */}
                               <div className="flex items-center gap-0.5 mt-1 h-2.5">
                                   {dayWeather && (
-                                    <>
+                                    <span className={cn("flex items-center gap-0.5", dayWeather.isExtended && "opacity-60")}>
                                       <WeatherIcon category={dayWeather.info.category} className={cn("w-2 h-2 shrink-0", isSelected && "text-white")} />
                                       <span className={cn("text-[7px] font-black tabular-nums leading-none", isSelected ? "text-white" : "text-slate-400 dark:text-zinc-500")}>{dayWeather.tempMax}°</span>
-                                    </>
+                                    </span>
                                   )}
                                   {hasEvents && <div className={cn("w-1 h-1 rounded-full shrink-0", isSelected ? "bg-white" : "bg-emerald-500")} />}
                                   {hasHolidays && <div className={cn("w-1 h-1 rounded-full shrink-0", isSelected ? "bg-white" : "bg-amber-500")} />}
