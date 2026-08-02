@@ -3,6 +3,7 @@ import { useSettings } from '../contexts/SettingsContext';
 import { useWeatherForecast } from '../hooks/useWeather';
 import { WeatherIcon } from './WeatherIcon';
 import { WeatherCitySelector } from './WeatherCitySelector';
+import { cn } from '../lib/utils';
 
 const formatDateLocal = (date: Date) => {
   const y = date.getFullYear();
@@ -11,8 +12,16 @@ const formatDateLocal = (date: Date) => {
   return `${y}-${m}-${d}`;
 };
 
-/** Quadradinho de previsão do dia atual na página inicial. */
-export function WeatherWidget() {
+interface WeatherWidgetProps {
+  /** Semana a destacar na faixa de previsão — por padrão, os 7 dias a partir
+   *  de hoje. Passe a mesma semana exibida na agenda pra manter as duas
+   *  visões sincronizadas (ex.: Início). */
+  days?: Date[];
+}
+
+/** Card de previsão do tempo: hoje em destaque + faixa dos 7 dias da semana
+ *  exibida (por padrão, a semana corrente a partir de hoje). */
+export function WeatherWidget({ days: customDays }: WeatherWidgetProps) {
   const { settings } = useSettings();
   const hasCity = typeof settings.weather_lat === 'number' && typeof settings.weather_lng === 'number';
   const { data, isLoading, isError } = useWeatherForecast(settings.weather_lat, settings.weather_lng);
@@ -35,12 +44,23 @@ export function WeatherWidget() {
     );
   }
 
-  const today = data?.daily[formatDateLocal(new Date())];
+  const todayIso = formatDateLocal(new Date());
+  const today = data?.daily[todayIso];
+  const days = customDays ?? Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    return d;
+  });
+  const rangeLabel = days.length > 0
+    ? `${days[0].toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} – ${days[days.length - 1].toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`
+    : '';
 
   return (
-    <div className="bg-gradient-to-br from-sky-500 to-sky-600 dark:from-sky-700 dark:to-sky-800 rounded-[24px] p-5 shadow-lg shadow-sky-500/20 relative overflow-hidden">
-      <div className="absolute -right-6 -top-6 w-32 h-32 rounded-full bg-white/10" />
-      <div className="relative flex items-center justify-between gap-4">
+    <div className="bg-gradient-to-br from-sky-500 to-sky-600 dark:from-sky-700 dark:to-sky-800 rounded-[24px] shadow-lg shadow-sky-500/20 relative overflow-hidden">
+      <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-white/10" />
+      <div className="absolute -left-10 bottom-0 w-32 h-32 rounded-full bg-white/5" />
+
+      <div className="relative p-5">
         {isLoading ? (
           <div className="flex items-center gap-2 text-white/90 py-4">
             <Loader2 className="w-5 h-5 animate-spin" />
@@ -52,7 +72,7 @@ export function WeatherWidget() {
             <p className="text-[11px] font-medium text-sky-100 mt-0.5">Tente novamente mais tarde.</p>
           </div>
         ) : (
-          <>
+          <div className="flex items-center justify-between gap-4">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5 text-sky-100 mb-1 min-w-0">
                 <MapPin className="w-3.5 h-3.5 shrink-0" />
@@ -74,9 +94,50 @@ export function WeatherWidget() {
             <div className="shrink-0 bg-white/15 rounded-3xl p-4">
               <WeatherIcon category={data.current.info.category} className="w-12 h-12 !text-white" />
             </div>
-          </>
+          </div>
         )}
       </div>
+
+      {/* Faixa da semana — mesmos dias exibidos na agenda abaixo, quando informados */}
+      {!isLoading && !isError && data && (
+        <div className="relative px-5 pb-5">
+          <div className="flex items-center justify-between mb-2 px-0.5">
+            <span className="text-[9px] font-black text-sky-100 uppercase tracking-[0.18em]">Previsão da semana</span>
+            {rangeLabel && <span className="text-[9px] font-bold text-sky-100/80 tabular-nums">{rangeLabel}</span>}
+          </div>
+          <div className="grid grid-cols-7 gap-1">
+            {days.map((d) => {
+              const iso = formatDateLocal(d);
+              const fc = data.daily[iso];
+              const isToday = iso === todayIso;
+              return (
+                <div
+                  key={iso}
+                  className={cn(
+                    'flex flex-col items-center gap-1 rounded-xl py-2 px-0.5',
+                    isToday ? 'bg-white/25' : 'bg-white/10'
+                  )}
+                >
+                  <span className="text-[8px] font-black uppercase tracking-wide text-sky-50">
+                    {isToday ? 'Hoje' : d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}
+                  </span>
+                  {fc ? (
+                    <>
+                      <WeatherIcon category={fc.info.category} className="w-4 h-4 !text-white" />
+                      <div className="flex flex-col items-center leading-none">
+                        <span className="text-[10px] font-black text-white tabular-nums">{fc.tempMax}°</span>
+                        <span className="text-[8px] font-bold text-sky-100 tabular-nums">{fc.tempMin}°</span>
+                      </div>
+                    </>
+                  ) : (
+                    <span className="text-[9px] font-bold text-sky-100/60 py-2">—</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
