@@ -381,6 +381,16 @@ export default function Agenda() {
         icon={CalendarDays}
         title="Agenda"
         subtitle="Visitas e feriados do mês"
+        titleExtra={
+          settings.weather_city && (
+            <div className="flex items-center gap-2">
+              <span className="px-3 py-1.5 bg-sky-50 dark:bg-sky-950/30 text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-900/40 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm">
+                📍 {settings.weather_city}
+              </span>
+              <WeatherCitySelector compact light />
+            </div>
+          )
+        }
         className="mb-4 lg:mb-5"
         actions={
           <>
@@ -395,7 +405,6 @@ export default function Agenda() {
               />
               <Sparkles className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500" />
             </div>
-            <WeatherCitySelector />
             {googleConnected && (
               <button
                 onClick={handleSync}

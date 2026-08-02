@@ -8,6 +8,8 @@ interface PageHeaderProps {
   subtitle?: string;
   /** Ações à direita (busca, botões). Empilham abaixo do título no mobile. */
   actions?: React.ReactNode;
+  /** Conteúdo extra ao lado do título (ex: badge de cidade). */
+  titleExtra?: React.ReactNode;
   /** Acento do badge do ícone. Padrão: verde da marca. */
   accent?: 'brand' | 'amber' | 'sky' | 'violet';
   className?: string;
@@ -24,7 +26,7 @@ const ACCENTS: Record<NonNullable<PageHeaderProps['accent']>, string> = {
  * Cabeçalho padrão de página do dashboard: badge de ícone + título +
  * subtítulo + ações. Mantém todas as telas com a mesma hierarquia visual.
  */
-export function PageHeader({ icon: Icon, title, subtitle, actions, accent = 'brand', className }: PageHeaderProps) {
+export function PageHeader({ icon: Icon, title, subtitle, actions, titleExtra, accent = 'brand', className }: PageHeaderProps) {
   return (
     <header className={cn('flex flex-col lg:flex-row lg:items-center gap-4 lg:gap-6 mb-6 lg:mb-8', className)}>
       <div className="flex items-center gap-4 min-w-0">
@@ -32,7 +34,10 @@ export function PageHeader({ icon: Icon, title, subtitle, actions, accent = 'bra
           <Icon className="w-6 h-6" aria-hidden="true" />
         </div>
         <div className="min-w-0">
-          <h1 className="text-2xl lg:text-3xl font-black tracking-tight text-slate-900 dark:text-zinc-100 truncate">{title}</h1>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-2xl lg:text-3xl font-black tracking-tight text-slate-900 dark:text-zinc-100">{title}</h1>
+            {titleExtra && <div className="flex items-center gap-2">{titleExtra}</div>}
+          </div>
           {subtitle && (
             <p className="text-[10px] lg:text-[11px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest mt-0.5 truncate">{subtitle}</p>
           )}
