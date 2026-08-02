@@ -60,7 +60,7 @@ export function WeatherWidget({ days: customDays }: WeatherWidgetProps) {
       <div className="absolute -right-6 -top-6 w-28 h-28 rounded-full bg-white/10" />
       <div className="absolute -left-8 bottom-0 w-24 h-24 rounded-full bg-white/5" />
 
-      <div className="relative p-3.5">
+      <div className="relative p-2.5">
         {isLoading ? (
           <div className="flex items-center gap-2 text-white/90 py-2">
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -101,7 +101,7 @@ export function WeatherWidget({ days: customDays }: WeatherWidgetProps) {
 
       {/* Faixa da semana — mesmos dias exibidos na agenda abaixo, quando informados */}
       {!isLoading && !isError && data && (
-        <div className="relative px-3.5 pb-3.5">
+        <div className="relative px-2.5 pb-2.5">
           <div className="flex items-center justify-between mb-1.5 px-0.5">
             <span className="text-[8px] font-black text-sky-100 uppercase tracking-[0.18em]">Previsão da semana</span>
             {rangeLabel && <span className="text-[8px] font-bold text-sky-100/80 tabular-nums">{rangeLabel}</span>}
