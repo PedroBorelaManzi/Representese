@@ -106,7 +106,7 @@ export function WeatherWidget({ days: customDays }: WeatherWidgetProps) {
             <span className="text-[8px] font-black text-sky-100 uppercase tracking-[0.18em]">Previsão da semana</span>
             {rangeLabel && <span className="text-[8px] font-bold text-sky-100/80 tabular-nums">{rangeLabel}</span>}
           </div>
-          <div className="grid grid-cols-7 gap-1">
+          <div className="grid grid-cols-7 gap-1.5">
             {days.map((d) => {
               const iso = formatDateLocal(d);
               const fc = data.daily[iso];
@@ -115,7 +115,7 @@ export function WeatherWidget({ days: customDays }: WeatherWidgetProps) {
                 <div
                   key={iso}
                   className={cn(
-                    'flex flex-col items-center gap-0.5 rounded-lg py-1.5 px-0.5',
+                    'flex flex-col items-center gap-0.5 rounded-lg py-1.5 px-1',
                     isToday ? 'bg-white/25' : 'bg-white/10'
                   )}
                 >
