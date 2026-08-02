@@ -607,9 +607,6 @@ export default function Dashboard() {
         ) : undefined}
       />
 
-      {/* Previsão do tempo: hoje em destaque + faixa da mesma semana exibida na agenda abaixo */}
-      <WeatherWidget days={weekDays} />
-
       {/* Jornada inicial: só renderiza com dados frescos (online) para não marcar
           passos errados a partir de cache parcial. */}
       {dashboardData && (
@@ -624,7 +621,11 @@ export default function Dashboard() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 flex-1 min-h-0">
-        <div className="lg:col-span-3 bg-white dark:bg-zinc-900 shadow-2xl border border-slate-200/80 dark:border-zinc-800/80 rounded-3xl overflow-hidden flex flex-col h-full min-h-[500px] lg:min-h-0">
+        <div className="lg:col-span-3 flex flex-col gap-6 min-h-0">
+          {/* Previsão do tempo: hoje em destaque + faixa da mesma semana exibida na agenda abaixo */}
+          <WeatherWidget days={weekDays} />
+
+          <div className="bg-white dark:bg-zinc-900 shadow-2xl border border-slate-200/80 dark:border-zinc-800/80 rounded-3xl overflow-hidden flex flex-col h-full min-h-[500px] lg:min-h-0">
           <div className="p-4 border-b border-slate-200 dark:border-zinc-800/80 flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50 dark:bg-zinc-950/40 z-40 gap-4">
             <div className="flex items-center gap-4">
               <h2 className="text-sm font-black text-slate-800 dark:text-zinc-100 uppercase tracking-widest leading-none">
@@ -859,6 +860,7 @@ export default function Dashboard() {
                     )}
                 </div>
             </div>
+          </div>
           </div>
         </div>
 

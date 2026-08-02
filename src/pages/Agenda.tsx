@@ -382,14 +382,14 @@ export default function Agenda() {
         title="Agenda"
         subtitle="Visitas e feriados do mês"
         titleExtra={
-          settings.weather_city && (
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
+            {settings.weather_city && (
               <span className="px-3 py-1.5 bg-sky-50 dark:bg-sky-950/30 text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-900/40 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm">
                 📍 {settings.weather_city}
               </span>
-              <WeatherCitySelector compact light />
-            </div>
-          )
+            )}
+            <WeatherCitySelector compact light className="inline-flex" />
+          </div>
         }
         className="mb-4 lg:mb-5"
         actions={
