@@ -1,13 +1,21 @@
 import { useState, useEffect, useRef } from 'react';
-import { MapPin, Search, X, Loader2, CloudSun, AlertTriangle, RefreshCw } from 'lucide-react';
+import { MapPin, Search, X, Loader2, CloudSun, AlertTriangle, RefreshCw, Pencil } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSettings } from '../contexts/SettingsContext';
 import { geocodeCity, GeocodeResult } from '../lib/weatherService';
 import { cn } from '../lib/utils';
 import { toast } from 'sonner';
 
+interface WeatherCitySelectorProps {
+  className?: string;
+  /** Botão só com ícone (sem o nome da cidade) — pra caber em cards apertados. */
+  compact?: boolean;
+  /** Estilo claro pro botão compacto sobre fundos coloridos/escuros (ex.: o card de clima). */
+  light?: boolean;
+}
+
 /** Botão + popover para escolher a cidade da previsão do tempo. */
-export function WeatherCitySelector({ className }: { className?: string }) {
+export function WeatherCitySelector({ className, compact = false, light = false }: WeatherCitySelectorProps) {
   const { settings, updateSettings } = useSettings();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -86,15 +94,30 @@ export function WeatherCitySelector({ className }: { className?: string }) {
     <div className={cn('relative', className)} ref={boxRef}>
       <button
         onClick={() => setOpen((o) => !o)}
+        aria-label="Trocar cidade da previsão"
+        title="Trocar cidade da previsão"
         className={cn(
-          'flex items-center gap-2 px-4 py-3 rounded-2xl transition-all font-black uppercase text-[10px] tracking-widest shadow-sm border',
-          settings.weather_city
-            ? 'bg-sky-50 dark:bg-sky-950/30 text-sky-600 dark:text-sky-400 border-sky-100 dark:border-sky-900/40'
-            : 'bg-white dark:bg-zinc-800 text-slate-400 hover:text-sky-600 border-slate-100 dark:border-zinc-800'
+          compact
+            ? cn(
+                'flex items-center justify-center w-7 h-7 rounded-full transition-all shrink-0',
+                light ? 'bg-white/20 hover:bg-white/30 text-white' : 'bg-sky-50 dark:bg-sky-950/30 text-sky-600 hover:bg-sky-100 dark:hover:bg-sky-900/40'
+              )
+            : cn(
+                'flex items-center gap-2 px-4 py-3 rounded-2xl transition-all font-black uppercase text-[10px] tracking-widest shadow-sm border',
+                settings.weather_city
+                  ? 'bg-sky-50 dark:bg-sky-950/30 text-sky-600 dark:text-sky-400 border-sky-100 dark:border-sky-900/40'
+                  : 'bg-white dark:bg-zinc-800 text-slate-400 hover:text-sky-600 border-slate-100 dark:border-zinc-800'
+              )
         )}
       >
-        <CloudSun className="w-4 h-4 text-sky-500" />
-        <span className="truncate max-w-[140px]">{label}</span>
+        {compact ? (
+          <Pencil className="w-3.5 h-3.5" />
+        ) : (
+          <>
+            <CloudSun className="w-4 h-4 text-sky-500" />
+            <span className="truncate max-w-[140px]">{label}</span>
+          </>
+        )}
       </button>
 
       <AnimatePresence>
@@ -103,7 +126,10 @@ export function WeatherCitySelector({ className }: { className?: string }) {
             initial={{ opacity: 0, y: -8, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.97 }}
-            className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-72 max-w-[calc(100vw-2rem)] bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-2xl z-[9000] overflow-hidden"
+            className={cn(
+              'absolute mt-2 w-72 max-w-[calc(100vw-2rem)] bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-2xl z-[9000] overflow-hidden',
+              compact ? 'right-0' : 'left-0 sm:left-auto sm:right-0'
+            )}
           >
             <div className="p-3 border-b border-slate-100 dark:border-zinc-800 flex items-center gap-2">
               <Search className="w-4 h-4 text-slate-400 shrink-0" />
