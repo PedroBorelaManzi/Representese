@@ -1,32 +1,26 @@
-import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { fetchWeather, geocodeCity } from './weatherService';
-
-beforeEach(() => {
-  vi.stubEnv('VITE_WEATHERAPI_KEY', 'test-key');
-});
 
 afterEach(() => {
   vi.restoreAllMocks();
-  vi.unstubAllEnvs();
 });
 
 describe('fetchWeather', () => {
-  it('mapeia current + daily e converte condition codes em categorias', async () => {
+  it('mapeia current + daily e converte weather codes (OMM) em categorias', async () => {
     const apiResponse = {
-      current: { temp_c: 24.6, condition: { code: 1000 } },
-      forecast: {
-        forecastday: [
-          { date: '2026-07-13', day: { maxtemp_c: 28.4, mintemp_c: 17.2, condition: { code: 1000 } } },
-          { date: '2026-07-14', day: { maxtemp_c: 25.1, mintemp_c: 16.0, condition: { code: 1006 } } },
-          { date: '2026-07-15', day: { maxtemp_c: 19.9, mintemp_c: 14.3, condition: { code: 1189 } } },
-        ],
+      current: { temperature_2m: 24.6, weather_code: 0 },
+      daily: {
+        time: ['2026-07-13', '2026-07-14', '2026-07-15'],
+        weather_code: [0, 3, 61],
+        temperature_2m_max: [28.4, 25.1, 19.9],
+        temperature_2m_min: [17.2, 16.0, 14.3],
       },
     };
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(apiResponse) }));
 
     const data = await fetchWeather(-23.55, -46.63);
 
-    // Arredonda a temperatura atual e classifica o céu limpo como "sun"
+    // Arredonda a temperatura atual e classifica o céu limpo (código 0) como "sun"
     expect(data.current.temp).toBe(25);
     expect(data.current.info.category).toBe('sun');
 
@@ -36,15 +30,15 @@ describe('fetchWeather', () => {
     expect(data.daily['2026-07-13'].tempMin).toBe(17);
     expect(data.daily['2026-07-13'].info.category).toBe('sun');
 
-    // Nublado (1006) e chuva (1189)
+    // Nublado (3) e chuva (61)
     expect(data.daily['2026-07-14'].info.category).toBe('cloud');
     expect(data.daily['2026-07-15'].info.category).toBe('rain');
   });
 
   it('classifica códigos de neve corretamente (não confunde com chuva)', async () => {
     const apiResponse = {
-      current: { temp_c: -2, condition: { code: 1213 } },
-      forecast: { forecastday: [] },
+      current: { temperature_2m: -2, weather_code: 71 },
+      daily: { time: [], weather_code: [], temperature_2m_max: [], temperature_2m_min: [] },
     };
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(apiResponse) }));
 
@@ -52,14 +46,34 @@ describe('fetchWeather', () => {
     expect(data.current.info.category).toBe('snow');
   });
 
+  it('classifica tempestade com granizo (96/99) na categoria storm', async () => {
+    const apiResponse = {
+      current: { temperature_2m: 22, weather_code: 96 },
+      daily: { time: [], weather_code: [], temperature_2m_max: [], temperature_2m_min: [] },
+    };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(apiResponse) }));
+
+    const data = await fetchWeather(0, 0);
+    expect(data.current.info.category).toBe('storm');
+  });
+
   it('lança erro em resposta não-ok', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false }));
     await expect(fetchWeather(0, 0)).rejects.toThrow();
   });
 
-  it('lança erro quando a chave da API não está configurada', async () => {
-    vi.unstubAllEnvs();
-    await expect(fetchWeather(0, 0)).rejects.toThrow();
+  it('pede até 16 dias de previsão diária (o teto do plano gratuito)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ current: { temperature_2m: 20, weather_code: 0 }, daily: { time: [], weather_code: [], temperature_2m_max: [], temperature_2m_min: [] } }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await fetchWeather(-23.55, -46.63);
+
+    const calledUrl = fetchMock.mock.calls[0][0] as string;
+    expect(calledUrl).toContain('forecast_days=16');
+    expect(calledUrl).toContain('api.open-meteo.com');
   });
 });
 
@@ -73,10 +87,12 @@ describe('geocodeCity', () => {
   });
 
   it('normaliza resultados e prioriza cidades brasileiras', async () => {
-    const apiResponse = [
-      { name: 'Lisboa', region: 'Lisboa', lat: 38.7, lon: -9.1, country: 'Portugal' },
-      { name: 'Lisboa', region: 'Maranhão', lat: -2.5, lon: -44.0, country: 'Brazil' },
-    ];
+    const apiResponse = {
+      results: [
+        { name: 'Lisboa', admin1: 'Lisboa', latitude: 38.7, longitude: -9.1, country: 'Portugal', country_code: 'PT' },
+        { name: 'Lisboa', admin1: 'Maranhão', latitude: -2.5, longitude: -44.0, country: 'Brazil', country_code: 'BR' },
+      ],
+    };
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(apiResponse) }));
 
     const res = await geocodeCity('Lisboa');
@@ -84,5 +100,11 @@ describe('geocodeCity', () => {
     // A entrada brasileira (Maranhão) deve vir primeiro
     expect(res[0].state).toBe('Maranhão');
     expect(res[0].lat).toBe(-2.5);
+  });
+
+  it('retorna lista vazia quando a API não encontra nenhuma cidade', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({}) }));
+    const res = await geocodeCity('xyzxyzxyz');
+    expect(res).toEqual([]);
   });
 });
