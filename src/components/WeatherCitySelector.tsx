@@ -100,7 +100,7 @@ export function WeatherCitySelector({ className, compact = false, light = false 
           compact
             ? cn(
                 'flex items-center justify-center w-7 h-7 rounded-full transition-all shrink-0',
-                light ? 'bg-white/20 hover:bg-white/30 text-white' : 'bg-sky-50 dark:bg-sky-950/30 text-sky-600 hover:bg-sky-100 dark:hover:bg-sky-900/40'
+                light ? 'bg-white/40 hover:bg-white/50 text-white shadow-lg shadow-white/30' : 'bg-sky-50 dark:bg-sky-950/30 text-sky-600 hover:bg-sky-100 dark:hover:bg-sky-900/40'
               )
             : cn(
                 'flex items-center gap-2 px-4 py-3 rounded-2xl transition-all font-black uppercase text-[10px] tracking-widest shadow-sm border',
