@@ -9,12 +9,14 @@ const formatDateLocal = (date: Date) => {
   return `${y}-${m}-${d}`;
 };
 
-/** Faixa horizontal com a previsão dos próximos 7 dias, a partir de hoje. */
-export function WeeklyForecast({ data, city }: { data: WeatherData; city?: string }) {
-  const today = new Date();
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(today);
-    d.setDate(today.getDate() + i);
+/** Faixa horizontal com a previsão de 7 dias — por padrão os próximos 7 a
+ *  partir de hoje, ou a semana exata passada em `days` (ex.: a mesma semana
+ *  exibida na agenda). */
+export function WeeklyForecast({ data, city, days: customDays }: { data: WeatherData; city?: string; days?: Date[] }) {
+  const todayIso = formatDateLocal(new Date());
+  const days = customDays ?? Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
     return d;
   });
 
@@ -27,10 +29,10 @@ export function WeeklyForecast({ data, city }: { data: WeatherData; city?: strin
         {city && <span className="text-[10px] font-bold text-sky-600 dark:text-sky-400 uppercase tracking-wider truncate max-w-[160px]">{city}</span>}
       </div>
       <div className="grid grid-cols-7 gap-1.5">
-        {days.map((d, i) => {
+        {days.map((d) => {
           const iso = formatDateLocal(d);
           const fc = data.daily[iso];
-          const isToday = i === 0;
+          const isToday = iso === todayIso;
           return (
             <div
               key={iso}

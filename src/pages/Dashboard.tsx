@@ -607,8 +607,8 @@ export default function Dashboard() {
         ) : undefined}
       />
 
-      {/* Previsão do tempo do dia atual (cidade escolhida na Agenda) */}
-      <WeatherWidget />
+      {/* Previsão do tempo: hoje em destaque + faixa da mesma semana exibida na agenda abaixo */}
+      <WeatherWidget days={weekDays} />
 
       {/* Jornada inicial: só renderiza com dados frescos (online) para não marcar
           passos errados a partir de cache parcial. */}
