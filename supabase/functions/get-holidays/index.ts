@@ -33,6 +33,34 @@ const ANIVERSARIO_KEYWORDS = [
 
 const PADROEIRO_KEYWORDS = ["padroeiro", "padroeira"];
 
+// Explica o motivo de cada feriado nacional. Casa por palavra-chave (em vez
+// de nome exato) porque a fonte externa (BrasilAPI) inclui datas móveis
+// (Carnaval, Sexta-feira Santa, Corpus Christi) cuja grafia varia de ano
+// para ano — ex.: "Carnaval" vs "Terça-feira de Carnaval".
+const NATIONAL_HOLIDAY_KEYWORDS: { match: string[]; description: string }[] = [
+  { match: ["confraternizacao universal", "ano novo"], description: "Celebra a chegada do novo ano civil." },
+  { match: ["tiradentes"], description: "Homenageia Joaquim José da Silva Xavier, o Tiradentes, líder da Inconfidência Mineira, executado em 1792 por lutar pela independência do Brasil." },
+  { match: ["dia do trabalho", "dia do trabalhador"], description: "Celebra as conquistas dos trabalhadores e o Dia Internacional do Trabalho." },
+  { match: ["independencia do brasil"], description: "Comemora a proclamação da independência do Brasil em relação a Portugal, em 7 de setembro de 1822." },
+  { match: ["nossa senhora aparecida"], description: "Dia da padroeira do Brasil, Nossa Senhora Aparecida." },
+  { match: ["finados"], description: "Dia de homenagear e visitar os túmulos de parentes e entes queridos falecidos." },
+  { match: ["proclamacao da republica"], description: "Comemora a proclamação da República no Brasil, em 15 de novembro de 1889, que encerrou o período monárquico." },
+  { match: ["consciencia negra"], description: "Homenageia a luta do povo negro no Brasil e relembra a morte de Zumbi dos Palmares, símbolo da resistência à escravidão." },
+  { match: ["natal"], description: "Celebração cristã do nascimento de Jesus Cristo." },
+  { match: ["carnaval"], description: "Festa popular que antecede a Quaresma no calendário cristão; ponto facultativo na maior parte do país." },
+  { match: ["sexta-feira santa", "sexta feira santa", "paixao de cristo"], description: "Data cristã que relembra a crucificação de Jesus Cristo." },
+  { match: ["pascoa"], description: "Celebração cristã da ressurreição de Jesus Cristo." },
+  { match: ["corpus christi"], description: "Festa cristã em louvor ao corpo de Cristo, celebrada 60 dias após a Páscoa; ponto facultativo em muitas cidades." },
+];
+
+/** Explica o motivo de um feriado nacional a partir do nome — usado tanto
+ *  pra datas fixas quanto pras móveis que a BrasilAPI devolve todo ano. */
+function describeNationalHoliday(name: string): string {
+  const norm = normalize(name);
+  const found = NATIONAL_HOLIDAY_KEYWORDS.find((k) => k.match.some((m) => norm.includes(m)));
+  return found ? found.description : `Feriado nacional: ${name}.`;
+}
+
 /**
  * Traduz o nome/descri\u00e7\u00e3o bruto de um feriado municipal (vindo da fonte de
  * dados ou j\u00e1 salvo em cache) em algo que explique o que \u00e9 o feriado:
@@ -170,55 +198,57 @@ function annotateMultiDaySpans<T extends { date: string; name: string; city?: st
 // Feriados estaduais brasileiros (data fixa, definidos por lei estadual).
 // N\u00e3o inclu\u00edmos datas que sempre coincidem com um feriado nacional
 // (ex.: DF/MG em 21/04 = Tiradentes) para evitar duplicidade na agenda.
-const STATE_HOLIDAYS: Record<string, { month: number; day: number; name: string }[]> = {
+// Cada entrada traz uma `description` explicando o motivo do feriado \u2014
+// exibida no modal ao clicar, em vez de s\u00f3 repetir o nome.
+const STATE_HOLIDAYS: Record<string, { month: number; day: number; name: string; description: string }[]> = {
   AC: [
-    { month: 1, day: 23, name: "Dia do Evang\u00e9lico" },
-    { month: 6, day: 15, name: "Anivers\u00e1rio do Acre" },
-    { month: 9, day: 5, name: "Dia da Amaz\u00f4nia" },
-    { month: 11, day: 17, name: "Assinatura do Tratado de Petr\u00f3polis" },
+    { month: 1, day: 23, name: "Dia do Evang\u00e9lico", description: "Homenageia a comunidade evang\u00e9lica do Acre e a chegada do protestantismo ao estado." },
+    { month: 6, day: 15, name: "Anivers\u00e1rio do Acre", description: "Celebra a data de cria\u00e7\u00e3o do Estado do Acre." },
+    { month: 9, day: 5, name: "Dia da Amaz\u00f4nia", description: "Data de conscientiza\u00e7\u00e3o sobre a preserva\u00e7\u00e3o da Floresta Amaz\u00f4nica, feriado oficial no Acre." },
+    { month: 11, day: 17, name: "Assinatura do Tratado de Petr\u00f3polis", description: "Relembra o tratado de 1903 que anexou o territ\u00f3rio do Acre ao Brasil." },
   ],
   AL: [
-    { month: 6, day: 24, name: "S\u00e3o Jo\u00e3o" },
-    { month: 6, day: 29, name: "S\u00e3o Pedro" },
-    { month: 9, day: 16, name: "Emancipa\u00e7\u00e3o Pol\u00edtica de Alagoas" },
+    { month: 6, day: 24, name: "S\u00e3o Jo\u00e3o", description: "Festa junina em homenagem a S\u00e3o Jo\u00e3o Batista, tradicional em Alagoas." },
+    { month: 6, day: 29, name: "S\u00e3o Pedro", description: "Festa junina em homenagem a S\u00e3o Pedro." },
+    { month: 9, day: 16, name: "Emancipa\u00e7\u00e3o Pol\u00edtica de Alagoas", description: "Comemora a emancipa\u00e7\u00e3o pol\u00edtica de Alagoas, que deixou de ser comarca de Pernambuco em 1817." },
   ],
   AP: [
-    { month: 3, day: 19, name: "S\u00e3o Jos\u00e9" },
-    { month: 9, day: 13, name: "Cria\u00e7\u00e3o do Territ\u00f3rio do Amap\u00e1" },
+    { month: 3, day: 19, name: "S\u00e3o Jos\u00e9", description: "Dia de S\u00e3o Jos\u00e9, padroeiro do Amap\u00e1." },
+    { month: 9, day: 13, name: "Cria\u00e7\u00e3o do Territ\u00f3rio do Amap\u00e1", description: "Comemora a cria\u00e7\u00e3o do antigo Territ\u00f3rio Federal do Amap\u00e1, em 1943." },
   ],
   AM: [
-    { month: 9, day: 5, name: "Eleva\u00e7\u00e3o do Amazonas a Prov\u00edncia" },
-    { month: 12, day: 8, name: "Nossa Senhora da Concei\u00e7\u00e3o" },
+    { month: 9, day: 5, name: "Eleva\u00e7\u00e3o do Amazonas a Prov\u00edncia", description: "Comemora a eleva\u00e7\u00e3o do Amazonas \u00e0 condi\u00e7\u00e3o de prov\u00edncia, separando-se do Gr\u00e3o-Par\u00e1 em 1850." },
+    { month: 12, day: 8, name: "Nossa Senhora da Concei\u00e7\u00e3o", description: "Dia da padroeira do Amazonas, Nossa Senhora da Concei\u00e7\u00e3o." },
   ],
-  BA: [{ month: 7, day: 2, name: "Independ\u00eancia da Bahia" }],
+  BA: [{ month: 7, day: 2, name: "Independ\u00eancia da Bahia", description: "Comemora a expuls\u00e3o das tropas portuguesas da Bahia em 1823, um dos \u00faltimos cap\u00edtulos da independ\u00eancia do Brasil." }],
   CE: [
-    { month: 3, day: 19, name: "S\u00e3o Jos\u00e9" },
-    { month: 3, day: 25, name: "Data Magna do Cear\u00e1" },
+    { month: 3, day: 19, name: "S\u00e3o Jos\u00e9", description: "Dia de S\u00e3o Jos\u00e9, padroeiro do Cear\u00e1." },
+    { month: 3, day: 25, name: "Data Magna do Cear\u00e1", description: "Relembra a aboli\u00e7\u00e3o da escravatura no Cear\u00e1, ocorrida em 1884, quatro anos antes da aboli\u00e7\u00e3o nacional." },
   ],
-  DF: [{ month: 11, day: 30, name: "Dia do Evang\u00e9lico" }],
-  MA: [{ month: 7, day: 28, name: "Ades\u00e3o do Maranh\u00e3o \u00e0 Independ\u00eancia" }],
-  MS: [{ month: 10, day: 11, name: "Cria\u00e7\u00e3o do Estado de Mato Grosso do Sul" }],
-  PA: [{ month: 8, day: 15, name: "Ades\u00e3o do Par\u00e1 \u00e0 Independ\u00eancia" }],
-  PB: [{ month: 8, day: 5, name: "Funda\u00e7\u00e3o do Estado da Para\u00edba" }],
-  PR: [{ month: 12, day: 19, name: "Emancipa\u00e7\u00e3o Pol\u00edtica do Paran\u00e1" }],
-  PE: [{ month: 3, day: 6, name: "Revolu\u00e7\u00e3o Pernambucana" }],
-  PI: [{ month: 10, day: 19, name: "Dia do Piau\u00ed" }],
-  RJ: [{ month: 4, day: 23, name: "S\u00e3o Jorge" }],
+  DF: [{ month: 11, day: 30, name: "Dia do Evang\u00e9lico", description: "Homenageia a comunidade evang\u00e9lica do Distrito Federal." }],
+  MA: [{ month: 7, day: 28, name: "Ades\u00e3o do Maranh\u00e3o \u00e0 Independ\u00eancia", description: "Comemora a ades\u00e3o do Maranh\u00e3o \u00e0 independ\u00eancia do Brasil, em 1823." }],
+  MS: [{ month: 10, day: 11, name: "Cria\u00e7\u00e3o do Estado de Mato Grosso do Sul", description: "Comemora o desmembramento de Mato Grosso do Sul do antigo Mato Grosso, em 1977." }],
+  PA: [{ month: 8, day: 15, name: "Ades\u00e3o do Par\u00e1 \u00e0 Independ\u00eancia", description: "Comemora a ades\u00e3o do Par\u00e1 \u00e0 independ\u00eancia do Brasil, em 1823." }],
+  PB: [{ month: 8, day: 5, name: "Funda\u00e7\u00e3o do Estado da Para\u00edba", description: "Comemora a funda\u00e7\u00e3o da capitania/estado da Para\u00edba." }],
+  PR: [{ month: 12, day: 19, name: "Emancipa\u00e7\u00e3o Pol\u00edtica do Paran\u00e1", description: "Comemora a emancipa\u00e7\u00e3o pol\u00edtica do Paran\u00e1, separado de S\u00e3o Paulo em 1853." }],
+  PE: [{ month: 3, day: 6, name: "Revolu\u00e7\u00e3o Pernambucana", description: "Relembra a Revolu\u00e7\u00e3o Pernambucana de 1817, movimento separatista contra o dom\u00ednio portugu\u00eas." }],
+  PI: [{ month: 10, day: 19, name: "Dia do Piau\u00ed", description: "Celebra a cria\u00e7\u00e3o da capitania do Piau\u00ed." }],
+  RJ: [{ month: 4, day: 23, name: "S\u00e3o Jorge", description: "Dia de S\u00e3o Jorge, santo muito celebrado no Rio de Janeiro." }],
   RN: [
-    { month: 8, day: 7, name: "Dia do Rio Grande do Norte" },
-    { month: 10, day: 3, name: "M\u00e1rtires de Cunha\u00fa e Urua\u00e7u" },
+    { month: 8, day: 7, name: "Dia do Rio Grande do Norte", description: "Celebra a data magna do Rio Grande do Norte." },
+    { month: 10, day: 3, name: "M\u00e1rtires de Cunha\u00fa e Urua\u00e7u", description: "Relembra o massacre de colonos ocorrido em 1645, durante a ocupa\u00e7\u00e3o holandesa no estado." },
   ],
-  RS: [{ month: 9, day: 20, name: "Revolu\u00e7\u00e3o Farroupilha" }],
+  RS: [{ month: 9, day: 20, name: "Revolu\u00e7\u00e3o Farroupilha", description: "Relembra o in\u00edcio da Revolu\u00e7\u00e3o Farroupilha, em 1835, movimento separatista do Rio Grande do Sul." }],
   RO: [
-    { month: 1, day: 4, name: "Cria\u00e7\u00e3o do Estado de Rond\u00f4nia" },
-    { month: 6, day: 18, name: "Dia do Evang\u00e9lico" },
+    { month: 1, day: 4, name: "Cria\u00e7\u00e3o do Estado de Rond\u00f4nia", description: "Comemora a cria\u00e7\u00e3o do Estado de Rond\u00f4nia, em 1982." },
+    { month: 6, day: 18, name: "Dia do Evang\u00e9lico", description: "Homenageia a comunidade evang\u00e9lica de Rond\u00f4nia." },
   ],
-  RR: [{ month: 10, day: 5, name: "Cria\u00e7\u00e3o do Estado de Roraima" }],
-  SP: [{ month: 7, day: 9, name: "Revolu\u00e7\u00e3o Constitucionalista de 1932" }],
-  SE: [{ month: 7, day: 8, name: "Emancipa\u00e7\u00e3o Pol\u00edtica de Sergipe" }],
+  RR: [{ month: 10, day: 5, name: "Cria\u00e7\u00e3o do Estado de Roraima", description: "Comemora a cria\u00e7\u00e3o do Estado de Roraima, em 1988." }],
+  SP: [{ month: 7, day: 9, name: "Revolu\u00e7\u00e3o Constitucionalista de 1932", description: "Relembra o movimento armado de S\u00e3o Paulo contra o governo de Get\u00falio Vargas, em 1932, exigindo uma nova Constitui\u00e7\u00e3o para o pa\u00eds." }],
+  SE: [{ month: 7, day: 8, name: "Emancipa\u00e7\u00e3o Pol\u00edtica de Sergipe", description: "Comemora a emancipa\u00e7\u00e3o pol\u00edtica de Sergipe em rela\u00e7\u00e3o \u00e0 Bahia, em 1820." }],
   TO: [
-    { month: 3, day: 18, name: "Autonomia do Estado do Tocantins" },
-    { month: 10, day: 5, name: "Cria\u00e7\u00e3o do Estado do Tocantins" },
+    { month: 3, day: 18, name: "Autonomia do Estado do Tocantins", description: "Comemora a promulga\u00e7\u00e3o da lei que criou o Estado do Tocantins, em 1989." },
+    { month: 10, day: 5, name: "Cria\u00e7\u00e3o do Estado do Tocantins", description: "Data de instala\u00e7\u00e3o oficial do Estado do Tocantins, desmembrado de Goi\u00e1s pela Constitui\u00e7\u00e3o de 1988." },
   ],
 };
 
@@ -274,7 +304,7 @@ serve(async (req) => {
       name: h.name,
       date: h.date,
       type: "national",
-      description: h.name
+      description: describeNationalHoliday(h.name)
     }));
 
     // 1b. State holidays: derived from the distinct UFs among the user's clients.
@@ -294,7 +324,7 @@ serve(async (req) => {
           date: isoDate,
           type: "estadual",
           state: uf,
-          description: h.name,
+          description: h.description,
         });
       });
     });
