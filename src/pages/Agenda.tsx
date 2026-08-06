@@ -531,10 +531,11 @@ export default function Agenda() {
                         
                         <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 max-h-[148px] pr-1">
                           {dayHolidays.map((h, idx) => (
-                            <div 
-                              key={idx} 
+                            <div
+                              key={idx}
                               onClick={(e) => { e.stopPropagation(); setSelectedHoliday(h); }}
-                              className="px-3 py-2 bg-amber-50 dark:bg-amber-900/20 text-[8px] font-black text-amber-700 dark:text-amber-400 rounded-xl border border-amber-100 dark:border-amber-800/20 flex items-center gap-2 shadow-sm cursor-help hover:scale-105 transition-all" 
+                              title={h.description || h.name}
+                              className="px-3 py-2 bg-amber-50 dark:bg-amber-900/20 text-[8px] font-black text-amber-700 dark:text-amber-400 rounded-xl border border-amber-100 dark:border-amber-800/20 flex items-center gap-2 shadow-sm cursor-help hover:scale-105 transition-all"
                             >
                                <div className="w-1 h-1 rounded-full bg-amber-500" />
                                <span className="truncate flex-1 uppercase tracking-tighter">{h.name}</span>
@@ -630,6 +631,9 @@ export default function Agenda() {
                                   <div className="flex-1 min-w-0">
                                       <h4 className="text-sm font-black text-amber-900 dark:text-amber-400 uppercase tracking-tighter">{h.name}</h4>
                                       <p className="text-[10px] font-bold text-amber-700/70 dark:text-amber-500/60 uppercase">Feriado {holidayTypeLabel(h.type)}</p>
+                                      {h.description && (
+                                        <p className="text-xs font-medium text-amber-800/80 dark:text-amber-400/70 mt-1.5 leading-snug normal-case">{h.description}</p>
+                                      )}
                                   </div>
                               </div>
                           ))}
@@ -748,7 +752,7 @@ export default function Agenda() {
                          <span className="text-[10px] font-black uppercase tracking-widest">{holidayScopeLabel(selectedHoliday)}</span>
                       </div>
                       <p className="text-sm font-medium text-slate-600 dark:text-zinc-400 leading-relaxed">
-                        Este é um feriado oficial. Fique atento às alterações nos seus compromissos e planeje-se com antecedência para otimizar suas visitas a clientes nesta região.
+                        {selectedHoliday.description || "Este é um feriado oficial. Fique atento às alterações nos seus compromissos e planeje-se com antecedência para otimizar suas visitas a clientes nesta região."}
                       </p>
                    </div>
 
