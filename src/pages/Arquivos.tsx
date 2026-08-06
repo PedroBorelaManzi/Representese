@@ -1,6 +1,7 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   FolderPlus,
+  FolderUp,
   Upload,
   Folder,
   File as FileIcon,
@@ -10,6 +11,7 @@ import {
   Download,
   Trash2,
   ChevronRight,
+  ChevronDown,
   Home,
   Loader2,
   HardDrive,
@@ -83,7 +85,20 @@ export default function Arquivos() {
   const [newFolderName, setNewFolderName] = useState("");
   const [dragActive, setDragActive] = useState(false);
   const [pdfPreview, setPdfPreview] = useState<{ url: string; name: string } | null>(null);
+  const [uploadMenuOpen, setUploadMenuOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
+  const uploadMenuBoxRef = useRef<HTMLDivElement>(null);
+
+  // Fecha o menu "Enviar arquivo" ao clicar fora
+  useEffect(() => {
+    if (!uploadMenuOpen) return;
+    const onClick = (e: MouseEvent) => {
+      if (uploadMenuBoxRef.current && !uploadMenuBoxRef.current.contains(e.target as Node)) setUploadMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, [uploadMenuOpen]);
 
   const prefix = user ? [user.id, ...path].join("/") : "";
 
@@ -157,8 +172,16 @@ export default function Arquivos() {
     const { data: sessionData } = await supabase.auth.getSession();
     const accessToken = sessionData.session?.access_token;
 
+    // Arquivo vindo de uma pasta importada (input com webkitdirectory) traz o
+    // caminho relativo completo em vez de só o nome — ex.: "Pedidos/2026/nota.pdf".
+    // Usar esse caminho reconstrói a mesma árvore de pastas (e subpastas) dentro
+    // da pasta atual, em vez de jogar tudo solto no nível corrente.
+    const relativePathOf = (file: File) => (file as any).webkitRelativePath || file.name;
+    const firstPath = relativePathOf(files[0]);
+    const importedFolderName = firstPath.includes("/") ? firstPath.split("/")[0] : null;
+
     for (const file of Array.from(files)) {
-      const objectPath = `${prefix}/${file.name}`;
+      const objectPath = `${prefix}/${relativePathOf(file)}`;
       try {
         if (file.size > RESUMABLE_THRESHOLD && accessToken) {
           setUploadProgress({ name: file.name, pct: 0 });
@@ -178,8 +201,15 @@ export default function Arquivos() {
 
     setUploadProgress(null);
     setUploading(false);
-    if (ok > 0) toast.success(ok === 1 ? "Arquivo enviado!" : `${ok} arquivos enviados!`);
+    if (ok > 0) {
+      toast.success(
+        importedFolderName
+          ? `Pasta "${importedFolderName}" importada com ${ok} ${ok === 1 ? "arquivo" : "arquivos"}!`
+          : ok === 1 ? "Arquivo enviado!" : `${ok} arquivos enviados!`
+      );
+    }
     if (fileInputRef.current) fileInputRef.current.value = "";
+    if (folderInputRef.current) folderInputRef.current.value = "";
     loadItems();
   };
 
@@ -280,15 +310,55 @@ export default function Arquivos() {
             >
               <FolderPlus className="w-4 h-4" /> Nova pasta
             </button>
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 active:scale-95 transition-all disabled:opacity-60"
-            >
-              {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-              {uploadProgress ? `Enviando ${uploadProgress.pct}%` : "Enviar arquivo"}
-            </button>
+            <div className="relative" ref={uploadMenuBoxRef}>
+              <button
+                onClick={() => setUploadMenuOpen((o) => !o)}
+                disabled={uploading}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 active:scale-95 transition-all disabled:opacity-60"
+              >
+                {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                {uploadProgress ? `Enviando ${uploadProgress.pct}%` : "Enviar arquivo"}
+                {!uploading && <ChevronDown className="w-3.5 h-3.5" />}
+              </button>
+
+              <AnimatePresence>
+                {uploadMenuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                    className="absolute right-0 mt-2 w-56 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-2xl z-[9000] overflow-hidden"
+                  >
+                    <button
+                      onClick={() => { setUploadMenuOpen(false); fileInputRef.current?.click(); }}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-zinc-800/60 transition-colors"
+                    >
+                      <Upload className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span className="text-sm font-bold text-slate-700 dark:text-zinc-200">Arquivos</span>
+                    </button>
+                    <button
+                      onClick={() => { setUploadMenuOpen(false); folderInputRef.current?.click(); }}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-zinc-800/60 transition-colors border-t border-slate-50 dark:border-zinc-800/60"
+                    >
+                      <FolderUp className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <div>
+                        <span className="text-sm font-bold text-slate-700 dark:text-zinc-200 block">Pasta</span>
+                        <span className="text-[10px] font-medium text-slate-400">Importa a pasta e tudo dentro dela</span>
+                      </div>
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
             <input ref={fileInputRef} type="file" multiple className="hidden" onChange={(e) => handleUpload(e.target.files)} />
+            <input
+              ref={folderInputRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={(e) => handleUpload(e.target.files)}
+              {...({ webkitdirectory: "", directory: "", mozdirectory: "" } as any)}
+            />
           </>
         }
       />
