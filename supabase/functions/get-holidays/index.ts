@@ -13,6 +13,160 @@ const normalize = (str: string) =>
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
 
+const formatBr = (iso: string) => {
+  const [, m, d] = iso.split("-");
+  return `${d}/${m}`;
+};
+
+// Palavras-chave (j\u00e1 sem acento) que indicam que o feriado \u00e9 o anivers\u00e1rio
+// de funda\u00e7\u00e3o/emancipa\u00e7\u00e3o do munic\u00edpio \u2014 cobre varia\u00e7\u00f5es comuns nas bases
+// de feriados municipais al\u00e9m do simples "anivers\u00e1rio". Inclui "cidade" como
+// pega-tudo, mas s\u00f3 \u00e9 checada DEPOIS de descartar "padroeiro/a" (ver abaixo),
+// porque descri\u00e7\u00f5es de padroeiro tamb\u00e9m costumam citar "da Cidade"
+// (ex.: "Dia do Padroeiro da Cidade") e n\u00e3o podem cair aqui por engano.
+const ANIVERSARIO_KEYWORDS = [
+  "aniversario", "fundacao", "emancipacao", "elevacao a categoria",
+  "elevacao de categoria", "elevacao do municipio", "criacao do municipio",
+  "dia do municipio", "dia da cidade", "instalacao do municipio",
+  "instalacao da comarca", "cidade",
+];
+
+const PADROEIRO_KEYWORDS = ["padroeiro", "padroeira"];
+
+/**
+ * Traduz o nome/descri\u00e7\u00e3o bruto de um feriado municipal (vindo da fonte de
+ * dados ou j\u00e1 salvo em cache) em algo que explique o que \u00e9 o feriado:
+ * "Anivers\u00e1rio de X", ou "Padroeiro: Nome do Santo" (extra\u00eddo do pr\u00f3prio
+ * nome ou da descri\u00e7\u00e3o) em vez de s\u00f3 "Padroeiro" sem dizer qual. Roda tanto
+ * em cima de dados novos (rec\u00e9m-buscados) quanto de linhas j\u00e1 cacheadas \u2014
+ * por isso nunca assume que o `rawName` j\u00e1 est\u00e1 "limpo".
+ */
+function classifyMunicipalHoliday(rawName: string, rawDescription: string, cityName: string) {
+  const name = (rawName || "Feriado").trim();
+  const description = (rawDescription || "").trim();
+  const normName = normalize(name);
+  const normDesc = normalize(description);
+
+  const mentionsPadroeiro = PADROEIRO_KEYWORDS.some((k) => normName.includes(k) || normDesc.includes(k));
+
+  // "Padroeiro" tem prioridade: a palavra "cidade" tamb\u00e9m aparece descrevendo
+  // feriados de padroeiro (ex.: "Dia do Padroeiro da Cidade"), ent\u00e3o s\u00f3 cai
+  // em Anivers\u00e1rio se n\u00e3o houver men\u00e7\u00e3o a padroeiro/padroeira.
+  if (!mentionsPadroeiro && ANIVERSARIO_KEYWORDS.some((k) => normName.includes(k) || normDesc.includes(k))) {
+    return {
+      name: `Anivers\u00e1rio de ${cityName}`,
+      description: description || `Anivers\u00e1rio de funda\u00e7\u00e3o/emancipa\u00e7\u00e3o de ${cityName}.`,
+    };
+  }
+
+  if (mentionsPadroeiro) {
+    // Tenta extrair o nome do santo/santa a partir do pr\u00f3prio nome bruto,
+    // removendo termos gen\u00e9ricos tipo "Padroeiro do Munic\u00edpio".
+    let saint = name
+      .replace(/,?\s*padroeir[ao]\s*(d[oa]\s*(munic[\u00edi]pio|cidade))?/gi, "")
+      .replace(/^dia\s+de\s+/i, "")
+      .replace(/,\s*$/, "")
+      .trim();
+
+    // Nome bruto n\u00e3o trouxe o santo (ex.: era s\u00f3 "Padroeiro") \u2014 tenta achar
+    // na descri\u00e7\u00e3o, formato comum: "Dia de X, padroeiro(a) do Munic\u00edpio".
+    if (!saint || saint.length < 3) {
+      const match =
+        description.match(/dia\s+de\s+([^,]+),?\s*padroeir/i) ||
+        description.match(/^([^,]+),?\s*padroeir/i);
+      saint = match ? match[1].trim() : "";
+    }
+
+    const finalName = saint ? `Padroeiro: ${saint}` : `Padroeiro de ${cityName}`;
+    return {
+      name: finalName,
+      description: description || `Feriado em homenagem ao(\u00e0) padroeiro(a) de ${cityName}.`,
+    };
+  }
+
+  if (normName === "feriado municipal") {
+    return {
+      name: `Feriado - ${cityName}`,
+      description: description || `Feriado municipal de ${cityName}.`,
+    };
+  }
+
+  return { name, description: description || name };
+}
+
+/** Quando o mesmo feriado (mesmo nome j\u00e1 classificado) cai na mesma data em
+ *  mais de uma cidade do usu\u00e1rio, junta num \u00fanico item listando as cidades \u2014
+ *  em vez de mostrar s\u00f3 uma delas ou duplicar cards id\u00eanticos. S\u00f3 agrupa
+ *  quando o santo foi identificado ("Padroeiro: Nome"), pra n\u00e3o misturar
+ *  anivers\u00e1rios de cidades diferentes que caem por coincid\u00eancia na mesma
+ *  data. */
+function groupSharedPadroeiroAcrossCities<T extends { date: string; name: string; city?: string }>(list: T[]): T[] {
+  const groups = new Map<string, T[]>();
+  const passthrough: T[] = [];
+
+  list.forEach((h) => {
+    if (/^Padroeiro: /.test(h.name)) {
+      const key = `${h.date}|${normalize(h.name)}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(h);
+    } else {
+      passthrough.push(h);
+    }
+  });
+
+  const merged: T[] = [];
+  groups.forEach((items) => {
+    if (items.length === 1) {
+      merged.push(items[0]);
+      return;
+    }
+    const cities = Array.from(new Set(items.map((i) => i.city).filter(Boolean) as string[]));
+    merged.push({
+      ...items[0],
+      city: cities.join(", "),
+      description: `${(items[0] as any).description} Feriado do padroeiro celebrado em: ${cities.join(", ")}.`,
+    } as T);
+  });
+
+  return [...passthrough, ...merged];
+}
+
+/** Quando a mesma cidade celebra o mesmo feriado (mesmo nome j\u00e1 classificado)
+ *  em dias seguidos \u2014 festa do padroeiro que dura v\u00e1rios dias, por exemplo \u2014
+ *  anota o per\u00edodo completo na descri\u00e7\u00e3o de cada dia, em vez de deixar cada
+ *  card parecer um feriado avulso de um dia s\u00f3. */
+function annotateMultiDaySpans<T extends { date: string; name: string; city?: string; description?: string }>(list: T[]): void {
+  const byKey = new Map<string, T[]>();
+  list.forEach((h) => {
+    const key = `${normalize(h.name)}|${h.city || ""}`;
+    if (!byKey.has(key)) byKey.set(key, []);
+    byKey.get(key)!.push(h);
+  });
+
+  byKey.forEach((items) => {
+    if (items.length < 2) return;
+    const sorted = [...items].sort((a, b) => a.date.localeCompare(b.date));
+    let consecutive = true;
+    for (let i = 1; i < sorted.length; i++) {
+      const prev = new Date(`${sorted[i - 1].date}T00:00:00`);
+      const curr = new Date(`${sorted[i].date}T00:00:00`);
+      const diffDays = (curr.getTime() - prev.getTime()) / 86400000;
+      if (diffDays !== 1) {
+        consecutive = false;
+        break;
+      }
+    }
+    if (!consecutive) return;
+
+    const rangeLabel = `Comemorado de ${formatBr(sorted[0].date)} a ${formatBr(sorted[sorted.length - 1].date)}.`;
+    sorted.forEach((h) => {
+      if (!h.description?.includes("Comemorado de")) {
+        h.description = `${h.description || ""} ${rangeLabel}`.trim();
+      }
+    });
+  });
+}
+
 // Feriados estaduais brasileiros (data fixa, definidos por lei estadual).
 // N\u00e3o inclu\u00edmos datas que sempre coincidem com um feriado nacional
 // (ex.: DF/MG em 21/04 = Tiradentes) para evitar duplicidade na agenda.
@@ -164,15 +318,22 @@ serve(async (req) => {
       .gte('date', startOfYear)
       .lte('date', endOfYear);
 
-    let municipalHolidays = (cachedDB || []).map(h => ({
-      id: `municipal-${h.date}-${h.name}-${h.ibge_code}`,
-      name: h.name,
-      date: h.date,
-      type: h.type,
-      city: h.city_name,
-      state: h.state_code,
-      description: h.description
-    }));
+    // Reclassifica também linhas já cacheadas (não persiste — só na resposta):
+    // registros salvos antes dessa lógica existir podem ter nome genérico tipo
+    // "Padroeiro" sem dizer qual santo/cidade; refazer a extração aqui atualiza
+    // a exibição sem precisar esperar um novo fetch da fonte externa.
+    let municipalHolidays = (cachedDB || []).map(h => {
+      const classified = classifyMunicipalHoliday(h.name, h.description || '', h.city_name);
+      return {
+        id: `municipal-${h.date}-${h.name}-${h.ibge_code}`,
+        name: classified.name,
+        date: h.date,
+        type: h.type,
+        city: h.city_name,
+        state: h.state_code,
+        description: classified.description
+      };
+    });
 
     const citiesWithRecords = new Set((cachedDB || []).map(h => normalize(h.city_name)));
     const missingCities = locations.filter(l => !citiesWithRecords.has(normalize(l.city)));
@@ -236,22 +397,17 @@ serve(async (req) => {
               isoDate = `${yearPart}-${month}-${day}`;
             }
             
-            let finalName = h.nome || h.name || "Feriado";
-            const normName = finalName.toLowerCase();
-            if ((normName.includes("aniversário") || normName.includes("cidade")) && cityName) {
-              finalName = `Aniversário de ${cityName}`;
-            } else if (normName === "feriado municipal" && cityName) {
-              finalName = `Feriado - ${cityName}`;
-            }
+            const rawName = h.nome || h.name || "Feriado";
+            const classified = classifyMunicipalHoliday(rawName, h.descricao || '', cityName || 'Sua cidade');
 
             newHolidaysToInsert.push({
               ibge_code: ibge,
               city_name: cityName,
               state_code: stateCode,
               date: isoDate,
-              name: finalName,
+              name: classified.name,
               type: "municipal",
-              description: h.descricao || finalName
+              description: classified.description
             });
           }
         });
@@ -278,15 +434,28 @@ serve(async (req) => {
       }
     }
 
+    // Antes de juntar com nacional/estadual: anota festas de vários dias
+    // seguidos (mesma cidade, mesmo nome de feriado em datas consecutivas) e
+    // junta o mesmo padroeiro quando cai na mesma data em mais de uma cidade
+    // do usuário — assim o card já explica "comemorado de X a Y" e "também
+    // celebrado em: cidade A, cidade B" em vez de mostrar só um nome solto.
+    annotateMultiDaySpans(municipalHolidays);
+    municipalHolidays = groupSharedPadroeiroAcrossCities(municipalHolidays);
+
     const combined = [...nationalHolidays, ...stateHolidays, ...municipalHolidays];
-    
+
     // Sort
     combined.sort((a, b) => a.date.localeCompare(b.date));
 
-    // Deduplicate dates for same municipality
+    // Deduplicate: antes usava só os 5 primeiros caracteres do nome, o que
+    // colapsava feriados de cidades DIFERENTES que caíssem na mesma data com
+    // nomes parecidos (ex.: duas cidades com "Feriado Municipal" no mesmo
+    // dia viravam um só, perdendo a segunda). A chave agora inclui tipo e
+    // cidade/estado, então só remove duplicata de verdade (mesmo feriado,
+    // mesmo lugar).
     const seen = new Set();
     const deduplicated = combined.filter(h => {
-        const key = `${h.date}-${h.name.substring(0, 5)}`;
+        const key = `${h.date}-${h.type}-${normalize(h.name)}-${(h as any).city || (h as any).state || ''}`;
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
