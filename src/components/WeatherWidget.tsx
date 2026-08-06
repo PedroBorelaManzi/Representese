@@ -74,9 +74,9 @@ export function WeatherWidget({ days: customDays }: WeatherWidgetProps) {
         ) : (
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5 text-sky-100 mb-1 min-w-0">
+              <div className="flex items-center gap-1.5 text-sky-100 mb-1 flex-wrap">
                 <MapPin className="w-3 h-3 shrink-0" />
-                <span className="text-[9px] font-black uppercase tracking-widest truncate flex-1 min-w-0">
+                <span className="text-[9px] font-black uppercase tracking-widest truncate">
                   {settings.weather_city}
                   {settings.weather_state ? ` · ${settings.weather_state}` : ''}
                 </span>
