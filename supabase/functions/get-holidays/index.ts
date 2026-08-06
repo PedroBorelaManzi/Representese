@@ -112,14 +112,30 @@ function classifyMunicipalHoliday(rawName: string, rawDescription: string, cityN
     };
   }
 
-  if (normName === "feriado municipal") {
+  // Pega-tudo pra nomes genéricos que não dizem nada por si só ("Feriado",
+  // "Feriado Municipal", "Ponto Facultativo" etc.) — bem comuns na base de
+  // dados de origem quando o motivo específico não foi catalogado. Sem essa
+  // checagem, o card mostrava literalmente só "Feriado" sem nem dizer qual
+  // cidade, muito menos o motivo.
+  const GENERIC_NAMES = ["feriado municipal", "feriado", "ponto facultativo", "feriado local"];
+  if (GENERIC_NAMES.includes(normName)) {
     return {
       name: `Feriado - ${cityName}`,
-      description: description || `Feriado municipal de ${cityName}.`,
+      description: description && normalize(description) !== normName
+        ? description
+        : `Feriado municipal de ${cityName}. A fonte de dados não detalha o motivo específico desta data — costuma estar ligado a uma data comemorativa ou religiosa local.`,
     };
   }
 
-  return { name, description: description || name };
+  // Nome específico que não bateu com nenhuma categoria acima (ex.: nome de
+  // um evento histórico da cidade) — mantém como está, mas nunca deixa a
+  // descrição igual ao nome sem contexto nenhum: sempre amarra à cidade.
+  return {
+    name,
+    description: description && normalize(description) !== normName
+      ? description
+      : `${name} — feriado municipal de ${cityName}.`,
+  };
 }
 
 /** Quando o mesmo feriado (mesmo nome j\u00e1 classificado) cai na mesma data em
