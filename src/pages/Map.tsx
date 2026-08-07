@@ -58,6 +58,29 @@ function ChangeView({ center, zoom }: { center: [number, number], zoom: number }
   return null;
 }
 
+/* Enquadra a carteira inteira na primeira carga. Antes o mapa abria centrado
+   em Brasília (ou na geolocalização) com zoom 13, então quem tinha 351 clientes
+   via 6 pinos de um bairro e achava que os dados tinham sumido. Roda uma vez
+   só: depois disso quem manda na câmera é o usuário. */
+function FitToClients({ pontos }: { pontos: [number, number][] }) {
+  const map = useMap();
+  const jaEnquadrou = useRef(false);
+
+  useEffect(() => {
+    if (jaEnquadrou.current || pontos.length === 0) return;
+    jaEnquadrou.current = true;
+
+    if (pontos.length === 1) {
+      map.setView(pontos[0], 14);
+    } else {
+      map.fitBounds(pontos, { padding: [48, 48], maxZoom: 15 });
+    }
+    setTimeout(() => map.invalidateSize(), 150);
+  }, [pontos, map]);
+
+  return null;
+}
+
 function MapResizeTrigger({ isFullscreen }: { isFullscreen: boolean }) {
   const map = useMap();
   useEffect(() => {
@@ -595,6 +618,11 @@ export default function Map() {
           scrollWheelZoom={true}
         >
           <ChangeView center={center} zoom={zoom} />
+          <FitToClients
+            pontos={mapCompanies
+              .filter((c) => c.displayLat && c.displayLng)
+              .map((c) => [c.displayLat, c.displayLng] as [number, number])}
+          />
           <MapResizeTrigger isFullscreen={isCurrentlyFullscreen} />
           <TileLayer 
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' 

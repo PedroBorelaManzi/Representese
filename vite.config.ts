@@ -54,11 +54,16 @@ export default defineConfig(({mode}) => {
       chunkSizeWarningLimit: 2000,
       rollupOptions: {
         output: {
-          // Separa libs pesadas do chunk principal: páginas sem gráficos/animações
-          // não pagam o custo de recharts/framer-motion no primeiro load.
+          // Separa libs pesadas do chunk principal: páginas sem animações não
+          // pagam o custo de framer-motion no primeiro load.
+          //
+          // recharts saiu daqui de propósito: forçar o chunk colocava
+          // vendor-charts no modulepreload do index.html, então TODO visitante
+          // da landing baixava ~106 KB de biblioteca de gráficos usada só em
+          // /dashboard/admin/analytics. Sem a entrada, o Rollup separa sozinho
+          // junto do lazy() da página.
           manualChunks: {
             'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-            'vendor-charts': ['recharts'],
             'vendor-motion': ['framer-motion'],
             'vendor-supabase': ['@supabase/supabase-js'],
           },

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { Search, MapPin, Building2, Trash2, ChevronRight, Plus, Loader2, FileUp, X, ChevronDown, Users, BellOff } from 'lucide-react';
 import { supabase, logAudit } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -18,6 +18,19 @@ import { EmptyState, PageHeader, Skeleton, useConfirm } from '../components/ui';
 import { posthog } from '../lib/posthog';
 import ClientImportModal from '../components/ClientImportModal';
 import { ExportLeadsButton } from '../components/ExportLeadsButton';
+
+/** Iniciais para o avatar da lista. `name.substring(0,2)` transformava
+ *  "5 Irmãos Matieli" em "5", "57.571.186 Isabel Aparecida" em "57" e
+ *  "A. Da Silva" em "A." — pega as iniciais das palavras com letra. */
+function iniciaisDoCliente(nome?: string | null): string {
+  const palavras = (nome || "")
+    .split(/\s+/)
+    .map((p) => p.replace(/[^\p{L}]/gu, ""))
+    .filter(Boolean);
+  if (palavras.length === 0) return "?";
+  if (palavras.length === 1) return palavras[0].slice(0, 2).toUpperCase();
+  return (palavras[0][0] + palavras[1][0]).toUpperCase();
+}
 
 export default function CRMPage() {
   const queryClient = useQueryClient();
@@ -366,14 +379,17 @@ export default function CRMPage() {
               </div>
            ) : (
               <div className="flex flex-col">
+                 {/* Cada linha é um Link de verdade, não uma <div> com onClick:
+                     assim dá para chegar no cliente pelo Tab, abrir em nova aba
+                     com Ctrl+clique e o leitor de tela anuncia como link. */}
                  {displayClients.map((client) => (
-                    <div 
+                    <Link
                       key={client.id}
-                      onClick={() => navigate(`/dashboard/clientes/${client.id}`)}
-                      className="p-4 cursor-pointer transition-colors hover:bg-slate-50/80 border-b border-slate-100 flex items-center gap-4 group"
+                      to={`/dashboard/clientes/${client.id}`}
+                      className="p-4 cursor-pointer transition-colors hover:bg-slate-50/80 dark:hover:bg-zinc-800/40 border-b border-slate-100 dark:border-zinc-800/60 flex items-center gap-4 group"
                     >
                        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black uppercase bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 shrink-0">
-                          {client.name?.substring(0, 2)}
+                          {iniciaisDoCliente(client.name)}
                        </div>
                        <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
@@ -415,12 +431,16 @@ export default function CRMPage() {
                           </div>
                        </div>
                        <div className="flex items-center gap-2 shrink-0">
-                          <button onClick={(e) => { e.stopPropagation(); handleDeleteClient(client.id); }} className="p-2 md:opacity-0 group-hover:opacity-100 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-500 rounded-lg transition-all">
+                          <button
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteClient(client.id); }}
+                            aria-label={`Excluir ${client.name}`}
+                            className="p-2 md:opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-500 rounded-lg transition-all"
+                          >
                              <Trash2 className="w-4 h-4" />
                           </button>
                           <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-emerald-500 transition-colors" />
                        </div>
-                    </div>
+                    </Link>
                  ))}
                  {filteredClients.length > displayLimit && (
                     <button 

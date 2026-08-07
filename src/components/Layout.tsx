@@ -149,6 +149,12 @@ export default function Layout() {
     };
 
     const runChecks = async () => {
+      // As notificações só existem no app nativo — sendNotification já saía
+      // cedo na web. Só que o trabalho todo (todos os clientes, todos os
+      // pedidos, todos os compromissos e os feriados) rodava assim mesmo, a
+      // cada 2 minutos, por aba aberta, para ser jogado fora no fim.
+      if (!Capacitor.isNativePlatform()) return;
+
       try {
         const now = new Date();
 
