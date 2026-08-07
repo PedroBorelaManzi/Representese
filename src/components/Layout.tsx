@@ -23,7 +23,8 @@ import {
   Trophy,
   Headphones,
   FileSpreadsheet,
-  BarChart3
+  BarChart3,
+  Layers
 } from 'lucide-react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -295,6 +296,9 @@ export default function Layout() {
       title: 'Comunicação',
       items: [
         { icon: Mail, label: 'E-mails', path: '/dashboard/email' },
+        // A página já existia e funciona (o usuário tinha 4 atalhos reais
+        // salvos), mas nenhum link do app levava até ela.
+        { icon: Layers, label: 'Atalhos', path: '/dashboard/links' },
       ],
     },
     ...((isSupportAdmin || settings.is_admin)
