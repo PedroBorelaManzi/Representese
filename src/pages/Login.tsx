@@ -29,7 +29,7 @@ import {
   Loader2
 } from "lucide-react";
 import { Logo } from "../components/Logo";
-import { Link, useNavigate, Navigate } from "react-router-dom";
+import { Link, useNavigate, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { cn } from "../lib/utils";
 import { toast } from "sonner";
@@ -62,6 +62,13 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const { user, signIn, signInOffline } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Rota que o usuário tentou abrir antes de cair aqui (guardada pelo
+  // ProtectedRoute). Sem isso, link direto para um cliente sempre terminava
+  // na home do painel.
+  const destinoAposLogin = (location.state as { from?: { pathname?: string } } | null)
+    ?.from?.pathname || "/dashboard";
 
   const [isBiometricAvailable, setIsBiometricAvailable] = useState(false);
 
@@ -88,7 +95,7 @@ export default function Login() {
   // Quem já tem sessão não deve ficar preso na tela de senha — acontecia com
   // quem acabava de se cadastrar no checkout e era mandado para cá.
   if (user) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={destinoAposLogin} replace />;
   }
 
   const handleBiometricLogin = async () => {
@@ -116,7 +123,7 @@ export default function Login() {
           try {
             await signIn(creds.username, creds.password);
             toast.success("Autenticado via Biometria!");
-            navigate("/dashboard");
+            navigate(destinoAposLogin, { replace: true });
             return;
           } catch (onlineError) {
             console.warn("Online sign in failed, trying offline fallback...", onlineError);
@@ -130,7 +137,7 @@ export default function Login() {
           if (cachedUser && cachedUser.email === creds.username) {
             signInOffline(cachedUser);
             toast.success("Autenticado offline via Biometria!");
-            navigate("/dashboard");
+            navigate(destinoAposLogin, { replace: true });
             return;
           }
         }
@@ -169,7 +176,7 @@ export default function Login() {
                 if (creds && creds.username === email && creds.password === password) {
                   signInOffline(cachedUser);
                   toast.success("Autenticado offline!");
-                  navigate("/dashboard");
+                  navigate(destinoAposLogin, { replace: true });
                   setIsLoading(false);
                   return;
                 }
@@ -189,7 +196,7 @@ export default function Login() {
     try {
       await signIn(email, password);
       toast.success("Bem-vindo de volta!");
-      navigate("/dashboard");
+      navigate(destinoAposLogin, { replace: true });
     } catch (error: any) {
       if (error.message && error.message.includes("Failed to fetch")) {
         toast.error("Erro de conexão. Verifique sua internet ou use o Acesso Biométrico.");

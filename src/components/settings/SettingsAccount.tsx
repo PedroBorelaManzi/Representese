@@ -118,7 +118,7 @@ export const SettingsAccount = React.memo(function SettingsAccount() {
               type="text" 
               value={displayName} 
               onChange={(e) => setDisplayName(e.target.value)}
-              className="flex-1 bg-slate-50 dark:bg-zinc-950 border border-slate-100 dark:border-zinc-800 rounded-2xl px-4 md:px-6 py-3.5 md:py-4 text-xs md:text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all dark:text-zinc-250"
+              className="flex-1 bg-slate-50 dark:bg-zinc-950 border border-slate-100 dark:border-zinc-800 rounded-2xl px-4 md:px-6 py-3.5 md:py-4 text-xs md:text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all dark:text-zinc-200"
               placeholder="Seu Nome"
             />
             <button 

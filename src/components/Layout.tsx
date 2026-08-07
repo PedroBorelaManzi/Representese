@@ -496,7 +496,7 @@ export default function Layout() {
                     <div className="bg-slate-50 dark:bg-zinc-900/40 border border-slate-100 dark:border-zinc-800 rounded-2xl p-3 space-y-3">
                       <div className="grid grid-cols-3 gap-1.5">
                         <div className="space-y-1">
-                          <label className="block text-[8px] font-black uppercase text-amber-655 text-center">Alerta</label>
+                          <label className="block text-[8px] font-black uppercase text-amber-600 text-center">Alerta</label>
                           <input 
                             type="number"
                             value={tempAlerta}
@@ -521,7 +521,7 @@ export default function Layout() {
                             type="number"
                             value={tempInativo}
                             onChange={(e) => setTempInativo(e.target.value)}
-                            className="w-full px-1.5 py-1 text-center bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-855 rounded-xl text-[11px] font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
+                            className="w-full px-1.5 py-1 text-center bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-850 rounded-xl text-[11px] font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
                             placeholder="90"
                           />
                         </div>
@@ -538,7 +538,7 @@ export default function Layout() {
                         <button
                           type="button"
                           onClick={() => setIsEditingInactivity(false)}
-                          className="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-750 text-slate-500 dark:text-zinc-400 rounded-xl flex items-center justify-center transition-colors"
+                          className="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-500 dark:text-zinc-400 rounded-xl flex items-center justify-center transition-colors"
                         >
                           <X className="w-3.5 h-3.5" />
                         </button>
@@ -548,15 +548,15 @@ export default function Layout() {
                     <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-50/50 dark:bg-zinc-950/40 border border-slate-100/50 dark:border-zinc-850/60 rounded-2xl">
                       <div className="text-center py-2 px-1 rounded-xl bg-white dark:bg-zinc-900 border border-slate-100/50 dark:border-zinc-800/40">
                         <p className="text-[8px] font-black uppercase tracking-wider text-amber-600 mb-0.5">Alerta</p>
-                        <p className="text-[11px] font-bold text-slate-700 dark:text-zinc-350">{settings.alerta_days || 30}d</p>
+                        <p className="text-[11px] font-bold text-slate-700 dark:text-zinc-300">{settings.alerta_days || 30}d</p>
                       </div>
                       <div className="text-center py-2 px-1 rounded-xl bg-white dark:bg-zinc-900 border border-slate-100/50 dark:border-zinc-800/40">
                         <p className="text-[8px] font-black uppercase tracking-wider text-orange-500 mb-0.5">Crítico</p>
-                        <p className="text-[11px] font-bold text-slate-700 dark:text-zinc-350">{settings.critico_days || 45}d</p>
+                        <p className="text-[11px] font-bold text-slate-700 dark:text-zinc-300">{settings.critico_days || 45}d</p>
                       </div>
                       <div className="text-center py-2 px-1 rounded-xl bg-white dark:bg-zinc-900 border border-slate-100/50 dark:border-zinc-800/40">
                         <p className="text-[8px] font-black uppercase tracking-wider text-red-500 mb-0.5">Inativo</p>
-                        <p className="text-[11px] font-bold text-slate-700 dark:text-zinc-350">{settings.inativo_days || 90}d</p>
+                        <p className="text-[11px] font-bold text-slate-700 dark:text-zinc-300">{settings.inativo_days || 90}d</p>
                       </div>
                     </div>
                   )}

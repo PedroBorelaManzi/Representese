@@ -40,18 +40,70 @@ import {
   BRL,
 } from "../../lib/aiActions";
 
-/* ─── render de texto com **negrito** ───────────────────────── */
-export function FormattedText({ text }: { text: string }) {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+/* ─── render do texto da IA: **negrito**, listas e títulos ───────
+   Só o negrito era tratado, então todo `* item` da resposta aparecia com o
+   asterisco na tela (eram 265 linhas assim num histórico real). */
+
+/** Trechos em **negrito** dentro de uma mesma linha. */
+function LinhaComNegrito({ texto }: { texto: string }) {
+  const partes = texto.split(/(\*\*[^*]+\*\*)/g);
   return (
-    <span className="whitespace-pre-wrap break-words">
-      {parts.map((p, i) =>
+    <>
+      {partes.map((p, i) =>
         p.startsWith("**") && p.endsWith("**") ? (
           <strong key={i} className="font-bold">{p.slice(2, -2)}</strong>
         ) : (
           <React.Fragment key={i}>{p}</React.Fragment>
         )
       )}
+    </>
+  );
+}
+
+export function FormattedText({ text }: { text: string }) {
+  const linhas = text.split("\n");
+
+  return (
+    <span className="break-words block">
+      {linhas.map((linha, i) => {
+        const marcador = linha.match(/^\s*[*-]\s+(.*)$/);
+        if (marcador) {
+          return (
+            <span key={i} className="flex gap-2 pl-1">
+              <span className="text-emerald-600 dark:text-emerald-400 select-none shrink-0">•</span>
+              <span className="flex-1"><LinhaComNegrito texto={marcador[1]} /></span>
+            </span>
+          );
+        }
+
+        const numerada = linha.match(/^\s*(\d+)[.)]\s+(.*)$/);
+        if (numerada) {
+          return (
+            <span key={i} className="flex gap-2 pl-1">
+              <span className="font-bold shrink-0 tabular-nums">{numerada[1]}.</span>
+              <span className="flex-1"><LinhaComNegrito texto={numerada[2]} /></span>
+            </span>
+          );
+        }
+
+        const titulo = linha.match(/^\s*#{1,6}\s+(.*)$/);
+        if (titulo) {
+          return (
+            <span key={i} className="block font-black mt-2 first:mt-0">
+              <LinhaComNegrito texto={titulo[1]} />
+            </span>
+          );
+        }
+
+        // Linha em branco vira respiro, não uma linha vazia com altura cheia.
+        if (!linha.trim()) return <span key={i} className="block h-2" />;
+
+        return (
+          <span key={i} className="block">
+            <LinhaComNegrito texto={linha} />
+          </span>
+        );
+      })}
     </span>
   );
 }

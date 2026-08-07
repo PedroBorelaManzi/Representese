@@ -248,17 +248,9 @@ export default function Map() {
         .from('client_vault')
         .download(filePath);
       
-      if (error) {
-          const { data: d2, error: e2 } = await supabase.storage.from('orders').download(filePath);
-          if (e2) throw e2;
-          const url = URL.createObjectURL(d2);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = fileName;
-          a.click();
-          return;
-      }
-      
+      // O fallback aqui era para um bucket 'orders' que não existe no projeto.
+      if (error) throw error;
+
       const url = URL.createObjectURL(data);
       const a = document.createElement('a');
       a.href = url;

@@ -240,7 +240,9 @@ export default function ClientDetails() {
         .remove([filePath]);
       
       if (storageError) {
-          await supabase.storage.from('orders').remove([filePath]);
+        // Não interrompe a exclusão do registro: o arquivo pode já ter sumido
+        // do Storage. (Havia um retry no bucket 'orders', que não existe.)
+        console.warn("Falha ao remover o arquivo do Storage:", storageError);
       }
 
       const { error: dbError } = await supabase
@@ -279,11 +281,9 @@ export default function ClientDetails() {
         .from('client_vault')
         .createSignedUrl(filePath, 60, { download: fileName });
 
-      if (error || !data?.signedUrl) {
-        const fallback = await supabase.storage.from('orders').createSignedUrl(filePath, 60, { download: fileName });
-        if (fallback.error || !fallback.data?.signedUrl) throw fallback.error || error;
-        data = fallback.data;
-      }
+      // O fallback aqui era para um bucket 'orders' que não existe no projeto:
+      // só trocava o erro real por "Bucket not found".
+      if (error || !data?.signedUrl) throw error || new Error("Arquivo não encontrado.");
 
       const a = document.createElement('a');
       a.href = data.signedUrl;
@@ -302,11 +302,7 @@ export default function ClientDetails() {
         .from('client_vault')
         .createSignedUrl(filePath, 60 * 60);
 
-      if (error || !data?.signedUrl) {
-        const fallback = await supabase.storage.from('orders').createSignedUrl(filePath, 60 * 60);
-        if (fallback.error || !fallback.data?.signedUrl) throw fallback.error || error;
-        data = fallback.data;
-      }
+      if (error || !data?.signedUrl) throw error || new Error("Arquivo não encontrado.");
 
       setPdfPreview({ url: data.signedUrl, name: fileName });
     } catch (err) {
