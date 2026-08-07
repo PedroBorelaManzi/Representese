@@ -830,7 +830,7 @@ export default function ReportsPage() {
             <CardShell
               icon={HeartPulse}
               title="Saúde da carteira"
-              subtitle={`Régua de inatividade: ${settings.alerta_days || 30} / ${settings.critico_days || 45} / ${settings.inativo_days || 90} dias sem contato`}
+              subtitle={`Régua de inatividade: ${settings.alerta_days || 30} / ${settings.critico_days || 45} / ${settings.inativo_days || 90} dias sem comprar`}
               onExpand={data.health.total > 0 ? () => setDetailView('health') : undefined}
               expandLabel="Ver clientes por status"
             >

@@ -409,7 +409,7 @@ export default function CRMPage() {
                                  client.alerts[0].type === 'Inativo' ? "bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400" :
                                  "bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-500"
                                )}>
-                                 {client.alerts[0].days}d sem contato
+                                 {client.alerts[0].days}d sem comprar
                                </span>
                              )}
                           </div>

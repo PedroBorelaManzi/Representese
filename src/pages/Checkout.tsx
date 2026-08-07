@@ -76,6 +76,7 @@ export default function Checkout() {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [showPassword, setShowPassword] = useState(false);
 
+  const [aceitouTermos, setAceitouTermos] = useState(false);
   const [pixData, setPixData] = useState<{ qrcode: string; payload: string } | null>(null);
   const [pixCopiado, setPixCopiado] = useState(false);
   const [couponCode, setCouponCode] = useState("");
@@ -129,7 +130,7 @@ export default function Checkout() {
   const docNameMatch = isCpf ? (isPersonalName && !/ltda|s\/?a|eireli|me|epp|cnpj/i.test(formData.name)) : (formData.name.trim().length >= 3);
   const phoneValid = isValidPhone(cleanPhone);
 
-  const isStep1Valid = formData.name && formData.email && formData.cpfCnpj && docValid && docNameMatch && formData.phone && phoneValid && (user ? true : isPasswordValid);
+  const isStep1Valid = formData.name && formData.email && formData.cpfCnpj && docValid && docNameMatch && formData.phone && phoneValid && (user ? true : isPasswordValid) && aceitouTermos;
 
   const baseValue = selectedPlan.prices[billingCycle];
   const couponDiscount = appliedCoupon ? (baseValue * appliedCoupon.discount) / 100 : 0;
@@ -227,7 +228,15 @@ export default function Checkout() {
       if (!user) {
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email: formData.email, password: formData.password,
-          options: { data: { full_name: formData.name, phone: formData.phone, cpf_cnpj: formData.cpfCnpj } }
+          options: {
+            data: {
+              full_name: formData.name,
+              phone: formData.phone,
+              cpf_cnpj: formData.cpfCnpj,
+              // Data/hora do aceite dos termos, para comprovar em contestação.
+              termos_aceitos_em: new Date().toISOString(),
+            }
+          }
         });
 
         if (authError) {
@@ -531,6 +540,29 @@ export default function Checkout() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Aceite registrado: é o que sustenta a cobrança recorrente
+                      numa contestação. Antes não havia link para os termos em
+                      nenhum ponto do cadastro ou do checkout. */}
+                  <label className="flex items-start gap-3 px-1 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={aceitouTermos}
+                      onChange={(e) => setAceitouTermos(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 rounded border-slate-300 cursor-pointer"
+                    />
+                    <span className="text-[13px] text-slate-600 leading-snug">
+                      Li e aceito os{" "}
+                      <a href="/terms" target="_blank" rel="noopener noreferrer" className="font-bold text-emerald-600 hover:underline">
+                        Termos de Serviço
+                      </a>{" "}
+                      e a{" "}
+                      <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-bold text-emerald-600 hover:underline">
+                        Política de Privacidade
+                      </a>
+                      , incluindo a renovação automática da assinatura.
+                    </span>
+                  </label>
 
                   <button
                     type="button" disabled={isCheckingUniqueness || !isStep1Valid}

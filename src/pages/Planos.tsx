@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
   ArrowUpRight,
+  ArrowLeft,
   Sparkles,
   Crown,
   ShieldCheck,
@@ -9,7 +10,8 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import { Logo } from "../components/Logo";
 import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
 import { cn } from "../lib/utils";
@@ -71,8 +73,35 @@ export default function Planos() {
   const isProfissional = currentPlanId === 'profissional';
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 px-4 py-10 lg:px-8 lg:py-14 transition-colors duration-300 font-sans">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 transition-colors duration-300 font-sans">
+      {/* Sem este cabeçalho a página não tinha nenhuma saída: zero links. No app
+          instalado (display: standalone) o usuário ficava preso na tela de preços. */}
+      <header className="sticky top-0 z-50 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-slate-200 dark:border-zinc-800 px-5 py-4">
+        <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate(user ? "/dashboard" : "/")}
+              aria-label="Voltar"
+              className="p-2 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-full transition-colors text-slate-500"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <Link to={user ? "/dashboard" : "/"} className="flex items-center">
+              <Logo size="sm" showText />
+            </Link>
+          </div>
+          {!user && (
+            <Link
+              to="/login"
+              className="text-[13px] font-bold text-slate-600 dark:text-zinc-300 hover:text-emerald-600 transition-colors whitespace-nowrap"
+            >
+              Já tenho conta
+            </Link>
+          )}
+        </div>
+      </header>
+
+      <div className="max-w-6xl mx-auto px-4 py-10 lg:px-8 lg:py-14">
 
         {/* Upsell para quem já é Profissional */}
         {isProfissional && (
