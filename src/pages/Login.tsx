@@ -29,9 +29,8 @@ import {
   Loader2
 } from "lucide-react";
 import { Logo } from "../components/Logo";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { useBiometric } from "../hooks/useBiometric";
 import { cn } from "../lib/utils";
 import { toast } from "sonner";
 import { NativeBiometric } from '@capgo/capacitor-native-biometric';
@@ -61,9 +60,15 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { isAvailable, isEnabled, authenticate } = useBiometric();
-  const { signIn, signInOffline } = useAuth();
+  const { user, signIn, signInOffline } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Rota que o usuário tentou abrir antes de cair aqui (guardada pelo
+  // ProtectedRoute). Sem isso, link direto para um cliente sempre terminava
+  // na home do painel.
+  const destinoAposLogin = (location.state as { from?: { pathname?: string } } | null)
+    ?.from?.pathname || "/dashboard";
 
   const [isBiometricAvailable, setIsBiometricAvailable] = useState(false);
 
@@ -86,6 +91,12 @@ export default function Login() {
     };
     checkBiometrics();
   }, []);
+
+  // Quem já tem sessão não deve ficar preso na tela de senha — acontecia com
+  // quem acabava de se cadastrar no checkout e era mandado para cá.
+  if (user) {
+    return <Navigate to={destinoAposLogin} replace />;
+  }
 
   const handleBiometricLogin = async () => {
     try {
@@ -112,7 +123,7 @@ export default function Login() {
           try {
             await signIn(creds.username, creds.password);
             toast.success("Autenticado via Biometria!");
-            navigate("/dashboard");
+            navigate(destinoAposLogin, { replace: true });
             return;
           } catch (onlineError) {
             console.warn("Online sign in failed, trying offline fallback...", onlineError);
@@ -126,7 +137,7 @@ export default function Login() {
           if (cachedUser && cachedUser.email === creds.username) {
             signInOffline(cachedUser);
             toast.success("Autenticado offline via Biometria!");
-            navigate("/dashboard");
+            navigate(destinoAposLogin, { replace: true });
             return;
           }
         }
@@ -165,7 +176,7 @@ export default function Login() {
                 if (creds && creds.username === email && creds.password === password) {
                   signInOffline(cachedUser);
                   toast.success("Autenticado offline!");
-                  navigate("/dashboard");
+                  navigate(destinoAposLogin, { replace: true });
                   setIsLoading(false);
                   return;
                 }
@@ -185,7 +196,7 @@ export default function Login() {
     try {
       await signIn(email, password);
       toast.success("Bem-vindo de volta!");
-      navigate("/dashboard");
+      navigate(destinoAposLogin, { replace: true });
     } catch (error: any) {
       if (error.message && error.message.includes("Failed to fetch")) {
         toast.error("Erro de conexão. Verifique sua internet ou use o Acesso Biométrico.");
@@ -292,6 +303,10 @@ export default function Login() {
               )}
             </button>
 
+            {/* Único caminho de biometria: as credenciais são gravadas em
+                Configurações → Segurança/Celular no server "representese.app".
+                Havia um segundo botão vindo do hook useBiometric, que lia de um
+                server diferente ("representese") onde nada nunca era gravado. */}
             {isBiometricAvailable && (
               <button
                 type="button"
@@ -304,21 +319,6 @@ export default function Login() {
             )}
           </form>
 
-            {isAvailable && isEnabled && (
-              <button
-                type="button"
-                onClick={async () => {
-                  const success = await authenticate();
-                  if (success) navigate('/dashboard');
-                  else toast.error('Falha na biometria');
-                }}
-                className="w-full flex items-center justify-center gap-2 py-4 bg-slate-100 dark:bg-zinc-800 text-emerald-600 dark:text-emerald-400 rounded-[24px] font-black uppercase text-xs tracking-widest mt-4"
-              >
-                <Fingerprint className="w-5 h-5" />
-                Login com Biometria
-              </button>
-            )}
-
           <div className="pt-12 text-center">
             <p className="text-[13px] font-medium text-slate-500 dark:text-zinc-400 mt-2">
               Não tem uma conta ainda?{" "}
@@ -329,11 +329,6 @@ export default function Login() {
           </div>
         </div>
 
-        <div className="mt-auto pt-16 pb-8 text-center">
-           <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.5em] whitespace-nowrap">
-              
-           </p>
-        </div>
       </div>
 
       <div className="hidden lg:flex lg:w-[55%] bg-slate-900 relative items-center justify-center p-24 overflow-hidden">

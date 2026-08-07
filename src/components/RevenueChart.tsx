@@ -24,10 +24,25 @@ const RevenueChart = ({ data, loading, currentDate, onPrevMonth, onNextMonth }) 
 
   React.useEffect(() => { setLocalCeiling(settings.revenue_ceiling ?? 1000000); }, [settings.revenue_ceiling]);
 
-  const MAX_REVENUE = React.useMemo(() => {
-    const values = data.map(d => Number(d.value) || 0);
-    return Math.max(...values, localCeiling, 1);
-  }, [data, localCeiling]);
+  // A escala segue os DADOS, não o teto. Antes era Math.max(...values, teto):
+  // com o teto padrão de R$ 1.000.000, um mês de R$ 9.531 e outro de R$ 1.517
+  // viravam barras de 0,95% e 0,15% de altura — as duas travadas no mínimo,
+  // visualmente idênticas entre si e indistinguíveis de zero.
+  const maiorValor = React.useMemo(
+    () => Math.max(0, ...data.map(d => Number(d.value) || 0)),
+    [data]
+  );
+  const semFaturamento = maiorValor <= 0;
+  // 15% de folga no topo para a barra mais alta não encostar no teto do card.
+  const MAX_REVENUE = React.useMemo(
+    () => (semFaturamento ? 1 : maiorValor * 1.15),
+    [maiorValor, semFaturamento]
+  );
+
+  // O teto vira linha de meta desenhada por cima — só aparece quando cabe na
+  // escala, senão empurraria o gráfico inteiro para o chão de novo.
+  const metaVisivel = !semFaturamento && localCeiling > 0 && localCeiling <= MAX_REVENUE;
+  const metaAltura = metaVisivel ? (localCeiling / MAX_REVENUE) * 100 : 0;
 
   const formatShortCurrency = (val) => `R$ ${val >= 1000 ? (val / 1000).toFixed(0) + 'k' : val}`;
   const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(val);
@@ -98,7 +113,7 @@ const RevenueChart = ({ data, loading, currentDate, onPrevMonth, onNextMonth }) 
              <span key={i} className="text-[9px] font-black text-slate-500">{formatShortCurrency(Math.round((MAX_REVENUE/4)*i))}</span>
            ))}
         </div>
-        {MAX_REVENUE === 1 ? (
+        {semFaturamento ? (
           <div className="flex-1 flex flex-col items-center justify-center h-full pb-10">
              <TrendingUp className="w-8 h-8 text-slate-300 mb-2 opacity-60" />
              <p className="text-sm font-black text-slate-400 uppercase tracking-widest text-center opacity-60">Nenhum faturamento registrado</p>
@@ -115,6 +130,17 @@ const RevenueChart = ({ data, loading, currentDate, onPrevMonth, onNextMonth }) 
           "flex-1 flex items-stretch px-4 relative pb-2",
           data.length > 10 ? "gap-1" : data.length > 6 ? "gap-2" : "gap-4"
         )}>
+          {metaVisivel && (
+            <div
+              className="absolute left-0 right-0 pointer-events-none z-10"
+              style={{ bottom: `calc(${rotateLabels ? '84px' : '40px'} + ${metaAltura}%)` }}
+            >
+              <div className="border-t-2 border-dashed border-amber-400/70" />
+              <span className="absolute right-1 -top-4 text-[8px] font-black uppercase tracking-widest text-amber-500">
+                Meta {formatShortCurrency(localCeiling)}
+              </span>
+            </div>
+          )}
           {data.map((item, idx) => {
             const val = Number(item.value) || 0;
             const h = (val / MAX_REVENUE) * 100;

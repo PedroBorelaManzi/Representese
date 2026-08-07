@@ -830,6 +830,14 @@ export function DemoModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
     return () => window.removeEventListener("keydown", onKey);
   }, [isOpen, onClose, togglePlay]);
 
+  // Sem isso a landing rolava atrás da demonstração.
+  useEffect(() => {
+    if (!isOpen) return;
+    const anterior = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = anterior; };
+  }, [isOpen]);
+
   const goToScene = useCallback((index: number) => {
     let acc = 0;
     for (let i = 0; i < index; i++) acc += SCENES[i].duration;
@@ -854,7 +862,12 @@ export function DemoModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[400] flex items-center justify-center p-3 sm:p-6">
+      <div
+        className="fixed inset-0 z-[400] flex items-center justify-center p-3 sm:p-6"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Demonstração do Represente-Se"
+      >
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

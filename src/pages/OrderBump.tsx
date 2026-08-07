@@ -13,7 +13,8 @@ import {
   ShieldCheck,
   CheckCircle2,
   Clock,
-  HelpCircle
+  HelpCircle,
+  CalendarDays
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -304,10 +305,11 @@ export default function OrderBump() {
               Assinatura atualizada com sucesso para {nextPlan.name}
             </p>
             <p className="text-slate-400 dark:text-zinc-500 text-xs leading-relaxed font-medium">
-              Todos os benefícios e recursos de inteligência do plano **{nextPlan.name}** já estão ativos e liberados em sua conta. Nosso motor neural já reconfigurou seus limites de acesso.
+              Todos os benefícios e recursos de inteligência do plano <strong>{nextPlan.name}</strong> já estão ativos e liberados em sua conta. Nosso motor neural já reconfigurou seus limites de acesso.
               <br />
               <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest block mt-3 bg-emerald-500/10 py-2 px-4 rounded-xl border border-emerald-500/20">
-                ðŸ“… Válido até {localStorage.getItem('rm_expiration_date') || "N/A"} (Ciclo {localStorage.getItem('rm_billing_cycle') || 'Mensal'})
+                <CalendarDays className="w-3 h-3 inline-block mr-1.5 -mt-0.5" />
+                Válido até {localStorage.getItem('rm_expiration_date') || "N/A"} (Ciclo {localStorage.getItem('rm_billing_cycle') || 'Mensal'})
               </span>
             </p>
           </div>

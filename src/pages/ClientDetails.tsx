@@ -33,6 +33,7 @@ import { syncQueue } from "../lib/syncQueue";
 import { offlineCache, CacheKeys } from "../lib/offlineCache";
 import { Client, Order } from "../types";
 import { computeCompanyCycles, cycleLabel, type CompanyCycle } from "../lib/purchaseCycle";
+import { computeClientAlerts, type AlertLike } from "../lib/clientAlerts";
 import { TrendingUp, Clock3 } from "lucide-react";
 import ClientFollowupModal from "../components/ClientFollowupModal";
 import ClientFollowupHistory from "../components/ClientFollowupHistory";
@@ -87,6 +88,32 @@ export default function ClientDetails() {
     return computeCompanyCycles(orders).filter((c) => c.status !== "observando" || c.purchases > 0);
   }, [files]);
 
+  /* Status de inatividade vindo da MESMA fonte da lista de clientes: os pedidos
+     reais, com os limiares que o usuário configurou. O badge daqui era um
+     "Ativo no Radar" fixo no código — um cliente aberto pela aba "Alerta"
+     aparecia como ativo. */
+  const alertaAtual = useMemo<AlertLike | undefined>(() => {
+    if (!client?.id) return undefined;
+    const pedidos = files
+      .filter((f) => f.created_at)
+      .map((f) => ({
+        client_id: client.id,
+        created_at: f.created_at as string,
+        category: f.category,
+      }));
+    const mapa = computeClientAlerts(
+      [{ id: client.id, name: client.name }],
+      pedidos,
+      {
+        alerta: settings.alerta_days || 30,
+        critico: settings.critico_days || 45,
+        inativo: settings.inativo_days || 90,
+      },
+      settings.categories || []
+    );
+    return mapa.get(client.id)?.alerts?.[0];
+  }, [client?.id, client?.name, files, settings.alerta_days, settings.critico_days, settings.inativo_days, settings.categories]);
+
   useEffect(() => {
     if (user && id) {
       loadClientData();
@@ -97,7 +124,11 @@ export default function ClientDetails() {
   const loadFollowupStatus = async () => {
     if (!user || !id) return;
     try {
-      const status = await getClientFollowupStatus(user.id, id);
+      const status = await getClientFollowupStatus(user.id, id, {
+        alerta: settings.alerta_days || 30,
+        critico: settings.critico_days || 45,
+        inativo: settings.inativo_days || 90,
+      });
       setFollowupStatus(status);
     } catch (error) {
       console.error('Error loading followup status:', error);
@@ -209,7 +240,9 @@ export default function ClientDetails() {
         .remove([filePath]);
       
       if (storageError) {
-          await supabase.storage.from('orders').remove([filePath]);
+        // Não interrompe a exclusão do registro: o arquivo pode já ter sumido
+        // do Storage. (Havia um retry no bucket 'orders', que não existe.)
+        console.warn("Falha ao remover o arquivo do Storage:", storageError);
       }
 
       const { error: dbError } = await supabase
@@ -248,11 +281,9 @@ export default function ClientDetails() {
         .from('client_vault')
         .createSignedUrl(filePath, 60, { download: fileName });
 
-      if (error || !data?.signedUrl) {
-        const fallback = await supabase.storage.from('orders').createSignedUrl(filePath, 60, { download: fileName });
-        if (fallback.error || !fallback.data?.signedUrl) throw fallback.error || error;
-        data = fallback.data;
-      }
+      // O fallback aqui era para um bucket 'orders' que não existe no projeto:
+      // só trocava o erro real por "Bucket not found".
+      if (error || !data?.signedUrl) throw error || new Error("Arquivo não encontrado.");
 
       const a = document.createElement('a');
       a.href = data.signedUrl;
@@ -271,11 +302,7 @@ export default function ClientDetails() {
         .from('client_vault')
         .createSignedUrl(filePath, 60 * 60);
 
-      if (error || !data?.signedUrl) {
-        const fallback = await supabase.storage.from('orders').createSignedUrl(filePath, 60 * 60);
-        if (fallback.error || !fallback.data?.signedUrl) throw fallback.error || error;
-        data = fallback.data;
-      }
+      if (error || !data?.signedUrl) throw error || new Error("Arquivo não encontrado.");
 
       setPdfPreview({ url: data.signedUrl, name: fileName });
     } catch (err) {
@@ -484,9 +511,35 @@ export default function ClientDetails() {
             <div>
               <h1 className="text-xl md:text-2xl font-black tracking-tight text-slate-900 dark:text-zinc-100">{toTitleCase(client.name || "")}</h1>
               <div className="flex items-center gap-4 mt-3">
-                <span className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 text-[10px] font-black uppercase rounded-full">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Ativo no Radar
-                </span>
+                {alertaAtual ? (
+                  <span
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1 text-[10px] font-black uppercase rounded-full",
+                      alertaAtual.type === "Inativo"
+                        ? "bg-red-50 dark:bg-red-900/20 text-red-600"
+                        : alertaAtual.type === "Crítico"
+                          ? "bg-orange-50 dark:bg-orange-900/20 text-orange-600"
+                          : "bg-amber-50 dark:bg-amber-900/20 text-amber-600"
+                    )}
+                    title={`Sem comprar em ${alertaAtual.company} há ${alertaAtual.days} dias`}
+                  >
+                    <div
+                      className={cn(
+                        "w-1.5 h-1.5 rounded-full",
+                        alertaAtual.type === "Inativo"
+                          ? "bg-red-500"
+                          : alertaAtual.type === "Crítico"
+                            ? "bg-orange-500"
+                            : "bg-amber-500"
+                      )}
+                    />
+                    {alertaAtual.type} · {alertaAtual.days}d sem comprar
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 text-[10px] font-black uppercase rounded-full">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Ativo no Radar
+                  </span>
+                )}
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">CNPJ: {client.cnpj}</span>
               </div>
             </div>
@@ -575,11 +628,13 @@ export default function ClientDetails() {
                   followupStatus.priority === 'low' ? "text-slate-600 dark:text-slate-400" :
                   "text-emerald-800 dark:text-emerald-200"
                 )}>
-                  {followupStatus.priority === 'urgent' && '🔴 Urgente - 45+ dias'}
-                  {followupStatus.priority === 'high' && '🟠 Alta - 30+ dias'}
-                  {followupStatus.priority === 'medium' && '🟡 Média - 14+ dias'}
-                  {followupStatus.priority === 'low' && '⚪ Baixa - Recente'}
-                  {followupStatus.priority === 'done' && '✅ Atualizado'}
+                  {/* Os números vêm da régua configurada pelo usuário; antes
+                      eram 45/30/14 fixos, que ignoravam o ajuste dele. */}
+                  {followupStatus.priority === 'urgent' && `🔴 Urgente · ${settings.inativo_days || 90}+ dias`}
+                  {followupStatus.priority === 'high' && `🟠 Alta · ${settings.critico_days || 45}+ dias`}
+                  {followupStatus.priority === 'medium' && `🟡 Média · ${settings.alerta_days || 30}+ dias`}
+                  {followupStatus.priority === 'low' && '⚪ Baixa · contato recente'}
+                  {followupStatus.priority === 'done' && '✅ Em dia'}
                 </p>
                 <p className={cn(
                   "text-[10px] font-bold uppercase tracking-tight",
@@ -589,9 +644,13 @@ export default function ClientDetails() {
                   followupStatus.priority === 'low' ? "text-slate-500 dark:text-slate-400" :
                   "text-emerald-700 dark:text-emerald-300"
                 )}>
+                  {/* Deixa explícito que este card é sobre CONTATO registrado,
+                      não sobre compra — o badge do topo é que fala de pedido. */}
                   {followupStatus.daysSinceContact >= 0
-                    ? `${followupStatus.daysSinceContact} dias sem contato`
-                    : 'Contato recente'}
+                    ? followupStatus.lastContact
+                      ? `Último contato registrado há ${followupStatus.daysSinceContact} dias`
+                      : 'Nenhum contato registrado ainda'
+                    : 'Contato registrado hoje'}
                 </p>
               </div>
 

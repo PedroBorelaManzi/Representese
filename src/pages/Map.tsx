@@ -49,12 +49,53 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
 });
 
-function ChangeView({ center, zoom }: { center: [number, number], zoom: number }) {
+function ChangeView({ center, zoom, ativo = true }: { center: [number, number], zoom: number, ativo?: boolean }) {
   const map = useMap();
+  const ultimoAplicado = useRef<string | null>(null);
+
   useEffect(() => {
+    const alvo = `${center[0]},${center[1]},${zoom}`;
+
+    // Enquanto o enquadramento automático da carteira manda na câmera, só
+    // anotamos o alvo sem mover o mapa. Sem isso a geolocalização chegava
+    // depois e puxava a visão de volta para um bairro, escondendo os outros
+    // 345 clientes. Ao liberar, não recentralizamos por causa da liberação em
+    // si — só quando center/zoom mudarem de fato (busca, clique num cliente).
+    if (!ativo) {
+      ultimoAplicado.current = alvo;
+      return;
+    }
+    if (ultimoAplicado.current === alvo) return;
+
+    ultimoAplicado.current = alvo;
     map.setView(center, zoom);
     setTimeout(() => map.invalidateSize(), 150);
-  }, [center, zoom, map]);
+  }, [center, zoom, map, ativo]);
+
+  return null;
+}
+
+/* Enquadra a carteira inteira na primeira carga. Antes o mapa abria centrado
+   em Brasília (ou na geolocalização) com zoom 13, então quem tinha 351 clientes
+   via 6 pinos de um bairro e achava que os dados tinham sumido. Roda uma vez
+   só: depois disso quem manda na câmera é o usuário. */
+function FitToClients({ pontos, onEnquadrou }: { pontos: [number, number][]; onEnquadrou: () => void }) {
+  const map = useMap();
+  const jaEnquadrou = useRef(false);
+
+  useEffect(() => {
+    if (jaEnquadrou.current || pontos.length === 0) return;
+    jaEnquadrou.current = true;
+
+    if (pontos.length === 1) {
+      map.setView(pontos[0], 14);
+    } else {
+      map.fitBounds(pontos, { padding: [48, 48], maxZoom: 15 });
+    }
+    setTimeout(() => map.invalidateSize(), 150);
+    onEnquadrou();
+  }, [pontos, map, onEnquadrou]);
+
   return null;
 }
 
@@ -83,6 +124,8 @@ export default function Map() {
   const [isSearchingMap, setIsSearchingMap] = useState(false);
   const [center, setCenter] = useState<[number, number]>([-15.793889, -47.882778]); // Brasília - Centro do Brasil
   const [zoom, setZoom] = useState(13);
+  /** Enquanto false, o enquadramento automático da carteira manda na câmera. */
+  const [camaraLiberada, setCamaraLiberada] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSearchingCnpj, setIsSearchingCnpj] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
@@ -248,17 +291,9 @@ export default function Map() {
         .from('client_vault')
         .download(filePath);
       
-      if (error) {
-          const { data: d2, error: e2 } = await supabase.storage.from('orders').download(filePath);
-          if (e2) throw e2;
-          const url = URL.createObjectURL(d2);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = fileName;
-          a.click();
-          return;
-      }
-      
+      // O fallback aqui era para um bucket 'orders' que não existe no projeto.
+      if (error) throw error;
+
       const url = URL.createObjectURL(data);
       const a = document.createElement('a');
       a.href = url;
@@ -602,7 +637,17 @@ export default function Map() {
           style={{ position: 'absolute', inset: 0 }}
           scrollWheelZoom={true}
         >
-          <ChangeView center={center} zoom={zoom} />
+          <ChangeView center={center} zoom={zoom} ativo={camaraLiberada} />
+          <FitToClients
+            pontos={mapCompanies
+              .filter((c) => c.displayLat && c.displayLng)
+              .map((c) => [c.displayLat, c.displayLng] as [number, number])}
+            onEnquadrou={() => {
+              // Libera a câmera só depois de um respiro, para a geolocalização
+              // que chega atrasada não desfazer o enquadramento.
+              setTimeout(() => setCamaraLiberada(true), 1200);
+            }}
+          />
           <MapResizeTrigger isFullscreen={isCurrentlyFullscreen} />
           <TileLayer 
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' 

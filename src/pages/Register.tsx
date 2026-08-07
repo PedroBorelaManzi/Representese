@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowLeft, Mail, User, Phone, Building2, Loader2, ArrowRight } from "lucide-react";
 import { Logo } from "../components/Logo";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, Navigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
@@ -18,10 +18,11 @@ export default function Register() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // Se já estiver logado (cliente com conta ativa), pula direto pros planos
+  // Se já estiver logado (cliente com conta ativa), pula direto pros planos.
+  // Precisa ser <Navigate>: chamar navigate() durante a renderização atualiza
+  // outro componente no meio do render e o React reclama.
   if (user) {
-    navigate("/planos", { replace: true });
-    return null;
+    return <Navigate to="/planos" replace />;
   }
 
   const cleanPhone = phone.replace(/\D/g, "");

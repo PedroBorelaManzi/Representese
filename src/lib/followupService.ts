@@ -31,17 +31,31 @@ const PRIORITY_CONFIG = {
   done: { days: -1, color: '#10B981' }       // Green - Recently contacted
 };
 
-export function calculateFollowupPriority(daysSinceContact: number): 'urgent' | 'high' | 'medium' | 'low' | 'done' {
+/** Limiares do follow-up. Vêm das configurações do usuário (os mesmos da régua
+ *  de inatividade); os números abaixo são só o padrão de quem nunca ajustou. */
+export interface FollowupThresholds {
+  alerta: number;
+  critico: number;
+  inativo: number;
+}
+
+const LIMIARES_PADRAO: FollowupThresholds = { alerta: 30, critico: 45, inativo: 90 };
+
+export function calculateFollowupPriority(
+  daysSinceContact: number,
+  limiares: FollowupThresholds = LIMIARES_PADRAO
+): 'urgent' | 'high' | 'medium' | 'low' | 'done' {
   if (daysSinceContact < 0) return 'done';
-  if (daysSinceContact >= 45) return 'urgent';
-  if (daysSinceContact >= 30) return 'high';
-  if (daysSinceContact >= 14) return 'medium';
+  if (daysSinceContact >= limiares.inativo) return 'urgent';
+  if (daysSinceContact >= limiares.critico) return 'high';
+  if (daysSinceContact >= limiares.alerta) return 'medium';
   return 'low';
 }
 
 export async function getClientFollowupStatus(
   userId: string,
-  clientId: string
+  clientId: string,
+  limiares: FollowupThresholds = LIMIARES_PADRAO
 ): Promise<ClientFollowupStatus | null> {
   const { data: client } = await supabase
     .from('clients')
@@ -71,7 +85,7 @@ export async function getClientFollowupStatus(
     ? Math.floor((now.getTime() - lastOrderDate.getTime()) / (1000 * 60 * 60 * 24))
     : 999;
 
-  const priority = calculateFollowupPriority(daysSinceContact);
+  const priority = calculateFollowupPriority(daysSinceContact, limiares);
 
   // Calculate next followup date based on priority
   let nextFollowupDate: string | null = null;

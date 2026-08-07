@@ -42,8 +42,8 @@ const themes: SuggestionTheme[] = [
       "Como vejo meu histórico de pedidos?",
       "Como configuro meus dados de comissão?",
       "Como exporto um relatório da minha carteira?",
-      "Como funciona o ranking entre representantes?",
-      "Como faço check-in de visita pelo GPS?",
+      "Como planejo uma rota de visitas no mapa?",
+      "Como funciona o ciclo de compra dos meus clientes?",
     ],
   },
   {

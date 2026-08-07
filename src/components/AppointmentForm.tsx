@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { X, Clock, Plus, Trash2, Save } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "../lib/utils";
+import { useModalEsc } from "../hooks/useModalEsc";
 
 interface Appointment {
   id: string;
@@ -157,6 +158,17 @@ export default function AppointmentForm({
     isAllDay: isAllDayInitial,
   });
 
+  // Esc fecha (o hook já é usado por SettingsModal, ConfirmDialog e ui/Modal —
+  // justamente o modal mais aberto do sistema estava de fora).
+  useModalEsc(onClose);
+
+  // Sem isso a página inteira rolava atrás do modal.
+  useEffect(() => {
+    const anterior = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = anterior; };
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const payload = {
@@ -169,7 +181,12 @@ export default function AppointmentForm({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-xl animate-in fade-in duration-300">
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-xl animate-in fade-in duration-300"
+      role="dialog"
+      aria-modal="true"
+      aria-label={appointment.id ? "Editar compromisso" : "Novo compromisso"}
+    >
       <motion.div 
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -295,7 +312,7 @@ export default function AppointmentForm({
               ) : (
                 <Save className="w-4 h-4" />
               )}
-              {isSaving ? "Salvando..." : "Confirmar Alterações"}
+              {isSaving ? "Salvando..." : appointment.id ? "Salvar Alterações" : "Agendar Visita"}
             </button>
           </div>
         </form>

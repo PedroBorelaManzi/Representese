@@ -42,7 +42,7 @@ export default function OnboardingModal() {
 
     if (isEditing) {
       return (
-        <div className="flex items-center gap-2 bg-slate-50 dark:bg-zinc-950 border border-slate-150 dark:border-zinc-850 rounded-2xl p-3 justify-between w-full">
+        <div className="flex items-center gap-2 bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-850 rounded-2xl p-3 justify-between w-full">
           <span className={`text-xs font-bold uppercase ${colorClass}`}>{label}</span>
           <div className="flex items-center gap-2">
             <input
@@ -78,8 +78,8 @@ export default function OnboardingModal() {
       >
         <span className={`text-xs font-bold uppercase ${colorClass}`}>{label}</span>
         <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-slate-700 dark:text-zinc-350">{currentVal} dias</span>
-          <span className="text-[10px] font-black uppercase tracking-wider bg-white dark:bg-zinc-900 text-slate-400 dark:text-zinc-500 px-2 py-1 rounded-xl border border-slate-150 dark:border-zinc-800">Ajustar</span>
+          <span className="text-sm font-bold text-slate-700 dark:text-zinc-300">{currentVal} dias</span>
+          <span className="text-[10px] font-black uppercase tracking-wider bg-white dark:bg-zinc-900 text-slate-400 dark:text-zinc-500 px-2 py-1 rounded-xl border border-slate-200 dark:border-zinc-800">Ajustar</span>
         </div>
       </button>
     );
@@ -269,7 +269,7 @@ export default function OnboardingModal() {
 
               <div className="space-y-3">
                 {renderOnboardingDaysConfig('alerta', 'Dias para Alerta (Frio)', alerta, 'text-amber-600')}
-                {renderOnboardingDaysConfig('critico', 'Dias para Crítico (Quente)', critico, 'text-orange-655')}
+                {renderOnboardingDaysConfig('critico', 'Dias para Crítico (Quente)', critico, 'text-orange-600')}
                 {renderOnboardingDaysConfig('inativo', 'Dias para Inativo', inativo, 'text-red-500')}
               </div>
 

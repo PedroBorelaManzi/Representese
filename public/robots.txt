@@ -6,4 +6,4 @@ Disallow: /checkout/
 Disallow: /auth/
 Disallow: /recovery/
 
-Sitemap: https://represente-me.vercel.app/sitemap.xml
+Sitemap: https://www.representese.com/sitemap.xml

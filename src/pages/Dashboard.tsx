@@ -218,6 +218,11 @@ export default function Dashboard() {
   };
 
   const scheduleLocalNotifications = async (appointments: Appointment[]) => {
+    // Só o app nativo agenda notificação. No navegador isso pedia permissão a
+    // cada carga do painel — o NotificationService já tem essa guarda em todos
+    // os métodos, o Dashboard tinha ficado de fora.
+    if (!Capacitor.isNativePlatform()) return;
+
     try {
       const perm = await LocalNotifications.checkPermissions();
       if (perm.display !== 'granted') {

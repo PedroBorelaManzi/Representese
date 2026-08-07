@@ -89,10 +89,14 @@ async function getValidEmailToken(userId: string, provider: EmailProvider, email
       const { refreshGoogleToken } = await import('./googleTokenExchange');
       const newAccessToken = await refreshGoogleToken(tokenData.refresh_token);
       if (newAccessToken) {
-        await supabase.from('user_email_tokens').update({
+        // expires_at é timestamptz: gravar o epoch em segundos estourava o
+        // range do Postgres (erro 22008), o update falhava calado e o token
+        // era renovado a cada leitura de e-mail.
+        const { error: updateError } = await supabase.from('user_email_tokens').update({
           access_token: newAccessToken,
-          expires_at: now + 3600,
+          expires_at: new Date(Date.now() + 3600 * 1000).toISOString(),
         }).eq('id', tokenData.id);
+        if (updateError) console.error("Erro ao gravar o token renovado do Google:", updateError);
         return newAccessToken;
       }
     } catch (e) {
@@ -111,11 +115,13 @@ async function getValidEmailToken(userId: string, provider: EmailProvider, email
     if (error) throw error;
     if (data && data.access_token) {
       const updatedRefreshToken = data.refresh_token || tokenData.refresh_token;
-      await supabase.from('user_email_tokens').update({
+      // Mesma correção do fluxo do Google: timestamptz, não epoch em segundos.
+      const { error: updateError } = await supabase.from('user_email_tokens').update({
         access_token: data.access_token,
         refresh_token: updatedRefreshToken,
-        expires_at: now + (data.expires_in || 3600),
+        expires_at: new Date(Date.now() + (data.expires_in || 3600) * 1000).toISOString(),
       }).eq('id', tokenData.id);
+      if (updateError) console.error("Erro ao gravar o token renovado da Microsoft:", updateError);
       return data.access_token;
     }
   } catch (e) {

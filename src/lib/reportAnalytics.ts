@@ -197,6 +197,12 @@ export async function fetchReportAnalytics(
 
   const selectedKey = monthKey(start);
   const prevKey = monthKey(new Date(year, month - 2, 1));
+
+  // Mês corrente ainda em andamento: o recorte do mês anterior tem que parar
+  // no mesmo dia, senão a variação é sempre negativa por construção.
+  const hoje = new Date();
+  const mesEmAndamento = selectedKey === monthKey(hoje);
+  const diaDeCorte = hoje.getDate();
   const clientCreatedAt = new Map(clients.map((c) => [c.id, c.created_at ? new Date(c.created_at) : null]));
   const clientCity = new Map(clients.map((c) => [c.id, (c.city || '').trim() || 'Não informado']));
 
@@ -268,10 +274,15 @@ export async function fetchReportAnalytics(
         returningClientIds.add(o.client_id);
       }
     } else if (key === prevKey) {
-      revenuePrev += value;
-      ordersPrev += 1;
-      commissionPrev += value * (pct / 100);
-      prevMonthClientIds.add(o.client_id);
+      // Comparação justa: quando o mês selecionado é o corrente, só entram os
+      // pedidos do mês anterior até o mesmo dia. Comparar 7 dias contra 31
+      // fazia todo início de mês exibir "-100%" nos KPIs.
+      if (!mesEmAndamento || created.getDate() <= diaDeCorte) {
+        revenuePrev += value;
+        ordersPrev += 1;
+        commissionPrev += value * (pct / 100);
+        prevMonthClientIds.add(o.client_id);
+      }
     }
   });
 
