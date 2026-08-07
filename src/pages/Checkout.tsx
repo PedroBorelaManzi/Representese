@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ShieldCheck, CreditCard, QrCode, Lock, CheckCircle2,
   ArrowLeft, ChevronRight, Loader2, Eye, EyeOff, RefreshCw,
-  ShieldAlert, Crown, Gem, Trophy, Check, User, Mail, Phone, Hash, Tag,
+  ShieldAlert, Crown, Gem, Trophy, Check, User, Mail, Phone, Hash, Tag, Copy,
 } from "lucide-react";
 import { cn } from '../lib/utils';
 import { Logo } from '../components/Logo';
@@ -76,6 +76,8 @@ export default function Checkout() {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [showPassword, setShowPassword] = useState(false);
 
+  const [pixData, setPixData] = useState<{ qrcode: string; payload: string } | null>(null);
+  const [pixCopiado, setPixCopiado] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(null);
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
@@ -271,10 +273,21 @@ export default function Checkout() {
 
       if (error) throw error;
       if (data.success) {
-        toast.success("Pagamento processado!");
         posthog.capture('signup_completed', { plan_id: selectedPlan.id, billing_cycle: billingCycle });
+
+        // Pix: a função devolve { pix: { qrcode, payload } }. Antes o front só
+        // sabia ler invoiceUrl (que ela nunca retorna) e mandava a pessoa para
+        // o login sem nunca mostrar o QR Code — a cobrança ficava pendente.
+        if (data.pix?.qrcode || data.pix?.payload) {
+          setPixData({ qrcode: data.pix.qrcode || "", payload: data.pix.payload || "" });
+          return;
+        }
+
+        toast.success("Pagamento processado!");
         if (data.invoiceUrl) setTimeout(() => { window.location.href = data.invoiceUrl; }, 1500);
-        else navigate("/login");
+        // Quem acabou de se cadastrar já está autenticado pelo signUp: mandar
+        // para /login obrigava a digitar a senha de novo logo após pagar.
+        else navigate("/dashboard");
       } else toast.error(data.message || "Erro no processamento");
     } catch (err: any) {
       toast.error(err.message || "Erro na comunicação");
@@ -284,6 +297,86 @@ export default function Checkout() {
   };
 
   const priceFmt = (v: number) => v.toFixed(2).replace('.', ',');
+
+  const copiarPix = async () => {
+    try {
+      await navigator.clipboard.writeText(pixData!.payload);
+      setPixCopiado(true);
+      toast.success("Código copiado!");
+      setTimeout(() => setPixCopiado(false), 3000);
+    } catch {
+      toast.error("Não foi possível copiar. Selecione o código e copie manualmente.");
+    }
+  };
+
+  // Tela do Pix: o pagamento só acontece aqui, então ela substitui o
+  // formulário em vez de navegar para outra rota.
+  if (pixData) {
+    return (
+      <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col items-center justify-center px-4 py-10">
+        <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200 shadow-sm p-7 sm:p-9 text-center space-y-6">
+          <div className="flex justify-center"><Logo size="md" showText /></div>
+
+          <div className="space-y-2">
+            <h1 className="text-2xl font-black tracking-tight">Falta pagar para liberar</h1>
+            <p className="text-[15px] text-slate-500 leading-relaxed">
+              Escaneie o QR Code no app do seu banco ou copie o código abaixo.
+              O acesso libera sozinho assim que o pagamento for identificado.
+            </p>
+          </div>
+
+          {pixData.qrcode && (
+            <div className="flex justify-center">
+              <img
+                src={`data:image/png;base64,${pixData.qrcode}`}
+                alt="QR Code do Pix para pagamento da assinatura"
+                className="w-56 h-56 rounded-2xl border border-slate-200 p-2 bg-white"
+              />
+            </div>
+          )}
+
+          <div className="space-y-2 text-left">
+            <label className="text-[13px] font-bold text-slate-700">Pix copia e cola</label>
+            <div className="flex gap-2">
+              <input
+                readOnly
+                value={pixData.payload}
+                onFocus={(e) => e.currentTarget.select()}
+                className="flex-1 min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[13px] font-medium outline-none focus:border-emerald-500"
+              />
+              <button
+                type="button"
+                onClick={copiarPix}
+                className="shrink-0 px-5 rounded-2xl bg-slate-900 text-white text-[13px] font-black hover:bg-slate-800 transition-colors flex items-center gap-2"
+              >
+                {pixCopiado ? <Check className="w-4 h-4" strokeWidth={3} /> : <Copy className="w-4 h-4" />}
+                {pixCopiado ? "Copiado" : "Copiar"}
+              </button>
+            </div>
+          </div>
+
+          <div className="pt-2 space-y-4">
+            <div className="flex items-baseline justify-center gap-2">
+              <span className="text-[13px] font-bold text-slate-500">Total</span>
+              <span className="text-2xl font-black tracking-tight">R$ {priceFmt(finalPrice)}</span>
+            </div>
+            <p className="text-[12px] text-slate-500 leading-relaxed flex items-start gap-2 text-left">
+              <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+              Pode fechar esta página depois de pagar. Assim que o Pix cair, sua conta é
+              liberada e você já entra com o e-mail e a senha que acabou de cadastrar.
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate("/login")}
+              className="w-full py-3.5 rounded-2xl border border-slate-200 text-slate-700 font-bold text-[14px] hover:bg-slate-50 transition-colors"
+            >
+              Já paguei — ir para o login
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 selection:bg-emerald-500/30 overflow-x-hidden">
