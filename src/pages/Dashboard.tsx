@@ -43,13 +43,20 @@ export default function Dashboard() {
   const confirm = useConfirm();
   const [currentDate, setCurrentDate] = useState(new Date());
   const businessHourRef = React.useRef<HTMLDivElement>(null);
+  const calendarBodyRef = React.useRef<HTMLDivElement>(null);
 
   // Grade cobre das 05:00 às 20:00; abre já no início da janela.
-  // scrollIntoView (em vez de setar scrollTop num container fixo) encontra
-  // sozinho o ancestral que realmente rola — que aqui é o <main> da página,
-  // não o painel do calendário.
+  // scrollIntoView subia por TODOS os ancestrais roláveis, não só o painel do
+  // calendário — inclusive o <main> da página inteira, que descia a cada
+  // entrada no Início e escondia o clima e os cards de KPI. Calculando a
+  // posição e setando scrollTop só no painel do calendário, a página não sai
+  // do lugar; só a grade de horas abre já em 05:00.
   useEffect(() => {
-    businessHourRef.current?.scrollIntoView({ block: "start" });
+    const container = calendarBodyRef.current;
+    const target = businessHourRef.current;
+    if (!container || !target) return;
+    const offset = target.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
+    container.scrollTop = offset;
   }, []);
 
   const [selectedNoteDate, setSelectedNoteDate] = useState(new Date());
@@ -680,7 +687,7 @@ export default function Dashboard() {
           </div>
 
           <div className="flex-1 flex flex-col overflow-hidden relative min-h-0">
-            <div className="hidden lg:flex flex-1 min-h-0 overflow-auto custom-scrollbar">
+            <div ref={calendarBodyRef} className="hidden lg:flex flex-1 min-h-0 overflow-auto custom-scrollbar">
               <div className="flex flex-col flex-1 min-w-[1000px] lg:min-w-0">
                 <div className="flex bg-slate-50/95 dark:bg-zinc-950/95 border-b border-slate-200 dark:border-zinc-800 sticky top-0 z-30 backdrop-blur-md">
                   <div className="w-14 flex-shrink-0 sticky left-0 bg-slate-50 dark:bg-zinc-900 z-40 border-r border-slate-200 dark:border-zinc-800" />
