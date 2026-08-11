@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { MapPin, Search, X, Loader2, CloudSun, AlertTriangle, RefreshCw, Pencil } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { MapPin, Search, X, Loader2, CloudSun, AlertTriangle, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSettings } from '../contexts/SettingsContext';
 import { geocodeCity, GeocodeResult } from '../lib/weatherService';
@@ -24,6 +25,32 @@ export function WeatherCitySelector({ className, compact = false, light = false 
   const [searchError, setSearchError] = useState(false);
   const [retryTick, setRetryTick] = useState(0);
   const boxRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
+
+  // O popover vive num portal em document.body — sem isso, dentro do card
+  // colorido de clima (que tem overflow-hidden pras bolhas decorativas de
+  // fundo) ele era cortado pela borda do card antes de mostrar a busca
+  // inteira. Como o portal escapa desse ancestral, ele calcula a própria
+  // posição na tela a partir do botão, e não da cascata de "absolute".
+  useEffect(() => {
+    if (!open || !buttonRef.current) return;
+    const PANEL_WIDTH = 288; // w-72
+    const MARGIN = 16;
+    const update = () => {
+      const rect = buttonRef.current!.getBoundingClientRect();
+      const left = Math.max(MARGIN, Math.min(rect.right - PANEL_WIDTH, window.innerWidth - PANEL_WIDTH - MARGIN));
+      setCoords({ top: rect.bottom + 8, left });
+    };
+    update();
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+    };
+  }, [open]);
 
   // Busca com debounce; cancela requisições em voo ao digitar de novo.
   useEffect(() => {
@@ -61,11 +88,14 @@ export function WeatherCitySelector({ className, compact = false, light = false 
     };
   }, [query, open, retryTick]);
 
-  // Fecha ao clicar fora
+  // Fecha ao clicar fora — precisa considerar o botão E o painel, que agora
+  // vive num portal fora de boxRef.
   useEffect(() => {
     if (!open) return;
     const onClick = (e: MouseEvent) => {
-      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (boxRef.current?.contains(target) || panelRef.current?.contains(target)) return;
+      setOpen(false);
     };
     document.addEventListener('mousedown', onClick);
     return () => document.removeEventListener('mousedown', onClick);
@@ -93,6 +123,7 @@ export function WeatherCitySelector({ className, compact = false, light = false 
   return (
     <div className={cn('relative', className)} ref={boxRef}>
       <button
+        ref={buttonRef}
         onClick={() => setOpen((o) => !o)}
         aria-label="Trocar cidade da previsão"
         title="Trocar cidade da previsão"
@@ -111,7 +142,7 @@ export function WeatherCitySelector({ className, compact = false, light = false 
         )}
       >
         {compact ? (
-          <Pencil className="w-3.5 h-3.5" />
+          <MapPin className="w-3.5 h-3.5" />
         ) : (
           <>
             <CloudSun className="w-4 h-4 text-sky-500" />
@@ -120,17 +151,17 @@ export function WeatherCitySelector({ className, compact = false, light = false 
         )}
       </button>
 
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, y: -8, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -8, scale: 0.97 }}
-            className={cn(
-              'absolute mt-2 w-72 max-w-[calc(100vw-2rem)] bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-2xl z-[9000] overflow-hidden',
-              compact ? 'right-0' : 'left-0 sm:left-auto sm:right-0'
-            )}
-          >
+      {createPortal(
+        <AnimatePresence>
+          {open && coords && (
+            <motion.div
+              ref={panelRef}
+              initial={{ opacity: 0, y: -8, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.97 }}
+              style={{ position: 'fixed', top: coords.top, left: coords.left }}
+              className="w-72 max-w-[calc(100vw-2rem)] bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-2xl z-[9000] overflow-hidden"
+            >
             <div className="p-3 border-b border-slate-100 dark:border-zinc-800 flex items-center gap-2">
               <Search className="w-4 h-4 text-slate-400 shrink-0" />
               <input
@@ -190,9 +221,11 @@ export function WeatherCitySelector({ className, compact = false, light = false 
                 );
               })}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </div>
   );
 }
