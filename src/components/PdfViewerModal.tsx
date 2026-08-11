@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, memo } from "react";
 import { X, Loader2, AlertTriangle, Download, ZoomIn, ZoomOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { loadPdfjs } from "../lib/pdfjsLoader";
@@ -14,8 +14,11 @@ interface PdfViewerModalProps {
 // Só renderiza em canvas as páginas dentro dessa margem (em px) da área
 // visível — o resto vira placeholder vazio. Sem isso, um PDF de centenas
 // de páginas tentaria manter todas renderizadas ao mesmo tempo, o que
-// esgota a memória e deixa o scroll extremamente travado.
-const RENDER_MARGIN_PX = 1200;
+// esgota a memória e deixa o scroll extremamente travado. Em PDFs com fotos
+// de produto (catálogos, por exemplo), cada canvas ativo decodifica e pinta
+// imagens grandes — uma margem menor mantém menos páginas "pesadas" ativas
+// ao mesmo tempo, o que ajuda o scroll a ficar mais leve.
+const RENDER_MARGIN_PX = 700;
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2.5;
 
@@ -100,6 +103,14 @@ export function PdfViewerModal({ isOpen, onClose, url, fileName, onDownload }: P
     return () => window.removeEventListener("keydown", onKey);
   }, [isOpen, onClose]);
 
+  // Recalculado só quando o total de páginas muda — antes era recriado (novo
+  // array, novos elementos React p/ as 16+ páginas) a cada re-render do modal,
+  // inclusive nos disparados só pelo indicador "Página X de Y" durante o
+  // scroll. Junto com o React.memo em PdfPage, isso é o que fazia rolar a
+  // tela recalcular/rediferenciar todas as páginas a cada troca de página
+  // visível, mesmo as que não tinham mudado nada.
+  const pageNumbers = useMemo(() => Array.from({ length: numPages }, (_, i) => i + 1), [numPages]);
+
   if (!isOpen) return null;
 
   const fitScale = pageSize && containerWidth ? (containerWidth - 32) / pageSize.width : 1;
@@ -178,7 +189,7 @@ export function PdfViewerModal({ isOpen, onClose, url, fileName, onDownload }: P
               </div>
             ) : pdf && pageSize && containerWidth > 0 ? (
               <div className="flex flex-col items-center gap-4 py-6">
-                {Array.from({ length: numPages }, (_, i) => i + 1).map((pageNumber) => (
+                {pageNumbers.map((pageNumber) => (
                   <PdfPage
                     key={pageNumber}
                     pdf={pdf}
@@ -199,7 +210,15 @@ export function PdfViewerModal({ isOpen, onClose, url, fileName, onDownload }: P
   );
 }
 
-function PdfPage({
+// memo() é o que faz a virtualização acima realmente valer: sem ele, cada
+// setCurrentPage (disparado a cada página que cruza a borda de visibilidade
+// durante o scroll) re-renderizava o PdfViewerModal inteiro, e como PdfPage
+// não era memoizado, React rediferenciava as 16+ páginas a cada frame de
+// scroll — inclusive as que não tinham nada pra atualizar. Num catálogo com
+// fotos de produto pesadas, isso sozinho já travava a rolagem. Com memo(),
+// uma página só re-renderiza quando as PRÓPRIAS props mudam (zoom, ou ela
+// entrar/sair da janela de renderização).
+const PdfPage = memo(function PdfPage({
   pdf,
   pageNumber,
   scale,
@@ -307,4 +326,4 @@ function PdfPage({
       <canvas ref={canvasRef} />
     </div>
   );
-}
+});
