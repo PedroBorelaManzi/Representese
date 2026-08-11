@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { Sentry } from '../lib/sentry';
 
 interface Props {
   children: React.ReactNode;
@@ -26,6 +27,17 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error('ErrorBoundary capturou:', error, info);
+    // Antes disso, um erro capturado aqui só existia no console do navegador
+    // de quem estava usando — sem stack trace nenhum chegava até nós. Com o
+    // Sentry configurado (VITE_SENTRY_DSN em produção) e sem ele em dev, isso
+    // é um no-op silencioso local e um relatório completo em produção.
+    Sentry.captureException(error, {
+      extra: {
+        componentStack: info.componentStack,
+        route: this.props.resetKey,
+      },
+      tags: { origem: 'ErrorBoundary_pagina' },
+    });
   }
 
   componentDidUpdate(prevProps: Props) {
