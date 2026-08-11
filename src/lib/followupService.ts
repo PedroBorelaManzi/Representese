@@ -164,7 +164,24 @@ export async function getFollowupLogs(
     .order('created_at', { ascending: false })
     .limit(limit);
 
-  return (data || []) as FollowupLog[];
+  // A tabela usa snake_case (contact_date, next_followup...) e a interface
+  // FollowupLog é camelCase. `(data || []) as FollowupLog[]` só engana o
+  // TypeScript — em runtime os objetos continuam com as chaves do banco, e
+  // log.contactDate vira undefined. new Date(undefined) é uma Invalid Date, e
+  // o date-fns quebra com "Invalid time value" ao tentar formatar — foi isso
+  // que derrubava a tela de Detalhes do Cliente ao abrir o histórico de
+  // follow-up de um cliente que tinha pelo menos um registro.
+  return (data || []).map((row: any) => ({
+    id: row.id,
+    clientId: row.client_id,
+    userId: row.user_id,
+    contactDate: row.contact_date,
+    method: row.method,
+    notes: row.notes,
+    outcome: row.outcome,
+    nextFollowup: row.next_followup,
+    createdAt: row.created_at,
+  }));
 }
 
 export async function getClientsNeedingFollowup(

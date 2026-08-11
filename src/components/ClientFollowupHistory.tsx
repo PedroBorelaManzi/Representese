@@ -1,20 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { getFollowupLogs, getMethodLabel, getOutcomeLabel } from '../lib/followupService';
+import { getFollowupLogs, getMethodLabel, getOutcomeLabel, type FollowupLog } from '../lib/followupService';
 import { Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
-interface FollowupLog {
-  id: string;
-  clientId: string;
-  userId: string;
-  contactDate: string;
-  method: 'call' | 'email' | 'whatsapp' | 'visit' | 'other';
-  notes: string;
-  outcome: 'positive' | 'pending' | 'negative' | 'no_response';
-  nextFollowup: string | null;
-  createdAt: string;
+// Blindagem: format() do date-fns lança "Invalid time value" e derruba a
+// tela inteira se a data vier vazia/mal-formada. Isso já aconteceu por um
+// bug de mapeamento em getFollowupLogs (corrigido); esta função garante que
+// o mesmo tipo de erro nunca mais quebra o render, seja qual for a causa.
+function formatSafe(value: string | null | undefined, pattern: string): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  return isValid(date) ? format(date, pattern, { locale: ptBR }) : null;
 }
 
 interface ClientFollowupHistoryProps {
@@ -41,7 +39,7 @@ export default function ClientFollowupHistory({ clientId, userId }: ClientFollow
     setIsLoading(true);
     try {
       const data = await getFollowupLogs(userId, clientId, 20);
-      setLogs(data as any);
+      setLogs(data);
     } catch (error) {
       console.error('Error loading followup history:', error);
     } finally {
@@ -98,7 +96,7 @@ export default function ClientFollowupHistory({ clientId, userId }: ClientFollow
                   </span>
                 </div>
                 <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-                  {format(new Date(log.contactDate), "d 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                  {formatSafe(log.contactDate, "d 'de' MMMM 'de' yyyy") || 'Data não registrada'}
                 </p>
               </div>
             </div>
@@ -107,10 +105,10 @@ export default function ClientFollowupHistory({ clientId, userId }: ClientFollow
               {log.notes}
             </p>
 
-            {log.nextFollowup && (
+            {formatSafe(log.nextFollowup, "d 'de' MMMM") && (
               <div className="mt-2 p-2 bg-white/50 dark:bg-black/20 rounded-lg border border-white/50 dark:border-black/20">
                 <p className="text-[10px] text-slate-600 dark:text-slate-400 font-bold uppercase tracking-widest">
-                  📅 Próximo: {format(new Date(log.nextFollowup), "d 'de' MMMM", { locale: ptBR })}
+                  📅 Próximo: {formatSafe(log.nextFollowup, "d 'de' MMMM")}
                 </p>
               </div>
             )}
