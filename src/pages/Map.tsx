@@ -6,6 +6,7 @@ import { Search, MapPin, Building2, Plus, X, Info, Loader2, ExternalLink, Trash2
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
 import { useClients } from "../hooks/useClients";
 import { useQueryClient } from '@tanstack/react-query';
@@ -116,6 +117,7 @@ export default function Map() {
     } catch (e) {}
   };
 
+  const { user } = useAuth();
   const { settings } = useSettings();
   const confirm = useConfirm();
   const { data: companies = [] } = useClients();
@@ -242,8 +244,16 @@ export default function Map() {
     window.open(`https://www.google.com/maps/dir/${stops}`, '_blank');
   };
 
+  // loadClients, handleMarkerDrag, handleDeleteClient e handleCreateLocation
+  // chamavam supabase.auth.getUser() cada um antes de agir — essa função
+  // revalida o token com o servidor a cada chamada (round-trip de rede real),
+  // diferente de getSession(). O AuthContext já mantém `user` em memória
+  // (populado uma vez, sincronizado por onAuthStateChange), e o ProtectedRoute
+  // garante que ele existe antes de qualquer página do painel renderizar.
+  // Era essa chamada extra, sequencial antes da própria exclusão/gravação,
+  // que fazia excluir um cliente (e mover um pino, e cadastrar um novo)
+  // demorar mais do que devia.
   const loadClients = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
     if (!offlineCache.isOnline()) {
@@ -334,7 +344,6 @@ export default function Map() {
 
   const handleMarkerDrag = async (id: string, latlng: { lat: number, lng: number }) => {
     triggerLightHaptic();
-    const { data: { user } } = await supabase.auth.getUser();
     const { error } = await supabase
       .from("clients")
       .update({ lat: latlng.lat, lng: latlng.lng })
@@ -355,7 +364,6 @@ export default function Map() {
   const handleDeleteClient = async (id: string, name: string) => {
     if (!(await confirm({ title: 'Excluir cliente', message: `Deseja realmente excluir o cliente "${name}"? Esta ação não pode ser desfeita.` }))) return;
 
-    const { data: { user } } = await supabase.auth.getUser();
     const { error } = await supabase.from("clients").delete().eq("id", id).eq("user_id", user?.id);
     if (error) {
        toast.error(error.code === "23503" ? "Cliente vinculado a pedidos/compromissos." : "Erro ao excluir.");
@@ -444,7 +452,6 @@ export default function Map() {
 
   const handleCreateLocation = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
     const { error } = await supabase.from("clients").insert([{
