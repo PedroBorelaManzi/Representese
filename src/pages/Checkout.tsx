@@ -55,7 +55,7 @@ function Requirement({ label, met }: { label: string; met: boolean }) {
 }
 
 // input com ícone à esquerda, estilo consistente
-const inputBase = "w-full rounded-2xl border bg-slate-50 pl-11 pr-4 py-3.5 text-[15px] font-medium outline-none transition-all";
+const inputBase = "w-full rounded-2xl border bg-slate-50 pl-11 pr-4 py-3.5 text-[15px] font-medium text-slate-900 outline-none transition-all";
 const inputOk = "border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white";
 const inputErr = "border-red-400 bg-red-50/40 text-red-900 focus:ring-4 focus:ring-red-500/10";
 
@@ -322,7 +322,7 @@ export default function Checkout() {
   // formulário em vez de navegar para outra rota.
   if (pixData) {
     return (
-      <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col items-center justify-center px-4 py-10">
+      <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col items-center justify-center px-4 py-10 [color-scheme:light]">
         <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200 shadow-sm p-7 sm:p-9 text-center space-y-6">
           <div className="flex justify-center"><Logo size="md" showText /></div>
 
@@ -388,7 +388,7 @@ export default function Checkout() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 selection:bg-emerald-500/30 overflow-x-hidden">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 selection:bg-emerald-500/30 overflow-x-hidden [color-scheme:light]">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 px-5 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
@@ -634,7 +634,7 @@ export default function Checkout() {
                         {billingCycle === 'ANNUAL' && (
                           <div className="space-y-1.5">
                             <label className="text-[13px] font-bold text-slate-700">Parcelamento</label>
-                            <select value={installments} onChange={(e) => setInstallments(Number(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3.5 text-[15px] font-bold outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 appearance-none cursor-pointer">
+                            <select value={installments} onChange={(e) => setInstallments(Number(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3.5 text-[15px] font-bold text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 appearance-none cursor-pointer">
                               {Array.from({ length: 12 }, (_, i) => i + 1).map((num) => (
                                 <option key={num} value={num}>{num}x de R$ {priceFmt(finalPrice / num)} sem juros</option>
                               ))}

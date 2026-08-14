@@ -98,7 +98,7 @@ export default function Recovery() {
   const isSpecial = /[^A-Za-z0-9]/.test(newPassword);
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 sm:p-6 relative overflow-hidden font-sans">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 sm:p-6 relative overflow-hidden font-sans [color-scheme:light]">
       {/* Background decorations */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(16,185,129,0.08),transparent)] pointer-events-none" />
       <div className="absolute -top-24 -right-24 w-96 h-96 bg-emerald-600/5 blur-[120px] rounded-full pointer-events-none" />
@@ -151,7 +151,7 @@ export default function Recovery() {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="seu@email.com"
-                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-14 pr-5 py-4 text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 focus:bg-white transition-all"
+                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-14 pr-5 py-4 text-sm font-bold text-slate-900 outline-none focus:ring-4 focus:ring-emerald-500/10 focus:bg-white transition-all"
                       />
                     </div>
                   </div>
@@ -225,7 +225,7 @@ export default function Recovery() {
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-14 pr-14 py-4 text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 focus:bg-white transition-all"
+                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-14 pr-14 py-4 text-sm font-bold text-slate-900 outline-none focus:ring-4 focus:ring-emerald-500/10 focus:bg-white transition-all"
                     />
                     <button
                       type="button"
@@ -272,7 +272,7 @@ export default function Recovery() {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-14 pr-5 py-4 text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 focus:bg-white transition-all"
+                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-14 pr-5 py-4 text-sm font-bold text-slate-900 outline-none focus:ring-4 focus:ring-emerald-500/10 focus:bg-white transition-all"
                     />
                   </div>
                 </div>
