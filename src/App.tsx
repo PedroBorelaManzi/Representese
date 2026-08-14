@@ -52,6 +52,7 @@ const ReportsPage = lazyWithRetry(() => import("./pages/Reports"));
 const GoogleCallback = lazyWithRetry(() => import("./pages/GoogleCallback"));
 const PrivacyPolicy = lazyWithRetry(() => import("./pages/PrivacyPolicy"));
 const TermsOfService = lazyWithRetry(() => import("./pages/TermsOfService"));
+const DataDeletion = lazyWithRetry(() => import("./pages/DataDeletion"));
 const AdminAnalytics = lazyWithRetry(() => import("./pages/AdminAnalytics"));
 
 const LoadingSpinner = () => (
@@ -147,6 +148,7 @@ export default function App() {
                   {/* Public Legal Routes */}
                   <Route path="/privacy" element={<PrivacyPolicy />} />
                   <Route path="/terms" element={<TermsOfService />} />
+                  <Route path="/exclusao-de-dados" element={<DataDeletion />} />
                   
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
