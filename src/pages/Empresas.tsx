@@ -550,7 +550,7 @@ export default function EmpresasPage() {
               onClick={() => setSelectedCategory("all")}
               className={cn("w-full text-left p-4 sm:p-5 lg:p-7 rounded-[30px] md:rounded-[35px] border transition-all relative group overflow-hidden active:scale-[0.98] col-span-2 lg:col-span-1",
                 selectedCategory === "all" 
-                  ? "bg-emerald-600 border-emerald-600 text-white shadow-[0_8px_20px_rgba(16,185,129,0.18)] dark:border-emerald-500/50"
+                  ? "bg-emerald-600 border-emerald-600 text-white shadow-[0_0_24px_rgba(16,185,129,0.35)] dark:border-emerald-500/50"
                   : "bg-white dark:bg-zinc-900 border-slate-100 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 hover:border-emerald-200 ring-1 ring-slate-200/80 shadow-none hover:ring-emerald-300 transition-all"
               )}
             >

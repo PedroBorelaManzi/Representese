@@ -47,7 +47,7 @@ export function CtaFinalSection() {
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Link
                   to="/register"
-                  className="group flex items-center gap-2 px-10 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-[14px] transition-all shadow-[0_12px_40px_-8px_rgba(16,185,129,0.55)] hover:-translate-y-0.5"
+                  className="group flex items-center gap-2 px-10 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-[14px] transition-all shadow-[0_0_32px_rgba(16,185,129,0.35)] hover:-translate-y-0.5"
                 >
                   Criar minha conta agora
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />

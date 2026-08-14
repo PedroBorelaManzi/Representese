@@ -79,7 +79,7 @@ export const SettingsSubscription = React.memo(function SettingsSubscription({ o
             <button 
               type="button"
               onClick={() => { onClose(); navigate('/dashboard/order-bump'); }}
-              className="p-6 rounded-3xl border border-amber-200/50 dark:border-amber-900/30 bg-amber-50/10 dark:bg-amber-950/5 relative overflow-hidden text-left shadow-[0_16px_32px_rgba(245,158,11,0.05)] ring-2 ring-amber-500/10 hover:scale-[1.03] active:scale-98 transition-all group"
+              className="p-6 rounded-3xl border border-amber-200/50 dark:border-amber-900/30 bg-amber-50/10 dark:bg-amber-950/5 relative overflow-hidden text-left shadow-[0_0_20px_rgba(245,158,11,0.08)] ring-2 ring-amber-500/10 hover:scale-[1.03] active:scale-98 transition-all group"
             >
               <div className="absolute top-3 right-3 px-2 py-0.5 bg-amber-500 text-white text-[7px] rounded-full font-black uppercase tracking-wider animate-bounce">
                 UPGRADE

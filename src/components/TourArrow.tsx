@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -35,17 +35,39 @@ export default function TourArrow({ targetId, label }: TourArrowProps) {
     };
   }, [targetId]);
 
+  // Efeito separado do polling de posição acima: depender de `rect` ali
+  // cancelava e recriava o timer a cada 300ms (rect é um DOMRect novo a cada
+  // leitura), então o timeout de 10s nunca chegava a disparar de verdade.
+  // Também tenta de novo por alguns instantes: se o alvo (ex.: botão dentro
+  // de um modal) ainda não montou no instante do primeiro render, os
+  // listeners não ficam presos "sem dono".
+  const attachedRef = useRef(false);
   useEffect(() => {
-    const el = document.querySelector(`[data-tour="${targetId}"]`);
-    if (!el) return;
-    const dismiss = () => setVisible(false);
-    el.addEventListener("click", dismiss, { once: true });
-    const timer = setTimeout(dismiss, 10000);
-    return () => {
-      el.removeEventListener("click", dismiss);
-      clearTimeout(timer);
+    attachedRef.current = false;
+    let cleanupListeners: (() => void) | undefined;
+
+    const tryAttach = () => {
+      if (attachedRef.current) return;
+      const el = document.querySelector(`[data-tour="${targetId}"]`);
+      if (!el) return;
+      attachedRef.current = true;
+      clearInterval(retry);
+      const dismiss = () => setVisible(false);
+      el.addEventListener("click", dismiss, { once: true });
+      const timer = setTimeout(dismiss, 10000);
+      cleanupListeners = () => {
+        el.removeEventListener("click", dismiss);
+        clearTimeout(timer);
+      };
     };
-  }, [targetId, rect]);
+
+    const retry = setInterval(tryAttach, 300);
+    tryAttach();
+    return () => {
+      clearInterval(retry);
+      cleanupListeners?.();
+    };
+  }, [targetId]);
 
   if (!visible || !rect) return null;
 

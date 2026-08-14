@@ -177,7 +177,7 @@ export default function LinksPage() {
                href={activeLink.url} 
                target="_blank" 
                rel="noreferrer" 
-               className="px-12 py-6 bg-emerald-600 hover:bg-emerald-700 text-white rounded-[32px] font-black uppercase text-xs tracking-[0.2em] shadow-[0_24px_48px_-12px_rgba(99,102,241,0.5)] active:scale-95 transition-all flex items-center gap-4"
+               className="px-12 py-6 bg-emerald-600 hover:bg-emerald-700 text-white rounded-[32px] font-black uppercase text-xs tracking-[0.2em] shadow-[0_0_28px_rgba(16,185,129,0.35)] active:scale-95 transition-all flex items-center gap-4"
              >
                 Inaugurar {activeLink.title} <ExternalLink className="w-5 h-5" />
              </a>
