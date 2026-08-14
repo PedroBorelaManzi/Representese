@@ -24,7 +24,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { cn } from "../lib/utils";
 import { SearchableClientPicker } from "../components/SearchableClientPicker";
 import { PageHeader, Skeleton, useConfirm } from "../components/ui";
@@ -39,12 +39,24 @@ export default function EmpresasPage() {
   const { user } = useAuth();
   const { settings, updateSettings } = useSettings();
   const navigate = useNavigate();
+  const location = useLocation();
   const confirm = useConfirm();
 
   const [allOrders, setAllOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [showUpsellModal, setShowUpsellModal] = useState(false);
+
+  // Veio do checklist "Primeiros passos" do Início pedindo pra já abrir o
+  // modal de cadastro — limpa o state logo em seguida pra não reabrir de
+  // novo se o usuário voltar/recarregar esta página.
+  useEffect(() => {
+    if ((location.state as { openAddCompany?: boolean } | null)?.openAddCompany) {
+      if (isLimitExceeded) setShowUpsellModal(true);
+      else setIsAddModalOpen(true);
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.state]);
   const currentPlan = settings.plan_id ? (settings.plan_id === 'premium' ? 'profissional' : settings.plan_id) : 'exclusivo';
   const companyLimit = currentPlan === 'exclusivo' ? 1 : (currentPlan === 'profissional' ? 5 : Infinity);
   const isLimitExceeded = (settings.categories || []).length >= companyLimit;

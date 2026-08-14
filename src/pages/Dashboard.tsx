@@ -149,6 +149,20 @@ export default function Dashboard() {
     staleTime: 5 * 60 * 1000,
   });
 
+  // Só para o passo "Importe suas planilhas" do checklist de primeiros
+  // passos — lista raso (limit 1) no bucket de arquivos do usuário, ignorando
+  // o placeholder ".keep" que marca pastas vazias.
+  const { data: hasImportedSpreadsheet = false } = useQuery({
+    queryKey: ["getting-started-has-files", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.storage.from("user_files").list(user!.id, { limit: 5 });
+      if (error) return false;
+      return (data || []).some((f) => f.name !== ".keep");
+    },
+    enabled: !!user && offlineCache.isOnline(),
+    staleTime: 5 * 60 * 1000,
+  });
+
   // Sync state with React Query Data
   useEffect(() => {
     if (dashboardData) {
@@ -626,9 +640,8 @@ export default function Dashboard() {
           clientsCount={dashboardData.clients.length}
           appointmentsCount={dashboardData.events.length}
           ordersCount={dashboardData.totalOrdersCount}
-          googleConnected={dashboardData.googleConnected}
+          hasImportedSpreadsheet={hasImportedSpreadsheet}
           onNewAppointment={() => openNewEventModal(selectedNoteDate)}
-          onConnectGoogle={handleGoogleConnect}
         />
       )}
 

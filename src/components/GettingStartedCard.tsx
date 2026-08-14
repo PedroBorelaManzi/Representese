@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Check, X, Users, CalendarPlus, ShoppingBag, Globe, Building2, ChevronRight, PartyPopper } from "lucide-react";
+import { Check, X, Users, CalendarPlus, ShoppingBag, FileSpreadsheet, Building2, ChevronRight, PartyPopper } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
 import { cn } from "../lib/utils";
@@ -10,9 +10,8 @@ interface GettingStartedCardProps {
   clientsCount: number;
   appointmentsCount: number;
   ordersCount: number;
-  googleConnected: boolean;
+  hasImportedSpreadsheet: boolean;
   onNewAppointment: () => void;
-  onConnectGoogle: () => void;
 }
 
 /**
@@ -25,9 +24,8 @@ export default function GettingStartedCard({
   clientsCount,
   appointmentsCount,
   ordersCount,
-  googleConnected,
+  hasImportedSpreadsheet,
   onNewAppointment,
-  onConnectGoogle,
 }: GettingStartedCardProps) {
   const { user } = useAuth();
   const { settings } = useSettings();
@@ -44,7 +42,7 @@ export default function GettingStartedCard({
       description: "Feito no seu primeiro acesso",
       done: (settings.categories?.length ?? 0) > 0,
       icon: Building2,
-      onClick: undefined as (() => void) | undefined,
+      onClick: () => navigate("/dashboard/empresas", { state: { openAddCompany: true } }),
     },
     {
       id: "cliente",
@@ -53,6 +51,14 @@ export default function GettingStartedCard({
       done: clientsCount > 0,
       icon: Users,
       onClick: () => navigate("/dashboard/clientes"),
+    },
+    {
+      id: "planilhas",
+      label: "Importe suas planilhas",
+      description: "Centralize seus arquivos e relatórios",
+      done: hasImportedSpreadsheet,
+      icon: FileSpreadsheet,
+      onClick: () => navigate("/dashboard/arquivos"),
     },
     {
       id: "visita",
@@ -69,14 +75,6 @@ export default function GettingStartedCard({
       done: ordersCount > 0,
       icon: ShoppingBag,
       onClick: () => navigate("/dashboard/empresas"),
-    },
-    {
-      id: "google",
-      label: "Conectar sua Google Agenda",
-      description: "Compromissos sincronizados nos dois sentidos",
-      done: googleConnected,
-      icon: Globe,
-      onClick: onConnectGoogle,
     },
   ];
 
