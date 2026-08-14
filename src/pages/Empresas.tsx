@@ -31,6 +31,7 @@ import { PageHeader, Skeleton, useConfirm } from "../components/ui";
 import { syncQueue } from "../lib/syncQueue";
 import { offlineCache, CacheKeys } from "../lib/offlineCache"; // Motor Híbrido V2
 import { EmptyState } from "../components/ui";
+import TourArrow from "../components/TourArrow";
 
 // Modal de importação de relatório: carrega sob demanda (puxa o pdfjs junto)
 const ImportReportModal = React.lazy(() => import("../components/ImportReportModal"));
@@ -48,12 +49,17 @@ export default function EmpresasPage() {
   const [showUpsellModal, setShowUpsellModal] = useState(false);
 
   // Veio do checklist "Primeiros passos" do Início pedindo pra já abrir o
-  // modal de cadastro — limpa o state logo em seguida pra não reabrir de
-  // novo se o usuário voltar/recarregar esta página.
+  // modal de cadastro e/ou apontar o botão certo — limpa o state logo em
+  // seguida pra não repetir num back/reload desta página.
+  const [tourTarget, setTourTarget] = useState<string | null>(null);
   useEffect(() => {
-    if ((location.state as { openAddCompany?: boolean } | null)?.openAddCompany) {
+    const state = location.state as { openAddCompany?: boolean; tourTarget?: string } | null;
+    if (state?.openAddCompany) {
       if (isLimitExceeded) setShowUpsellModal(true);
       else setIsAddModalOpen(true);
+    }
+    if (state?.tourTarget) setTourTarget(state.tourTarget);
+    if (state?.openAddCompany || state?.tourTarget) {
       navigate(location.pathname, { replace: true, state: null });
     }
   }, [location.state]);
@@ -467,7 +473,7 @@ export default function EmpresasPage() {
               Importar Relatório
             </button>
 
-            <button onClick={() => setIsUploadModalOpen(true)} className="flex items-center gap-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-lg shadow-emerald-600/25 active:scale-95 whitespace-nowrap">
+            <button data-tour="enviar-pedidos" onClick={() => setIsUploadModalOpen(true)} className="flex items-center gap-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-lg shadow-emerald-600/25 active:scale-95 whitespace-nowrap">
               <Upload className="w-4 h-4" />
               Enviar Pedidos
             </button>
@@ -544,7 +550,7 @@ export default function EmpresasPage() {
               onClick={() => setSelectedCategory("all")}
               className={cn("w-full text-left p-4 sm:p-5 lg:p-7 rounded-[30px] md:rounded-[35px] border transition-all relative group overflow-hidden active:scale-[0.98] col-span-2 lg:col-span-1",
                 selectedCategory === "all" 
-                  ? "bg-emerald-600 border-emerald-600 text-white shadow-[0_20px_40px_rgba(16,185,129,0.2)] dark:border-emerald-500/50" 
+                  ? "bg-emerald-600 border-emerald-600 text-white shadow-[0_8px_20px_rgba(16,185,129,0.18)] dark:border-emerald-500/50"
                   : "bg-white dark:bg-zinc-900 border-slate-100 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 hover:border-emerald-200 ring-1 ring-slate-200/80 shadow-none hover:ring-emerald-300 transition-all"
               )}
             >
@@ -710,7 +716,7 @@ export default function EmpresasPage() {
                      <label className="text-[8px] md:text-[9px] font-black uppercase text-slate-400 tracking-widest mb-2 block">Razão Social / Fantasia</label>
                      <input placeholder="EX: COZIMAX" value={newCat} onChange={e => setNewCat(e.target.value)} className="w-full p-5 md:p-6 bg-slate-50 dark:bg-zinc-850 rounded-[24px] md:rounded-[28px] font-black uppercase text-sm outline-none border border-slate-100 dark:border-zinc-800 focus:border-emerald-500 transition-all shadow-inner" />
                    </div>
-                   <button onClick={addCategory} className="w-full py-5 md:py-6 bg-emerald-600 text-white rounded-[24px] md:rounded-[32px] font-black uppercase tracking-widest text-[10px] md:text-xs shadow-xl hover:bg-emerald-700 transition-all active:scale-95">Efetivar Cadastro</button>
+                   <button data-tour="cadastro-empresa" onClick={addCategory} className="w-full py-5 md:py-6 bg-emerald-600 text-white rounded-[24px] md:rounded-[32px] font-black uppercase tracking-widest text-[10px] md:text-xs shadow-xl hover:bg-emerald-700 transition-all active:scale-95">Efetivar Cadastro</button>
                 </div>
              </motion.div>
           </div>
@@ -889,6 +895,8 @@ export default function EmpresasPage() {
           </div>
         )}
       </AnimatePresence>
+
+      {tourTarget && <TourArrow targetId={tourTarget} label="Clique aqui" />}
     </div>
   );
 }

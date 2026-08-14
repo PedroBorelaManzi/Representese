@@ -18,6 +18,7 @@ import { EmptyState, PageHeader, Skeleton, useConfirm } from '../components/ui';
 import { posthog } from '../lib/posthog';
 import ClientImportModal from '../components/ClientImportModal';
 import { ExportLeadsButton } from '../components/ExportLeadsButton';
+import TourArrow from '../components/TourArrow';
 
 /** Iniciais para o avatar da lista. `name.substring(0,2)` transformava
  *  "5 Irmãos Matieli" em "5", "57.571.186 Isabel Aparecida" em "57" e
@@ -52,6 +53,17 @@ export default function CRMPage() {
     else if (tab === "Critico" || tab === "Crítico") setActiveTab("Crítico");
     else if (tab === "Inativo") setActiveTab("Inativo");
   }, [location.search]);
+
+  // Veio do checklist "Primeiros passos" pedindo pra apontar o botão certo —
+  // limpa o state em seguida pra não reaparecer num back/reload.
+  const [tourTarget, setTourTarget] = useState<string | null>(null);
+  useEffect(() => {
+    const target = (location.state as { tourTarget?: string } | null)?.tourTarget;
+    if (target) {
+      setTourTarget(target);
+      navigate(location.pathname + location.search, { replace: true, state: null });
+    }
+  }, [location.state]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -328,6 +340,7 @@ export default function CRMPage() {
             </div>
             <input type="file" ref={fileInputRef} onChange={handleImportFile} className="hidden" accept=".pdf,.xlsx,.xls,.txt,image/*" />
             <button
+              data-tour="novo-cliente"
               onClick={() => setIsAddingClient(true)}
               className="px-5 py-2.5 bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 border border-slate-200 dark:border-zinc-700 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2"
             >
@@ -537,6 +550,8 @@ export default function CRMPage() {
           queryClient.invalidateQueries({ queryKey: ['clients'] });
         }}
       />
+
+      {tourTarget && <TourArrow targetId={tourTarget} label="Clique aqui" />}
     </div>
   );
 }

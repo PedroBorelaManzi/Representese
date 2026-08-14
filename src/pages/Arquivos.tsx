@@ -25,7 +25,9 @@ import { useAuth } from "../contexts/AuthContext";
 import { offlineCache } from "../lib/offlineCache";
 import { PageHeader, Skeleton, useConfirm } from "../components/ui";
 import { PdfViewerModal } from "../components/PdfViewerModal";
+import TourArrow from "../components/TourArrow";
 import { toast } from "sonner";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const BUCKET = "user_files";
 const PLACEHOLDER = ".keep";
@@ -77,6 +79,19 @@ async function listFolder(prefix: string): Promise<StorageItem[]> {
 
 export default function Arquivos() {
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Veio do checklist "Primeiros passos" pedindo pra apontar o botão certo —
+  // limpa o state em seguida pra não reaparecer num back/reload.
+  const [tourTarget, setTourTarget] = useState<string | null>(null);
+  useEffect(() => {
+    const target = (location.state as { tourTarget?: string } | null)?.tourTarget;
+    if (target) {
+      setTourTarget(target);
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.state]);
   const confirm = useConfirm();
   const [path, setPath] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -312,6 +327,7 @@ export default function Arquivos() {
             </button>
             <div className="relative" ref={uploadMenuBoxRef}>
               <button
+                data-tour="enviar-arquivo"
                 onClick={() => setUploadMenuOpen((o) => !o)}
                 disabled={uploading}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 active:scale-95 transition-all disabled:opacity-60"
@@ -522,6 +538,8 @@ export default function Arquivos() {
         fileName={pdfPreview?.name}
         onDownload={() => pdfPreview && handleDownload(pdfPreview.name)}
       />
+
+      {tourTarget && <TourArrow targetId={tourTarget} label="Clique aqui" />}
     </div>
   );
 }

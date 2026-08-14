@@ -42,7 +42,7 @@ export default function GettingStartedCard({
       description: "Feito no seu primeiro acesso",
       done: (settings.categories?.length ?? 0) > 0,
       icon: Building2,
-      onClick: () => navigate("/dashboard/empresas", { state: { openAddCompany: true } }),
+      onClick: () => navigate("/dashboard/empresas", { state: { openAddCompany: true, tourTarget: "cadastro-empresa" } }),
     },
     {
       id: "cliente",
@@ -50,7 +50,7 @@ export default function GettingStartedCard({
       description: "Pelo CNPJ, os dados da empresa vêm sozinhos",
       done: clientsCount > 0,
       icon: Users,
-      onClick: () => navigate("/dashboard/clientes"),
+      onClick: () => navigate("/dashboard/clientes", { state: { tourTarget: "novo-cliente" } }),
     },
     {
       id: "planilhas",
@@ -58,7 +58,7 @@ export default function GettingStartedCard({
       description: "Centralize seus arquivos e relatórios",
       done: hasImportedSpreadsheet,
       icon: FileSpreadsheet,
-      onClick: () => navigate("/dashboard/arquivos"),
+      onClick: () => navigate("/dashboard/arquivos", { state: { tourTarget: "enviar-arquivo" } }),
     },
     {
       id: "visita",
@@ -74,7 +74,7 @@ export default function GettingStartedCard({
       description: "Envie foto ou PDF — a IA extrai cliente e valor",
       done: ordersCount > 0,
       icon: ShoppingBag,
-      onClick: () => navigate("/dashboard/empresas"),
+      onClick: () => navigate("/dashboard/empresas", { state: { tourTarget: "enviar-pedidos" } }),
     },
   ];
 
