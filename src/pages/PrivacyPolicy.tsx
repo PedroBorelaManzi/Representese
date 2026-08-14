@@ -38,27 +38,20 @@ export default function PrivacyPolicy() {
             <section className="space-y-4">
               <h2 className="text-xl font-bold text-slate-800 dark:text-zinc-200 flex items-center gap-3">
                 <div className="w-8 h-8 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center text-emerald-600"><Lock className="w-4 h-4" /></div>
-                3. Integração com sua Conta Google (Gmail e Agenda)
+                3. Conectar sua Conta Google
               </h2>
               <p>
-                Se você optar por conectar sua conta Google, o Represente-Se! solicita acesso às seguintes permissões,
-                usadas exclusivamente para as funcionalidades abaixo — nunca para qualquer outro fim:
-              </p>
-              <ul className="list-disc pl-6 space-y-2">
-                <li><strong>Ler e-mails (gmail.readonly):</strong> exibir suas mensagens e anexos dentro do cliente de e-mail integrado à plataforma.</li>
-                <li><strong>Enviar e-mails (gmail.send):</strong> enviar mensagens em seu nome quando você mesmo clica em "Enviar" no cliente de e-mail.</li>
-                <li><strong>Agenda (calendar.events):</strong> criar, editar e sincronizar seus compromissos entre o Represente-Se! e o Google Agenda.</li>
-                <li><strong>Contatos (contacts.readonly):</strong> sugerir contatos já existentes no seu Google ao cadastrar clientes.</li>
-              </ul>
-              <p>
-                Não lemos, modificamos nem excluímos e-mails sem uma ação explícita sua. Os dados obtidos via APIs do Google
-                nunca são usados para treinar modelos de inteligência artificial, nem compartilhados com terceiros, nem
-                usados para publicidade. Você pode revogar esse acesso a qualquer momento em{' '}
+                Se você conectar o Gmail e o Google Agenda, usamos esse acesso só para mostrar seus e-mails e sincronizar
+                seus compromissos dentro do Represente-Se! — nunca para outro fim, nunca para treinar IA e nunca
+                compartilhado com terceiros. Você pode desconectar quando quiser, direto nas configurações do
+                Represente-Se! ou em{' '}
                 <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer" className="text-emerald-600 underline">
                   myaccount.google.com/permissions
-                </a>{' '}
-                ou diretamente nas configurações do Represente-Se!. O uso desses dados segue também a{' '}
-                <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer" className="text-emerald-600 underline">
+                </a>.
+              </p>
+              <p className="text-xs text-slate-400 dark:text-zinc-500">
+                O uso desses dados segue a{' '}
+                <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer" className="underline">
                   Política de Dados do Usuário dos Serviços de API do Google
                 </a>, incluindo os requisitos de Uso Limitado.
               </p>
@@ -77,7 +70,13 @@ export default function PrivacyPolicy() {
                 <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center text-orange-600"><Scale className="w-4 h-4" /></div>
                 5. Seus Direitos
               </h2>
-              <p>Você tem o direito de acessar, corrigir ou excluir seus dados pessoais a qualquer momento. Para exercer esses direitos, entre em contato com nosso suporte através dos canais oficiais disponíveis na plataforma.</p>
+              <p>
+                Você tem o direito de acessar, corrigir ou excluir seus dados pessoais a qualquer momento. Para excluir
+                sua conta ou seus dados, veja o passo a passo em{' '}
+                <Link to="/exclusao-de-dados" className="text-emerald-600 underline">
+                  Exclusão de Conta e Dados
+                </Link>.
+              </p>
             </section>
           </div>
         </div>
