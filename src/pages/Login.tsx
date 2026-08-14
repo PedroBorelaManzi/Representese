@@ -35,6 +35,39 @@ import { cn } from "../lib/utils";
 import { toast } from "sonner";
 import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 import { Fingerprint } from 'lucide-react';
+import { Sentry } from '../lib/sentry';
+
+/* O usuário não deve nunca ver um erro cru do GoTrue/Supabase (ex.:
+   "Database error querying schema") sem explicação — já aconteceu de um
+   erro interno de infraestrutura (colunas de token NULL na auth.users)
+   vazar pro toast sem dizer nada útil. Esta função sempre devolve uma
+   mensagem em português que explica o que aconteceu; o detalhe técnico
+   real vai pro Sentry/console, nunca é escondido, só não é jogado cru
+   na cara do usuário. */
+function getFriendlyAuthErrorMessage(error: any): string {
+  const rawMessage: string = error?.message || '';
+  const lower = rawMessage.toLowerCase();
+
+  if (lower.includes('failed to fetch') || lower.includes('network')) {
+    return 'Erro de conexão. Verifique sua internet ou use o Acesso Biométrico.';
+  }
+  if (error?.status === 400 || lower.includes('invalid login credentials') || lower.includes('invalid')) {
+    return 'Senha ou e-mail incorreto. Tente novamente.';
+  }
+  if (lower.includes('email not confirmed')) {
+    return 'Seu e-mail ainda não foi confirmado. Verifique sua caixa de entrada.';
+  }
+  if (lower.includes('too many requests') || error?.status === 429) {
+    return 'Muitas tentativas em pouco tempo. Aguarde um instante e tente novamente.';
+  }
+  if (error?.status && error.status >= 500) {
+    return 'Nosso sistema de login está com um problema técnico no momento. Já fomos notificados — tente novamente em alguns minutos.';
+  }
+
+  return rawMessage
+    ? `Não foi possível entrar: ${rawMessage}`
+    : 'Não foi possível entrar por um motivo desconhecido. Tente novamente ou contate o suporte.';
+}
 
 const features = [
   {
@@ -198,13 +231,9 @@ export default function Login() {
       toast.success("Bem-vindo de volta!");
       navigate(destinoAposLogin, { replace: true });
     } catch (error: any) {
-      if (error.message && error.message.includes("Failed to fetch")) {
-        toast.error("Erro de conexão. Verifique sua internet ou use o Acesso Biométrico.");
-      } else if (error.status === 400 || (error.message && error.message.toLowerCase().includes("invalid"))) {
-        toast.error("Senha ou e-mail incorreto. Tente novamente.");
-      } else {
-        toast.error(error.message || "Erro ao entrar");
-      }
+      console.error('Erro ao fazer login:', error);
+      Sentry.captureException(error, { tags: { origem: 'Login_handleLogin' } });
+      toast.error(getFriendlyAuthErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
