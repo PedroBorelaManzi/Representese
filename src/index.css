@@ -159,10 +159,13 @@ h1, h2, h3, h4 {
   display: none; /* Chrome/Safari/WebView do Android */
 }
 
-/* Mapa em tela cheia: o controle de zoom do Leaflet (+/-) fica onde
-   sempre esteve (top: 10px), sem noção de "área segura" do celular. O
-   botão custom de sair da tela cheia, ao lado dele, precisa acompanhar o
-   mesmo deslocamento para não ficar visualmente desalinhado. */
+/* Mapa em tela cheia: sem o cabeçalho do app acima, os controles ficariam a
+   10px do topo da tela — perto demais da barra de status, onde o Android
+   entende o toque como "puxar a aba de notificações". Empurra os dois para
+   24px. O container do Leaflet já acrescenta 12px por conta própria, por isso
+   aqui são 14px (14 + 12 = 26): o zoom fica 2px abaixo do botão custom, que é
+   2px mais alto (34px contra 30px) — assim os centros se alinham, igual ao
+   que já acontece no modo normal. */
 .map-fullscreen-active .leaflet-top {
-  top: calc(env(safe-area-inset-top, 0px) + 10px);
+  top: calc(env(safe-area-inset-top, 0px) + 14px);
 }

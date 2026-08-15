@@ -621,7 +621,7 @@ export default function Map() {
           type="button"
           onClick={toggleFullscreen}
           className="absolute left-[54px] z-[1000] flex items-center justify-center w-[34px] h-[34px] bg-white hover:bg-[#f4f4f4] text-slate-700 rounded-[4px] border-2 border-black/20 shadow-[0_1px_5px_rgba(0,0,0,0.65)] transition-all cursor-pointer pointer-events-auto"
-          style={{ top: isCurrentlyFullscreen ? "calc(env(safe-area-inset-top, 0px) + 10px)" : "10px" }}
+          style={{ top: isCurrentlyFullscreen ? "calc(env(safe-area-inset-top, 0px) + 24px)" : "10px" }}
           title={isCurrentlyFullscreen ? "Sair da Tela Cheia" : "Tela Cheia"}
         >
           {isCurrentlyFullscreen ? (
