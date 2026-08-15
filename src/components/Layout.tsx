@@ -217,40 +217,6 @@ export default function Layout() {
               "client_inactive_" + client.id + "_" + worst.company + "_" + worst.type
             );
           });
-
-          // 3. Check for holidays today (National, State & Municipal) based on client locations
-          const locations: { city: string; state?: string }[] = [];
-          const seenLocs = new Set();
-          clientsData.forEach((c: any) => {
-            if (c.city) {
-              const key = `${c.city.trim().toLowerCase()}|${c.state ? c.state.trim().toLowerCase() : ''}`;
-              if (!seenLocs.has(key)) {
-                seenLocs.add(key);
-                locations.push({ city: c.city.trim(), state: c.state?.trim() });
-              }
-            }
-          });
-
-          if (locations.length > 0) {
-            const year = now.getFullYear();
-            const { fetchHolidays } = await import('../lib/holidayService');
-            const holidays = await fetchHolidays(year, locations);
-            const todayStr = now.toISOString().split('T')[0];
-            
-            const todayHolidays = holidays.filter(h => h.date === todayStr);
-            todayHolidays.forEach((h: any) => {
-              let msg = `Hoje é ${h.name}`;
-              if (h.type === 'municipal' && h.city) msg += ` em ${h.city}`;
-              else if (h.type === 'estadual' && h.state) msg += ` em ${h.state}`;
-              msg += `. Planeje suas visitas e rotas considerando este feriado!`;
-              
-              sendNotification(
-                "Representese 📈 🔔",
-                `Feriado Hoje: ${msg}`,
-                `holiday_${h.id}_${todayStr}`
-              );
-            });
-          }
         }
       } catch (err) {
         console.error("Error running background notification checks:", err);
