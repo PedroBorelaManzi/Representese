@@ -142,10 +142,12 @@ export async function fetchWeather(lat: number, lng: number, signal?: AbortSigna
   // A camada estendida (17-30 dias) é melhor-esforço: se o modelo sub-sazonal
   // falhar, mudar de formato ou simplesmente demorar, a previsão precisa de
   // curto prazo não pode ser derrubada por causa disso — daí o .catch(() =>
-  // null) só nessa chamada, nunca na principal.
+  // null) só nessa chamada, nunca na principal. Timeout de 15s (em vez de 8s)
+  // porque são duas chamadas em paralelo e em rede móvel (4G/3G) 8s é curto
+  // demais — deixava a previsão marcada como "indisponível" à toa.
   const [res, extendedRes] = await Promise.all([
-    fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`, { signal: withTimeout(signal, 8000) }),
-    fetch(`https://seasonal-api.open-meteo.com/v1/seasonal?${extendedParams.toString()}`, { signal: withTimeout(signal, 8000) }).catch(() => null),
+    fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`, { signal: withTimeout(signal, 15000) }),
+    fetch(`https://seasonal-api.open-meteo.com/v1/seasonal?${extendedParams.toString()}`, { signal: withTimeout(signal, 15000) }).catch(() => null),
   ]);
   if (!res.ok) throw new Error('Falha ao carregar a previsão do tempo.');
   const data = await res.json();
