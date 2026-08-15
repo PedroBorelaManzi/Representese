@@ -146,3 +146,11 @@ h1, h2, h3, h4 {
 .dark .custom-scrollbar::-webkit-scrollbar-thumb {
   background-color: #059669;
 }
+
+/* Mapa em tela cheia: o controle de zoom do Leaflet (+/-) fica onde
+   sempre esteve (top: 10px), sem noção de "área segura" do celular. O
+   botão custom de sair da tela cheia, ao lado dele, precisa acompanhar o
+   mesmo deslocamento para não ficar visualmente desalinhado. */
+.map-fullscreen-active .leaflet-top {
+  top: calc(env(safe-area-inset-top, 0px) + 10px);
+}
