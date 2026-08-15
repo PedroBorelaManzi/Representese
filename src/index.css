@@ -146,3 +146,26 @@ h1, h2, h3, h4 {
 .dark .custom-scrollbar::-webkit-scrollbar-thumb {
   background-color: #059669;
 }
+
+/* Faixas que rolam na horizontal (abas do CRM, meses dos relatórios, filtros
+   do e-mail) usam `no-scrollbar` para esconder a barra de rolagem — mas a
+   classe nunca existiu no CSS, então a barra aparecia mesmo assim. */
+.no-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge legado */
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/WebView do Android */
+}
+
+/* Mapa em tela cheia: sem o cabeçalho do app acima, os controles ficariam a
+   10px do topo da tela — perto demais da barra de status, onde o Android
+   entende o toque como "puxar a aba de notificações". Empurra os dois para
+   24px. O container do Leaflet já acrescenta 12px por conta própria, por isso
+   aqui são 14px (14 + 12 = 26): o zoom fica 2px abaixo do botão custom, que é
+   2px mais alto (34px contra 30px) — assim os centros se alinham, igual ao
+   que já acontece no modo normal. */
+.map-fullscreen-active .leaflet-top {
+  top: calc(env(safe-area-inset-top, 0px) + 14px);
+}

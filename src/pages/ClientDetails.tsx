@@ -734,7 +734,7 @@ export default function ClientDetails() {
                       return (
                         <div
                           key={c.category}
-                          className={cn("flex items-center justify-between gap-3 rounded-2xl border px-4 py-3", tone)}
+                          className={cn("flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 min-w-0", tone)}
                         >
                           <div className="min-w-0">
                             <div className="text-xs font-black text-slate-900 dark:text-zinc-100 uppercase tracking-tight truncate">
@@ -746,7 +746,11 @@ export default function ClientDetails() {
                               </div>
                             )}
                           </div>
-                          <span className={cn("text-[10px] font-black uppercase tracking-widest text-right shrink-0", labelTone)}>
+                          {/* Sem shrink-0: rótulos longos ("Aprendendo o ritmo
+                              (2/3 compras)") não cabem ao lado do nome da
+                              empresa no celular e empurravam a linha inteira
+                              para fora da tela — agora quebram em duas linhas. */}
+                          <span className={cn("text-[10px] font-black uppercase tracking-widest text-right", labelTone)}>
                             {cycleLabel(c)}
                           </span>
                         </div>

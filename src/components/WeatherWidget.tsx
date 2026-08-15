@@ -115,7 +115,7 @@ export function WeatherWidget({ days: customDays }: WeatherWidgetProps) {
                 <div
                   key={iso}
                   className={cn(
-                    'flex flex-col items-center gap-0.5 rounded-lg py-2.5 px-1 min-h-[80px]',
+                    'flex flex-col items-center gap-0.5 rounded-lg py-2.5 px-1 min-h-[80px] min-w-0',
                     isToday ? 'bg-white/25' : 'bg-white/10'
                   )}
                 >

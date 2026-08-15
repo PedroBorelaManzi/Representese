@@ -37,7 +37,7 @@ export function WeeklyForecast({ data, city, days: customDays }: { data: Weather
             <div
               key={iso}
               className={cn(
-                'flex flex-col items-center gap-1.5 rounded-2xl py-2.5 px-1',
+                'flex flex-col items-center gap-1.5 rounded-2xl py-2.5 px-1 min-w-0',
                 isToday ? 'bg-sky-50 dark:bg-sky-950/30' : 'bg-slate-50/60 dark:bg-zinc-800/30'
               )}
             >
