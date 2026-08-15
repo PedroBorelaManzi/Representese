@@ -161,9 +161,15 @@ function TrendChart({ trend }: { trend: TrendPoint[] }) {
         ))}
       </div>
       <div className="flex-1 flex items-stretch gap-1.5 sm:gap-2 min-w-0">
-        {trend.map((point) => {
+        {trend.map((point, i) => {
           const h = Math.max((point.revenue / max) * 100, point.revenue > 0 ? 2 : 0);
           const active = hovered === point.key || (hovered === null && point.isSelected);
+          // O balão é bem mais largo que a coluna da barra. Centralizado, ele
+          // vazava da tela nas barras das pontas — e a última é justamente a do
+          // mês selecionado, que aparece por padrão. Nas pontas, encosta na
+          // borda da barra em vez de centralizar.
+          const tooltipAnchor =
+            i === 0 ? 'left-0' : i === trend.length - 1 ? 'right-0' : 'left-1/2 -translate-x-1/2';
           return (
             <div
               key={point.key}
@@ -177,7 +183,7 @@ function TrendChart({ trend }: { trend: TrendPoint[] }) {
                     initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 6 }}
-                    className="absolute -top-1 z-10 whitespace-nowrap pointer-events-none"
+                    className={cn('absolute -top-1 z-10 whitespace-nowrap pointer-events-none', tooltipAnchor)}
                   >
                     <div className="bg-slate-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-3 py-1.5 rounded-xl shadow-xl flex flex-col items-center">
                       <span className="text-[8px] font-black uppercase tracking-widest opacity-60">{point.fullLabel}</span>

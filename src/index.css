@@ -147,6 +147,18 @@ h1, h2, h3, h4 {
   background-color: #059669;
 }
 
+/* Faixas que rolam na horizontal (abas do CRM, meses dos relatórios, filtros
+   do e-mail) usam `no-scrollbar` para esconder a barra de rolagem — mas a
+   classe nunca existiu no CSS, então a barra aparecia mesmo assim. */
+.no-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge legado */
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/WebView do Android */
+}
+
 /* Mapa em tela cheia: o controle de zoom do Leaflet (+/-) fica onde
    sempre esteve (top: 10px), sem noção de "área segura" do celular. O
    botão custom de sair da tela cheia, ao lado dele, precisa acompanhar o

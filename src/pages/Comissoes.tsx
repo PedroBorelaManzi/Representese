@@ -310,7 +310,11 @@ export default function Comissoes() {
                 return (
                   <div
                     key={r.key}
-                    className="rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-4 flex items-center gap-4"
+                    /* min-w-0: como item de grid, o card herda min-width:auto e
+                       era dimensionado pelo min-content do nome da empresa (que
+                       tem whitespace-nowrap por causa do truncate). No celular
+                       isso empurrava o botão "Definir %" para fora da tela. */
+                    className="rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-4 flex items-center gap-4 min-w-0"
                   >
                     <div className="w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 flex items-center justify-center text-xs font-black uppercase shrink-0 ring-1 ring-emerald-100 dark:ring-emerald-900/40">
                       {r.name.substring(0, 2)}

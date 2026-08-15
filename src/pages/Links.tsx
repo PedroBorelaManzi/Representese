@@ -201,7 +201,9 @@ export default function LinksPage() {
         subtitle="Suas ferramentas de trabalho em um só lugar"
         className="mb-0 lg:mb-0"
         actions={
-          <div className="flex items-center gap-3">
+          // flex-wrap: no celular a busca + o botão não cabem lado a lado e o
+          // botão "Novo Atalho" (shrink-0) vazava para fora da tela.
+          <div className="flex flex-wrap items-center gap-3">
             <div className="relative group max-w-md">
               <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-emerald-500 transition-colors" />
               <input
