@@ -30,7 +30,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
 import { useSync } from '../contexts/SyncContext';
 import { cn } from '../lib/utils';
-import { computeClientAlerts } from '../lib/clientAlerts';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import { Capacitor } from '@capacitor/core';
@@ -181,49 +180,6 @@ export default function Layout() {
             }
           });
         }
-
-        // 2. Check client inactivities (Alerta, Crítico, Inativo states)
-        const { data: clientsData } = await supabase
-          .from("clients")
-          .select("id, name, last_contact, city, state")
-          .eq("user_id", user.id);
-
-        if (clientsData && clientsData.length > 0) {
-          const alertaDays = settings?.alerta_days || 30;
-          const criticoDays = settings?.critico_days || 45;
-          const inativoDays = settings?.inativo_days || 90;
-
-          // A mensagem fala "sem comprar", então quem manda são os pedidos — não o
-          // last_contact, que só muda em follow-up e ficava desencontrado do CRM.
-          // Usa a mesma regra da carteira, inclusive agrupando matriz e filiais.
-          const { data: ordersForAlerts } = await supabase
-            .from("orders")
-            .select("client_id, file_name, created_at, category, file_path")
-            .eq("user_id", user.id);
-
-          const alertsByClient = computeClientAlerts(
-            clientsData as any[],
-            (ordersForAlerts || []) as any[],
-            { alerta: alertaDays, critico: criticoDays, inativo: inativoDays },
-            settings?.categories || []
-          );
-
-          clientsData.forEach((client: any) => {
-            const worst = alertsByClient.get(client.id)?.alerts?.[0];
-            if (!worst) return;
-
-            const targetDays =
-              worst.type === "Inativo" ? inativoDays : worst.type === "Crítico" ? criticoDays : alertaDays;
-
-            // Etiqueta por cliente + estado + dia da última compra: o aviso vai 1x só.
-            // Volta a alertar se o cliente comprar e ficar inativo de novo.
-            sendNotification(
-              "Representese 📈 🔔",
-              "Alerta de Inatividade (" + worst.type + "): " + client.name + " está há " + worst.days + " dias sem comprar em " + worst.company + " (limiar: " + targetDays + " dias).",
-              "client_inactive_" + client.id + "_" + worst.company + "_" + worst.type
-            );
-          });
-        }
       } catch (err) {
         console.error("Error running background notification checks:", err);
       }
@@ -232,7 +188,7 @@ export default function Layout() {
     runChecks();
     const interval = setInterval(runChecks, 2 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [user, settings?.alerta_days, settings?.critico_days, settings?.inativo_days]);
+  }, [user]);
 
   // Menu agrupado pelo fluxo de trabalho do representante:
   // planejar o dia → trabalhar a carteira → se comunicar → consultar materiais.
