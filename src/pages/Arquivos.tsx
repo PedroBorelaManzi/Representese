@@ -25,7 +25,12 @@ import { useAuth } from "../contexts/AuthContext";
 import { offlineCache } from "../lib/offlineCache";
 import { PageHeader, Skeleton, useConfirm } from "../components/ui";
 import { PdfViewerModal } from "../components/PdfViewerModal";
+import { ImageViewerModal } from "../components/ImageViewerModal";
+import { getCachedFileUri, evictCachedFile } from "../lib/fileCache";
+import { Capacitor } from "@capacitor/core";
 import { toast } from "sonner";
+
+const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg)$/i;
 
 const BUCKET = "user_files";
 const PLACEHOLDER = ".keep";
@@ -85,6 +90,7 @@ export default function Arquivos() {
   const [newFolderName, setNewFolderName] = useState("");
   const [dragActive, setDragActive] = useState(false);
   const [pdfPreview, setPdfPreview] = useState<{ url: string; name: string } | null>(null);
+  const [imagePreview, setImagePreview] = useState<{ url: string; name: string } | null>(null);
   const [uploadMenuOpen, setUploadMenuOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
@@ -213,37 +219,68 @@ export default function Arquivos() {
     loadItems();
   };
 
-  // Abre o arquivo para VISUALIZAR. PDFs abrem no visualizador interno
-  // (renderiza só as páginas próximas da área visível, então o scroll
-  // continua leve mesmo em arquivos de centenas de páginas); os demais
-  // tipos abrem numa nova aba / visualizador do celular, com compartilhar nativo.
+  // Abre o arquivo para VISUALIZAR. PDFs e imagens abrem em visualizadores
+  // internos (sem trocar de app) e, no app nativo, ficam salvos em cache local
+  // no dispositivo — a próxima abertura do mesmo arquivo é instantânea, sem
+  // baixar de novo. Os demais tipos continuam abrindo numa aba/app externo.
   const handleOpen = async (name: string) => {
     const isPdf = name.toLowerCase().endsWith(".pdf");
-    const win = isPdf ? null : window.open("", "_blank");
-    const { data, error } = await supabase.storage
-      .from(BUCKET)
-      .createSignedUrl(`${prefix}/${name}`, 60 * 60);
+    const isImage = IMAGE_EXT.test(name);
+    const storagePath = `${prefix}/${name}`;
+
+    if (!isPdf && !isImage) {
+      const win = window.open("", "_blank");
+      const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(storagePath, 60 * 60);
+      if (error || !data?.signedUrl) {
+        win?.close();
+        toast.error("Erro ao abrir arquivo.");
+        return;
+      }
+      if (win) win.location.href = data.signedUrl;
+      else window.open(data.signedUrl, "_blank");
+      return;
+    }
+
+    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(storagePath, 60 * 60);
     if (error || !data?.signedUrl) {
-      win?.close();
       toast.error("Erro ao abrir arquivo.");
       return;
     }
-    if (isPdf) {
-      setPdfPreview({ url: data.signedUrl, name });
-    } else if (win) {
-      win.location.href = data.signedUrl;
-    } else {
-      window.open(data.signedUrl, "_blank");
+
+    let uri = data.signedUrl;
+    try {
+      uri = await getCachedFileUri(storagePath, data.signedUrl);
+    } catch (e) {
+      console.warn("Falha ao usar cache local, abrindo direto da rede:", e);
     }
+
+    if (isPdf) setPdfPreview({ url: uri, name });
+    else setImagePreview({ url: uri, name });
   };
 
-  // Baixa o arquivo (salvar no dispositivo) — ação explícita.
-  // Usa URL assinada + download nativo do navegador em vez de carregar o
-  // blob inteiro na memória do JS, o que deixa arquivos grandes muito mais rápidos.
+  // Baixa o arquivo. No app nativo, salva no armazenamento privado do app via
+  // Filesystem — fica disponível offline e não abre o gerenciador de downloads
+  // do navegador. No site, mantém o download tradicional do navegador.
   const handleDownload = async (name: string) => {
+    const storagePath = `${prefix}/${name}`;
+
+    if (Capacitor.isNativePlatform()) {
+      const toastId = toast.loading(`Baixando ${name}...`);
+      try {
+        const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(storagePath, 60 * 60);
+        if (error || !data?.signedUrl) throw error || new Error("URL assinada indisponível");
+        await getCachedFileUri(storagePath, data.signedUrl);
+        toast.success(`${name} salvo no app.`, { id: toastId });
+      } catch (e) {
+        console.error("Erro ao baixar arquivo:", e);
+        toast.error("Erro ao baixar arquivo.", { id: toastId });
+      }
+      return;
+    }
+
     const { data, error } = await supabase.storage
       .from(BUCKET)
-      .createSignedUrl(`${prefix}/${name}`, 60 * 60, { download: name });
+      .createSignedUrl(storagePath, 60 * 60, { download: name });
     if (error || !data?.signedUrl) {
       toast.error("Erro ao baixar arquivo.");
       return;
@@ -285,6 +322,9 @@ export default function Arquivos() {
       toast.error("Erro ao excluir.");
       return;
     }
+    // Remove também do cache local do app — senão o arquivo excluído
+    // continuaria abrindo normalmente a partir da cópia salva no dispositivo.
+    await Promise.all(toRemove.map((p) => evictCachedFile(p)));
     toast.success(item.isFolder ? "Pasta excluída." : "Arquivo excluído.");
     loadItems();
   };
@@ -521,6 +561,14 @@ export default function Arquivos() {
         url={pdfPreview?.url ?? null}
         fileName={pdfPreview?.name}
         onDownload={() => pdfPreview && handleDownload(pdfPreview.name)}
+      />
+
+      <ImageViewerModal
+        isOpen={!!imagePreview}
+        onClose={() => setImagePreview(null)}
+        url={imagePreview?.url ?? null}
+        fileName={imagePreview?.name}
+        onDownload={() => imagePreview && handleDownload(imagePreview.name)}
       />
     </div>
   );
