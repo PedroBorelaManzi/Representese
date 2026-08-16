@@ -27,6 +27,7 @@
     "@capacitor/haptics": "^8.0.2",
     "@capacitor/ios": "^8.3.4",
     "@capacitor/local-notifications": "^8.2.0",
+    "@capacitor/share": "^8.0.1",
     "@capgo/capacitor-native-biometric": "^8.4.5",
     "@google/generative-ai": "^0.24.1",
     "@sentry/react": "^10.63.0",

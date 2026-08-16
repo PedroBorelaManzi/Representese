@@ -4,6 +4,7 @@ import type ExcelJS from 'exceljs';
 import { supabase } from './supabase';
 import { FollowupLog } from './followupService';
 import type { ReportAnalytics } from './reportAnalytics';
+import { saveFile } from './saveFile';
 
 export interface ReportData {
   month: Date;
@@ -636,12 +637,9 @@ export async function generateExcelReport(
 }
 
 function triggerDownload(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
+  // No app, saveFile abre a folha de compartilhamento do Android para o
+  // usuário escolher o destino; no site continua o download do navegador.
+  void saveFile(blob, filename);
 }
 
 function reportFilename(year: number, month: number, ext: string) {

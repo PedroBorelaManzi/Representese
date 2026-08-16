@@ -147,6 +147,13 @@ h1, h2, h3, h4 {
   background-color: #059669;
 }
 
+/* Barra de download quando o servidor não informa o tamanho do arquivo:
+   vai e volta para mostrar que está andando, já que não dá pra calcular %. */
+@keyframes barra-indeterminada {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+
 /* Faixas que rolam na horizontal (abas do CRM, meses dos relatórios, filtros
    do e-mail) usam `no-scrollbar` para esconder a barra de rolagem — mas a
    classe nunca existiu no CSS, então a barra aparecia mesmo assim. */

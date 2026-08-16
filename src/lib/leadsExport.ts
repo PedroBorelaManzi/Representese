@@ -16,6 +16,7 @@ import {
   zebraStripe,
   type KpiTile,
 } from './excelTheme';
+import { saveFile } from './saveFile';
 
 export interface Lead {
   id: string;
@@ -332,14 +333,7 @@ export async function exportLeadsAsExcel(leads: Lead[], userName: string) {
   const buffer = await workbook.xlsx.writeBuffer();
 
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `relatorio-leads-${new Date().toISOString().split('T')[0]}.xlsx`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  await saveFile(blob, `relatorio-leads-${new Date().toISOString().split('T')[0]}.xlsx`);
 }
 
 export async function exportLeadsAsCSV(leads: Lead[]) {
@@ -363,10 +357,5 @@ export async function exportLeadsAsCSV(leads: Lead[]) {
 
   const csv = [headers, ...rows].map((r) => r.map(csvField).join(',')).join('\r\n');
   const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = `relatorio-leads-${new Date().toISOString().split('T')[0]}.csv`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  await saveFile(blob, `relatorio-leads-${new Date().toISOString().split('T')[0]}.csv`);
 }

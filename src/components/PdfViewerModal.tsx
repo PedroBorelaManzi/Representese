@@ -19,8 +19,11 @@ interface PdfViewerModalProps {
 // imagens grandes — uma margem menor mantém menos páginas "pesadas" ativas
 // ao mesmo tempo, o que ajuda o scroll a ficar mais leve.
 const RENDER_MARGIN_PX = 700;
+// Limites do fator do usuário (1 = largura da tela). Em catálogo com foto e
+// texto pequeno, 1x no celular é ilegível — por isso o teto é generoso.
 const MIN_ZOOM = 0.5;
-const MAX_ZOOM = 2.5;
+const MAX_ZOOM = 4;
+const PASSO_ZOOM = 0.25;
 
 export function PdfViewerModal({ isOpen, onClose, url, fileName, onDownload }: PdfViewerModalProps) {
   const [pdf, setPdf] = useState<any>(null);
@@ -103,6 +106,45 @@ export function PdfViewerModal({ isOpen, onClose, url, fileName, onDownload }: P
     return () => window.removeEventListener("keydown", onKey);
   }, [isOpen, onClose]);
 
+  const aplicarZoom = useCallback((novo: number) => {
+    setZoom(Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, +novo.toFixed(2))));
+  }, []);
+
+  // Zoom por pinça. Sem isso, no celular só dava para ampliar pelos botões +/−
+  // do cabeçalho — num catálogo de produto, que é o uso real aqui, isso torna
+  // a leitura penosa. A WebView não faz o pinch nativo porque o conteúdo é
+  // canvas dentro de um container com rolagem própria.
+  const pinchRef = useRef<{ distanciaInicial: number; zoomInicial: number } | null>(null);
+
+  const distanciaEntreDedos = (t: React.TouchList) => {
+    const dx = t[0].clientX - t[1].clientX;
+    const dy = t[0].clientY - t[1].clientY;
+    return Math.hypot(dx, dy);
+  };
+
+  const aoTocarInicio = useCallback(
+    (e: React.TouchEvent) => {
+      if (e.touches.length !== 2) return;
+      pinchRef.current = { distanciaInicial: distanciaEntreDedos(e.touches), zoomInicial: zoom };
+    },
+    [zoom]
+  );
+
+  const aoTocarMover = useCallback(
+    (e: React.TouchEvent) => {
+      const p = pinchRef.current;
+      if (!p || e.touches.length !== 2) return;
+      const atual = distanciaEntreDedos(e.touches);
+      if (!p.distanciaInicial) return;
+      aplicarZoom(p.zoomInicial * (atual / p.distanciaInicial));
+    },
+    [aplicarZoom]
+  );
+
+  const aoTocarFim = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length < 2) pinchRef.current = null;
+  }, []);
+
   // Recalculado só quando o total de páginas muda — antes era recriado (novo
   // array, novos elementos React p/ as 16+ páginas) a cada re-render do modal,
   // inclusive nos disparados só pelo indicador "Página X de Y" durante o
@@ -114,7 +156,10 @@ export function PdfViewerModal({ isOpen, onClose, url, fileName, onDownload }: P
   if (!isOpen) return null;
 
   const fitScale = pageSize && containerWidth ? (containerWidth - 32) / pageSize.width : 1;
-  const scale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, fitScale * zoom));
+  // O clamp é no fator do usuário (feito em aplicarZoom), não no produto final:
+  // limitar o produto fazia o zoom parar de responder em telas estreitas, onde
+  // fitScale já é pequeno e o resultado batia no teto antes do usuário chegar lá.
+  const scale = fitScale * zoom;
 
   return (
     <AnimatePresence>
@@ -142,17 +187,28 @@ export function PdfViewerModal({ isOpen, onClose, url, fileName, onDownload }: P
                 </p>
               )}
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1 shrink-0">
               <button
-                onClick={() => setZoom((z) => Math.max(0.6, +(z - 0.15).toFixed(2)))}
-                className="p-2.5 rounded-xl text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
+                onClick={() => aplicarZoom(zoom - PASSO_ZOOM)}
+                disabled={zoom <= MIN_ZOOM}
+                className="p-2.5 rounded-xl text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors disabled:opacity-30"
                 title="Diminuir zoom"
               >
                 <ZoomOut className="w-4 h-4" />
               </button>
+              {/* Toque no número volta pro tamanho que cabe na largura da tela —
+                  sem isso, depois de ampliar era preciso ficar clicando no "−". */}
               <button
-                onClick={() => setZoom((z) => Math.min(1.8, +(z + 0.15).toFixed(2)))}
-                className="p-2.5 rounded-xl text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
+                onClick={() => aplicarZoom(1)}
+                className="min-w-[3.25rem] px-1 py-1 rounded-lg text-[10px] font-black tabular-nums text-slate-500 dark:text-zinc-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
+                title="Ajustar à largura da tela"
+              >
+                {Math.round(zoom * 100)}%
+              </button>
+              <button
+                onClick={() => aplicarZoom(zoom + PASSO_ZOOM)}
+                disabled={zoom >= MAX_ZOOM}
+                className="p-2.5 rounded-xl text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors disabled:opacity-30"
                 title="Aumentar zoom"
               >
                 <ZoomIn className="w-4 h-4" />
@@ -176,7 +232,19 @@ export function PdfViewerModal({ isOpen, onClose, url, fileName, onDownload }: P
             </div>
           </div>
 
-          <div ref={containerRef} className="flex-1 min-h-0 overflow-y-auto bg-slate-200 dark:bg-zinc-950 custom-scrollbar">
+          {/* overflow-auto (não só -y): ampliada, a página fica mais larga que a
+              tela e precisa rolar na horizontal. touch-action pan-x/pan-y deixa
+              a rolagem com um dedo funcionando enquanto a pinça de dois dedos é
+              tratada por nós. */}
+          <div
+            ref={containerRef}
+            onTouchStart={aoTocarInicio}
+            onTouchMove={aoTocarMover}
+            onTouchEnd={aoTocarFim}
+            onTouchCancel={aoTocarFim}
+            style={{ touchAction: "pan-x pan-y" }}
+            className="flex-1 min-h-0 overflow-auto bg-slate-200 dark:bg-zinc-950 custom-scrollbar"
+          >
             {loading ? (
               <div className="h-full flex flex-col items-center justify-center gap-3">
                 <Loader2 className="w-8 h-8 animate-spin text-white/60" />
@@ -188,7 +256,13 @@ export function PdfViewerModal({ isOpen, onClose, url, fileName, onDownload }: P
                 <p className="text-xs font-bold text-white/80">Não foi possível abrir este documento.</p>
               </div>
             ) : pdf && pageSize && containerWidth > 0 ? (
-              <div className="flex flex-col items-center gap-4 py-6">
+              /* w-max + mx-auto em vez de items-center: com items-center, uma
+                 página mais larga que o container transborda para os dois lados
+                 e a metade esquerda fica inalcançável — não há como rolar até
+                 ela. Com a largura acompanhando o conteúdo, as margens
+                 automáticas centralizam quando cabe e zeram quando não cabe,
+                 aí a rolagem horizontal alcança a página inteira. */
+              <div className="w-max mx-auto flex flex-col items-center gap-4 py-6 px-4">
                 {pageNumbers.map((pageNumber) => (
                   <PdfPage
                     key={pageNumber}

@@ -27,7 +27,7 @@ import { PageHeader, Skeleton, useConfirm } from "../components/ui";
 import { PdfViewerModal } from "../components/PdfViewerModal";
 import TourArrow from "../components/TourArrow";
 import { ImageViewerModal } from "../components/ImageViewerModal";
-import { getCachedFileUri, evictCachedFile } from "../lib/fileCache";
+import { getCachedFileUri, evictCachedFile, shareCachedFile } from "../lib/fileCache";
 import { Capacitor } from "@capacitor/core";
 import { toast } from "sonner";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -106,6 +106,9 @@ export default function Arquivos() {
   const [dragActive, setDragActive] = useState(false);
   const [pdfPreview, setPdfPreview] = useState<{ url: string; name: string } | null>(null);
   const [imagePreview, setImagePreview] = useState<{ url: string; name: string } | null>(null);
+  // Progresso de download/abertura — arquivos grandes (catálogos de dezenas de
+  // MB) levavam muito tempo sem nenhum sinal de quanto faltava.
+  const [progresso, setProgresso] = useState<{ nome: string; percentual: number | null } | null>(null);
   const [uploadMenuOpen, setUploadMenuOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
@@ -263,32 +266,48 @@ export default function Arquivos() {
     }
 
     let uri = data.signedUrl;
+    setProgresso({ nome: name, percentual: 0 });
     try {
-      uri = await getCachedFileUri(storagePath, data.signedUrl);
+      uri = await getCachedFileUri(storagePath, data.signedUrl, (p) =>
+        setProgresso({ nome: name, percentual: p.percentual })
+      );
     } catch (e) {
       console.warn("Falha ao usar cache local, abrindo direto da rede:", e);
+    } finally {
+      setProgresso(null);
     }
 
     if (isPdf) setPdfPreview({ url: uri, name });
     else setImagePreview({ url: uri, name });
   };
 
-  // Baixa o arquivo. No app nativo, salva no armazenamento privado do app via
-  // Filesystem — fica disponível offline e não abre o gerenciador de downloads
-  // do navegador. No site, mantém o download tradicional do navegador.
+  // Baixa o arquivo. No app nativo, guarda em cache local (fica disponível
+  // offline) e abre a folha de compartilhamento do Android, onde o usuário
+  // escolhe o destino — Arquivos, Drive, WhatsApp, e-mail. O Android não expõe
+  // uma janela "Salvar como" que um app possa abrir sozinho, então essa folha é
+  // o caminho padrão para ele decidir onde o arquivo fica. No site, mantém o
+  // download tradicional do navegador.
   const handleDownload = async (name: string) => {
     const storagePath = `${prefix}/${name}`;
 
     if (Capacitor.isNativePlatform()) {
-      const toastId = toast.loading(`Baixando ${name}...`);
+      setProgresso({ nome: name, percentual: 0 });
       try {
         const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(storagePath, 60 * 60);
         if (error || !data?.signedUrl) throw error || new Error("URL assinada indisponível");
-        await getCachedFileUri(storagePath, data.signedUrl);
-        toast.success(`${name} salvo no app.`, { id: toastId });
+        await shareCachedFile(storagePath, data.signedUrl, name, (p) =>
+          setProgresso({ nome: name, percentual: p.percentual })
+        );
       } catch (e) {
-        console.error("Erro ao baixar arquivo:", e);
-        toast.error("Erro ao baixar arquivo.", { id: toastId });
+        // Fechar a folha de compartilhamento sem escolher nada rejeita a
+        // promise — isso é o usuário desistindo, não uma falha para alertar.
+        const msg = String((e as Error)?.message || e);
+        if (!/cancel|abort|dismiss/i.test(msg)) {
+          console.error("Erro ao baixar arquivo:", e);
+          toast.error("Erro ao baixar arquivo.");
+        }
+      } finally {
+        setProgresso(null);
       }
       return;
     }
@@ -588,6 +607,33 @@ export default function Arquivos() {
         fileName={imagePreview?.name}
         onDownload={() => imagePreview && handleDownload(imagePreview.name)}
       />
+
+      {progresso && (
+        <div className="fixed inset-x-0 bottom-0 z-[400] p-4 pointer-events-none">
+          <div className="mx-auto w-[min(420px,100%)] bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-2xl p-4">
+            <div className="flex items-center justify-between gap-3 mb-2.5">
+              <p className="text-[11px] font-black uppercase tracking-tight text-slate-900 dark:text-zinc-100 truncate">
+                {progresso.nome}
+              </p>
+              <span className="text-[10px] font-black tabular-nums text-emerald-600 shrink-0">
+                {progresso.percentual !== null ? `${progresso.percentual}%` : "Baixando..."}
+              </span>
+            </div>
+            <div className="h-1.5 rounded-full bg-slate-100 dark:bg-zinc-800 overflow-hidden">
+              {progresso.percentual !== null ? (
+                <div
+                  className="h-full bg-emerald-600 rounded-full transition-[width] duration-200"
+                  style={{ width: `${progresso.percentual}%` }}
+                />
+              ) : (
+                /* Sem Content-Length não dá pra saber o quanto falta — a barra
+                   indeterminada ao menos mostra que o download está andando. */
+                <div className="h-full w-1/3 bg-emerald-600 rounded-full animate-[barra-indeterminada_1.2s_ease-in-out_infinite]" />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
