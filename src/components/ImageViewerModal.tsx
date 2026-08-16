@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { X, Loader2, AlertTriangle, Download } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useFecharComBotaoVoltar } from "../lib/backOverlays";
 
 interface ImageViewerModalProps {
   isOpen: boolean;
@@ -28,6 +29,9 @@ export function ImageViewerModal({ isOpen, onClose, url, fileName, onDownload }:
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [isOpen, onClose]);
+
+  // No Android, "Voltar" fecha o visualizador em vez de sair da página.
+  useFecharComBotaoVoltar(isOpen, onClose);
 
   if (!isOpen) return null;
 

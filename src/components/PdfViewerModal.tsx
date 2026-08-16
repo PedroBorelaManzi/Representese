@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, memo } from "react";
 import { X, Loader2, AlertTriangle, Download, ZoomIn, ZoomOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { loadPdfjs } from "../lib/pdfjsLoader";
+import { useFecharComBotaoVoltar } from "../lib/backOverlays";
 
 interface PdfViewerModalProps {
   isOpen: boolean;
@@ -105,6 +106,9 @@ export function PdfViewerModal({ isOpen, onClose, url, fileName, onDownload }: P
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [isOpen, onClose]);
+
+  // No Android, "Voltar" fecha o visualizador em vez de sair da página.
+  useFecharComBotaoVoltar(isOpen, onClose);
 
   const aplicarZoom = useCallback((novo: number) => {
     setZoom(Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, +novo.toFixed(2))));

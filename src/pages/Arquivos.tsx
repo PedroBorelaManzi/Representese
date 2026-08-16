@@ -27,7 +27,12 @@ import { PageHeader, Skeleton, useConfirm } from "../components/ui";
 import { PdfViewerModal } from "../components/PdfViewerModal";
 import TourArrow from "../components/TourArrow";
 import { ImageViewerModal } from "../components/ImageViewerModal";
-import { getCachedFileUri, evictCachedFile, shareCachedFile } from "../lib/fileCache";
+import {
+  getCachedFileUri,
+  evictCachedFile,
+  getCachedUriSePresente,
+  baixarParaCacheEmSegundoPlano,
+} from "../lib/fileCache";
 import { Capacitor } from "@capacitor/core";
 import { toast } from "sonner";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -265,6 +270,26 @@ export default function Arquivos() {
       return;
     }
 
+    // Já salvo no aparelho: abre na hora, sem rede.
+    const emCache = await getCachedUriSePresente(storagePath);
+    if (emCache) {
+      if (isPdf) setPdfPreview({ url: emCache, name });
+      else setImagePreview({ url: emCache, name });
+      return;
+    }
+
+    if (isPdf) {
+      // Abre lendo direto da rede: o pdf.js busca só os trechos das páginas que
+      // aparecem na tela, então a primeira página surge quase imediatamente em
+      // vez de esperar o arquivo inteiro (num catálogo de dezenas de MB a
+      // diferença é enorme). A cópia local desce por trás para a próxima
+      // abertura ser instantânea e funcionar offline.
+      setPdfPreview({ url: data.signedUrl, name });
+      baixarParaCacheEmSegundoPlano(storagePath, data.signedUrl);
+      return;
+    }
+
+    // Imagem precisa do arquivo inteiro para exibir — baixa mostrando progresso.
     let uri = data.signedUrl;
     setProgresso({ nome: name, percentual: 0 });
     try {
@@ -276,36 +301,34 @@ export default function Arquivos() {
     } finally {
       setProgresso(null);
     }
-
-    if (isPdf) setPdfPreview({ url: uri, name });
-    else setImagePreview({ url: uri, name });
+    setImagePreview({ url: uri, name });
   };
 
-  // Baixa o arquivo. No app nativo, guarda em cache local (fica disponível
-  // offline) e abre a folha de compartilhamento do Android, onde o usuário
-  // escolhe o destino — Arquivos, Drive, WhatsApp, e-mail. O Android não expõe
-  // uma janela "Salvar como" que um app possa abrir sozinho, então essa folha é
-  // o caminho padrão para ele decidir onde o arquivo fica. No site, mantém o
-  // download tradicional do navegador.
+  // Baixa o arquivo. No app nativo, guarda dentro do próprio app: fica
+  // disponível offline e abre instantaneamente da próxima vez, sem baixar de
+  // novo. (Chegou a abrir a folha de compartilhamento aqui por engano — aquilo
+  // é para os relatórios que o app *gera*, que precisam sair para o Drive ou
+  // WhatsApp. Um arquivo que já está no Storage o usuário quer é guardado.)
+  // No site, mantém o download tradicional do navegador.
   const handleDownload = async (name: string) => {
     const storagePath = `${prefix}/${name}`;
 
     if (Capacitor.isNativePlatform()) {
+      if (await getCachedUriSePresente(storagePath)) {
+        toast.success(`${name} já está salvo no app.`);
+        return;
+      }
       setProgresso({ nome: name, percentual: 0 });
       try {
         const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(storagePath, 60 * 60);
         if (error || !data?.signedUrl) throw error || new Error("URL assinada indisponível");
-        await shareCachedFile(storagePath, data.signedUrl, name, (p) =>
+        await getCachedFileUri(storagePath, data.signedUrl, (p) =>
           setProgresso({ nome: name, percentual: p.percentual })
         );
+        toast.success(`${name} salvo no app — abre offline e sem baixar de novo.`);
       } catch (e) {
-        // Fechar a folha de compartilhamento sem escolher nada rejeita a
-        // promise — isso é o usuário desistindo, não uma falha para alertar.
-        const msg = String((e as Error)?.message || e);
-        if (!/cancel|abort|dismiss/i.test(msg)) {
-          console.error("Erro ao baixar arquivo:", e);
-          toast.error("Erro ao baixar arquivo.");
-        }
+        console.error("Erro ao baixar arquivo:", e);
+        toast.error("Erro ao baixar arquivo.");
       } finally {
         setProgresso(null);
       }

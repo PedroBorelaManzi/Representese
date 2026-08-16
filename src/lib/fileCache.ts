@@ -1,7 +1,5 @@
 import { Capacitor } from "@capacitor/core";
 import { Filesystem, Directory } from "@capacitor/filesystem";
-import { Share } from "@capacitor/share";
-import { sanitizeFileName } from "./saveFile";
 
 // Armazenamento privado do app (Directory.Data) — não exige nenhuma permissão
 // de armazenamento no Android e sobrevive entre sessões, então um arquivo já
@@ -127,33 +125,33 @@ export async function getCachedFileUri(
   return Capacitor.convertFileSrc(uri);
 }
 
+/** Já está salvo no dispositivo? Devolve a URI local, ou null se ainda não. */
+export async function getCachedUriSePresente(storagePath: string): Promise<string | null> {
+  if (!Capacitor.isNativePlatform()) return null;
+  return uriEmCache(localFileName(storagePath));
+}
+
 /**
- * Garante o arquivo em cache e abre a folha de compartilhamento do Android,
- * onde o usuário escolhe o destino (Arquivos, Drive, WhatsApp, e-mail).
- * O Android não expõe uma janela "Salvar como" que um app possa abrir por
- * conta própria — essa folha é o caminho padrão para o usuário decidir onde
- * o arquivo vai parar.
+ * Baixa para o cache sem travar a tela.
+ *
+ * Usado ao abrir um PDF que ainda não está salvo: o visualizador começa a ler
+ * direto da rede (o pdf.js pede só os trechos das páginas que aparecem, então
+ * a primeira página surge quase na hora, sem esperar dezenas de MB), enquanto
+ * a cópia local é baixada por trás para a próxima abertura ser instantânea e
+ * funcionar offline.
  */
-export async function shareCachedFile(
-  storagePath: string,
-  signedUrl: string,
-  fileName: string,
-  onProgress?: OuvinteDeProgresso
-): Promise<void> {
+export function baixarParaCacheEmSegundoPlano(storagePath: string, signedUrl: string): void {
+  if (!Capacitor.isNativePlatform()) return;
   const path = localFileName(storagePath);
-
-  if (!(await uriEmCache(path))) {
-    await baixarNativo(signedUrl, path, onProgress);
-  } else {
-    onProgress?.({ baixado: 1, total: 1, percentual: 100 });
-  }
-
-  const { uri } = await Filesystem.getUri({ path, directory: CACHE_DIR });
-  await Share.share({
-    title: sanitizeFileName(fileName),
-    files: [uri],
-    dialogTitle: "Salvar ou enviar arquivo",
-  });
+  void (async () => {
+    try {
+      if (await uriEmCache(path)) return;
+      await baixarNativo(signedUrl, path);
+    } catch (e) {
+      // Sem cache o app segue funcionando (lê da rede) — não vale alertar.
+      console.warn("Não foi possível salvar o arquivo em cache:", e);
+    }
+  })();
 }
 
 /** Remove um arquivo do cache local — chamar ao excluir/substituir no Storage,
