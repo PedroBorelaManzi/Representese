@@ -18,6 +18,7 @@ import {
   zebraStripe,
   type KpiTile,
 } from './excelTheme';
+import { saveFile } from './saveFile';
 
 export interface CommissionRow {
   key: string;
@@ -305,12 +306,5 @@ export async function exportCommissionsAsExcel(
 
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `comissoes-${month.toLowerCase()}-${year}.xlsx`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  await saveFile(blob, `comissoes-${month.toLowerCase()}-${year}.xlsx`);
 }

@@ -18,6 +18,7 @@ import {
   zebraStripe,
   type KpiTile,
 } from './excelTheme';
+import { saveFile } from './saveFile';
 
 export interface RawLead {
   id: string;
@@ -210,12 +211,7 @@ export function exportSubscriptionLeadsAsCSV(leads: SubscriptionLead[]) {
 }
 
 function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  // No app, saveFile abre a folha de compartilhamento do Android para o
+  // usuário escolher o destino; no site continua o download do navegador.
+  void saveFile(blob, filename);
 }
