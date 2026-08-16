@@ -58,28 +58,42 @@ android {
 // Vale para TODOS os módulos (app, plugins do Capacitor, plugins Cordova), não
 // só o :app — a cópia de conflito pode cair na pasta de qualquer um deles, e aí
 // o build quebra do mesmo jeito.
+// Nome de recurso do Android: só a-z, 0-9 e underscore.
+def nomeDeRecursoValido = { String nome -> nome ==~ /^[a-z0-9_]+(\.[a-z0-9]+)*$/ }
+
 tasks.register('limparDuplicadosDeSincronizacao') {
     doLast {
         def raiz = rootProject.projectDir
         def removidos = 0
 
+        def remover = { File arquivo ->
+            logger.lifecycle("Removendo arquivo de nome inválido para o Android: ${arquivo}")
+            arquivo.delete()
+            removidos++
+        }
+
+        // 1) Código-fonte de todos os módulos (app, plugins do Capacitor e Cordova).
         fileTree(raiz) {
-            // build/ e .gradle/ são regerados; node_modules não entra no APK.
             exclude '**/build/**', '**/.gradle/**', '**/node_modules/**'
             include '**/src/**/res/**', '**/src/**/assets/**'
         }.each { arquivo ->
-            // O Android exige nome de recurso só com a-z, 0-9 e underscore. O
-            // caso comum aqui é a cópia do macOS ("config 2.xml"), mas qualquer
-            // nome inválido derruba o build igual, então a checagem cobre tudo.
-            def dentroDeRes = arquivo.path.replace(File.separator, '/') =~ '/res/'
-            def nomeInvalido = dentroDeRes
-                ? !(arquivo.name ==~ /^[a-z0-9_]+(\.[a-z0-9]+)*$/)
-                : arquivo.name.contains(' ')
-            if (nomeInvalido) {
-                logger.lifecycle("Removendo arquivo de nome inválido para o Android: ${arquivo}")
-                arquivo.delete()
-                removidos++
-            }
+            def emRes = arquivo.path.replace(File.separator, '/') =~ '/res/'
+            // Em assets/, maiúscula e hífen são legítimos (saída do Vite) —
+            // ali só o espaço é problema.
+            def invalido = emRes ? !nomeDeRecursoValido(arquivo.name) : arquivo.name.contains(' ')
+            if (invalido) remover(arquivo)
+        }
+
+        // 2) Cópias já geradas em build/. Limpar só a origem não bastava: o
+        // arquivo ruim continuava em packaged_res/merged_res de um build
+        // anterior, e era ali que parseReleaseLocalResources ia tropeçar —
+        // exigindo um "Clean Project" manual a cada vez. Como é conteúdo
+        // derivado, apagar é seguro: se a tarefa que preenche essas pastas
+        // rodar de novo, ela recopia a partir da origem, que já está limpa.
+        fileTree(raiz) {
+            include '**/build/intermediates/packaged_res/**', '**/build/intermediates/merged_res/**'
+        }.each { arquivo ->
+            if (!nomeDeRecursoValido(arquivo.name)) remover(arquivo)
         }
 
         if (removidos > 0) {
