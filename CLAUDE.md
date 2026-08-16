@@ -146,6 +146,27 @@ Migrations ficam em `supabase/migrations/`. RLS habilitado em todas as tabelas.
 
 ---
 
+## 📱 VERSÃO DO APP ANDROID
+
+**Sempre que uma mudança afetar o app** (qualquer coisa em `src/` ou `android/`),
+subir os dois campos em `android/app/build.gradle` no mesmo trabalho, sem
+perguntar:
+
+```gradle
+versionCode 7      // inteiro, TEM que crescer — a Play Console recusa
+versionName "1.4"  // texto que o usuário vê
+```
+
+A Play Console rejeita um `.aab` cujo `versionCode` não seja maior que o do
+envio anterior. Descobrir isso só na hora de subir custa um build inteiro
+refeito.
+
+Avisar no fim se o envio precisa de passos extras:
+- dependência nova → `npm install` antes do `npm run build`
+- plugin nativo novo → `npx cap sync android`
+
+---
+
 ## 🚫 O QUE NÃO MEXER
 
 - `lib/offlineCache.ts` e `lib/syncQueue.ts` — motor crítico offline
