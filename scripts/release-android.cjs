@@ -147,9 +147,15 @@ function main() {
     "app-release.aab"
   );
 
+  // Copia com a versão no nome, pra ficar fácil identificar qual .aab subir
+  // no Play Console sem precisar abrir o build.gradle pra conferir.
+  const versionedName = `app-release-v${novoNome || "semnome"}-${newVersionCode}.aab`;
+  const versionedPath = path.join(path.dirname(aabPath), versionedName);
+  fs.copyFileSync(aabPath, versionedPath);
+
   console.log("\n=== Pronto! ===");
   console.log(`Versão gerada: ${novoNome || "(versionName inalterado)"} (versionCode ${newVersionCode})`);
-  console.log(`Arquivo gerado em: ${aabPath}`);
+  console.log(`Arquivo gerado em: ${versionedPath}`);
   console.log("Agora é só subir esse arquivo no Play Console (trilha de teste ou produção).");
 }
 
