@@ -46,6 +46,30 @@ android {
     }
 }
 
+// A sincronização do macOS (iCloud na Área de Trabalho, Google Drive etc.) cria
+// cópias de conflito com espaço no nome — "config 2.xml", "strings 2.xml". Nome
+// de recurso do Android só aceita a-z, 0-9 e underscore, então qualquer arquivo
+// assim em res/ derruba o build inteiro com "' ' is not a valid file-based
+// resource name character". Como o config.xml é regerado pelo `cap sync` a cada
+// build, a cópia reaparecia e era preciso apagar na mão toda vez.
+//
+// Nenhum arquivo válido de res/ ou assets/ tem espaço no nome, então dá para
+// remover sem risco antes do merge de recursos.
+tasks.register('limparDuplicadosDeSincronizacao') {
+    doLast {
+        ['src/main/res', 'src/main/assets'].each { dir ->
+            def raiz = file(dir)
+            if (!raiz.exists()) return
+            fileTree(raiz).filter { it.name.contains(' ') }.each { arquivo ->
+                logger.lifecycle("Removendo cópia de sincronização inválida: ${arquivo}")
+                arquivo.delete()
+            }
+        }
+    }
+}
+
+tasks.named('preBuild') { dependsOn('limparDuplicadosDeSincronizacao') }
+
 repositories {
     flatDir{
         dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
