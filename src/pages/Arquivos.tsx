@@ -251,6 +251,19 @@ export default function Arquivos() {
     const isImage = IMAGE_EXT.test(name);
     const storagePath = `${prefix}/${name}`;
 
+    // Já salvo no aparelho: abre na hora, sem pedir nada pro Supabase. Checar
+    // isso antes de criar a URL assinada é o que importa aqui — senão toda
+    // abertura esperava um round-trip de rede mesmo quando o arquivo já
+    // estava 100% local, e no celular isso é o que sentia como "travar".
+    if (isPdf || isImage) {
+      const emCache = await getCachedUriSePresente(storagePath);
+      if (emCache) {
+        if (isPdf) setPdfPreview({ url: emCache, name });
+        else setImagePreview({ url: emCache, name });
+        return;
+      }
+    }
+
     if (!isPdf && !isImage) {
       const win = window.open("", "_blank");
       const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(storagePath, 60 * 60);
@@ -267,14 +280,6 @@ export default function Arquivos() {
     const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(storagePath, 60 * 60);
     if (error || !data?.signedUrl) {
       toast.error("Erro ao abrir arquivo.");
-      return;
-    }
-
-    // Já salvo no aparelho: abre na hora, sem rede.
-    const emCache = await getCachedUriSePresente(storagePath);
-    if (emCache) {
-      if (isPdf) setPdfPreview({ url: emCache, name });
-      else setImagePreview({ url: emCache, name });
       return;
     }
 
