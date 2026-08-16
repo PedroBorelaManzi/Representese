@@ -11,6 +11,7 @@ const corsHeaders = {
 const ASAAS_API_KEY = Deno.env.get('ASAAS_API_KEY')
 const ASAAS_API_URL = 'https://www.asaas.com/api/v3'
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
+const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
 const PLAN_PRICES: Record<string, number> = {
@@ -24,8 +25,31 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
-    const { userId } = await req.json()
-    if (!userId) throw new Error('ID do usuário não fornecido.')
+    // O userId vem sempre da sessão autenticada, nunca do corpo da requisição —
+    // sem isso, qualquer usuário logado podia passar o ID de outra pessoa aqui
+    // e gerar uma cobrança no Asaas em nome dela.
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response(JSON.stringify({ success: false, message: 'Nenhum token fornecido.' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401,
+      })
+    }
+
+    const { data: { user: caller }, error: callerError } = await createClient(
+      SUPABASE_URL!,
+      SUPABASE_ANON_KEY!,
+      { global: { headers: { Authorization: authHeader } } }
+    ).auth.getUser()
+
+    if (callerError || !caller) {
+      return new Response(JSON.stringify({ success: false, message: 'Sessão inválida.' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401,
+      })
+    }
+
+    const userId = caller.id
 
     console.log(`Regularização v1.0.4 - Iniciando para: ${userId}`)
 

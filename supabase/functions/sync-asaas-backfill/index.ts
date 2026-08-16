@@ -2,6 +2,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
+const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 const ASAAS_API_KEY = Deno.env.get('ASAAS_API_KEY')
 
@@ -17,7 +18,35 @@ serve(async (req) => {
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
 
   try {
+    // Operação em massa (lê e reescreve entitlements de TODOS os usuários) —
+    // só admin pode chamar. Sem isso, qualquer conta logada disparava um
+    // backfill que reescrevia plano/status de assinatura de qualquer pessoa.
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Nenhum token fornecido.' }), { status: 401 })
+    }
+
+    const { data: { user: caller }, error: callerError } = await createClient(
+      SUPABASE_URL!,
+      SUPABASE_ANON_KEY!,
+      { global: { headers: { Authorization: authHeader } } }
+    ).auth.getUser()
+
+    if (callerError || !caller) {
+      return new Response(JSON.stringify({ error: 'Sessão inválida.' }), { status: 401 })
+    }
+
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!)
+
+    const { data: callerSettings } = await supabase
+      .from('user_settings')
+      .select('is_admin')
+      .eq('user_id', caller.id)
+      .single()
+
+    if (!callerSettings?.is_admin) {
+      return new Response(JSON.stringify({ error: 'Acesso restrito a administradores.' }), { status: 403 })
+    }
 
     let authUsers: any[] = [];
     let hasMoreUsers = true;
