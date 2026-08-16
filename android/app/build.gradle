@@ -55,15 +55,35 @@ android {
 //
 // Nenhum arquivo válido de res/ ou assets/ tem espaço no nome, então dá para
 // remover sem risco antes do merge de recursos.
+// Vale para TODOS os módulos (app, plugins do Capacitor, plugins Cordova), não
+// só o :app — a cópia de conflito pode cair na pasta de qualquer um deles, e aí
+// o build quebra do mesmo jeito.
 tasks.register('limparDuplicadosDeSincronizacao') {
     doLast {
-        ['src/main/res', 'src/main/assets'].each { dir ->
-            def raiz = file(dir)
-            if (!raiz.exists()) return
-            fileTree(raiz).filter { it.name.contains(' ') }.each { arquivo ->
-                logger.lifecycle("Removendo cópia de sincronização inválida: ${arquivo}")
+        def raiz = rootProject.projectDir
+        def removidos = 0
+
+        fileTree(raiz) {
+            // build/ e .gradle/ são regerados; node_modules não entra no APK.
+            exclude '**/build/**', '**/.gradle/**', '**/node_modules/**'
+            include '**/src/**/res/**', '**/src/**/assets/**'
+        }.each { arquivo ->
+            // O Android exige nome de recurso só com a-z, 0-9 e underscore. O
+            // caso comum aqui é a cópia do macOS ("config 2.xml"), mas qualquer
+            // nome inválido derruba o build igual, então a checagem cobre tudo.
+            def dentroDeRes = arquivo.path.replace(File.separator, '/') =~ '/res/'
+            def nomeInvalido = dentroDeRes
+                ? !(arquivo.name ==~ /^[a-z0-9_]+(\.[a-z0-9]+)*$/)
+                : arquivo.name.contains(' ')
+            if (nomeInvalido) {
+                logger.lifecycle("Removendo arquivo de nome inválido para o Android: ${arquivo}")
                 arquivo.delete()
+                removidos++
             }
+        }
+
+        if (removidos > 0) {
+            logger.lifecycle("Limpeza concluída: ${removidos} arquivo(s) removido(s).")
         }
     }
 }
