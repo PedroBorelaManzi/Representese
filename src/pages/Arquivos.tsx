@@ -347,10 +347,15 @@ export default function Arquivos() {
       toast.error("Erro ao baixar arquivo.");
       return;
     }
+    // Alguns navegadores mobile (Samsung Internet, Firefox) ignoram o clique
+    // num <a> que nunca entrou no DOM — precisa estar anexado pra disparar
+    // o download de verdade.
     const a = document.createElement("a");
     a.href = data.signedUrl;
     a.download = name;
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
   };
 
   // lista todos os caminhos de arquivo (recursivo) sob um prefixo

@@ -301,7 +301,9 @@ export default function ClientDetails() {
       const a = document.createElement('a');
       a.href = data.signedUrl;
       a.download = fileName;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
     } catch (err) {
       toast.error("Erro ao baixar arquivo.");
     }
