@@ -22,6 +22,11 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   // Evita dois flushes simultâneos (ex.: reconexão + clique manual no botão).
   const flushingRef = useRef(false);
+  // Rede móvel instável pode disparar 'online' várias vezes seguidas (handoff
+  // entre wifi/dados). Sem isso, cada disparo chamava processQueue() na hora,
+  // consumindo uma tentativa por operação a cada vez — esgotando
+  // MAX_SYNC_ATTEMPTS por instabilidade momentânea, não por erro real.
+  const onlineDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const updateStatus = () => {
     setIsOnline(navigator.onLine);
@@ -66,7 +71,14 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       setIsOnline(true);
       toast.success('Conexão restabelecida!');
       updateStatus();
-      flushQueue();
+
+      // Espera a rede "assentar" antes de sincronizar — colapsa rajadas de
+      // eventos 'online' num único flush em vez de um por disparo.
+      if (onlineDebounceRef.current) clearTimeout(onlineDebounceRef.current);
+      onlineDebounceRef.current = setTimeout(() => {
+        onlineDebounceRef.current = null;
+        flushQueue();
+      }, 2000);
     };
 
     const handleOffline = () => {
@@ -85,6 +97,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     window.addEventListener('sync-queue-updated', handleQueueUpdate);
 
     return () => {
+      if (onlineDebounceRef.current) clearTimeout(onlineDebounceRef.current);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('sync-queue-updated', handleQueueUpdate);

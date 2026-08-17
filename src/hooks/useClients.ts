@@ -30,15 +30,20 @@ export function useClients() {
         });
       }
 
-      // 2. Fetch ALL current IDs to handle hard-deletions
-      const { data: allIdsData, error: idsError } = await supabase
-        .from('clients')
-        .select('id')
-        .eq('user_id', user.id);
+      // 2. Fetch ALL current IDs to handle hard-deletions — só precisa disso
+      // quando já existe cache pra "podar": num primeiro load (cache vazio)
+      // não tem nada pra remover, e a query delta abaixo já traz tudo mesmo,
+      // então esse round-trip inteiro é dispensável nesse caso.
+      let validIds: Set<string> | null = null;
+      if (cachedClients.length > 0) {
+        const { data: allIdsData, error: idsError } = await supabase
+          .from('clients')
+          .select('id')
+          .eq('user_id', user.id);
 
-      if (idsError) throw idsError;
-
-      const validIds = new Set(allIdsData.map(r => r.id));
+        if (idsError) throw idsError;
+        validIds = new Set(allIdsData.map(r => r.id));
+      }
 
       // 3. Fetch ONLY clients modified AFTER the maxUpdatedAt (delta, para economizar banda)
       const { data: newOrUpdatedClients, error } = await supabase
@@ -56,7 +61,7 @@ export function useClients() {
       const clientMap = new Map<string, Client>();
 
       cachedClients.forEach(c => {
-        if (validIds.has(c.id)) clientMap.set(c.id, c);
+        if (!validIds || validIds.has(c.id)) clientMap.set(c.id, c);
       });
       (newOrUpdatedClients || []).forEach((c: any) => {
         const previous = clientMap.get(c.id);
