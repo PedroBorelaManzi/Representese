@@ -40,6 +40,7 @@ import ClientFollowupHistory from "../components/ClientFollowupHistory";
 import { PdfViewerModal } from "../components/PdfViewerModal";
 import { getClientFollowupStatus, type ClientFollowupStatus } from "../lib/followupService";
 import { useConfirm } from "../components/ui";
+import { getCachedUriSePresente, baixarParaCacheEmSegundoPlano } from "../lib/fileCache";
 
 import { toTitleCase } from "../lib/utils";
 
@@ -298,6 +299,16 @@ export default function ClientDetails() {
   // área visível, então o scroll continua leve mesmo em documentos grandes.
   const handleOpenPdf = async (fileName: string, filePath: string) => {
     try {
+      // Já salvo no aparelho: abre na hora, sem pedir nada pro Supabase — mesmo
+      // ganho já aplicado em Arquivos.tsx, que esse fluxo de anexos do cliente
+      // ainda não tinha (toda abertura esperava um round-trip de rede mesmo com
+      // o arquivo 100% em cache local).
+      const emCache = await getCachedUriSePresente(filePath);
+      if (emCache) {
+        setPdfPreview({ url: emCache, name: fileName });
+        return;
+      }
+
       let { data, error } = await supabase.storage
         .from('client_vault')
         .createSignedUrl(filePath, 60 * 60);
@@ -305,6 +316,7 @@ export default function ClientDetails() {
       if (error || !data?.signedUrl) throw error || new Error("Arquivo não encontrado.");
 
       setPdfPreview({ url: data.signedUrl, name: fileName });
+      baixarParaCacheEmSegundoPlano(filePath, data.signedUrl);
     } catch (err) {
       toast.error("Erro ao abrir arquivo.");
     }

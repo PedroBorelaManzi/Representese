@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useMemo, ReactNode } fr
 import { supabase } from "../lib/supabase";
 import { User } from "@supabase/supabase-js";
 import { posthog } from "../lib/posthog";
+import { offlineCache } from "../lib/offlineCache";
 
 type AuthContextType = {
   user: User | null;
@@ -84,6 +85,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("rm_cached_user");
     sessionStorage.removeItem("rm_cached_user");
     localStorage.removeItem('has_completed_onboarding');
+    // offlineCache agora é persistente (localStorage) pra sobreviver ao app
+    // Android sendo morto pelo sistema — sem limpar no logout, os dados
+    // cacheados de um usuário (clientes, pedidos) ficavam visíveis pro
+    // próximo que logasse no mesmo aparelho, mesmo em dispositivo compartilhado.
+    offlineCache.clear();
   };
 
   // signIn/signOut/signInOffline não dependem de estado — valor só muda com user/loading
