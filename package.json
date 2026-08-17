@@ -44,7 +44,6 @@
     "date-fns": "^4.1.0",
     "exceljs": "^4.4.0",
     "express": "^5.2.1",
-    "express-rate-limit": "^8.5.2",
     "framer-motion": "^12.38.0",
     "idb-keyval": "^6.2.5",
     "leaflet": "^1.9.4",

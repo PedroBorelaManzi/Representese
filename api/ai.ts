@@ -42,6 +42,14 @@ if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) 
     redis: Redis.fromEnv(),
     limiter: Ratelimit.slidingWindow(10, '60 s')
   });
+} else {
+  // Sem isso, a chamada à IA fica sem limite nenhum e o erro só aparece como
+  // custo inesperado da API do Gemini — nunca como um log óbvio. Em produção
+  // as env vars do Upstash devem estar sempre configuradas.
+  console.error(
+    'ATENÇÃO: UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN não configuradas — ' +
+    'rate limit da IA está DESLIGADO. Qualquer usuário autenticado pode chamar o Gemini sem limite.'
+  );
 }
 
 app.use(async (req, res, next) => {
