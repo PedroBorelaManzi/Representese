@@ -70,7 +70,7 @@ Todas as páginas usam `React.lazy()` no `App.tsx`. O `Dashboard.tsx` é o layou
 `api/ai.ts` é um Express app deployado como Vercel Serverless Function. Recebe requisições do frontend, faz rate limiting via Upstash Redis, e chama o Gemini. CORS configurado para aceitar `representese.com`, subdomínios, `*.vercel.app` (previews) e origens Capacitor.
 
 ### Offline First
-`lib/offlineCache.ts` (motor híbrido V2) + `lib/syncQueue.ts` (fila de sincronização). Toda chamada ao Supabase deve verificar `offlineCache.isOnline()` primeiro. **Não mexer nesses arquivos sem necessidade crítica.**
+`lib/offlineCache.ts` (cache local em `localStorage`, com TTL — trocado de `sessionStorage` porque o processo do app Android é morto com frequência e zerava o cache "de 24h" a cada vez) + `lib/syncQueue.ts` (fila de sincronização, também em `localStorage`, com dead-letter após `MAX_SYNC_ATTEMPTS` falhas). Chamada ao Supabase que precisa funcionar offline deve verificar `offlineCache.isOnline()` (ou o `isOnline` do `useSync()`) primeiro — nem toda tela precisa disso: várias fazem cache-first com fallback gracioso em vez de checar antes. **Não mexer nesses arquivos sem necessidade crítica.**
 
 ### Dark Mode
 Controlado pela classe `.dark` no `<html>`. Implementado via `@custom-variant` no Tailwind, efeito no `SettingsContext` e script inline no `index.html` para evitar flash.
