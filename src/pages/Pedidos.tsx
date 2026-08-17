@@ -9,6 +9,7 @@ import { useSettings } from "../contexts/SettingsContext";
 import { processOrderFile } from "../lib/orderProcessor";
 import { getHighPrecisionCoordinates } from "../lib/geminiGeocoding";
 import { cn } from "../lib/utils";
+import { ajustarFaturamento } from "../lib/faturamento";
 import { PageHeader, useConfirm } from "../components/ui";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -140,8 +141,7 @@ export default function PedidosPage() {
       await supabase.from("orders").upsert([{ user_id: user.id, client_id: cid, category: selectedCategory, value: parseFloat(orderValue), file_name: formattedName, file_path: path }], { onConflict: "client_id,file_path" });
       const { data: clientData } = await supabase.from("clients").select("faturamento").eq("id", cid).single();
       if (clientData) {
-        const fat = (clientData.faturamento as Record<string, number>) || {};
-        const updatedFat = { ...fat, [selectedCategory]: (Number(fat[selectedCategory] || 0) + parseFloat(orderValue)) };
+        const updatedFat = ajustarFaturamento(clientData.faturamento, selectedCategory, parseFloat(orderValue));
         await supabase.from("clients").update({ faturamento: updatedFat }).eq("id", cid).eq("user_id", user?.id);
       }
       setIsManualModalOpen(false); loadData();
@@ -180,8 +180,7 @@ export default function PedidosPage() {
       await supabase.from("orders").upsert([{ user_id: user?.id, client_id: cid, category: res.category, value: res.value, file_name: formattedName, file_path: path }], { onConflict: "client_id,file_path" });
       const { data: clientData } = await supabase.from("clients").select("faturamento").eq("id", cid).single();
       if (clientData) {
-        const fat = (clientData.faturamento as Record<string, number>) || {};
-        const updatedFat = { ...fat, [res.category]: (Number(fat[res.category] || 0) + res.value) };
+        const updatedFat = ajustarFaturamento(clientData.faturamento, res.category, res.value);
         await supabase.from("clients").update({ faturamento: updatedFat }).eq("id", cid);
       }
       setBatchResults(prev => prev.filter(item => item.file !== res.file)); loadData();
@@ -198,9 +197,7 @@ export default function PedidosPage() {
       if (order.client_id) {
         const { data: clientData } = await supabase.from("clients").select("faturamento").eq("id", order.client_id).single();
         if (clientData) {
-          const fat = (clientData.faturamento as Record<string, number>) || {};
-          const currentVal = Number(fat[order.category] || 0);
-          const updatedFat = { ...fat, [order.category]: Math.max(0, currentVal - (order.value || 0)) };
+          const updatedFat = ajustarFaturamento(clientData.faturamento, order.category, -(order.value || 0));
           await supabase.from("clients").update({ faturamento: updatedFat }).eq("id", order.client_id).eq("user_id", user?.id);
         }
       }

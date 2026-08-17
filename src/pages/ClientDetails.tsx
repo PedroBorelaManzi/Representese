@@ -41,6 +41,7 @@ import { PdfViewerModal } from "../components/PdfViewerModal";
 import { getClientFollowupStatus, type ClientFollowupStatus } from "../lib/followupService";
 import { useConfirm } from "../components/ui";
 import { getCachedUriSePresente, baixarParaCacheEmSegundoPlano } from "../lib/fileCache";
+import { ajustarFaturamento } from "../lib/faturamento";
 
 import { toTitleCase } from "../lib/utils";
 
@@ -212,10 +213,7 @@ export default function ClientDetails() {
          syncQueue.enqueue('orders', 'DELETE', null, fileId);
          
          if (fileToDelete.value && fileToDelete.category && client) {
-            const fat = (client.faturamento as Record<string, number>) || {};
-            const currentCatTotal = Number(fat[fileToDelete.category]) || 0;
-            const newTotal = Math.max(0, currentCatTotal - Number(fileToDelete.value));
-            const updatedFat = { ...fat, [fileToDelete.category]: newTotal };
+            const updatedFat = ajustarFaturamento(client.faturamento, fileToDelete.category, -Number(fileToDelete.value));
             syncQueue.enqueue('clients', 'UPDATE', { faturamento: updatedFat }, id);
             
             const cachedClients = offlineCache.get<Client[]>(CacheKeys.CLIENTS) || [];
@@ -256,11 +254,7 @@ export default function ClientDetails() {
       if (orderData && orderData.value && orderData.category) {
           const { data: clientData } = await supabase.from('clients').select('faturamento').eq('id', id).single();
           if (clientData) {
-              const fat = (clientData.faturamento as Record<string, number>) || {};
-              const currentCatTotal = Number(fat[orderData.category]) || 0;
-              const newTotal = Math.max(0, currentCatTotal - Number(orderData.value));
-              
-              const updatedFat = { ...fat, [orderData.category]: newTotal };
+              const updatedFat = ajustarFaturamento(clientData.faturamento, orderData.category, -Number(orderData.value));
               await supabase.from('clients').update({ faturamento: updatedFat }).eq('id', id).eq("user_id", user?.id);
           }
       }
@@ -361,8 +355,7 @@ export default function ClientDetails() {
           syncQueue.enqueue('orders', 'INSERT', orderPayload);
           
           if (client) {
-             const fat = (client.faturamento as Record<string, number>) || {};
-             const updatedFat = { ...fat, [uploadCategory]: (Number(fat[uploadCategory] || 0) + numericValue) };
+             const updatedFat = ajustarFaturamento(client.faturamento, uploadCategory, numericValue);
              syncQueue.enqueue('clients', 'UPDATE', { faturamento: updatedFat }, id);
              
              const cachedClients = offlineCache.get<Client[]>(CacheKeys.CLIENTS) || [];
@@ -382,8 +375,7 @@ export default function ClientDetails() {
           
           const { data: clientData } = await supabase.from("clients").select("faturamento").eq("id", id).single();
           if (clientData) {
-            const fat = (clientData.faturamento as Record<string, number>) || {};
-            const updatedFat = { ...fat, [uploadCategory]: (Number(fat[uploadCategory] || 0) + numericValue) };
+            const updatedFat = ajustarFaturamento(clientData.faturamento, uploadCategory, numericValue);
             await supabase.from("clients").update({ faturamento: updatedFat }).eq("id", id).eq("user_id", user?.id);
           }
       }

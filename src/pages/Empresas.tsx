@@ -29,7 +29,8 @@ import { cn } from "../lib/utils";
 import { SearchableClientPicker } from "../components/SearchableClientPicker";
 import { PageHeader, Skeleton, useConfirm } from "../components/ui";
 import { syncQueue } from "../lib/syncQueue";
-import { offlineCache, CacheKeys } from "../lib/offlineCache"; // Motor Híbrido V2
+import { offlineCache, CacheKeys } from "../lib/offlineCache";
+import { ajustarFaturamento } from "../lib/faturamento";
 import { EmptyState } from "../components/ui";
 import TourArrow from "../components/TourArrow";
 
@@ -297,9 +298,8 @@ export default function EmpresasPage() {
            const cachedClients = (offlineCache.get(CacheKeys.CLIENTS) as any[]) || [];
            const clientIndex = cachedClients.findIndex(c => c.id === cid);
            if (clientIndex >= 0) {
-              const fat = cachedClients[clientIndex].faturamento || {};
               const catKey = item.category || 'GERAL';
-              const updatedFat = { ...fat, [catKey]: (Number(fat[catKey] || 0) + parseFloat(item.value)) };
+              const updatedFat = ajustarFaturamento(cachedClients[clientIndex].faturamento, catKey, parseFloat(item.value));
               syncQueue.enqueue('clients', 'UPDATE', { faturamento: updatedFat }, cid);
               cachedClients[clientIndex].faturamento = updatedFat;
               offlineCache.set(CacheKeys.CLIENTS, cachedClients);
@@ -310,8 +310,7 @@ export default function EmpresasPage() {
 
            const { data: clientData } = await supabase.from("clients").select("faturamento").eq("id", cid).single();
            if (clientData) {
-             const fat = clientData.faturamento || {};
-             const updatedFat = { ...fat, [item.category || 'GERAL']: (Number(fat[item.category || 'GERAL'] || 0) + parseFloat(item.value)) };
+             const updatedFat = ajustarFaturamento(clientData.faturamento, item.category || 'GERAL', parseFloat(item.value));
              await supabase.from("clients").update({ faturamento: updatedFat }).eq("id", cid).eq("user_id", user?.id);
            }
         }
