@@ -47,7 +47,7 @@ async function detectFileType(file: File) {
   return { type: "unknown", mimeType: file.type };
 }
 
-function extractCNPJLocally(text: string): string {
+export function extractCNPJLocally(text: string): string {
   const cnpjRegex = /\d{2}\.?\d{3}\.?\d{3}\/\d{4}-?\d{2}/g;
   const matches = text.match(cnpjRegex);
   if (matches && matches.length > 0) {
@@ -62,7 +62,7 @@ function extractCNPJLocally(text: string): string {
   return "";
 }
 
-function extractCategoryLocally(text: string, categories: string[]): string {
+export function extractCategoryLocally(text: string, categories: string[]): string {
   if (!categories || categories.length === 0 || !text) return "";
   
   // Limpeza super agressiva: remove pontuações, acentos, traços, etc.
@@ -104,7 +104,7 @@ function extractCategoryLocally(text: string, categories: string[]): string {
   return "";
 }
 
-function extractValueLocally(text: string): number {
+export function extractValueLocally(text: string): number {
   const parseMoney = (rawValue: string) => {
     if (rawValue.includes('.') && rawValue.includes(',')) {
        const lastComma = rawValue.lastIndexOf(',');

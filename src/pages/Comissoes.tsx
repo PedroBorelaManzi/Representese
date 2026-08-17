@@ -20,6 +20,7 @@ import { PageHeader, Skeleton } from "../components/ui";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { ExportCommissionsButton } from "../components/ExportCommissionsButton";
+import { computeCommissionRows, computeCommissionTotals, type MonthOrder } from "../lib/commissions";
 
 const BRL = (n: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0);
@@ -28,15 +29,6 @@ const MONTHS = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
-
-interface MonthOrder {
-  category: string;
-  value: number;
-  created_at: string;
-}
-
-/** Normaliza nome de empresa para casar pedidos com categorias mesmo com caixa diferente. */
-const norm = (s: string) => (s || "").trim().toUpperCase();
 
 export default function Comissoes() {
   const { user } = useAuth();
@@ -102,56 +94,12 @@ export default function Comissoes() {
     staleTime: 60_000,
   });
 
-  // Faturamento e nº de pedidos por empresa (mês atual e anterior)
-  const computeByCompany = (orders: MonthOrder[]) => {
-    const value = new Map<string, number>();
-    const count = new Map<string, number>();
-    orders.forEach((o) => {
-      const key = norm(o.category);
-      value.set(key, (value.get(key) || 0) + (Number(o.value) || 0));
-      count.set(key, (count.get(key) || 0) + 1);
-    });
-    return { value, count };
-  };
+  const rows = useMemo(
+    () => computeCommissionRows(data?.current || [], data?.previous || [], companies, commissions),
+    [data, companies, commissions]
+  );
 
-  const rows = useMemo(() => {
-    const cur = computeByCompany(data?.current || []);
-    const prev = computeByCompany(data?.previous || []);
-
-    // Considera todas as empresas: as cadastradas + quaisquer que apareçam nos pedidos
-    const allKeys = new Set<string>();
-    companies.forEach((c) => allKeys.add(norm(c)));
-    cur.value.forEach((_, k) => allKeys.add(k));
-
-    // Mapeia a chave normalizada de volta para o nome "bonito" cadastrado
-    const prettyName = new Map<string, string>();
-    companies.forEach((c) => prettyName.set(norm(c), c));
-    (data?.current || []).forEach((o) => {
-      const k = norm(o.category);
-      if (!prettyName.has(k)) prettyName.set(k, o.category.trim());
-    });
-
-    return Array.from(allKeys).map((key) => {
-      const name = prettyName.get(key) || key;
-      const faturamento = cur.value.get(key) || 0;
-      const faturamentoPrev = prev.value.get(key) || 0;
-      const pedidos = cur.count.get(key) || 0;
-      const pct = Number(commissions[name] ?? commissions[key] ?? 0);
-      const comissao = faturamento * (pct / 100);
-      return { key, name, faturamento, faturamentoPrev, pedidos, pct, comissao };
-    }).sort((a, b) => b.comissao - a.comissao);
-  }, [data, companies, commissions]);
-
-  const totals = useMemo(() => {
-    const faturamento = rows.reduce((s, r) => s + r.faturamento, 0);
-    const comissao = rows.reduce((s, r) => s + r.comissao, 0);
-    const comissaoPrev = rows.reduce(
-      (s, r) => s + r.faturamentoPrev * (r.pct / 100),
-      0
-    );
-    const semConfig = rows.filter((r) => r.faturamento > 0 && r.pct === 0).length;
-    return { faturamento, comissao, comissaoPrev, semConfig };
-  }, [rows]);
+  const totals = useMemo(() => computeCommissionTotals(rows), [rows]);
 
   const deltaPct =
     totals.comissaoPrev > 0
