@@ -1,6 +1,9 @@
 ﻿import React, { useState, useEffect, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap, Tooltip } from "react-leaflet";
+import MarkerClusterGroup from "react-leaflet-cluster";
 import "leaflet/dist/leaflet.css";
+import "react-leaflet-cluster/dist/assets/MarkerCluster.css";
+import "react-leaflet-cluster/dist/assets/MarkerCluster.Default.css";
 import L from "leaflet";
 import { Search, MapPin, Building2, Plus, X, Info, Loader2, ExternalLink, Trash2, Navigation2, Target, Users, FileDown, Maximize2, Minimize2, Route, CheckCheck, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -660,7 +663,8 @@ export default function Map() {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' 
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" 
           />
-          {mapCompanies.filter(c => c.lat && c.lng).map((company) => {
+          {(() => {
+            const markers = mapCompanies.filter(c => c.lat && c.lng).map((company) => {
             const routeIdx = routeClients.findIndex(r => r.id === company.id);
             const inRoute = routeIdx !== -1;
             const markerIcon = inRoute
@@ -763,7 +767,19 @@ export default function Map() {
               </Popup>}
             </Marker>
             );
-          })}
+            });
+
+            // Agrupa em cluster fora do modo rota: com muitos clientes, um pin por
+            // cliente sobrecarrega o WebView do Android e trava pan/zoom. No modo
+            // rota os pins numerados precisam ficar visíveis um a um, então segue
+            // sem cluster ali.
+            if (isRouteMode) return <>{markers}</>;
+            return (
+              <MarkerClusterGroup chunkedLoading disableClusteringAtZoom={16}>
+                {markers}
+              </MarkerClusterGroup>
+            );
+          })()}
         </MapContainer>
       </div>
 
