@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { ajustarFaturamento } from "./faturamento";
 
 /* ────────────────────────────────────────────────────────────────
    Ações que o Assistente IA pode executar dentro do app.
@@ -299,9 +300,7 @@ export async function commitOrder(
     .eq("id", draft.client.id)
     .single();
 
-  const fat = (clientData?.faturamento as Record<string, number>) || {};
-  const catKey = draft.category || "GERAL";
-  const updatedFat = { ...fat, [catKey]: Number(fat[catKey] || 0) + draft.value };
+  const updatedFat = ajustarFaturamento(clientData?.faturamento, draft.category || "GERAL", draft.value);
 
   await supabase
     .from("clients")
