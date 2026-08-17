@@ -15,6 +15,7 @@ import { useClients } from "../hooks/useClients";
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from "sonner";
 import { offlineCache, CacheKeys } from "../lib/offlineCache";
+import { getCachedUriSePresente, getCachedFileUri } from "../lib/fileCache";
 import { PageHeader, useConfirm } from "../components/ui";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { Capacitor } from '@capacitor/core';
@@ -311,13 +312,31 @@ export default function Map() {
   };
 
 
-  const handleDownload = async (fileName, filePath) => {
+  // No app nativo, salva no armazenamento do próprio app (funciona offline
+  // depois) — o mesmo padrão usado em Arquivos.tsx e ClientDetails.tsx.
+  const handleDownload = async (fileName: string, filePath: string) => {
+    if (Capacitor.isNativePlatform()) {
+      if (await getCachedUriSePresente(filePath)) {
+        toast.success(`${fileName} já está salvo no app.`);
+        return;
+      }
+      const toastId = toast.loading(`Baixando ${fileName}...`);
+      try {
+        const { data, error } = await supabase.storage.from('client_vault').createSignedUrl(filePath, 60 * 60);
+        if (error || !data?.signedUrl) throw error || new Error("Arquivo não encontrado.");
+        await getCachedFileUri(filePath, data.signedUrl);
+        toast.success(`${fileName} salvo no app — abre offline e sem baixar de novo.`, { id: toastId });
+      } catch (err) {
+        toast.error("Erro ao baixar arquivo.", { id: toastId });
+      }
+      return;
+    }
+
     try {
       const { data, error } = await supabase.storage
         .from('client_vault')
         .download(filePath);
-      
-      // O fallback aqui era para um bucket 'orders' que não existe no projeto.
+
       if (error) throw error;
 
       const url = URL.createObjectURL(data);
@@ -325,8 +344,9 @@ export default function Map() {
       a.href = url;
       a.download = fileName;
       a.click();
+      URL.revokeObjectURL(url);
     } catch (err) {
-      toast.error("Erro ao visualizar pedido.");
+      toast.error("Erro ao baixar arquivo.");
     }
   };
 

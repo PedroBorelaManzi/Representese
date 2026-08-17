@@ -40,8 +40,9 @@ import ClientFollowupHistory from "../components/ClientFollowupHistory";
 import { PdfViewerModal } from "../components/PdfViewerModal";
 import { getClientFollowupStatus, type ClientFollowupStatus } from "../lib/followupService";
 import { useConfirm } from "../components/ui";
-import { getCachedUriSePresente, baixarParaCacheEmSegundoPlano } from "../lib/fileCache";
+import { getCachedUriSePresente, getCachedFileUri, baixarParaCacheEmSegundoPlano } from "../lib/fileCache";
 import { ajustarFaturamento } from "../lib/faturamento";
+import { Capacitor } from "@capacitor/core";
 
 import { toTitleCase } from "../lib/utils";
 
@@ -266,18 +267,35 @@ export default function ClientDetails() {
     }
   };
 
-  // URL assinada + download nativo do navegador em vez de baixar o blob
-  // inteiro pra memória do JS antes de salvar — mesmo ganho de velocidade já
-  // aplicado em Arquivos.tsx, mas esse fluxo de anexos do cliente ainda usava
-  // o padrão antigo (.download), que fica lento em arquivos maiores/redes ruins.
+  // No app nativo, o truque de <a download> não funciona contra uma URL
+  // externa (Supabase Storage) dentro da WebView do Android — em vez de
+  // baixar o arquivo, ela simplesmente navega pra URL, o que aparece como
+  // "carregando uma página" em vez de baixar o PDF. Mesmo padrão já usado em
+  // Arquivos.tsx: no app, salva no armazenamento do próprio app (funciona
+  // offline depois); no site, mantém o download tradicional do navegador.
   const handleDownload = async (fileName: string, filePath: string) => {
+    if (Capacitor.isNativePlatform()) {
+      if (await getCachedUriSePresente(filePath)) {
+        toast.success(`${fileName} já está salvo no app.`);
+        return;
+      }
+      const toastId = toast.loading(`Baixando ${fileName}...`);
+      try {
+        const { data, error } = await supabase.storage.from('client_vault').createSignedUrl(filePath, 60 * 60);
+        if (error || !data?.signedUrl) throw error || new Error("Arquivo não encontrado.");
+        await getCachedFileUri(filePath, data.signedUrl);
+        toast.success(`${fileName} salvo no app — abre offline e sem baixar de novo.`, { id: toastId });
+      } catch (err) {
+        toast.error("Erro ao baixar arquivo.", { id: toastId });
+      }
+      return;
+    }
+
     try {
-      let { data, error } = await supabase.storage
+      const { data, error } = await supabase.storage
         .from('client_vault')
         .createSignedUrl(filePath, 60, { download: fileName });
 
-      // O fallback aqui era para um bucket 'orders' que não existe no projeto:
-      // só trocava o erro real por "Bucket not found".
       if (error || !data?.signedUrl) throw error || new Error("Arquivo não encontrado.");
 
       const a = document.createElement('a');
