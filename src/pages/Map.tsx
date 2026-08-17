@@ -5,7 +5,7 @@ import "leaflet/dist/leaflet.css";
 import "react-leaflet-cluster/dist/assets/MarkerCluster.css";
 import "react-leaflet-cluster/dist/assets/MarkerCluster.Default.css";
 import L from "leaflet";
-import { Search, MapPin, Building2, Plus, X, Info, Loader2, ExternalLink, Trash2, Navigation2, Target, Users, FileDown, Maximize2, Minimize2, Route, CheckCheck, ArrowRight } from "lucide-react";
+import { Search, MapPin, Building2, Plus, X, Info, Loader2, ExternalLink, Trash2, Navigation2, Target, Users, FileDown, Maximize2, Minimize2, Route, CheckCheck, ArrowRight, Layers } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
@@ -137,6 +137,19 @@ export default function Map() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isPseudoFullscreen, setIsPseudoFullscreen] = useState(false);
   const isCurrentlyFullscreen = isFullscreen || isPseudoFullscreen;
+  // Preferência pessoal, não é dado do usuário no banco — fica só no aparelho.
+  // Agrupar ajuda com carteiras grandes, mas quem prefere ver cada pin sempre
+  // pode desligar; lembra a escolha entre sessões.
+  const [clusterEnabled, setClusterEnabled] = useState(
+    () => localStorage.getItem("rm_map_cluster_enabled") !== "false"
+  );
+  const toggleCluster = () => {
+    setClusterEnabled((prev) => {
+      const next = !prev;
+      localStorage.setItem("rm_map_cluster_enabled", String(next));
+      return next;
+    });
+  };
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -634,6 +647,22 @@ export default function Map() {
           )}
         </button>
 
+        {/* Chavinha de agrupar marcadores — desligado no modo rota, onde os
+            pins numerados precisam ficar visíveis um a um de qualquer jeito. */}
+        {!isRouteMode && (
+          <button
+            type="button"
+            onClick={toggleCluster}
+            className={`absolute left-[92px] z-[1000] flex items-center justify-center w-[34px] h-[34px] rounded-[4px] border-2 border-black/20 shadow-[0_1px_5px_rgba(0,0,0,0.65)] transition-all cursor-pointer pointer-events-auto ${
+              clusterEnabled ? "bg-emerald-500 hover:bg-emerald-600 text-white" : "bg-white hover:bg-[#f4f4f4] text-slate-700"
+            }`}
+            style={{ top: isCurrentlyFullscreen ? "calc(env(safe-area-inset-top, 0px) + 24px)" : "10px" }}
+            title={clusterEnabled ? "Agrupar pins: ligado (toque para ver um a um)" : "Agrupar pins: desligado (toque para agrupar)"}
+          >
+            <Layers className="w-4 h-4" />
+          </button>
+        )}
+
         <MapContainer
           key={isCurrentlyFullscreen ? 'fullscreen' : 'normal'}
           center={center}
@@ -769,11 +798,12 @@ export default function Map() {
             );
             });
 
-            // Agrupa em cluster fora do modo rota: com muitos clientes, um pin por
+            // Agrupa em cluster fora do modo rota e enquanto a chavinha (botão
+            // "Layers" flutuante) estiver ligada: com muitos clientes, um pin por
             // cliente sobrecarrega o WebView do Android e trava pan/zoom. No modo
             // rota os pins numerados precisam ficar visíveis um a um, então segue
-            // sem cluster ali.
-            if (isRouteMode) return <>{markers}</>;
+            // sem cluster ali independente da chavinha.
+            if (isRouteMode || !clusterEnabled) return <>{markers}</>;
             return (
               <MarkerClusterGroup chunkedLoading disableClusteringAtZoom={16}>
                 {markers}
