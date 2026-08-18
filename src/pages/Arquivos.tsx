@@ -24,6 +24,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { offlineCache } from "../lib/offlineCache";
+import { BUCKET, PLACEHOLDER, listFolderCached, type StorageItem } from "../lib/storageList";
 import { PageHeader, Skeleton, useConfirm } from "../components/ui";
 import { PdfViewerModal } from "../components/PdfViewerModal";
 import TourArrow from "../components/TourArrow";
@@ -40,18 +41,9 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg)$/i;
 
-const BUCKET = "user_files";
-const PLACEHOLDER = ".keep";
 // Acima disso o upload direto (PUT único) fica frágil em redes lentas/instáveis;
 // usamos upload retomável (TUS) em partes de 6MB, que retoma sozinho se cair a conexão.
 const RESUMABLE_THRESHOLD = 6 * 1024 * 1024;
-
-interface StorageItem {
-  name: string;
-  isFolder: boolean;
-  size: number;
-  updatedAt: string | null;
-}
 
 const formatSize = (bytes: number) => {
   if (!bytes) return "—";
@@ -67,26 +59,6 @@ const fileMeta = (name: string) => {
   if (["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext)) return { Icon: FileImage, color: "text-violet-600 bg-violet-50 dark:bg-violet-500/10" };
   return { Icon: FileIcon, color: "text-slate-500 bg-slate-100 dark:bg-zinc-800" };
 };
-
-async function listFolder(prefix: string): Promise<StorageItem[]> {
-  const { data, error } = await supabase.storage
-    .from(BUCKET)
-    .list(prefix, { limit: 1000, sortBy: { column: "name", order: "asc" } });
-  if (error) throw error;
-
-  const mapped: StorageItem[] = (data || [])
-    .filter((it) => it.name !== PLACEHOLDER && it.name !== ".emptyFolderPlaceholder")
-    .map((it) => ({
-      name: it.name,
-      isFolder: it.id === null,
-      size: (it as any).metadata?.size || 0,
-      updatedAt: (it as any).updated_at || null,
-    }));
-
-  // pastas primeiro, depois arquivos
-  mapped.sort((a, b) => (a.isFolder === b.isFolder ? a.name.localeCompare(b.name) : a.isFolder ? -1 : 1));
-  return mapped;
-}
 
 export default function Arquivos() {
   const { user } = useAuth();
@@ -132,12 +104,15 @@ export default function Arquivos() {
 
   const prefix = user ? [user.id, ...path].join("/") : "";
 
-  // Cache por pasta: reabrir uma pasta já visitada nesta sessão mostra a lista
-  // na hora (sem esperar a rede) enquanto revalida em segundo plano.
+  // A listagem de pastas/arquivos (só nomes e tamanhos, não o conteúdo) fica
+  // disponível offline sempre — não é opcional como o download do arquivo em
+  // si. Por isso a query roda mesmo sem internet: listFolderCached devolve o
+  // último retrato salvo da pasta em vez de tentar (e falhar) uma chamada de
+  // rede.
   const { data: items = [], isLoading: loading, refetch: loadItems } = useQuery({
     queryKey: ["storage-list", user?.id, prefix],
-    queryFn: () => listFolder(prefix),
-    enabled: !!user && offlineCache.isOnline(),
+    queryFn: () => listFolderCached(prefix),
+    enabled: !!user,
     staleTime: 60 * 1000,
   });
 
