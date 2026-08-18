@@ -126,6 +126,30 @@ describe('baixarParaCacheEmSegundoPlano', () => {
 
     expect(downloadFile).toHaveBeenCalled();
   });
+
+  it('avisa via onComplete quando termina de baixar', async () => {
+    isNativePlatform.mockReturnValue(true);
+    stat.mockRejectedValue(new Error('ENOENT'));
+    downloadFile.mockResolvedValue({});
+    const onComplete = vi.fn();
+
+    baixarParaCacheEmSegundoPlano('user/client/a.pdf', 'https://signed.example/a.pdf', onComplete);
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(onComplete).toHaveBeenCalledTimes(1);
+  });
+
+  it('avisa via onComplete mesmo quando já estava em cache', async () => {
+    isNativePlatform.mockReturnValue(true);
+    stat.mockResolvedValue({});
+    const onComplete = vi.fn();
+
+    baixarParaCacheEmSegundoPlano('user/client/a.pdf', 'https://signed.example/a.pdf', onComplete);
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(downloadFile).not.toHaveBeenCalled();
+  });
 });
 
 describe('evictCachedFile', () => {

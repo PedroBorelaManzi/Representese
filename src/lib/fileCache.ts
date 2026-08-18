@@ -140,13 +140,20 @@ export async function getCachedUriSePresente(storagePath: string): Promise<strin
  * a cópia local é baixada por trás para a próxima abertura ser instantânea e
  * funcionar offline.
  */
-export function baixarParaCacheEmSegundoPlano(storagePath: string, signedUrl: string): void {
+export function baixarParaCacheEmSegundoPlano(
+  storagePath: string,
+  signedUrl: string,
+  /** Avisa quem chamou quando o cache termina — usado só pra atualizar um
+   *  selo de "disponível offline" na tela, nunca pra bloquear nada. */
+  onComplete?: () => void
+): void {
   if (!Capacitor.isNativePlatform()) return;
   const path = localFileName(storagePath);
   void (async () => {
     try {
-      if (await uriEmCache(path)) return;
+      if (await uriEmCache(path)) { onComplete?.(); return; }
       await baixarNativo(signedUrl, path);
+      onComplete?.();
     } catch (e) {
       // Sem cache o app segue funcionando (lê da rede) — não vale alertar.
       console.warn("Não foi possível salvar o arquivo em cache:", e);

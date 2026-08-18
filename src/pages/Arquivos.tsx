@@ -17,6 +17,7 @@ import {
   HardDrive,
   X,
   Eye,
+  CheckCircle2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -139,6 +140,25 @@ export default function Arquivos() {
     enabled: !!user && offlineCache.isOnline(),
     staleTime: 60 * 1000,
   });
+
+  // Igual ao selo de "disponível offline" do Spotify: mostra de cara quais
+  // arquivos já estão salvos no aparelho, sem precisar tocar em cada um pra
+  // descobrir. Só roda no app nativo — no site não existe esse cache.
+  const [cachedNames, setCachedNames] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    let cancelled = false;
+    (async () => {
+      const files = items.filter((i) => !i.isFolder);
+      const results = await Promise.all(
+        files.map(async (i) => ((await getCachedUriSePresente(`${prefix}/${i.name}`)) ? i.name : null))
+      );
+      if (!cancelled) setCachedNames(new Set(results.filter((n): n is string => !!n)));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [items, prefix]);
 
   const handleCreateFolder = async () => {
     const name = newFolderName.trim().replace(/[\/\\]/g, "");
@@ -290,7 +310,9 @@ export default function Arquivos() {
       // diferença é enorme). A cópia local desce por trás para a próxima
       // abertura ser instantânea e funcionar offline.
       setPdfPreview({ url: data.signedUrl, name });
-      baixarParaCacheEmSegundoPlano(storagePath, data.signedUrl);
+      baixarParaCacheEmSegundoPlano(storagePath, data.signedUrl, () =>
+        setCachedNames((prev) => new Set(prev).add(name))
+      );
       return;
     }
 
@@ -301,6 +323,7 @@ export default function Arquivos() {
       uri = await getCachedFileUri(storagePath, data.signedUrl, (p) =>
         setProgresso({ nome: name, percentual: p.percentual })
       );
+      setCachedNames((prev) => new Set(prev).add(name));
     } catch (e) {
       console.warn("Falha ao usar cache local, abrindo direto da rede:", e);
     } finally {
@@ -330,6 +353,7 @@ export default function Arquivos() {
         await getCachedFileUri(storagePath, data.signedUrl, (p) =>
           setProgresso({ nome: name, percentual: p.percentual })
         );
+        setCachedNames((prev) => new Set(prev).add(name));
         toast.success(`${name} salvo no app — abre offline e sem baixar de novo.`);
       } catch (e) {
         console.error("Erro ao baixar arquivo:", e);
@@ -583,8 +607,14 @@ export default function Arquivos() {
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-bold text-slate-800 dark:text-zinc-100 truncate">{item.name}</p>
-                      <p className="text-[11px] font-medium text-slate-400">
+                      <p className="text-[11px] font-medium text-slate-400 flex items-center gap-1">
                         {item.isFolder ? "Pasta" : formatSize(item.size)}
+                        {!item.isFolder && cachedNames.has(item.name) && (
+                          <span className="inline-flex items-center gap-0.5 text-emerald-600 dark:text-emerald-500" title="Disponível offline — já salvo no aparelho">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Offline
+                          </span>
+                        )}
                       </p>
                     </div>
                   </button>

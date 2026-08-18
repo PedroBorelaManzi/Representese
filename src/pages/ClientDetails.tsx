@@ -64,6 +64,9 @@ export default function ClientDetails() {
   const [client, setClient] = useState<Client | null>(null);
   const [files, setFiles] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  // Igual ao selo de "disponível offline" do Spotify — mostra de cara quais
+  // anexos já estão salvos no aparelho. Só roda no app nativo.
+  const [cachedPaths, setCachedPaths] = useState<Set<string>>(new Set());
   const [isUploading, setIsUploading] = useState(false);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
   
@@ -141,6 +144,20 @@ export default function ClientDetails() {
   useEffect(() => {
     initializedRef.current = false;
   }, [id]);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    let cancelled = false;
+    (async () => {
+      const results = await Promise.all(
+        files.map(async (f) => ((f.file_path && (await getCachedUriSePresente(f.file_path))) ? f.file_path : null))
+      );
+      if (!cancelled) setCachedPaths(new Set(results.filter((p): p is string => !!p)));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [files]);
 
   useEffect(() => {
     if (id && !initializedRef.current) {
@@ -284,6 +301,7 @@ export default function ClientDetails() {
         const { data, error } = await supabase.storage.from('client_vault').createSignedUrl(filePath, 60 * 60);
         if (error || !data?.signedUrl) throw error || new Error("Arquivo não encontrado.");
         await getCachedFileUri(filePath, data.signedUrl);
+        setCachedPaths((prev) => new Set(prev).add(filePath));
         toast.success(`${fileName} salvo no app — abre offline e sem baixar de novo.`, { id: toastId });
       } catch (err) {
         toast.error("Erro ao baixar arquivo.", { id: toastId });
@@ -330,7 +348,9 @@ export default function ClientDetails() {
       if (error || !data?.signedUrl) throw error || new Error("Arquivo não encontrado.");
 
       setPdfPreview({ url: data.signedUrl, name: fileName });
-      baixarParaCacheEmSegundoPlano(filePath, data.signedUrl);
+      baixarParaCacheEmSegundoPlano(filePath, data.signedUrl, () =>
+        setCachedPaths((prev) => new Set(prev).add(filePath))
+      );
     } catch (err) {
       toast.error("Erro ao abrir arquivo.");
     }
@@ -811,6 +831,11 @@ export default function ClientDetails() {
                               <h4 className="text-sm font-black text-slate-900 dark:text-zinc-100 truncate max-w-xs uppercase tracking-tight">{actualName}</h4>
                               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 flex items-center gap-2">
                                 <Calendar className="w-3 h-3" /> {file.created_at ? new Date(file.created_at).toLocaleDateString('pt-BR') : ""}
+                                {file.file_path && cachedPaths.has(file.file_path) && (
+                                  <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-500" title="Disponível offline — já salvo no aparelho">
+                                    <CheckCircle2 className="w-3 h-3" /> Offline
+                                  </span>
+                                )}
                               </p>
                            </div>
                         </div>
