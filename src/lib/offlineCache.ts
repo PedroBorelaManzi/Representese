@@ -16,6 +16,10 @@ export const CacheKeys = {
   ALL_TIME_CATEGORIES: 'rm_cache_all_time_categories',
 };
 
+/** Feriados são por ano — chave dinâmica, fora do objeto CacheKeys (que só
+ *  tem chaves fixas). */
+export const holidaysCacheKey = (year: number) => `rm_cache_holidays_${year}`;
+
 export const offlineCache = {
   set: (key: string, data: any, ttlMs: number = 24 * 60 * 60 * 1000) => {
     try {

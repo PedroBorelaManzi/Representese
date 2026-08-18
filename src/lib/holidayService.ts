@@ -1,3 +1,5 @@
+import { offlineCache, holidaysCacheKey } from "./offlineCache";
+
 export interface Holiday {
   id?: string;
   name: string;
@@ -95,6 +97,14 @@ function buildStateHolidays(
 }
 
 export async function fetchHolidays(year: number, locations: { city: string; state?: string }[]): Promise<Holiday[]> {
+  // Offline: usa o retrato salvo da última sincronização (inclui feriados
+  // municipais vindos da Edge Function) em vez de cair direto no fallback
+  // genérico (só nacional + estadual, sem os municipais).
+  if (!offlineCache.isOnline()) {
+    const cached = offlineCache.get<Holiday[]>(holidaysCacheKey(year));
+    if (cached) return cached;
+  }
+
   try {
     const response = await fetch(`${SUPABASE_URL}/functions/v1/get-holidays`, {
       method: 'POST',
@@ -109,7 +119,9 @@ export async function fetchHolidays(year: number, locations: { city: string; sta
     }
 
     const data = await response.json();
-    return Array.isArray(data) ? data : [];
+    const holidays = Array.isArray(data) ? data : [];
+    offlineCache.set(holidaysCacheKey(year), holidays, 30 * 24 * 60 * 60 * 1000);
+    return holidays;
   } catch (error) {
     console.error('Error fetching holidays from edge function:', error);
 

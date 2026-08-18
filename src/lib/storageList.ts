@@ -52,3 +52,17 @@ export async function listFolderCached(prefix: string): Promise<StorageItem[]> {
   }
   return offlineCache.get<StorageItem[]>(storageListCacheKey(prefix)) || [];
 }
+
+/** Varre recursivamente uma pasta do Storage e devolve o caminho de todo
+ *  arquivo dentro dela (pastas não entram na lista, só o que tem conteúdo). */
+export async function listAllPaths(bucket: string, folderPrefix: string): Promise<string[]> {
+  const { data } = await supabase.storage.from(bucket).list(folderPrefix, { limit: 1000 });
+  let paths: string[] = [];
+  for (const it of data || []) {
+    if (it.name === PLACEHOLDER || it.name === ".emptyFolderPlaceholder") continue;
+    const full = `${folderPrefix}/${it.name}`;
+    if (it.id === null) paths = paths.concat(await listAllPaths(bucket, full));
+    else paths.push(full);
+  }
+  return paths;
+}

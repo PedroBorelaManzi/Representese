@@ -40,6 +40,7 @@ import { SubscriptionGuard } from './SubscriptionGuard';
 import { ErrorBoundary } from './ErrorBoundary';
 import { useIsSupportAdmin } from '../hooks/useIsSupportAdmin';
 import { toast } from 'sonner';
+import FullSyncBanner from './FullSyncBanner';
 
 const SettingsModal = React.lazy(() => import('./SettingsModal'));
 const OnboardingModal = React.lazy(() => import('./OnboardingModal'));
@@ -233,6 +234,7 @@ export default function Layout() {
   return (
     <SubscriptionGuard>
       <div className="flex h-screen bg-slate-100/60 dark:bg-zinc-950 transition-colors duration-300">
+        <FullSyncBanner />
         {/* Skip link: invisível até receber foco via Tab (a11y) */}
         <a
           href="#conteudo"

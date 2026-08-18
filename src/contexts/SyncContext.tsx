@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef, ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { syncQueue } from '../lib/syncQueue';
+import { runFullSync, type FullSyncProgress } from '../lib/fullSync';
+import { useAuth } from './AuthContext';
 import { toast } from 'sonner';
 
 interface SyncContextType {
@@ -10,16 +12,24 @@ interface SyncContextType {
   deadLetterCount: number;
   isSyncing: boolean;
   syncNow: () => Promise<void>;
+  /** Progresso da sincronização completa (clientes, pedidos, agenda, feriados,
+   *  arquivos) — null quando não está rodando. */
+  fullSyncProgress: FullSyncProgress | null;
 }
 
 const SyncContext = createContext<SyncContextType | undefined>(undefined);
 
 export function SyncProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const [isOnline, setIsOnline] = useState<boolean>(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [pendingCount, setPendingCount] = useState<number>(0);
   const [deadLetterCount, setDeadLetterCount] = useState<number>(0);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [fullSyncProgress, setFullSyncProgress] = useState<FullSyncProgress | null>(null);
   const queryClient = useQueryClient();
+  // Evita rodar a sincronização completa de novo no mesmo boot, e detecta
+  // troca de usuário (logout/login) pra rodar de novo nesse caso.
+  const bootSyncedForUserRef = useRef<string | null>(null);
   // Evita dois flushes simultâneos (ex.: reconexão + clique manual no botão).
   const flushingRef = useRef(false);
   // Rede móvel instável pode disparar 'online' várias vezes seguidas (handoff
@@ -61,6 +71,20 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     }
   }, [queryClient]);
 
+  // Baixa tudo (clientes, pedidos, agenda, feriados e, no app, o conteúdo dos
+  // arquivos) e deixa salvo no aparelho. Roda depois do flushQueue de
+  // propósito: primeiro sobe o que foi feito offline, só depois baixa o
+  // retrato completo — assim a cópia local reflete a MESMA alteração que
+  // acabou de subir, não uma versão anterior a ela.
+  const runFull = useCallback(async () => {
+    if (!user) return;
+    try {
+      await runFullSync(user.id, setFullSyncProgress);
+    } finally {
+      setFullSyncProgress(null);
+    }
+  }, [user]);
+
   useEffect(() => {
     updateStatus();
 
@@ -77,7 +101,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       if (onlineDebounceRef.current) clearTimeout(onlineDebounceRef.current);
       onlineDebounceRef.current = setTimeout(() => {
         onlineDebounceRef.current = null;
-        flushQueue();
+        flushQueue().then(() => runFull());
       }, 2000);
     };
 
@@ -102,7 +126,17 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('sync-queue-updated', handleQueueUpdate);
     };
-  }, [flushQueue]);
+  }, [flushQueue, runFull]);
+
+  // Sincronização completa no boot: uma vez por usuário logado (não a cada
+  // re-render). Se trocar de usuário (logout/login) na mesma sessão do app,
+  // roda de novo pro usuário novo.
+  useEffect(() => {
+    if (!user || !navigator.onLine) return;
+    if (bootSyncedForUserRef.current === user.id) return;
+    bootSyncedForUserRef.current = user.id;
+    runFull();
+  }, [user, runFull]);
 
   const syncNow = useCallback(async () => {
     if (!isOnline) {
@@ -137,8 +171,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   }, [isOnline, queryClient]);
 
   const contextValue = useMemo(
-    () => ({ isOnline, pendingCount, deadLetterCount, isSyncing, syncNow }),
-    [isOnline, pendingCount, deadLetterCount, isSyncing, syncNow]
+    () => ({ isOnline, pendingCount, deadLetterCount, isSyncing, syncNow, fullSyncProgress }),
+    [isOnline, pendingCount, deadLetterCount, isSyncing, syncNow, fullSyncProgress]
   );
 
   return (

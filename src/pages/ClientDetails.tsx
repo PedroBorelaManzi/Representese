@@ -181,12 +181,37 @@ export default function ClientDetails() {
   const loadClientData = async () => {
     try {
       setLoading(true);
+
+      // Offline: usa o retrato da última sincronização completa (ou da
+      // última vez que esse cliente foi aberto online) em vez de travar
+      // esperando uma rede que não existe.
+      if (!offlineCache.isOnline()) {
+        const cachedClients = offlineCache.get<Client[]>(CacheKeys.CLIENTS) || [];
+        const cachedClient = cachedClients.find((c) => c.id === id);
+        if (cachedClient) {
+          setClient(cachedClient);
+          setNotes(cachedClient.notes || "");
+        } else {
+          toast.error("Cliente ainda não sincronizado — conecte à internet uma vez pra salvar offline.");
+        }
+
+        const cachedOrders = (offlineCache.get<Order[]>(CacheKeys.ORDERS) || [])
+          .filter((o) => o.client_id === id)
+          .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
+        setFiles(cachedOrders);
+        setUserCategories(
+          Array.from(new Set((offlineCache.get<Order[]>(CacheKeys.ORDERS) || []).map((o) => o.category).filter(Boolean) as string[]))
+        );
+        setLoading(false);
+        return;
+      }
+
       const { data: clientData, error: clientError } = await supabase
         .from('clients')
         .select('*')
         .eq('id', id)
         .single();
-      
+
       if (clientError) throw clientError;
       setClient(clientData as Client);
       setNotes(clientData.notes || "");
@@ -196,7 +221,7 @@ export default function ClientDetails() {
         .select('*')
         .eq('client_id', id)
         .order('created_at', { ascending: false });
-      
+
       setFiles((ordersData as Order[]) || []);
 
       // As representadas do usuário vêm de todos os pedidos dele, não só deste

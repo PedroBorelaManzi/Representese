@@ -24,7 +24,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { offlineCache } from "../lib/offlineCache";
-import { BUCKET, PLACEHOLDER, listFolderCached, type StorageItem } from "../lib/storageList";
+import { BUCKET, PLACEHOLDER, listFolderCached, listAllPaths, type StorageItem } from "../lib/storageList";
 import { PageHeader, Skeleton, useConfirm } from "../components/ui";
 import { PdfViewerModal } from "../components/PdfViewerModal";
 import TourArrow from "../components/TourArrow";
@@ -357,25 +357,13 @@ export default function Arquivos() {
     document.body.removeChild(a);
   };
 
-  // lista todos os caminhos de arquivo (recursivo) sob um prefixo
-  const listAllPaths = async (folderPrefix: string): Promise<string[]> => {
-    const { data } = await supabase.storage.from(BUCKET).list(folderPrefix, { limit: 1000 });
-    let paths: string[] = [];
-    for (const it of data || []) {
-      const full = `${folderPrefix}/${it.name}`;
-      if (it.id === null) paths = paths.concat(await listAllPaths(full));
-      else paths.push(full);
-    }
-    return paths;
-  };
-
   const handleDelete = async (item: StorageItem) => {
     const label = item.isFolder ? `a pasta "${item.name}" e todo o seu conteúdo` : `o arquivo "${item.name}"`;
     if (!(await confirm({ title: item.isFolder ? 'Excluir pasta' : 'Excluir arquivo', message: `Deseja excluir ${label}? Esta ação não pode ser desfeita.` }))) return;
 
     let toRemove: string[];
     if (item.isFolder) {
-      toRemove = await listAllPaths(`${prefix}/${item.name}`);
+      toRemove = await listAllPaths(BUCKET, `${prefix}/${item.name}`);
     } else {
       toRemove = [`${prefix}/${item.name}`];
     }
