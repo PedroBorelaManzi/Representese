@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Plus,
   ChevronLeft,
@@ -30,6 +30,8 @@ import { offlineCache, CacheKeys } from "../lib/offlineCache";
 import { fetchHolidays, getClientLocations, Holiday } from "../lib/holidayService";
 import { cn } from "../lib/utils";
 import { PageHeader, useConfirm } from "../components/ui";
+import { useModalEsc } from "../hooks/useModalEsc";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -83,6 +85,13 @@ export default function Agenda() {
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [selectedHoliday, setSelectedHoliday] = useState<Holiday | null>(null);
   const [searchFilter, setSearchFilter] = useState('');
+
+  const notesPanelRef = useRef<HTMLDivElement>(null);
+  useModalEsc(() => setIsNotesModalOpen(false), isNotesModalOpen);
+  useFocusTrap(notesPanelRef, isNotesModalOpen);
+  const holidayPanelRef = useRef<HTMLDivElement>(null);
+  useModalEsc(() => setSelectedHoliday(null), !!selectedHoliday);
+  useFocusTrap(holidayPanelRef, !!selectedHoliday);
 
   const queryClient = useQueryClient();
 
@@ -694,7 +703,7 @@ export default function Agenda() {
         {isNotesModalOpen && (
            <div className="fixed inset-0 z-[11000] flex items-center justify-center p-4">
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsNotesModalOpen(false)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-xl" />
-              <motion.div initial={{ opacity: 0, scale: 0.9, y: 40 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 40 }} className="relative z-[11001] w-full max-w-2xl h-[600px]">
+              <motion.div ref={notesPanelRef} role="dialog" aria-modal="true" aria-label="Notas do dia" tabIndex={-1} initial={{ opacity: 0, scale: 0.9, y: 40 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 40 }} className="relative z-[11001] w-full max-w-2xl h-[600px] outline-none">
                 <DailyNotes selectedDate={selectedNoteDate} className="h-full shadow-2xl border-2 border-emerald-500/20" />
                 <button onClick={() => setIsNotesModalOpen(false)} className="absolute top-6 right-6 p-3 bg-white dark:bg-zinc-900 rounded-2xl text-slate-400 hover:text-emerald-600 transition-all shadow-lg z-20">
                   <X className="w-5 h-5" />
@@ -727,7 +736,7 @@ export default function Agenda() {
         {selectedHoliday && (
           <div className="fixed inset-0 z-[11000] flex items-center justify-center p-4">
              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedHoliday(null)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-xl" />
-             <motion.div initial={{ opacity: 0, scale: 0.9, y: 40 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 40 }} className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-[48px] shadow-2xl border border-slate-200 dark:border-zinc-800 overflow-hidden relative z-[11001]">
+             <motion.div ref={holidayPanelRef} role="dialog" aria-modal="true" aria-label={selectedHoliday.name} tabIndex={-1} initial={{ opacity: 0, scale: 0.9, y: 40 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 40 }} className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-[48px] shadow-2xl border border-slate-200 dark:border-zinc-800 overflow-hidden relative z-[11001] outline-none">
                 <div className="p-10">
                    <div className="flex justify-between items-start mb-8">
                      <div className="flex items-center gap-4">

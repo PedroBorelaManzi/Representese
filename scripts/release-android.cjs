@@ -153,9 +153,21 @@ function main() {
   const versionedPath = path.join(path.dirname(aabPath), versionedName);
   fs.copyFileSync(aabPath, versionedPath);
 
+  // Alimenta o aviso de "nova versão disponível" dentro do próprio app (ver
+  // src/components/UpdateNudge.tsx): o app compara seu versionCode contra
+  // este arquivo, publicado junto com o site a cada deploy. Fica em public/
+  // pra entrar no próximo `git push`/deploy do site como qualquer outro
+  // arquivo estático — não é um passo extra pra lembrar depois.
+  const versionFilePath = path.join(ROOT, "public", "app-version.json");
+  fs.writeFileSync(
+    versionFilePath,
+    JSON.stringify({ versionCode: newVersionCode, versionName: novoNome }, null, 2) + "\n"
+  );
+
   console.log("\n=== Pronto! ===");
   console.log(`Versão gerada: ${novoNome || "(versionName inalterado)"} (versionCode ${newVersionCode})`);
   console.log(`Arquivo gerado em: ${versionedPath}`);
+  console.log(`public/app-version.json atualizado — sobe junto no próximo deploy do site.`);
   console.log("Agora é só subir esse arquivo no Play Console (trilha de teste ou produção).");
 }
 

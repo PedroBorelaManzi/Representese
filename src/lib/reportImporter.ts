@@ -69,7 +69,9 @@ async function extractLines(file: File): Promise<{ lines: string[][]; warnings: 
   const warnings: string[] = [];
   const pdfjs = await loadPdfjs();
   const buffer = await file.arrayBuffer();
-  const pdf = await pdfjs.getDocument({ data: buffer, isEvalSupported: false }).promise;
+  // pdf.js v6 removeu eval() do motor de renderização/parsing por completo —
+  // não existe mais a opção isEvalSupported (nem falta fazer nada pelo CSP).
+  const pdf = await pdfjs.getDocument({ data: buffer }).promise;
 
   const lines: string[][] = [];
   for (let p = 1; p <= pdf.numPages; p++) {

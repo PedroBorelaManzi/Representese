@@ -6,7 +6,6 @@
    literal '\\n' (backslash + n) em vez de quebra de linha real, e não escapava
    vírgulas/aspas/quebras de linha dentro dos campos — um nome ou empresa com
    vírgula ou quebra de linha deslocava todas as colunas seguintes. */
-import ExcelJS from 'exceljs';
 import {
   BRAND,
   INT_FMT,
@@ -41,6 +40,7 @@ const WEEKDAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', '
 
 /* ═══════════════════════════ Excel: contatos capturados (/register) ═══════════════════════════ */
 export async function exportRawLeadsAsExcel(leads: RawLead[]) {
+  const { default: ExcelJS } = await import('exceljs'); // ~940 kB: só carrega quando o usuário exporta a planilha
   const workbook = new ExcelJS.Workbook();
   workbook.created = new Date();
   workbook.creator = 'Represente-Se';
@@ -104,6 +104,7 @@ export async function exportRawLeadsAsExcel(leads: RawLead[]) {
 
 /* ═══════════════════════════ Excel: base de leads/assinantes ═══════════════════════════ */
 export async function exportSubscriptionLeadsAsExcel(leads: SubscriptionLead[]) {
+  const { default: ExcelJS } = await import('exceljs'); // ~940 kB: só carrega quando o usuário exporta a planilha
   const workbook = new ExcelJS.Workbook();
   workbook.created = new Date();
   workbook.creator = 'Represente-Se';

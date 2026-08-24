@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase, logError } from './supabase';
 
 export type SyncAction = 'INSERT' | 'UPDATE' | 'DELETE' | 'UPSERT';
 
@@ -10,6 +10,10 @@ export interface SyncOperation {
   recordId?: string; // id of the record being updated/deleted
   timestamp: number;
   attempts?: number; // quantas vezes o processQueue já tentou (e falhou)
+  /** Coluna usada no UPDATE (.eq) e no UPSERT (onConflict) — default 'id'.
+   *  Tabelas como user_settings não têm o id da linha no cliente, só o
+   *  user_id, que é a chave única de fato ali. */
+  matchColumn?: string;
 }
 
 const SYNC_QUEUE_KEY = 'rm_sync_queue';
@@ -40,7 +44,7 @@ export const syncQueue = {
     }
   },
 
-  enqueue: (table: string, action: SyncAction, payload: any, recordId?: string) => {
+  enqueue: (table: string, action: SyncAction, payload: any, recordId?: string, matchColumn?: string) => {
     const queue = syncQueue.getQueue();
     // Idempotência: INSERT ganha id gerado aqui e vira UPSERT no processamento.
     // Se a rede cair depois do servidor gravar (mas antes do ACK), o retry
@@ -54,6 +58,7 @@ export const syncQueue = {
       action,
       payload,
       recordId,
+      matchColumn,
       timestamp: Date.now()
     });
     syncQueue.setQueue(queue);
@@ -123,13 +128,13 @@ export const syncQueue = {
             : await supabase.from(op.table).insert([op.payload]);
           if (error) throw error;
         } else if (op.action === 'UPDATE' && op.recordId) {
-          const { error } = await supabase.from(op.table).update(op.payload).eq('id', op.recordId);
+          const { error } = await supabase.from(op.table).update(op.payload).eq(op.matchColumn || 'id', op.recordId);
           if (error) throw error;
         } else if (op.action === 'DELETE' && op.recordId) {
-          const { error } = await supabase.from(op.table).delete().eq('id', op.recordId);
+          const { error } = await supabase.from(op.table).delete().eq(op.matchColumn || 'id', op.recordId);
           if (error) throw error;
         } else if (op.action === 'UPSERT') {
-          const { error } = await supabase.from(op.table).upsert(op.payload, { onConflict: 'id' });
+          const { error } = await supabase.from(op.table).upsert(op.payload, { onConflict: op.matchColumn || 'id' });
           if (error) throw error;
         }
         processedIds.push(op.id);
@@ -139,6 +144,11 @@ export const syncQueue = {
         const attempts = (op.attempts || 0) + 1;
         if (attempts >= MAX_SYNC_ATTEMPTS) {
           deadLettered.push({ ...op, attempts });
+          // Esgotou as tentativas: essa alteração do usuário nunca chegou no
+          // banco e ninguém fica sabendo, a não ser que o usuário abra o
+          // aviso de "alterações não enviadas" — manda pro Sentry pra
+          // aparecer no radar mesmo que ele não repare.
+          logError(e, `syncQueue.deadLetter:${op.table}.${op.action}`);
         } else {
           failedAttempts.set(op.id, attempts);
         }

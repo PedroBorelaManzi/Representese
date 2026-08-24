@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useRef } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap, Tooltip } from "react-leaflet";
+import { MapContainer, Marker, Popup, useMap, Tooltip } from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import "leaflet/dist/leaflet.css";
 import "react-leaflet-cluster/dist/assets/MarkerCluster.css";
@@ -12,10 +12,17 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
 import { useClients } from "../hooks/useClients";
+import { useSync } from "../contexts/SyncContext";
+import { syncQueue } from "../lib/syncQueue";
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from "sonner";
 import { offlineCache, CacheKeys } from "../lib/offlineCache";
 import { getCachedUriSePresente, getCachedFileUri } from "../lib/fileCache";
+import { createOfflineTileLayer } from "../lib/offlineTileLayer";
+import { lookupCnpj } from "../lib/cnpjLookup";
+import { getHighPrecisionCoordinates } from "../lib/geminiGeocoding";
+import { useModalEsc } from "../hooks/useModalEsc";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 import { PageHeader, useConfirm } from "../components/ui";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { Capacitor } from '@capacitor/core';
@@ -114,6 +121,23 @@ function MapResizeTrigger({ isFullscreen }: { isFullscreen: boolean }) {
   return null;
 }
 
+// Substitui o <TileLayer> padrão do react-leaflet: aquele busca as imagens
+// direto da rede sem guardar nada, então sair da área de cobertura de dados
+// deixava o mapa um quadriculado cinza (só os pinos apareciam). Este passa
+// cada tile pelo cache local (mapTileCache) — a rua que já foi vista uma vez
+// continua aparecendo offline.
+function OfflineAwareTileLayer({ url, attribution }: { url: string; attribution: string }) {
+  const map = useMap();
+  useEffect(() => {
+    const layer = createOfflineTileLayer(url, { attribution, maxZoom: 19 });
+    layer.addTo(map);
+    return () => {
+      map.removeLayer(layer);
+    };
+  }, [map, url, attribution]);
+  return null;
+}
+
 export default function Map() {
   const triggerLightHaptic = async () => {
     try {
@@ -125,6 +149,7 @@ export default function Map() {
   const { settings } = useSettings();
   const confirm = useConfirm();
   const { data: companies = [] } = useClients();
+  const { isOnline } = useSync();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchingMap, setIsSearchingMap] = useState(false);
@@ -138,6 +163,9 @@ export default function Map() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isPseudoFullscreen, setIsPseudoFullscreen] = useState(false);
   const isCurrentlyFullscreen = isFullscreen || isPseudoFullscreen;
+  const addLocationPanelRef = useRef<HTMLDivElement>(null);
+  useModalEsc(() => setIsModalOpen(false), isModalOpen);
+  useFocusTrap(addLocationPanelRef, isModalOpen);
   // Preferência pessoal, não é dado do usuário no banco — fica só no aparelho.
   // Agrupar ajuda com carteiras grandes, mas quem prefere ver cada pin sempre
   // pode desligar; lembra a escolha entre sessões.
@@ -382,6 +410,18 @@ export default function Map() {
 
   const handleMarkerDrag = async (id: string, latlng: { lat: number, lng: number }) => {
     triggerLightHaptic();
+
+    // Sem internet: guarda na fila de sincronização (mesmo mecanismo do CRM)
+    // em vez de deixar o arraste do pino se perder num erro silencioso.
+    if (!isOnline) {
+      syncQueue.enqueue('clients', 'UPDATE', { lat: latlng.lat, lng: latlng.lng }, id);
+      queryClient.setQueryData(['clients', user?.id], (old: any[]) =>
+        old ? old.map(c => c.id === id ? { ...c, lat: latlng.lat, lng: latlng.lng } : c) : old
+      );
+      toast.success("Localização salva offline — sincroniza quando a internet voltar.");
+      return;
+    }
+
     const { error } = await supabase
       .from("clients")
       .update({ lat: latlng.lat, lng: latlng.lng })
@@ -401,6 +441,13 @@ export default function Map() {
 
   const handleDeleteClient = async (id: string, name: string) => {
     if (!(await confirm({ title: 'Excluir cliente', message: `Deseja realmente excluir o cliente "${name}"? Esta ação não pode ser desfeita.` }))) return;
+
+    if (!isOnline) {
+      syncQueue.enqueue('clients', 'DELETE', null, id);
+      queryClient.setQueryData(['clients', user?.id], (old: any[]) => old ? old.filter(c => c.id !== id) : old);
+      toast.success('Cliente removido offline — sincroniza quando a internet voltar.');
+      return;
+    }
 
     const { error } = await supabase.from("clients").delete().eq("id", id).eq("user_id", user?.id);
     if (error) {
@@ -422,32 +469,29 @@ export default function Map() {
 
     setIsSearchingCnpj(true);
     try {
-      const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanedCnpj}`);
-      if (!response.ok) throw new Error("CNPJ não encontrado");
-      
-      const data = await response.json();
-      const streetType = data.tipo_logradouro ? `${data.tipo_logradouro} ` : "";
-      const addressStr = `${data.cep || ""} ${streetType}${data.logradouro || ""}, ${data.numero || ""}, ${data.municipio || ""}, ${data.uf || ""}, Brasil`;
-      
-      let lat = center[0];
-      let lng = center[1];
-      
-      try {
-        let geoResponse = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressStr)}`);
-        let geoData = await geoResponse.json();
-        
-        if (geoData && geoData.length > 0) {
-          lat = parseFloat(geoData[0].lat);
-          lng = parseFloat(geoData[0].lon);
-        }
-      } catch {}
+      const found = await lookupCnpj(cleanedCnpj);
+      if (!found) throw new Error("CNPJ não encontrado");
+
+      // Mesmo geocodificador de alta precisão usado no CRM (cascata de CEP →
+      // endereço estruturado → IA → nome da empresa), em vez de uma única
+      // tentativa direta no Nominatim — mais preciso e com cache embutido.
+      const coords = await getHighPrecisionCoordinates(found.address, found.name, cleanedCnpj, {
+        razaoSocial: found.raw.razaoSocial,
+        nomeFantasia: found.raw.nomeFantasia,
+        street: found.raw.logradouro,
+        number: found.raw.numero,
+        neighborhood: found.raw.bairro,
+        city: found.city,
+        state: found.state,
+        cep: found.raw.cep,
+      });
 
       setNewLocation(prev => ({
         ...prev,
-        name: data.razao_social || data.nome_fantasia || prev.name,
-        address: `${data.logradouro || ""}, ${data.numero || "S/N"} - ${data.bairro || ""}, ${data.municipio || ""} - ${data.uf || ""}`.trim(),
-        lat,
-        lng
+        name: found.name || prev.name,
+        address: found.address,
+        lat: coords?.lat ?? center[0],
+        lng: coords?.lng ?? center[1],
       }));
       toast.success("Dados recuperados com sucesso!");
     } catch (err) {
@@ -492,17 +536,37 @@ export default function Map() {
     e.preventDefault();
     if (!user) return;
 
-    const { error } = await supabase.from("clients").insert([{
+    // phone/email ficam de fora — são opcionais (o cadastro via CRM também não
+    // manda esses campos) e um placeholder tipo "(11) 90000-0000" salvo de
+    // verdade no banco passava a impressão de ser um contato real do cliente.
+    const payload = {
        user_id: user.id,
        name: newLocation.name,
        cnpj: newLocation.cnpj,
        address: newLocation.address,
        lat: newLocation.lat,
        lng: newLocation.lng,
-       phone: "(11) 90000-0000",
-       email: "contato@exemplo.com",
        last_contact: new Date().toISOString().split('T')[0]
-    }]);
+    };
+
+    // Sem internet: cadastra localmente e guarda na fila de sincronização —
+    // antes disso, cadastrar um cliente em campo sem sinal simplesmente falhava
+    // com um toast de erro e o ponto se perdia.
+    if (!isOnline) {
+      const optimisticId = crypto.randomUUID();
+      syncQueue.enqueue("clients", "INSERT", { ...payload, id: optimisticId });
+      queryClient.setQueryData(['clients', user.id], (old: any[]) =>
+        old ? [...old, { ...payload, id: optimisticId }] : old
+      );
+      setIsModalOpen(false);
+      setCenter([newLocation.lat, newLocation.lng]);
+      setZoom(15);
+      setNewLocation({ cnpj: "", name: "", contact: "", address: "", lat: -23.5500, lng: -46.6340 });
+      toast.success("Ponto salvo offline — sincroniza quando a internet voltar.");
+      return;
+    }
+
+    const { error } = await supabase.from("clients").insert([payload]);
 
     if (!error) {
        loadClients();
@@ -710,9 +774,9 @@ export default function Map() {
             }}
           />
           <MapResizeTrigger isFullscreen={isCurrentlyFullscreen} />
-          <TileLayer 
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' 
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" 
+          <OfflineAwareTileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           {(() => {
             const markers = mapCompanies.filter(c => c.lat && c.lng).map((company) => {
@@ -840,11 +904,16 @@ export default function Map() {
         {isModalOpen && (
           <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/60 backdrop-blur-xl" onClick={() => setIsModalOpen(false)} />
-            <motion.div 
-               initial={{ opacity: 0, scale: 0.9, y: 40 }} 
-               animate={{ opacity: 1, scale: 1, y: 0 }} 
-               exit={{ opacity: 0, scale: 0.9, y: 40 }} 
-               className="bg-white dark:bg-zinc-900 rounded-[56px] border border-slate-200 dark:border-zinc-800 w-full max-w-xl relative z-[10001] overflow-hidden shadow-[0_64px_128px_-32px_rgba(0,0,0,0.5)]"
+            <motion.div
+               ref={addLocationPanelRef}
+               role="dialog"
+               aria-modal="true"
+               aria-label="Adicionar Clientes"
+               tabIndex={-1}
+               initial={{ opacity: 0, scale: 0.9, y: 40 }}
+               animate={{ opacity: 1, scale: 1, y: 0 }}
+               exit={{ opacity: 0, scale: 0.9, y: 40 }}
+               className="bg-white dark:bg-zinc-900 rounded-[56px] border border-slate-200 dark:border-zinc-800 w-full max-w-xl relative z-[10001] overflow-hidden shadow-[0_64px_128px_-32px_rgba(0,0,0,0.5)] outline-none"
             >
                <div className="p-8 lg:p-12 border-b dark:border-zinc-850 flex items-center justify-between bg-slate-50/50 dark:bg-zinc-950/20">
                 <div>

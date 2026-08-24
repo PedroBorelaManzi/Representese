@@ -21,7 +21,7 @@ import {
   CreditCard,
   PhoneCall
 } from "lucide-react";
-import { supabase } from "../lib/supabase";
+import { supabase, logError } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
 import { useUpload } from "../contexts/UploadContext";
@@ -40,8 +40,12 @@ import ClientFollowupHistory from "../components/ClientFollowupHistory";
 import { PdfViewerModal } from "../components/PdfViewerModal";
 import { getClientFollowupStatus, type ClientFollowupStatus } from "../lib/followupService";
 import { useConfirm } from "../components/ui";
+import { useModalEsc } from "../hooks/useModalEsc";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 import { getCachedUriSePresente, getCachedFileUri, baixarParaCacheEmSegundoPlano } from "../lib/fileCache";
 import { ajustarFaturamento } from "../lib/faturamento";
+import { saveFileToIndexedDB } from "../lib/storage";
+import { queuePendingFileUpload } from "../lib/pendingFileUploads";
 import { Capacitor } from "@capacitor/core";
 
 import { toTitleCase } from "../lib/utils";
@@ -53,14 +57,17 @@ function cn(...classes: (string | boolean | undefined)[]) {
 export default function ClientDetails() {
   const { id } = useParams();
   const { user } = useAuth();
-  const { settings } = useSettings();
+  const { settings, updateSettings } = useSettings();
   const { drafts, setDraft, clearDraft } = useUpload();
   const navigate = useNavigate();
   const confirm = useConfirm();
   
   const draft = drafts[id || ""] || { file: null, category: "", value: "", isOpen: false };
   const currentFile = draft.file;
-  
+  const uploadPanelRef = useRef<HTMLDivElement>(null);
+  useModalEsc(() => setDraft(id || "", { isOpen: false }), draft.isOpen);
+  useFocusTrap(uploadPanelRef, draft.isOpen);
+
   const [client, setClient] = useState<Client | null>(null);
   const [files, setFiles] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -397,12 +404,6 @@ export default function ClientDetails() {
       const formattedName = `${uploadCategory}___VALOR_${uploadValue}___${cleanFileName}`;
       const filePath = `${user.id}/${id}/${formattedName}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('client_vault')
-        .upload(filePath, currentFile, { upsert: true });
-
-      if (uploadError) throw uploadError;
-
       // Não incluir campos que não existem na tabela orders (ex.: "description"):
       // o PostgREST rejeita o insert inteiro e o pedido não é salvo.
       const orderPayload = {
@@ -415,10 +416,18 @@ export default function ClientDetails() {
           file_path: filePath,
           created_at: new Date().toISOString()
       };
-      
+
       if (!offlineCache.isOnline()) {
+          // O upload pro Storage exige rede — sem ela, guarda o arquivo no
+          // IndexedDB do aparelho (mesmo mecanismo dos rascunhos) e marca pra
+          // subir sozinho na próxima sincronização. Sem essa guarda, a chamada
+          // de upload logo acima quebrava primeiro e nem chegava a enfileirar
+          // o pedido — o anexo se perdia inteiro.
+          await saveFileToIndexedDB(filePath, currentFile);
+          queuePendingFileUpload(filePath);
+
           syncQueue.enqueue('orders', 'INSERT', orderPayload);
-          
+
           if (client) {
              const updatedFat = ajustarFaturamento(client.faturamento, uploadCategory, numericValue);
              syncQueue.enqueue('clients', 'UPDATE', { faturamento: updatedFat }, id);
@@ -435,6 +444,11 @@ export default function ClientDetails() {
           offlineCache.set(CacheKeys.ORDERS, [orderPayload, ...cachedOrders]);
           setFiles(prev => [orderPayload, ...prev]);
       } else {
+          const { error: uploadError } = await supabase.storage
+            .from('client_vault')
+            .upload(filePath, currentFile, { upsert: true });
+          if (uploadError) throw uploadError;
+
           const { error: dbError } = await supabase.from('orders').insert([orderPayload]);
           if (dbError) throw dbError;
           
@@ -453,6 +467,7 @@ export default function ClientDetails() {
       loadClientData();
     } catch (err: any) {
       console.error("Upload error:", err);
+      logError(err, "ClientDetails.submitUpload");
       toast.error(err.message || "Erro no upload.");
     } finally {
       setIsUploading(false);
@@ -493,14 +508,16 @@ export default function ClientDetails() {
     }
     
     try {
+        // Passa por updateSettings() em vez de um upsert próprio: evita
+        // duplicar a lógica e, mais importante, ganha o fallback offline
+        // (fila de sincronização) que updateSettings já trata sozinho.
         const updatedCategories = [...current, newCategoryName.trim()];
-        const { error } = await supabase.from('user_settings').upsert({ user_id: user?.id, categories: updatedCategories });
-        if (error) throw error;
-        
+        await updateSettings({ categories: updatedCategories });
+
         handleUpdateCategory(newCategoryName.trim());
         setIsCreatingCategory(false);
         setNewCategoryName("");
-        toast.success("Categoria criada com sucesso!");
+        toast.success(offlineCache.isOnline() ? "Categoria criada com sucesso!" : "Categoria criada offline!");
     } catch (err) {
         toast.error("Erro ao criar categoria");
     }
@@ -885,11 +902,16 @@ export default function ClientDetails() {
         {draft.isOpen && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setDraft(id || "", { isOpen: false })} className="absolute inset-0 bg-slate-900/80 backdrop-blur-xl" />
-            <motion.div 
+            <motion.div
+              ref={uploadPanelRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Anexar Documento"
+              tabIndex={-1}
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="bg-white dark:bg-zinc-900 rounded-[48px] border border-white/20 shadow-2xl w-full max-w-md relative z-10 overflow-hidden"
+              className="bg-white dark:bg-zinc-900 rounded-[48px] border border-white/20 shadow-2xl w-full max-w-md relative z-10 overflow-hidden outline-none"
             >
               <div className="p-10 border-b border-slate-50 dark:border-zinc-850 flex items-center justify-between">
                 <div>

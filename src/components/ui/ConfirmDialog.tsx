@@ -1,7 +1,8 @@
-import React, { createContext, useCallback, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useCallback, useContext, useState, ReactNode, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle, Trash2 } from 'lucide-react';
 import { useModalEsc } from '../../hooks/useModalEsc';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { cn } from '../../lib/utils';
 
 export interface ConfirmOptions {
@@ -48,6 +49,8 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
   };
 
   useModalEsc(() => settle(false), !!pending);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(panelRef, !!pending);
 
   const tone = pending?.options.tone ?? 'danger';
 
@@ -64,14 +67,16 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
             onClick={() => settle(false)}
           >
             <motion.div
+              ref={panelRef}
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
               role="alertdialog"
               aria-modal="true"
               aria-label={pending.options.title || 'Confirmação'}
+              tabIndex={-1}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-sm rounded-3xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-2xl p-6"
+              className="w-full max-w-sm rounded-3xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-2xl p-6 outline-none"
             >
               <div className="flex items-start gap-4">
                 <div

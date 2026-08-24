@@ -4,6 +4,7 @@ import { X, Clock, Plus, Trash2, Save } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "../lib/utils";
 import { useModalEsc } from "../hooks/useModalEsc";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 interface Appointment {
   id: string;
@@ -161,6 +162,8 @@ export default function AppointmentForm({
   // Esc fecha (o hook já é usado por SettingsModal, ConfirmDialog e ui/Modal —
   // justamente o modal mais aberto do sistema estava de fora).
   useModalEsc(onClose);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(panelRef, true);
 
   // Sem isso a página inteira rolava atrás do modal.
   useEffect(() => {
@@ -187,10 +190,12 @@ export default function AppointmentForm({
       aria-modal="true"
       aria-label={appointment.id ? "Editar compromisso" : "Novo compromisso"}
     >
-      <motion.div 
+      <motion.div
+        ref={panelRef}
+        tabIndex={-1}
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="bg-white dark:bg-zinc-900 rounded-[40px] border border-slate-100 dark:border-zinc-800 shadow-[0_32px_128px_-16px_rgba(0,0,0,0.3)] w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]"
+        className="bg-white dark:bg-zinc-900 rounded-[40px] border border-slate-100 dark:border-zinc-800 shadow-[0_32px_128px_-16px_rgba(0,0,0,0.3)] w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh] outline-none"
       >
         <div className="p-8 pb-4 flex justify-between items-center">
           <div>

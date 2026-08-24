@@ -3,6 +3,7 @@ import { X, Loader2, AlertTriangle, Download, ZoomIn, ZoomOut } from "lucide-rea
 import { motion, AnimatePresence } from "framer-motion";
 import { loadPdfjs } from "../lib/pdfjsLoader";
 import { useFecharComBotaoVoltar } from "../lib/backOverlays";
+import { useModalEsc } from "../hooks/useModalEsc";
 
 interface PdfViewerModalProps {
   isOpen: boolean;
@@ -65,7 +66,7 @@ export function PdfViewerModal({ isOpen, onClose, url, fileName, onDownload }: P
     (async () => {
       try {
         const pdfjs = await loadPdfjs();
-        const doc = await pdfjs.getDocument({ url, isEvalSupported: false }).promise;
+        const doc = await pdfjs.getDocument({ url }).promise;
         if (cancelled) return;
         const firstPage = await doc.getPage(1);
         if (cancelled) return;
@@ -98,14 +99,11 @@ export function PdfViewerModal({ isOpen, onClose, url, fileName, onDownload }: P
     return () => ro.disconnect();
   }, [isOpen]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [isOpen, onClose]);
+  // Sem focus trap aqui de propósito: o corpo do visualizador é uma área de
+  // scroll/zoom virtualizada por canvas (páginas montam/desmontam conforme
+  // rolagem), então prender o foco poderia brigar com o scroll/pinch-zoom.
+  // O Esc sozinho já cobre o essencial de acessibilidade de teclado.
+  useModalEsc(onClose, isOpen);
 
   // No Android, "Voltar" fecha o visualizador em vez de sair da página.
   useFecharComBotaoVoltar(isOpen, onClose);

@@ -36,6 +36,7 @@ import { toast } from "sonner";
 import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 import { Fingerprint } from 'lucide-react';
 import { Sentry } from '../lib/sentry';
+import { usePageMeta } from '../hooks/usePageMeta';
 
 /* O usuário não deve nunca ver um erro cru do GoTrue/Supabase (ex.:
    "Database error querying schema") sem explicação — já aconteceu de um
@@ -88,6 +89,11 @@ const features = [
 ];
 
 export default function Login() {
+  usePageMeta(
+    "Entrar",
+    "Acesse sua conta Represente-Se! e gerencie sua carteira de clientes, pedidos e agenda em um só lugar.",
+    "/login"
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -258,12 +264,13 @@ export default function Login() {
 
           <form onSubmit={handleLogin} className="space-y-6">
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] px-4">E-mail</label>
+              <label htmlFor="login-email" className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] px-4">E-mail</label>
               <div className="relative group">
                 <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors">
                   <Mail className="w-5 h-5" />
                 </div>
                 <input
+                  id="login-email"
                   required
                   type="email"
                   autoComplete="email"
@@ -277,7 +284,7 @@ export default function Login() {
 
             <div className="space-y-2">
               <div className="flex justify-between items-center px-4">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Senha</label>
+                <label htmlFor="login-password" className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Senha</label>
                 <Link to="/recovery" className="text-[10px] font-black text-emerald-600 uppercase tracking-widest hover:text-emerald-700 transition-colors">Esqueci a senha</Link>
               </div>
               <div className="relative group">
@@ -285,6 +292,7 @@ export default function Login() {
                   <Lock className="w-5 h-5" />
                 </div>
                 <input
+                  id="login-password"
                   required
                   type={showPassword ? "text" : "password"}
                   autoComplete="current-password"

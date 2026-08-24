@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { 
   Building2, 
   Plus, 
@@ -19,7 +19,7 @@ import {
   Sparkles,
   FileSpreadsheet
 } from "lucide-react";
-import { supabase } from "../lib/supabase";
+import { supabase, logError } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
 import { toast } from "sonner";
@@ -28,6 +28,8 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { cn } from "../lib/utils";
 import { SearchableClientPicker } from "../components/SearchableClientPicker";
 import { PageHeader, Skeleton, useConfirm } from "../components/ui";
+import { useModalEsc } from "../hooks/useModalEsc";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 import { syncQueue } from "../lib/syncQueue";
 import { offlineCache, CacheKeys } from "../lib/offlineCache";
 import { ajustarFaturamento } from "../lib/faturamento";
@@ -77,6 +79,19 @@ export default function EmpresasPage() {
   const [selectedFiles, setSelectedFiles] = useState<any[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
+
+  const upsellPanelRef = useRef<HTMLDivElement>(null);
+  const addCompanyPanelRef = useRef<HTMLDivElement>(null);
+  const uploadPanelRef = useRef<HTMLDivElement>(null);
+  const manageCompanyPanelRef = useRef<HTMLDivElement>(null);
+  useModalEsc(() => setShowUpsellModal(false), showUpsellModal);
+  useFocusTrap(upsellPanelRef, showUpsellModal);
+  useModalEsc(() => setIsAddModalOpen(false), isAddModalOpen);
+  useFocusTrap(addCompanyPanelRef, isAddModalOpen);
+  useModalEsc(() => { if (!isUploading) setIsUploadModalOpen(false); }, isUploadModalOpen);
+  useFocusTrap(uploadPanelRef, isUploadModalOpen);
+  useModalEsc(() => setManagingCompany(null), !!managingCompany);
+  useFocusTrap(manageCompanyPanelRef, !!managingCompany);
 
   const formatCurrency = (val: any) => {
     const num = Number(val) || 0;
@@ -317,6 +332,7 @@ export default function EmpresasPage() {
         successCount++;
       } catch (err: any) {
         console.error("Erro ao processar arquivo:", item.file.name, err);
+        logError(err, `Empresas.handleBulkUpload:${item.file.name}`);
         toast.error("Erro no arquivo " + item.file.name + ": " + err.message);
       }
     }
@@ -674,7 +690,7 @@ export default function EmpresasPage() {
         {showUpsellModal && (
            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowUpsellModal(false)} className="absolute inset-0 bg-slate-900/80 backdrop-blur-xl" />
-              <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="bg-white dark:bg-zinc-900 p-8 md:p-12 rounded-[40px] md:rounded-[56px] shadow-2xl relative z-10 w-full max-w-md border border-white/20 text-center space-y-6">
+              <motion.div ref={upsellPanelRef} role="dialog" aria-modal="true" aria-label="Limite de Empresas" tabIndex={-1} initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="bg-white dark:bg-zinc-900 p-8 md:p-12 rounded-[40px] md:rounded-[56px] shadow-2xl relative z-10 w-full max-w-md border border-white/20 text-center space-y-6 outline-none">
                  <div className="w-16 h-16 rounded-3xl bg-amber-500/10 flex items-center justify-center mx-auto text-amber-500 animate-pulse">
                     <Zap className="w-8 h-8" />
                  </div>
@@ -705,7 +721,7 @@ export default function EmpresasPage() {
         {isAddModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsAddModalOpen(false)} className="absolute inset-0 bg-slate-900/80 backdrop-blur-xl" />
-             <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="bg-white dark:bg-zinc-900 p-8 md:p-12 rounded-[40px] md:rounded-[56px] shadow-2xl relative z-10 w-full max-w-sm border border-white/20">
+             <motion.div ref={addCompanyPanelRef} role="dialog" aria-modal="true" aria-label="Nova Empresa" tabIndex={-1} initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="bg-white dark:bg-zinc-900 p-8 md:p-12 rounded-[40px] md:rounded-[56px] shadow-2xl relative z-10 w-full max-w-sm border border-white/20 outline-none">
                 <div className="flex justify-between items-center mb-8 md:mb-10">
                    <h3 className="text-xl md:text-2xl font-black uppercase text-slate-900 dark:text-zinc-100 tracking-tighter">Nova Empresa</h3>
                    <button onClick={() => setIsAddModalOpen(false)} className="text-slate-300 hover:text-slate-900 transition-colors"><X/></button>
@@ -724,7 +740,7 @@ export default function EmpresasPage() {
         {isUploadModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6">
              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => !isUploading && setIsUploadModalOpen(false)} className="absolute inset-0 bg-slate-900/90 backdrop-blur-2xl" />
-             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white dark:bg-zinc-900 p-6 md:p-14 rounded-[40px] md:rounded-[70px] shadow-2xl relative z-10 w-full max-w-5xl h-[85vh] flex flex-col border border-white/10 overflow-hidden">
+             <motion.div ref={uploadPanelRef} role="dialog" aria-modal="true" aria-label="Enviar Pedidos" tabIndex={-1} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white dark:bg-zinc-900 p-6 md:p-14 rounded-[40px] md:rounded-[70px] shadow-2xl relative z-10 w-full max-w-5xl h-[85vh] flex flex-col border border-white/10 overflow-hidden outline-none">
                 <div className="absolute top-0 left-0 w-full h-2 bg-emerald-600" />
                 <div className="flex justify-between items-center mb-8 md:mb-14">
                    <div>
@@ -875,7 +891,7 @@ export default function EmpresasPage() {
         {managingCompany && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setManagingCompany(null)} className="absolute inset-0 bg-slate-900/80 backdrop-blur-xl" />
-             <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="bg-white dark:bg-zinc-900 p-8 md:p-10 rounded-[32px] md:rounded-[48px] shadow-2xl relative z-10 w-full max-w-sm border border-white/20">
+             <motion.div ref={manageCompanyPanelRef} role="dialog" aria-modal="true" aria-label="Gerenciar Empresa" tabIndex={-1} initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="bg-white dark:bg-zinc-900 p-8 md:p-10 rounded-[32px] md:rounded-[48px] shadow-2xl relative z-10 w-full max-w-sm border border-white/20 outline-none">
                 <div className="flex justify-between items-center mb-6 md:mb-8">
                    <h3 className="text-lg md:text-xl font-black uppercase text-slate-900 dark:text-zinc-100 tracking-tighter">Gerenciar Empresa</h3>
                    <button onClick={() => setManagingCompany(null)} className="text-slate-300 hover:text-slate-900 transition-colors"><X/></button>

@@ -3,6 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save, Loader2, Building2, MapPin, Phone, Mail } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
+import { offlineCache, CacheKeys } from '../lib/offlineCache';
+import { syncQueue } from '../lib/syncQueue';
+import type { Client } from '../types';
 
 export default function ClientEdit() {
   const { id } = useParams();
@@ -24,12 +27,34 @@ export default function ClientEdit() {
 
   const loadClient = async () => {
     try {
+      // Offline: usa o retrato da última sincronização (mesmo padrão do
+      // ClientDetails.tsx) em vez de tentar a rede e mandar o usuário de
+      // volta pra lista antes dele nem conseguir ver os dados do cliente.
+      if (!offlineCache.isOnline()) {
+        const cachedClients = offlineCache.get<Client[]>(CacheKeys.CLIENTS) || [];
+        const cached = cachedClients.find((c) => c.id === id);
+        if (cached) {
+          setFormData({
+            name: cached.name || '',
+            cnpj: cached.cnpj || '',
+            address: cached.address || '',
+            phone: cached.phone || '',
+            email: cached.email || ''
+          });
+        } else {
+          toast.error('Cliente ainda não sincronizado — conecte à internet uma vez pra editar offline.');
+          navigate('/dashboard/clientes');
+        }
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('clients')
         .select('*')
         .eq('id', id)
         .single();
-        
+
       if (error) throw error;
       if (data) {
         setFormData({
@@ -57,6 +82,19 @@ export default function ClientEdit() {
 
     setSaving(true);
     try {
+      if (!offlineCache.isOnline()) {
+        syncQueue.enqueue('clients', 'UPDATE', formData, id);
+        const cachedClients = offlineCache.get<Client[]>(CacheKeys.CLIENTS) || [];
+        const idx = cachedClients.findIndex((c) => c.id === id);
+        if (idx >= 0) {
+          cachedClients[idx] = { ...cachedClients[idx], ...formData };
+          offlineCache.set(CacheKeys.CLIENTS, cachedClients);
+        }
+        toast.success('Cliente atualizado offline — sincroniza quando a internet voltar.');
+        navigate(`/dashboard/clientes/${id}`);
+        return;
+      }
+
       const { error } = await supabase
         .from('clients')
         .update(formData)

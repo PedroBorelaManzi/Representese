@@ -57,6 +57,20 @@ if (typeof window !== 'undefined') {
       window.location.reload();
     }
   });
+
+  // Registra o service worker só no site publicado (não no dev server, nem
+  // dentro do app Android/iOS — lá quem cuida de offline é o Capacitor).
+  // Sem um service worker, o manifest.json não bastava pro navegador oferecer
+  // "Instalar app" — o site tinha a cara de PWA mas não era instalável de
+  // verdade. Import dinâmico do Capacitor evita pesar o boot de quem só quer
+  // o site.
+  if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+    import('@capacitor/core').then(({ Capacitor }) => {
+      if (!Capacitor.isNativePlatform()) {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+      }
+    });
+  }
 }
 
 const ErrorFallback = () => (

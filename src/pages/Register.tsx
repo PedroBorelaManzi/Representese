@@ -8,8 +8,14 @@ import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
 import { isValidPhone, formatPhone } from "../lib/validators";
 import { cn } from "../lib/utils";
+import { usePageMeta } from "../hooks/usePageMeta";
 
 export default function Register() {
+  usePageMeta(
+    "Criar Conta Grátis",
+    "Cadastre-se gratuitamente no Represente-Se! e comece a organizar sua carteira de clientes como representante comercial.",
+    "/register"
+  );
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -71,6 +77,13 @@ export default function Register() {
         Voltar para a página inicial
       </Link>
 
+      {/* Atalho discreto pra quem só quer ver os planos sem preencher o
+          cadastro — /planos já é uma rota pública, então isso não pula
+          nenhuma checagem, só evita esse formulário de captura de lead. */}
+      <Link to="/planos" className="absolute top-6 right-6 text-slate-300 hover:text-slate-400 dark:text-zinc-700 dark:hover:text-zinc-500 transition-colors text-[11px] font-normal z-10">
+        pular
+      </Link>
+
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-10">
           <Logo size="lg" showText />
@@ -92,7 +105,7 @@ export default function Register() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-[13px] font-bold text-slate-700 dark:text-zinc-300 ml-1">
+              <label htmlFor="register-name" className="text-[13px] font-bold text-slate-700 dark:text-zinc-300 ml-1">
                 Nome completo *
               </label>
               <div className="relative group">
@@ -100,6 +113,7 @@ export default function Register() {
                   <User className="w-5 h-5" />
                 </div>
                 <input
+                  id="register-name"
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -111,7 +125,7 @@ export default function Register() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[13px] font-bold text-slate-700 dark:text-zinc-300 ml-1">
+              <label htmlFor="register-phone" className="text-[13px] font-bold text-slate-700 dark:text-zinc-300 ml-1">
                 WhatsApp *
               </label>
               <div className="relative group">
@@ -119,6 +133,7 @@ export default function Register() {
                   <Phone className="w-5 h-5" />
                 </div>
                 <input
+                  id="register-phone"
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(formatPhone(e.target.value))}
@@ -140,7 +155,7 @@ export default function Register() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[13px] font-bold text-slate-700 dark:text-zinc-300 ml-1">
+              <label htmlFor="register-company" className="text-[13px] font-bold text-slate-700 dark:text-zinc-300 ml-1">
                 Empresas que você trabalha (Opcional)
               </label>
               <div className="relative group">
@@ -148,6 +163,7 @@ export default function Register() {
                   <Building2 className="w-5 h-5" />
                 </div>
                 <input
+                  id="register-company"
                   type="text"
                   value={company}
                   onChange={(e) => setCompany(e.target.value)}
@@ -158,7 +174,7 @@ export default function Register() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[13px] font-bold text-slate-700 dark:text-zinc-300 ml-1">
+              <label htmlFor="register-email" className="text-[13px] font-bold text-slate-700 dark:text-zinc-300 ml-1">
                 E-mail *
               </label>
               <div className="relative group">
@@ -166,6 +182,7 @@ export default function Register() {
                   <Mail className="w-5 h-5" />
                 </div>
                 <input
+                  id="register-email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}

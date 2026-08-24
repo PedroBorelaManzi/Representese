@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
 import { computeClientAlerts, OrderLike, DismissalLike } from '../lib/clientAlerts';
 import { normalizeKey } from '../lib/utils';
+import { offlineCache } from '../lib/offlineCache';
 import { Client, Alert } from '../types';
 
 export function useClients() {
@@ -20,6 +21,12 @@ export function useClients() {
 
       // 1. Get current cached clients
       const cachedClients = queryClient.getQueryData<Client[]>(['clients', user.id]) || [];
+
+      // Sem internet, nem tenta a rede — devolve o que já está em cache (o
+      // persister do React Query já reidrata isso do IndexedDB no boot).
+      // Sem esse corte, toda montagem da página (Mapa, CRM) offline disparava
+      // uma chamada ao Supabase fadada a falhar antes de mostrar qualquer coisa.
+      if (!offlineCache.isOnline()) return cachedClients;
 
       let maxUpdatedAt = '1970-01-01T00:00:00.000Z';
       if (cachedClients.length > 0) {
@@ -81,6 +88,7 @@ export function useClients() {
     queryKey: ['clients', user?.id, 'orders'],
     queryFn: async () => {
       if (!user) return [] as OrderLike[];
+      if (!offlineCache.isOnline()) return queryClient.getQueryData<OrderLike[]>(['clients', user.id, 'orders']) || [];
       const { data, error } = await supabase
         .from('orders')
         .select('client_id, file_name, created_at, category, file_path')
@@ -97,6 +105,7 @@ export function useClients() {
     queryKey: ['clients', user?.id, 'alert_dismissals'],
     queryFn: async () => {
       if (!user) return [] as DismissalLike[];
+      if (!offlineCache.isOnline()) return queryClient.getQueryData<DismissalLike[]>(['clients', user.id, 'alert_dismissals']) || [];
       const { data, error } = await supabase
         .from('alert_dismissals')
         .select('client_name_key, company, last_order_at')

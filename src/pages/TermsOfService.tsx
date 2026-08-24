@@ -1,8 +1,14 @@
 import React from "react";
 import { FileText, ShieldCheck, Scale, AlertCircle, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
+import { usePageMeta } from "../hooks/usePageMeta";
 
 export default function TermsOfService() {
+  usePageMeta(
+    "Termos de Serviço",
+    "Leia os termos de uso do Represente-Se!, o CRM para representantes comerciais.",
+    "/terms"
+  );
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 py-20 px-6">
       <div className="max-w-3xl mx-auto">

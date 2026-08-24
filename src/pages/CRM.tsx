@@ -12,9 +12,12 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { parseFileForCnpjs } from '../lib/clientImport';
 import { getHighPrecisionCoordinates } from '../lib/geminiGeocoding';
+import { lookupCnpj } from '../lib/cnpjLookup';
 import { Client, Alert, Order } from '../types';
 import { useQueryClient } from '@tanstack/react-query';
 import { EmptyState, PageHeader, Skeleton, useConfirm } from '../components/ui';
+import { useModalEsc } from '../hooks/useModalEsc';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import { posthog } from '../lib/posthog';
 import ClientImportModal from '../components/ClientImportModal';
 import { ExportLeadsButton } from '../components/ExportLeadsButton';
@@ -66,6 +69,7 @@ export default function CRMPage() {
   }, [location.state]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const addClientPanelRef = useRef<HTMLDivElement>(null);
 
   // Import Modal/State
   const [isImporting, setIsImporting] = useState(false);
@@ -74,6 +78,9 @@ export default function CRMPage() {
   const [isSearchingCnpj, setIsSearchingCnpj] = useState(false);
   const [importStats, setImportStats] = useState({ current: 0, total: 0 });
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
+  useModalEsc(() => { if (!isSearchingCnpj) setIsAddingClient(false); }, isAddingClient);
+  useFocusTrap(addClientPanelRef, isAddingClient);
 
   // Pagination for performance on mobile
   const [displayLimit, setDisplayLimit] = useState(40);
@@ -156,22 +163,15 @@ export default function CRMPage() {
 
     try {
       const cleanCnpj = newCnpj.replace(/\D/g, "");
-      const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanCnpj}`);
-      
-      let clientData = { name: "Novo Cliente", city: "", address: "" };
-      if (response.ok) {
-        const data = await response.json();
-        clientData = {
-          name: data.razao_social || data.nome_fantasia || "Novo Cliente",
-          city: data.municipio || "",
-          address: `${data.logradouro || ""}, ${data.numero || "S/N"} - ${data.bairro || ""}, ${data.municipio || ""} - ${data.uf || ""}`.trim(),
-        };
-      } else {
+      const found = await lookupCnpj(cleanCnpj);
+
+      if (!found) {
         toast.error("CNPJ não encontrado ou erro na API.");
         setIsSearchingCnpj(false);
         toast.dismiss(toastId);
         return;
       }
+      const clientData = { name: found.name || "Novo Cliente", city: found.city, address: found.address };
 
       const coords = await getHighPrecisionCoordinates(clientData.address, clientData.name, cleanCnpj);
 
@@ -189,17 +189,22 @@ export default function CRMPage() {
 
       if (!isOnline) {
         const optimisticId = crypto.randomUUID();
-        syncQueue.enqueue('clients', 'INSERT', newClientData);
-        toast.success("Cliente salv localmente (Offline).", { id: toastId });
-        // Optimistic updates via queryClient would go here
+        syncQueue.enqueue('clients', 'INSERT', { ...newClientData, id: optimisticId });
+        queryClient.setQueryData(['clients', user.id], (old: Client[] | undefined) =>
+          old ? [...old, { ...newClientData, id: optimisticId }] : old
+        );
+        toast.success("Cliente salvo localmente (Offline).", { id: toastId });
         setIsAddingClient(false);
         setNewCnpj("");
       } else {
-        const { data, error } = await supabase.from("clients").insert([newClientData]).select().single();
+        const { error } = await supabase.from("clients").insert([newClientData]).select().single();
         if (error) throw error;
         toast.success("Cliente adicionado com sucesso!", { id: toastId });
         posthog.capture('client_added');
-        // React Query will refetch or invalidate
+        // Sem isso, o cliente recém-criado só aparecia na lista depois de um
+        // sync manual ou reload — o comentário antigo aqui ("React Query vai
+        // atualizar sozinho") estava errado, nada disparava esse refetch.
+        queryClient.invalidateQueries({ queryKey: ['clients'] });
         setIsAddingClient(false);
         setNewCnpj("");
       }
@@ -214,6 +219,16 @@ export default function CRMPage() {
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
+
+    // Importação depende de APIs externas (CNPJ, geocodificação) e do Storage
+    // pra guardar o arquivo original — nada disso funciona offline. Sem essa
+    // guarda, ficava tudo silenciosamente pulando linha por linha e no fim
+    // mostrava "Importação concluída! 0 novos clientes", que lê como sucesso.
+    if (!isOnline) {
+      toast.error('Importação de clientes precisa de internet.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
 
     setIsImporting(true);
     const toastId = toast.loading('Processando arquivo via IA...');
@@ -248,17 +263,10 @@ export default function CRMPage() {
         
         const chunkPromises = chunk.map(async (cnpj) => {
           try {
-            const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
-            let clientData = { name: `Cliente ${cnpj.substring(0, 4)}`, city: "", address: "" };
-            
-            if (response.ok) {
-              const data = await response.json();
-              clientData = {
-                name: data.razao_social || data.nome_fantasia || 'Cliente Importado',
-                city: data.municipio || "",
-                address: `${data.logradouro || ""}, ${data.numero || "S/N"} - ${data.bairro || ""}, ${data.municipio || ""} - ${data.uf || ""}`.trim(),
-              };
-            }
+            const found = await lookupCnpj(cnpj);
+            const clientData = found
+              ? { name: found.name || 'Cliente Importado', city: found.city, address: found.address }
+              : { name: `Cliente ${cnpj.substring(0, 4)}`, city: "", address: "" };
 
             const coords = await getHighPrecisionCoordinates(clientData.address, clientData.name, cnpj);
 
@@ -310,7 +318,7 @@ export default function CRMPage() {
       }
 
       toast.success(`Importação concluída! ${importedCount} novos clientes adicionados.`, { id: toastId });
-      // React Query handles refetching
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
     } catch (err) {
       toast.error('Erro na Importação: ' + (err instanceof Error ? err.message : 'Erro desconhecido'), { id: toastId });
     } finally {
@@ -494,11 +502,16 @@ export default function CRMPage() {
               onClick={() => !isSearchingCnpj && setIsAddingClient(false)}
               className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
             />
-            <motion.div 
+            <motion.div
+              ref={addClientPanelRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Novo Cliente"
+              tabIndex={-1}
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-md bg-white dark:bg-zinc-900 rounded-[32px] border border-slate-200 dark:border-zinc-800 shadow-2xl overflow-hidden"
+              className="relative w-full max-w-md bg-white dark:bg-zinc-900 rounded-[32px] border border-slate-200 dark:border-zinc-800 shadow-2xl overflow-hidden outline-none"
             >
               <div className="p-8">
                 <div className="flex items-center justify-between mb-8">

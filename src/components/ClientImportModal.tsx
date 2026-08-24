@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 import { getHighPrecisionCoordinates } from '../lib/geminiGeocoding';
+import { offlineCache } from '../lib/offlineCache';
 
 interface ParsedClient {
   name: string;
@@ -170,6 +171,14 @@ export default function ClientImportModal({ isOpen, onClose, onImportComplete }:
   };
 
   const handleGeocoding = async () => {
+    // Geocodificação e a gravação em lote dependem de rede (Gemini + Supabase);
+    // sem essa guarda, offline isso "terminava" sem erro nenhum, geocodificando
+    // 0 endereços e importando 0 clientes — parecia sucesso, mas não fez nada.
+    if (!offlineCache.isOnline()) {
+      toast.error('Importação de clientes precisa de internet.');
+      return;
+    }
+
     setCurrentStep(3);
     setIsProcessing(true);
     setTotalCount(parsedClients.length);

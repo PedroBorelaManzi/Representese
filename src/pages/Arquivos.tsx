@@ -537,19 +537,21 @@ export default function Arquivos() {
               </div>
             ))}
           </div>
-        ) : !offlineCache.isOnline() ? (
-          <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
-            <HardDrive className="w-12 h-12 text-slate-200 dark:text-zinc-700 mb-4" />
-            <p className="text-sm font-bold text-slate-500">Os arquivos precisam de conexão com a internet.</p>
-          </div>
         ) : items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
-            <div className="w-16 h-16 rounded-3xl bg-slate-50 dark:bg-zinc-800 flex items-center justify-center mb-5">
-              <Folder className="w-8 h-8 text-slate-300 dark:text-zinc-600" />
+          !offlineCache.isOnline() ? (
+            <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
+              <HardDrive className="w-12 h-12 text-slate-200 dark:text-zinc-700 mb-4" />
+              <p className="text-sm font-bold text-slate-500">Sem conexão e nada salvo dessa pasta ainda. Abra-a uma vez online para poder vê-la offline depois.</p>
             </div>
-            <h4 className="text-base font-black text-slate-900 dark:text-zinc-100">Nada por aqui ainda</h4>
-            <p className="text-sm text-slate-400 mt-1 max-w-xs font-medium">Arraste arquivos para cá ou use os botões acima para enviar e organizar.</p>
-          </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
+              <div className="w-16 h-16 rounded-3xl bg-slate-50 dark:bg-zinc-800 flex items-center justify-center mb-5">
+                <Folder className="w-8 h-8 text-slate-300 dark:text-zinc-600" />
+              </div>
+              <h4 className="text-base font-black text-slate-900 dark:text-zinc-100">Nada por aqui ainda</h4>
+              <p className="text-sm text-slate-400 mt-1 max-w-xs font-medium">Arraste arquivos para cá ou use os botões acima para enviar e organizar.</p>
+            </div>
+          )
         ) : (
           <div className="divide-y divide-slate-50 dark:divide-zinc-800/60">
             {items.map((item) => {

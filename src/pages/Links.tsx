@@ -1,6 +1,7 @@
 import {
   useState,
-  useEffect } from "react";
+  useEffect,
+  useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Link as LinkIcon,
   Plus,
@@ -27,6 +28,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "../lib/utils";
 import { toast } from "sonner";
 import { PageHeader, useConfirm } from "../components/ui";
+import { useModalEsc } from "../hooks/useModalEsc";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 const initialLinks = [
   { id: "1", title: "WhatsApp Web", url: "https://web.whatsapp.com", icon: "MessageSquare", color: "bg-emerald-500" },
@@ -111,6 +114,10 @@ export default function LinksPage() {
     setIcon("LinkIcon");
     setIsModalOpen(false);
   };
+
+  const linkModalPanelRef = useRef<HTMLDivElement>(null);
+  useModalEsc(resetForm, isModalOpen);
+  useFocusTrap(linkModalPanelRef, isModalOpen);
 
   const filteredLinks = links.filter(l => l.title.toLowerCase().includes(searchQuery.toLowerCase()));
   const activeLink = links.find(l => l.id === activeLinkId);
@@ -283,7 +290,7 @@ export default function LinksPage() {
         {isModalOpen && (
           <div className="fixed inset-0 z-[5000] flex items-center justify-center p-4">
              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={resetForm} className="absolute inset-0 bg-slate-900/60 backdrop-blur-xl" />
-             <motion.div initial={{ opacity: 0, scale: 0.9, y: 40 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 40 }} className="bg-white dark:bg-zinc-900 rounded-[56px] border border-slate-200 dark:border-zinc-800 shadow-2xl w-full max-w-xl relative z-[5001] overflow-hidden">
+             <motion.div ref={linkModalPanelRef} role="dialog" aria-modal="true" aria-label="Vincular Atalho" tabIndex={-1} initial={{ opacity: 0, scale: 0.9, y: 40 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 40 }} className="bg-white dark:bg-zinc-900 rounded-[56px] border border-slate-200 dark:border-zinc-800 shadow-2xl w-full max-w-xl relative z-[5001] overflow-hidden outline-none">
                 <div className="p-10 border-b dark:border-zinc-850 flex items-center justify-between bg-slate-50/50 dark:bg-zinc-950/20">
                    <div>
                       <h3 className="text-2xl font-black uppercase tracking-tighter">Vincular Atalho</h3>

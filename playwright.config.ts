@@ -13,6 +13,12 @@ export default defineConfig({
     trace: 'on-first-retry',
     actionTimeout: 15000,
     navigationTimeout: 30000,
+    // O site registra um service worker em produção (só pra habilitar
+    // "Instalar app" — ver public/sw.js). Rodando os testes contra o build
+    // de produção (npm run preview), esse SW ficava no meio das requisições
+    // mockadas via page.route(), fazendo elas caírem na rede de verdade em
+    // vez de serem interceptadas.
+    serviceWorkers: 'block',
   },
   projects: process.env.CI
     ? [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }]

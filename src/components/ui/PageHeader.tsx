@@ -39,7 +39,10 @@ export function PageHeader({ icon: Icon, title, subtitle, actions, titleExtra, a
             {titleExtra && <div className="flex items-center gap-2">{titleExtra}</div>}
           </div>
           {subtitle && (
-            <p className="text-[10px] lg:text-[11px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest mt-0.5 truncate">{subtitle}</p>
+            // slate-500/zinc-400 em vez de slate-400/zinc-500: o tom anterior
+            // ficava perto de 2.5:1 de contraste sobre o fundo — abaixo do
+            // mínimo de acessibilidade (4.5:1) para texto desse tamanho.
+            <p className="text-[10px] lg:text-[11px] font-black text-slate-500 dark:text-zinc-400 uppercase tracking-widest mt-0.5 truncate">{subtitle}</p>
           )}
         </div>
       </div>

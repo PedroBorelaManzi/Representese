@@ -1,7 +1,6 @@
 /* Gerador do relatório de carteira de clientes em Excel — visão executiva
    (cards de KPI, top clientes, concentração de receita, distribuição
    geográfica e por representada) além da lista completa e dos status. */
-import ExcelJS from 'exceljs';
 import {
   BRAND,
   CURRENCY_FMT,
@@ -50,6 +49,7 @@ const statusFont: Record<string, string> = {
 };
 
 async function generateLeadsReport(leads: Lead[], userName: string) {
+  const { default: ExcelJS } = await import('exceljs'); // ~940 kB: só carrega quando o usuário exporta a planilha
   const workbook = new ExcelJS.Workbook();
   workbook.created = new Date();
   workbook.creator = userName || 'Represente-Se';

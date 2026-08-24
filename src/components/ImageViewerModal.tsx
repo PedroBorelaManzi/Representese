@@ -1,7 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X, Loader2, AlertTriangle, Download } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useFecharComBotaoVoltar } from "../lib/backOverlays";
+import { useModalEsc } from "../hooks/useModalEsc";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 interface ImageViewerModalProps {
   isOpen: boolean;
@@ -21,14 +23,9 @@ export function ImageViewerModal({ isOpen, onClose, url, fileName, onDownload }:
     setError(false);
   }, [isOpen, url]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [isOpen, onClose]);
+  useModalEsc(onClose, isOpen);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(panelRef, isOpen);
 
   // No Android, "Voltar" fecha o visualizador em vez de sair da página.
   useFecharComBotaoVoltar(isOpen, onClose);
@@ -47,10 +44,15 @@ export function ImageViewerModal({ isOpen, onClose, url, fileName, onDownload }:
         />
 
         <motion.div
+          ref={panelRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label={fileName || "Imagem"}
+          tabIndex={-1}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 20 }}
-          className="relative z-10 flex flex-col h-full min-h-0"
+          className="relative z-10 flex flex-col h-full min-h-0 outline-none"
         >
           <div className="flex items-center justify-between gap-4 px-6 py-4 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800">
             <p className="text-sm font-black text-slate-900 dark:text-zinc-100 truncate max-w-[60vw]">{fileName || "Imagem"}</p>

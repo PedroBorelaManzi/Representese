@@ -77,7 +77,14 @@ export function initNativeGoogleAuthListener(handlers: NativeGoogleAuthHandlers)
   if (!Capacitor.isNativePlatform()) return () => {};
 
   const listenerHandle = App.addListener('appUrlOpen', async (event: URLOpenListenerEvent) => {
-    if (!event.url.startsWith('com.representese.app:')) return;
+    // Compara com o caminho exato do redirect, não só o esquema — outro app
+    // no Android pode registrar o mesmo esquema custom (com.representese.app://)
+    // e mandar uma URL forjada pra esse listener. Isso sozinho não quebra a
+    // segurança (o PKCE abaixo já invalida qualquer "code" que não bata com o
+    // verifier gerado aqui, então um código forjado nunca troca por token de
+    // verdade), mas evita processar como se fosse OAuth um deep link de outra
+    // finalidade que só compartilhe o esquema.
+    if (!event.url.startsWith(NATIVE_GOOGLE_REDIRECT_URI)) return;
 
     await Browser.close().catch(() => {});
 

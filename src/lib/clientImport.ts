@@ -104,8 +104,9 @@ async function extractTextFromPDF(file: File): Promise<string[]> {
   try {
     const pdfjs = await loadPdfjs();
     const arrayBuffer = await file.arrayBuffer();
-    // isEvalSupported: false — CSP não permite mais unsafe-eval
-    const pdf = await pdfjs.getDocument({ data: arrayBuffer, isEvalSupported: false }).promise;
+    // pdf.js v6 removeu eval() do motor de renderização/parsing por completo —
+    // não existe mais a opção isEvalSupported (nem falta fazer nada pelo CSP).
+    const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
     const pagesText: string[] = [];
     for (let i = 1; i <= Math.min(pdf.numPages, 10); i++) {
       const page = await pdf.getPage(i);

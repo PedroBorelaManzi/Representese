@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   User,
@@ -22,6 +22,7 @@ import { SettingsNotifications } from './settings/SettingsNotifications';
 import { SettingsSecurity } from './settings/SettingsSecurity';
 import { SettingsMobile } from './settings/SettingsMobile';
 import { useModalEsc } from '../hooks/useModalEsc';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -45,6 +46,8 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [miniAvatarError, setMiniAvatarError] = useState(false);
 
   useModalEsc(onClose, isOpen);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(panelRef, isOpen);
 
   useEffect(() => {
     if (settings.avatar_url) {
@@ -65,12 +68,17 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
       />
       
-      <motion.div 
+      <motion.div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Configurações"
+        tabIndex={-1}
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-5xl h-[90vh] md:h-[85vh] bg-white dark:bg-zinc-900 rounded-[32px] md:rounded-[40px] shadow-2xl overflow-hidden border border-slate-200/50 dark:border-zinc-800/50 flex flex-col md:flex-row"
+        className="relative w-full max-w-5xl h-[90vh] md:h-[85vh] bg-white dark:bg-zinc-900 rounded-[32px] md:rounded-[40px] shadow-2xl overflow-hidden border border-slate-200/50 dark:border-zinc-800/50 flex flex-col md:flex-row outline-none"
       >
         {/* Mobile Horizontal Menu (Icons Only & Centered Layout) */}
         <div className="md:hidden flex flex-row items-center justify-between gap-2 px-4 py-3 border-b border-slate-100 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-950/50 sticky top-0 z-20 shrink-0 w-full">

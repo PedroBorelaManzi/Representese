@@ -2,6 +2,9 @@ import React, { createContext, useContext, useState, useEffect, useMemo, useCall
 import { useQueryClient } from '@tanstack/react-query';
 import { syncQueue } from '../lib/syncQueue';
 import { runFullSync, type FullSyncProgress } from '../lib/fullSync';
+import { offlineCache, CacheKeys } from '../lib/offlineCache';
+import { processPendingFileUploads, getPendingFileUploadCount } from '../lib/pendingFileUploads';
+import { logError } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { toast } from 'sonner';
 
@@ -49,12 +52,17 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   // alguém apertar "Sincronizar" — na prática, risco real de nunca subirem.
   const flushQueue = useCallback(async (opts?: { silent?: boolean }) => {
     if (flushingRef.current) return;
-    if (!navigator.onLine || syncQueue.getPendingCount() === 0) return;
+    if (!navigator.onLine) return;
+    if (syncQueue.getPendingCount() === 0 && getPendingFileUploadCount() === 0) return;
 
     flushingRef.current = true;
     setIsSyncing(true);
     try {
       const { success, errors } = await syncQueue.processQueue();
+      // Anexos de pedidos criados offline (fila própria, guardada no
+      // IndexedDB — ver pendingFileUploads.ts) sobem separado da fila
+      // genérica, porque um File não cabe num payload de localStorage.
+      await processPendingFileUploads().catch((e) => console.warn('Erro ao subir arquivos pendentes:', e));
       if (success) {
         // Marca tudo como stale; queries ativas refazem sozinhas com a verdade do servidor.
         await queryClient.invalidateQueries();
@@ -64,6 +72,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       }
     } catch (e) {
       console.error('Erro no flush automático da fila:', e);
+      logError(e, 'SyncContext.flushQueue');
     } finally {
       flushingRef.current = false;
       setIsSyncing(false);
@@ -80,6 +89,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     if (!user) return;
     try {
       await runFullSync(user.id, setFullSyncProgress);
+      // Marca "sincronizado hoje" — a própria expiração do cache (24h) serve
+      // de contador: passado esse prazo, a chave some sozinha e o boot sabe
+      // que é hora de rodar de novo.
+      offlineCache.set(CacheKeys.LAST_FULL_SYNC, true, 24 * 60 * 60 * 1000);
     } finally {
       setFullSyncProgress(null);
     }
@@ -131,11 +144,19 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   // Sincronização completa no boot: uma vez por usuário logado (não a cada
   // re-render). Se trocar de usuário (logout/login) na mesma sessão do app,
   // roda de novo pro usuário novo.
+  //
+  // Mas só dispara sozinha se já passou um dia desde a última vez — ela baixa
+  // TUDO (inclusive o conteúdo dos arquivos no app nativo), e repetir isso
+  // toda vez que o usuário simplesmente abre o app de novo no mesmo dia é
+  // desperdício de dados/bateria sem ganho nenhum. Quem quiser forçar antes
+  // do prazo usa o botão "Sincronizar" (syncNow), que ignora esse controle.
   useEffect(() => {
     if (!user || !navigator.onLine) return;
     if (bootSyncedForUserRef.current === user.id) return;
     bootSyncedForUserRef.current = user.id;
-    runFull();
+    if (!offlineCache.get(CacheKeys.LAST_FULL_SYNC)) {
+      runFull();
+    }
   }, [user, runFull]);
 
   const syncNow = useCallback(async () => {
@@ -156,9 +177,15 @@ export function SyncProvider({ children }: { children: ReactNode }) {
           return;
         }
       }
+      await processPendingFileUploads().catch((e) => console.warn('Erro ao subir arquivos pendentes:', e));
 
       // 2. Pull / Refetch active queries (as inativas refazem ao serem montadas)
       await queryClient.refetchQueries({ type: 'active' });
+
+      // 3. Sincronização completa sob demanda — clicar em "Sincronizar" força
+      // a atualização geral (inclusive arquivos, no app) mesmo que a
+      // automática do dia já tenha rodado.
+      await runFull();
 
       toast.success('Sincronização concluída com sucesso!', { id: 'sync-toast' });
     } catch (e) {
@@ -168,7 +195,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       updateStatus();
       window.dispatchEvent(new Event('sync-completed'));
     }
-  }, [isOnline, queryClient]);
+  }, [isOnline, queryClient, runFull]);
 
   const contextValue = useMemo(
     () => ({ isOnline, pendingCount, deadLetterCount, isSyncing, syncNow, fullSyncProgress }),

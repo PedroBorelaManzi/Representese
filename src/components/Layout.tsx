@@ -41,6 +41,7 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { useIsSupportAdmin } from '../hooks/useIsSupportAdmin';
 import { toast } from 'sonner';
 import FullSyncBanner from './FullSyncBanner';
+import { UpdateNudge } from './UpdateNudge';
 
 const SettingsModal = React.lazy(() => import('./SettingsModal'));
 const OnboardingModal = React.lazy(() => import('./OnboardingModal'));
@@ -532,6 +533,8 @@ export default function Layout() {
         <React.Suspense fallback={null}>
           <SupportChatWidget />
         </React.Suspense>
+
+        <UpdateNudge />
 
         <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
           <header className="lg:hidden bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between px-6 flex-shrink-0"

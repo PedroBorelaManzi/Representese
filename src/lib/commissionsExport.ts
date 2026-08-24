@@ -3,7 +3,6 @@
    leads: banner de capa, cards de KPI, barras de dados e tabelas com
    zebra stripe — além de mais métricas (ticket médio, comissão média por
    pedido, projeção anual, ranking das 3 maiores empresas). */
-import ExcelJS from 'exceljs';
 import {
   BRAND,
   CURRENCY_FMT,
@@ -173,6 +172,7 @@ export async function exportCommissionsAsExcel(
   year: number,
   userName?: string
 ) {
+  const { default: ExcelJS } = await import('exceljs'); // ~940 kB: só carrega quando o usuário exporta a planilha
   const workbook = new ExcelJS.Workbook();
   workbook.created = new Date();
   workbook.creator = userName || 'Represente-Se';

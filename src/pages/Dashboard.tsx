@@ -12,6 +12,7 @@ import DailyNotes from "../components/DailyNotes";
 import GettingStartedCard from "../components/GettingStartedCard";
 import { WeatherWidget } from "../components/WeatherWidget";
 import { offlineCache, CacheKeys } from "../lib/offlineCache";
+import { syncQueue } from "../lib/syncQueue";
 import { toast } from "sonner";
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
@@ -126,13 +127,19 @@ export default function Dashboard() {
       });
       const resolvedCats = Array.from(catsMap.values());
 
-      // Update sessionStorage Cache
-      const TTL_5_MIN = 5 * 60 * 1000;
-      offlineCache.set(CacheKeys.CLIENTS, clientsList, TTL_5_MIN);
-      offlineCache.set(CacheKeys.APPOINTMENTS, appList, TTL_5_MIN);
-      offlineCache.set(CacheKeys.MONTHLY_ORDERS, monthlyOrdersList, TTL_5_MIN);
-      offlineCache.set(CacheKeys.ALL_TIME_CATEGORIES, resolvedCats, TTL_5_MIN);
-      if (userSettings) offlineCache.set(CacheKeys.USER_SETTINGS, userSettings, TTL_5_MIN);
+      // Snapshot offline — TTL de 24h (igual ao resto do app, ver fullSync.ts),
+      // NÃO os 5 min do staleTime da query acima. Esses são coisas diferentes:
+      // staleTime só diz quando o React Query pode buscar de novo enquanto
+      // online; esse offlineCache.set() é o que sobra pra tela mostrar quando
+      // fica offline. Com 5 min aqui, o Início (a tela que abre primeiro)
+      // ficava vazio depois de passar 5 minutos sem internet, mesmo que o
+      // usuário tivesse acabado de sincronizar tudo.
+      const TTL_OFFLINE = 24 * 60 * 60 * 1000;
+      offlineCache.set(CacheKeys.CLIENTS, clientsList, TTL_OFFLINE);
+      offlineCache.set(CacheKeys.APPOINTMENTS, appList, TTL_OFFLINE);
+      offlineCache.set(CacheKeys.MONTHLY_ORDERS, monthlyOrdersList, TTL_OFFLINE);
+      offlineCache.set(CacheKeys.ALL_TIME_CATEGORIES, resolvedCats, TTL_OFFLINE);
+      if (userSettings) offlineCache.set(CacheKeys.USER_SETTINGS, userSettings, TTL_OFFLINE);
 
       scheduleLocalNotifications(appList);
 
@@ -480,8 +487,18 @@ export default function Dashboard() {
       }
       const isoDate = formatDateLocal(targetDate);
 
-      setEvents(events.map(ev => ev.id === id ? { ...ev, date: isoDate, time: newTime } : ev));
-      
+      const updatedEvents = events.map(ev => ev.id === id ? { ...ev, date: isoDate, time: newTime } : ev);
+      setEvents(updatedEvents);
+      offlineCache.set(CacheKeys.APPOINTMENTS, updatedEvents, 24 * 60 * 60 * 1000);
+
+      // Sem internet: guarda na fila de sincronização em vez de deixar o
+      // reagendamento se perder num erro silencioso (mesmo padrão da Agenda).
+      if (!offlineCache.isOnline()) {
+        syncQueue.enqueue('appointments', 'UPDATE', { date: isoDate, time: newTime }, id);
+        toast.success("Reagendado offline — sincroniza quando a internet voltar.");
+        return;
+      }
+
       const { error } = await supabase.from("appointments").update({ date: isoDate, time: newTime }).eq("id", id).eq("user_id", user.id);
       if (error) throw error;
 
@@ -504,7 +521,22 @@ export default function Dashboard() {
     if (!user) return;
     setIsSaving(true);
     const savePayload = { ...payload, user_id: user.id };
-    
+
+    if (!offlineCache.isOnline()) {
+      const isNew = !editingEvent?.id;
+      const eventId = editingEvent?.id || crypto.randomUUID();
+      const updatedEvent = { ...savePayload, id: eventId } as Appointment;
+      const newEvents = isNew ? [...events, updatedEvent] : events.map(ev => ev.id === eventId ? { ...ev, ...updatedEvent } : ev);
+
+      syncQueue.enqueue('appointments', isNew ? 'INSERT' : 'UPDATE', updatedEvent, isNew ? undefined : eventId);
+      setEvents(newEvents);
+      offlineCache.set(CacheKeys.APPOINTMENTS, newEvents, 24 * 60 * 60 * 1000);
+      toast.success(isNew ? "Compromisso agendado offline!" : "Compromisso atualizado offline!");
+      setIsSaving(false);
+      setEditingEvent(null);
+      return;
+    }
+
     let savedEvent = null;
     if (editingEvent?.id) {
       const { error } = await supabase.from("appointments").update(savePayload).eq("id", editingEvent.id).eq("user_id", user.id);
@@ -536,8 +568,18 @@ export default function Dashboard() {
     if (!(await confirm({ title: 'Excluir compromisso', message: 'Deseja realmente excluir este compromisso?' }))) return;
     setIsSaving(true);
     try {
+      if (!offlineCache.isOnline()) {
+        syncQueue.enqueue('appointments', 'DELETE', null, editingEvent.id);
+        const newEvents = events.filter(ev => ev.id !== editingEvent.id);
+        setEvents(newEvents);
+        offlineCache.set(CacheKeys.APPOINTMENTS, newEvents, 24 * 60 * 60 * 1000);
+        setEditingEvent(null);
+        toast.success("Compromisso removido offline — sincroniza quando a internet voltar.");
+        return;
+      }
+
       const { error } = await supabase.from("appointments").delete().eq("id", editingEvent.id).eq("user_id", user.id);
-      
+
       if (error) {
         console.error("Supabase delete error:", error);
         toast.error("Erro ao excluir do banco de dados.");

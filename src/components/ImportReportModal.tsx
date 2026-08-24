@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { X, Upload, Loader2, Check, AlertTriangle, UserPlus, Sparkles, Building } from "lucide-react";
 import { toast } from "sonner";
@@ -6,6 +6,8 @@ import { supabase } from "../lib/supabase";
 import { cn } from "../lib/utils";
 import { SearchableClientPicker } from "./SearchableClientPicker";
 import { offlineCache } from "../lib/offlineCache";
+import { useModalEsc } from "../hooks/useModalEsc";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 import {
   parseOrderReport,
   pickValue,
@@ -73,6 +75,10 @@ export default function ImportReportModal({ open, onClose, userId, clients, cate
     reset();
     onClose();
   };
+
+  const panelRef = useRef<HTMLDivElement>(null);
+  useModalEsc(close, open);
+  useFocusTrap(panelRef, open);
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -279,10 +285,15 @@ export default function ImportReportModal({ open, onClose, userId, clients, cate
         className="absolute inset-0 bg-slate-900/90 backdrop-blur-2xl"
       />
       <motion.div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Importar Relatório"
+        tabIndex={-1}
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-white dark:bg-zinc-900 p-6 md:p-12 rounded-[40px] md:rounded-[60px] shadow-2xl relative z-10 w-full max-w-6xl h-[88vh] flex flex-col border border-white/10 overflow-hidden"
+        className="bg-white dark:bg-zinc-900 p-6 md:p-12 rounded-[40px] md:rounded-[60px] shadow-2xl relative z-10 w-full max-w-6xl h-[88vh] flex flex-col border border-white/10 overflow-hidden outline-none"
       >
         <div className="absolute top-0 left-0 w-full h-2 bg-emerald-600" />
 

@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { cn } from "../../lib/utils";
+import { useFocusTrap } from "../../hooks/useFocusTrap";
 
 /* ────────────────────────────────────────────────────────────────
    Demonstração animada (~35s, estilo "stories"), aberta pelo botão
@@ -774,6 +775,8 @@ export function DemoModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
   const [playing, setPlaying] = useState(true);
   const rafRef = useRef<number | undefined>(undefined);
   const lastTsRef = useRef<number | undefined>(undefined);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(panelRef, isOpen);
 
   // reinicia sempre que abre
   useEffect(() => {
@@ -877,11 +880,13 @@ export function DemoModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
         />
 
         <motion.div
+          ref={panelRef}
+          tabIndex={-1}
           initial={{ opacity: 0, y: 24, scale: 0.97 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 24, scale: 0.97 }}
           transition={{ duration: 0.4, ease: EASE }}
-          className="relative z-10 w-full max-w-3xl bg-gradient-to-b from-white to-slate-50 rounded-3xl border border-white/20 shadow-2xl overflow-hidden flex flex-col"
+          className="relative z-10 w-full max-w-3xl bg-gradient-to-b from-white to-slate-50 rounded-3xl border border-white/20 shadow-2xl overflow-hidden flex flex-col outline-none"
         >
           {/* barra de progresso segmentada (estilo stories) */}
           <div className="flex items-center gap-1.5 px-4 sm:px-5 pt-4">

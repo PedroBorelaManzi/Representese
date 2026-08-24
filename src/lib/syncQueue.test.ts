@@ -4,7 +4,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('./offlineCache', () => ({ offlineCache: {}, CacheKeys: {} }));
 
 const fromMock = vi.fn();
-vi.mock('./supabase', () => ({ supabase: { from: (...args: any[]) => fromMock(...args) } }));
+const logErrorMock = vi.fn();
+vi.mock('./supabase', () => ({
+  supabase: { from: (...args: any[]) => fromMock(...args) },
+  logError: (...args: any[]) => logErrorMock(...args),
+}));
 
 import { syncQueue, MAX_SYNC_ATTEMPTS } from './syncQueue';
 
@@ -181,9 +185,38 @@ describe('syncQueue', () => {
     const dead = syncQueue.getDeadLetter();
     expect(dead).toHaveLength(1);
     expect(dead[0].attempts).toBe(MAX_SYNC_ATTEMPTS);
+    // Uma alteração que nunca chega no banco precisa acender um alerta em
+    // algum lugar visível pra Pedro, não só sumir na dead-letter local.
+    expect(logErrorMock).toHaveBeenCalledWith(expect.any(Error), 'syncQueue.deadLetter:clients.INSERT');
 
     syncQueue.clearDeadLetter();
     expect(syncQueue.getDeadLetter()).toEqual([]);
+  });
+
+  it('UPSERT com matchColumn usa a coluna certa no onConflict (ex.: user_settings por user_id)', async () => {
+    const table = supabaseTableOk();
+    fromMock.mockReturnValue(table);
+
+    syncQueue.enqueue('user_settings', 'UPSERT', { user_id: 'u1', categories: ['A'] }, undefined, 'user_id');
+    await syncQueue.processQueue();
+
+    expect(table.upsert).toHaveBeenCalledWith(
+      { user_id: 'u1', categories: ['A'] },
+      { onConflict: 'user_id' }
+    );
+  });
+
+  it('UPDATE com matchColumn filtra pela coluna certa em vez de "id"', async () => {
+    const table = supabaseTableOk();
+    fromMock.mockReturnValue(table);
+
+    syncQueue.enqueue('user_settings', 'UPDATE', { categories: ['A'] }, 'u1', 'user_id');
+    await syncQueue.processQueue();
+
+    expect(table.update).toHaveBeenCalledWith({ categories: ['A'] });
+    expect(table.update).toHaveReturnedWith(expect.objectContaining({ eq: expect.any(Function) }));
+    const eqMock = table.update.mock.results[0].value.eq;
+    expect(eqMock).toHaveBeenCalledWith('user_id', 'u1');
   });
 
   it('dead-letter não afeta operações saudáveis na mesma rodada', async () => {

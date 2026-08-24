@@ -1,6 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useRef } from 'react';
 import { X } from 'lucide-react';
 import { useModalEsc } from '../../hooks/useModalEsc';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 interface ModalProps {
   isOpen: boolean;
@@ -11,43 +12,10 @@ interface ModalProps {
   maxWidth?: string;
 }
 
-const FOCUSABLE =
-  'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
-
 export function Modal({ isOpen, onClose, title, children, maxWidth = 'max-w-lg' }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   useModalEsc(onClose, isOpen);
-
-  // Focus trap: foca o painel ao abrir e mantém Tab circulando dentro dele
-  useEffect(() => {
-    if (!isOpen || !panelRef.current) return;
-    const panel = panelRef.current;
-    const previouslyFocused = document.activeElement as HTMLElement | null;
-
-    const firstFocusable = panel.querySelector<HTMLElement>(FOCUSABLE);
-    (firstFocusable || panel).focus();
-
-    const handleTab = (e: KeyboardEvent) => {
-      if (e.key !== 'Tab') return;
-      const focusables = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE));
-      if (focusables.length === 0) return;
-      const first = focusables[0];
-      const last = focusables[focusables.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-
-    panel.addEventListener('keydown', handleTab);
-    return () => {
-      panel.removeEventListener('keydown', handleTab);
-      previouslyFocused?.focus();
-    };
-  }, [isOpen]);
+  useFocusTrap(panelRef, isOpen);
 
   if (!isOpen) return null;
 

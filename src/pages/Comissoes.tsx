@@ -11,10 +11,11 @@ import {
   Check,
   Building2,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
+import { offlineCache } from "../lib/offlineCache";
 import { cn } from "../lib/utils";
 import { PageHeader, Skeleton } from "../components/ui";
 import { toast } from "sonner";
@@ -33,6 +34,7 @@ const MONTHS = [
 export default function Comissoes() {
   const { user } = useAuth();
   const { settings, updateSettings } = useSettings();
+  const queryClient = useQueryClient();
 
   const [refDate, setRefDate] = useState(() => new Date());
   const [configOpen, setConfigOpen] = useState(false);
@@ -65,6 +67,20 @@ export default function Comissoes() {
   const { data, isLoading } = useQuery({
     queryKey: ["comissoes-orders", user?.id, year, month],
     queryFn: async () => {
+      // Sem internet, nem tenta a rede — evita o "Nenhum pedido em [mês]"
+      // enganoso quando na verdade é só falta de sinal, e reaproveita o que
+      // já tiver em cache em vez de estourar erro.
+      if (!offlineCache.isOnline()) {
+        return (
+          queryClient.getQueryData<{ current: MonthOrder[]; previous: MonthOrder[] }>([
+            "comissoes-orders",
+            user?.id,
+            year,
+            month,
+          ]) || { current: [], previous: [] }
+        );
+      }
+
       const startCurrent = new Date(year, month, 1).toISOString();
       const endCurrent = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
       const startPrev = new Date(year, month - 1, 1).toISOString();

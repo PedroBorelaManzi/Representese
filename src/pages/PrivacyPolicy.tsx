@@ -1,8 +1,14 @@
 import React from "react";
 import { ShieldCheck, Lock, Eye, Scale, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
+import { usePageMeta } from "../hooks/usePageMeta";
 
 export default function PrivacyPolicy() {
+  usePageMeta(
+    "Política de Privacidade",
+    "Saiba como o Represente-Se! coleta, usa e protege os dados dos seus clientes e da sua conta.",
+    "/privacy"
+  );
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 py-20 px-6">
       <div className="max-w-3xl mx-auto">

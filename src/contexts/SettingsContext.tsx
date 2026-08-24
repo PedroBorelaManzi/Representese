@@ -3,6 +3,8 @@ import { supabase } from "../lib/supabase";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import { offlineCache, CacheKeys } from "../lib/offlineCache";
+import { syncQueue } from "../lib/syncQueue";
+import { Capacitor } from "@capacitor/core";
 
 export type SubscriptionStatus = 'active' | 'past_due' | 'inactive' | 'trialing' | 'canceled';
 
@@ -85,6 +87,17 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const root = document.documentElement;
     root.classList.toggle('dark', settings.theme === 'dark');
+  }, [settings.theme]);
+
+  // Acompanha o tema na barra de status do Android — sem isso ela ficava
+  // sempre no estilo padrão do sistema, então em alguns aparelhos os ícones
+  // (hora, bateria, sinal) ficavam escuros sobre um cabeçalho escuro no modo
+  // dark, quase ilegíveis.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    import('@capacitor/status-bar').then(({ StatusBar, Style }) => {
+      StatusBar.setStyle({ style: settings.theme === 'dark' ? Style.Dark : Style.Light }).catch(() => {});
+    });
   }, [settings.theme]);
 
   useEffect(() => {
@@ -250,11 +263,24 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
 
     if (Object.keys(changed).length === 0) return;
 
-    await supabase.from("user_settings").upsert({
+    const payload = {
       user_id: user.id,
       ...changed,
       updated_at: new Date().toISOString(),
-    });
+    };
+
+    // Sem internet, o upsert direto sempre falhava aqui — a UI já tinha
+    // "salvo" (estado local + offlineCache atualizados acima), então o erro
+    // que aparecia em seguida era confuso, e a mudança nunca chegava a subir:
+    // o próximo full sync online sobrescrevia com o valor antigo do servidor.
+    // Isso afeta empresas representadas, comissões, limites de inatividade,
+    // cidade do clima, teto de faturamento e avatar — tudo passa por aqui.
+    if (!offlineCache.isOnline()) {
+      syncQueue.enqueue("user_settings", "UPSERT", payload, undefined, "user_id");
+      return;
+    }
+
+    await supabase.from("user_settings").upsert(payload);
   }, [user, settings]);
 
   const contextValue = useMemo(() => ({ settings, loading, updateSettings }), [settings, loading, updateSettings]);
