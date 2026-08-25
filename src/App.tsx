@@ -39,6 +39,7 @@ const CRMPage = lazyWithRetry(() => import("./pages/CRM"));
 const ClientDetailsPage = lazyWithRetry(() => import("./pages/ClientDetails"));
 const ClientEditPage = lazyWithRetry(() => import("./pages/ClientEdit"));
 const EmpresasPage = lazyWithRetry(() => import("./pages/Empresas"));
+const ProdutosPage = lazyWithRetry(() => import("./pages/Produtos"));
 const AgendaPage = lazyWithRetry(() => import("./pages/Agenda"));
 const EmailClient = lazyWithRetry(() => import("./pages/EmailClient"));
 const EmailCallback = lazyWithRetry(() => import("./pages/EmailCallback"));
@@ -129,6 +130,7 @@ export default function App() {
                       <Route path="clientes/:id" element={<ClientDetailsPage />} />
                       <Route path="clientes/:id/editar" element={<ClientEditPage />} />
                       <Route path="empresas" element={<EmpresasPage />} />
+                      <Route path="produtos" element={<ProdutosPage />} />
                       <Route path="agenda" element={<AgendaPage />} />
                       <Route path="email" element={<EmailClient />} />
                       <Route path="pedidos" element={<PedidosPage />} />

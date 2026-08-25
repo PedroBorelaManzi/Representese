@@ -23,7 +23,8 @@ import {
   Trophy,
   Headphones,
   FileSpreadsheet,
-  BarChart3
+  BarChart3,
+  PackageSearch
 } from 'lucide-react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -210,6 +211,7 @@ export default function Layout() {
       items: [
         { icon: Users, label: 'Clientes', path: '/dashboard/clientes' },
         { icon: Building2, label: 'Empresas & Pedidos', path: '/dashboard/empresas' },
+        { icon: PackageSearch, label: 'Produtos', path: '/dashboard/produtos' },
         { icon: Wallet, label: 'Comissões', path: '/dashboard/comissoes' },
         { icon: FileSpreadsheet, label: 'Relatórios', path: '/dashboard/relatorios' },
         { icon: Trophy, label: 'Ranking', path: '/dashboard/ranking' },
