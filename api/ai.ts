@@ -3,7 +3,12 @@ import cors from 'cors';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { corsOriginCheck } from './_lib/cors';
+// A extensão .js é obrigatória aqui: o package.json tem "type": "module",
+// então a Vercel roda estas funções com o resolvedor nativo de ESM do
+// Node — que, ao contrário do bundler do Vite, não aceita import relativo
+// sem extensão. Sem ela, a função inteira crasha no cold start com
+// ERR_MODULE_NOT_FOUND antes de responder a qualquer requisição.
+import { corsOriginCheck } from './_lib/cors.js';
 
 const app = express();
 

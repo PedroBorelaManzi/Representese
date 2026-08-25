@@ -5,9 +5,16 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { corsOriginCheck } from './_lib/cors';
-import { hashPin, verifyPin, isValidPinFormat } from './_lib/pinHash';
-import { signSession, verifySession } from './_lib/sessionToken';
+// A extensão .js é obrigatória em todos os imports relativos abaixo: o
+// package.json tem "type": "module", então a Vercel roda estas funções com
+// o resolvedor nativo de ESM do Node — que, ao contrário do bundler do
+// Vite, não aceita import relativo sem extensão. Sem ela, a função inteira
+// crasha no cold start com ERR_MODULE_NOT_FOUND antes de responder a
+// qualquer requisição (é o que estava derrubando 100% das chamadas a este
+// endpoint desde que ele foi criado).
+import { corsOriginCheck } from './_lib/cors.js';
+import { hashPin, verifyPin, isValidPinFormat } from './_lib/pinHash.js';
+import { signSession, verifySession } from './_lib/sessionToken.js';
 import {
   ORDER_EXTRACTION_SYSTEM_INSTRUCTION,
   buildOrderExtractionPrompt,
@@ -15,8 +22,8 @@ import {
   extractCategoryLocally,
   extractValueLocally,
   reconcileExtractionResult,
-} from '../src/lib/orderExtractionCore';
-import { ajustarFaturamento } from '../src/lib/faturamento';
+} from '../src/lib/orderExtractionCore.js';
+import { ajustarFaturamento } from '../src/lib/faturamento.js';
 
 /**
  * Backend do link de "enviar pedido" (funcionário sem login na conta real —
