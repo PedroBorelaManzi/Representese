@@ -92,21 +92,32 @@ if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) 
  *  por 'set_pin', onde quem chama é o representante logado de verdade. */
 async function requireOwnerAuth(req: express.Request): Promise<{ id: string } | null> {
   const authHeader = req.headers.authorization;
-  if (!authHeader) return null;
+  if (!authHeader) { console.error('[requireOwnerAuth] sem header Authorization'); return null; }
   const token = authHeader.replace('Bearer ', '');
   const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
   const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !supabaseAnonKey) return null;
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('[requireOwnerAuth] env ausente: url=%s anonKey=%s', !!supabaseUrl, !!supabaseAnonKey);
+    return null;
+  }
 
   try {
     const authRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
       headers: { Authorization: `Bearer ${token}`, apikey: supabaseAnonKey },
       signal: AbortSignal.timeout(10_000),
     });
-    if (!authRes.ok) return null;
+    if (!authRes.ok) {
+      // Corpo do erro do GoTrue ajuda a distinguir token expirado de
+      // apikey rejeitada — nenhum dos dois é exposto ao cliente (a rota
+      // sempre devolve "Sessão inválida." genérico), só fica no log.
+      const corpo = await authRes.text().catch(() => '');
+      console.error('[requireOwnerAuth] /auth/v1/user recusou: status=%d corpo=%s', authRes.status, corpo.slice(0, 300));
+      return null;
+    }
     const { user } = await authRes.json();
     return user || null;
-  } catch {
+  } catch (e) {
+    console.error('[requireOwnerAuth] exceção ao validar token:', e);
     return null;
   }
 }
