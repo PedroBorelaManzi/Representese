@@ -73,13 +73,21 @@ export const SettingsTeam = React.memo(function SettingsTeam() {
       return;
     }
     setSavingNew(true);
+    let created: { id: string } | null = null;
     try {
-      const { data: created, error } = await supabase
+      const { data, error } = await supabase
         .from('order_intake_links')
         .insert([{ user_id: user.id, label }])
         .select('id')
         .single();
-      if (error || !created) throw error || new Error('Erro ao criar link.');
+      if (error || !data) throw error || new Error('Erro ao criar link.');
+      created = data;
+
+      // Recarrega assim que o link existe no banco — antes disso ficava só no
+      // catch abaixo, então se o passo do PIN falhasse (ou demorasse), o link
+      // recém-criado ficava invisível na lista até a página ser recarregada
+      // na mão, mesmo já existindo de verdade.
+      await loadLinks();
 
       await setIntakePin(created.id, newPin);
 
@@ -87,9 +95,14 @@ export const SettingsTeam = React.memo(function SettingsTeam() {
       setIsCreating(false);
       setNewLabel('');
       setNewPin(randomPin());
-      await loadLinks();
     } catch (err: any) {
-      toast.error(err.message || 'Erro ao criar link.');
+      if (created) {
+        // O link já está na lista (Sem PIN ainda); só o PIN falhou — dá pra
+        // definir de novo pelo botão "Definir PIN" ali, sem recriar o link.
+        toast.error((err.message || 'Erro ao definir o PIN.') + ' O link foi criado — defina o PIN pela lista abaixo.');
+      } else {
+        toast.error(err.message || 'Erro ao criar link.');
+      }
     } finally {
       setSavingNew(false);
     }
