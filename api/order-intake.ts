@@ -13,6 +13,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 // qualquer requisição (é o que estava derrubando 100% das chamadas a este
 // endpoint desde que ele foi criado).
 import { corsOriginCheck } from './_lib/cors.js';
+import { extrairUsuario } from './_lib/authUser.js';
 import { hashPin, verifyPin, isValidPinFormat } from './_lib/pinHash.js';
 import { signSession, verifySession } from './_lib/sessionToken.js';
 import {
@@ -106,9 +107,6 @@ async function requireOwnerAuth(req: express.Request): Promise<{ id: string } | 
       headers: { Authorization: `Bearer ${token}`, apikey: supabaseAnonKey },
       signal: AbortSignal.timeout(10_000),
     });
-    // A tentativa anterior só logava dentro de "!authRes.ok" ou do catch —
-    // nenhum dos dois disparou, então o corpo abaixo cobre o caso que
-    // faltava: resposta 2xx cujo JSON não tem "user" (formato inesperado).
     const corpoBruto = await authRes.text().catch(() => '');
     if (!authRes.ok) {
       // Corpo do erro do GoTrue ajuda a distinguir token expirado de
@@ -117,18 +115,22 @@ async function requireOwnerAuth(req: express.Request): Promise<{ id: string } | 
       console.error('[requireOwnerAuth] /auth/v1/user recusou: status=%d corpo=%s', authRes.status, corpoBruto.slice(0, 300));
       return null;
     }
-    let user: unknown;
+    let json: unknown;
     try {
-      ({ user } = JSON.parse(corpoBruto));
+      json = JSON.parse(corpoBruto);
     } catch {
       console.error('[requireOwnerAuth] resposta 200 não era JSON válido: corpo=%s', corpoBruto.slice(0, 300));
       return null;
     }
-    if (!user) {
-      console.error('[requireOwnerAuth] resposta 200 sem "user": corpo=%s', corpoBruto.slice(0, 300));
+    // extrairUsuario cuida do formato: o /auth/v1/user devolve o usuário na
+    // raiz, e era ler `corpo.user` (inexistente) que fazia esta função
+    // rejeitar toda sessão válida — ver api/_lib/authUser.ts.
+    const usuario = extrairUsuario(json);
+    if (!usuario) {
+      console.error('[requireOwnerAuth] resposta 200 sem usuário reconhecível: corpo=%s', corpoBruto.slice(0, 300));
       return null;
     }
-    return user as { id: string };
+    return usuario;
   } catch (e) {
     console.error('[requireOwnerAuth] exceção ao validar token:', e);
     return null;

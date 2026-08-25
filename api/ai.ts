@@ -9,6 +9,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 // sem extensão. Sem ela, a função inteira crasha no cold start com
 // ERR_MODULE_NOT_FOUND antes de responder a qualquer requisição.
 import { corsOriginCheck } from './_lib/cors.js';
+import { extrairUsuario } from './_lib/authUser.js';
 
 const app = express();
 
@@ -61,8 +62,16 @@ app.use(async (req, res, next) => {
     if (!authRes.ok) {
       return res.status(401).json({ error: 'Invalid token' });
     }
-    
-    const { user } = await authRes.json();
+
+    // O /auth/v1/user devolve o usuário na RAIZ do JSON, não em `user`. Ler
+    // `corpo.user` dava undefined: aqui isso passava despercebido só porque
+    // o rate limit está desligado (sem UPSTASH configurado) e ninguém mais
+    // usa req.user — no dia em que o Upstash fosse ligado, `user.id` estouraria
+    // e derrubaria TODA a IA com "Auth check failed". Ver api/_lib/authUser.ts.
+    const user = extrairUsuario(await authRes.json().catch(() => null));
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
     (req as any).user = user;
 
     if (ratelimit) {
