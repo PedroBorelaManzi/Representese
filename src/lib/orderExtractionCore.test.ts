@@ -76,7 +76,11 @@ describe('buildOrderExtractionPrompt', () => {
     const prompt = buildOrderExtractionPrompt('CONTEUDO DO PEDIDO', '11222333000144', 500, ['Cozimax', 'Acqua Clean']);
     expect(prompt).toContain('11222333000144');
     expect(prompt).toContain('500');
-    expect(prompt).toContain('Cozimax, Acqua Clean');
+    // Separador virou " | " em vez de ", ": nome de representada pode ter
+    // vírgula ("Aurora Tintas, Vernizes e Solventes") e a lista ficava
+    // ambígua pra IA. O que importa é cada categoria estar no prompt.
+    expect(prompt).toContain('Cozimax');
+    expect(prompt).toContain('Acqua Clean');
     expect(prompt).toContain('CONTEUDO DO PEDIDO');
   });
 

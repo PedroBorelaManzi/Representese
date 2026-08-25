@@ -20,7 +20,7 @@ import {
   ORDER_EXTRACTION_SYSTEM_INSTRUCTION,
   buildOrderExtractionPrompt,
   extractCNPJLocally,
-  extractCategoryLocally,
+  extractCategoryLocallyDetailed,
   extractValueLocally,
   reconcileExtractionResult,
 } from '../src/lib/orderExtractionCore.js';
@@ -268,10 +268,20 @@ async function handleParse(req: express.Request, res: express.Response, payload:
     .maybeSingle();
   const categories: string[] = settingsRow?.categories || [];
 
+  // A carteira é buscada ANTES da IA (e não só depois, pra casar o resultado):
+  // mandando os nomes já cadastrados no prompt, a IA devolve o comprador na
+  // grafia exata do cadastro, e aí o match exato lá embaixo acerta em vez de
+  // cair sempre em "cliente novo" por uma diferença de abreviação.
+  const { data: clientsRows } = await session.supabase
+    .from('clients')
+    .select('id, name, cnpj')
+    .eq('user_id', session.ownerId);
+  const nomesDeClientes: string[] = (clientsRows || []).map((c: any) => c.name).filter(Boolean);
+
   const localCnpj = extractCNPJLocally(extractedText);
   const localValue = extractValueLocally(extractedText);
-  const localCategory = extractCategoryLocally(extractedText, categories);
-  const userPrompt = buildOrderExtractionPrompt(extractedText, localCnpj, localValue, categories);
+  const localCategoria = extractCategoryLocallyDetailed(extractedText, categories);
+  const userPrompt = buildOrderExtractionPrompt(extractedText, localCnpj, localValue, categories, nomesDeClientes);
 
   let rawText = '';
   try {
@@ -299,19 +309,20 @@ async function handleParse(req: express.Request, res: express.Response, payload:
     rawText = '{}';
   }
 
-  const extraction = reconcileExtractionResult(rawText, localCnpj, localValue, localCategory, categories);
+  const extraction = reconcileExtractionResult(
+    rawText, localCnpj, localValue,
+    localCategoria.category, categories, localCategoria.score,
+  );
 
   // Mesma regra de match do resto do app (Pedidos.tsx): só exato (CNPJ ou
   // nome idênticos) auto-seleciona; qualquer outra coisa vira "cliente novo"
-  // pro funcionário conferir, nunca um cadastro escondido.
+  // pro funcionário conferir, nunca um cadastro escondido. A regra continua
+  // exata de propósito — o que melhorou foi a chance de a IA devolver o nome
+  // já na grafia do cadastro, porque agora ela recebe a lista.
   let clientMatch: { id: string; name: string } | null = null;
   const cleanCnpj = extraction.cnpj?.replace(/\D/g, '');
   const cleanName = extraction.client?.trim().toLowerCase();
   if (cleanCnpj || cleanName) {
-    const { data: clientsRows } = await session.supabase
-      .from('clients')
-      .select('id, name, cnpj')
-      .eq('user_id', session.ownerId);
     const match = (clientsRows || []).find((c: any) => {
       const cCnpj = c.cnpj?.replace(/\D/g, '');
       const cName = c.name?.trim().toLowerCase();

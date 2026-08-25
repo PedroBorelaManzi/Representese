@@ -6,6 +6,7 @@ import {
   buildOrderExtractionPrompt,
   extractCNPJLocally,
   extractCategoryLocally,
+  extractCategoryLocallyDetailed,
   extractValueLocally,
   reconcileExtractionResult,
   type OrderExtractionResult,
@@ -83,16 +84,21 @@ export async function extractLocalFileData(file: File): Promise<LocalFileData> {
   return { type: detected.type, extractedText: "" };
 }
 
-export async function processOrderFile(file: File, knownClients = [], categories = []): Promise<OrderExtractionResult> {
+export async function processOrderFile(file: File, knownClients: string[] = [], categories: string[] = []): Promise<OrderExtractionResult> {
   try {
     const local = await extractLocalFileData(file);
     const { extractedText, imageData, imageMimeType } = local;
 
     const localCnpj = extractCNPJLocally(extractedText);
     const localValue = extractValueLocally(extractedText);
-    const localCategory = extractCategoryLocally(extractedText, categories as string[]);
+    const localCategoria = extractCategoryLocallyDetailed(extractedText, categories);
 
-    const userPrompt = buildOrderExtractionPrompt(extractedText, localCnpj, localValue, categories as string[]);
+    // knownClients já vinha preenchido pelas três telas que chamam isto
+    // (Pedidos, Empresas e ClientDetails) e era simplesmente ignorado aqui —
+    // a IA nunca via a carteira. Passando a lista, ela devolve o nome na
+    // grafia exata do cadastro, que é o que faz o pedido casar sozinho com o
+    // cliente certo em vez de cair como "cliente novo".
+    const userPrompt = buildOrderExtractionPrompt(extractedText, localCnpj, localValue, categories, knownClients);
 
     let textResult = "";
     try {
@@ -117,7 +123,10 @@ export async function processOrderFile(file: File, knownClients = [], categories
         throw new Error("Resposta da IA vazia");
     }
 
-    return reconcileExtractionResult(textResult, localCnpj, localValue, localCategory, categories as string[]);
+    return reconcileExtractionResult(
+      textResult, localCnpj, localValue,
+      localCategoria.category, categories, localCategoria.score,
+    );
 
   } catch (err) {
     console.error("AI Reader Error Details:", err);
