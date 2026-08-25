@@ -48,6 +48,11 @@ export function createOfflineTileLayer(urlTemplate: string, options: L.TileLayer
           }
           void cacheTile(url, blob);
         } catch (e) {
+          // Sem isso, um tile bloqueado (CSP, CORS, DNS) falhava em silêncio
+          // e o mapa virava um quadriculado cinza sem nenhuma pista no
+          // console de por quê — foi exatamente assim que o connect-src da
+          // CSP ficou sem *.tile.openstreetmap.org por uma versão inteira.
+          console.error("[offlineTileLayer] falha ao buscar tile:", url, e);
           if (!cached) finish(e as Error);
         }
       })();
