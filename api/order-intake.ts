@@ -106,16 +106,29 @@ async function requireOwnerAuth(req: express.Request): Promise<{ id: string } | 
       headers: { Authorization: `Bearer ${token}`, apikey: supabaseAnonKey },
       signal: AbortSignal.timeout(10_000),
     });
+    // A tentativa anterior só logava dentro de "!authRes.ok" ou do catch —
+    // nenhum dos dois disparou, então o corpo abaixo cobre o caso que
+    // faltava: resposta 2xx cujo JSON não tem "user" (formato inesperado).
+    const corpoBruto = await authRes.text().catch(() => '');
     if (!authRes.ok) {
       // Corpo do erro do GoTrue ajuda a distinguir token expirado de
       // apikey rejeitada — nenhum dos dois é exposto ao cliente (a rota
       // sempre devolve "Sessão inválida." genérico), só fica no log.
-      const corpo = await authRes.text().catch(() => '');
-      console.error('[requireOwnerAuth] /auth/v1/user recusou: status=%d corpo=%s', authRes.status, corpo.slice(0, 300));
+      console.error('[requireOwnerAuth] /auth/v1/user recusou: status=%d corpo=%s', authRes.status, corpoBruto.slice(0, 300));
       return null;
     }
-    const { user } = await authRes.json();
-    return user || null;
+    let user: unknown;
+    try {
+      ({ user } = JSON.parse(corpoBruto));
+    } catch {
+      console.error('[requireOwnerAuth] resposta 200 não era JSON válido: corpo=%s', corpoBruto.slice(0, 300));
+      return null;
+    }
+    if (!user) {
+      console.error('[requireOwnerAuth] resposta 200 sem "user": corpo=%s', corpoBruto.slice(0, 300));
+      return null;
+    }
+    return user as { id: string };
   } catch (e) {
     console.error('[requireOwnerAuth] exceção ao validar token:', e);
     return null;
