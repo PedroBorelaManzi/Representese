@@ -36,6 +36,8 @@ export interface Order {
   file_name?: string;
   file_path?: string;
   description?: string;
+  source?: string;
+  intake_link_label?: string;
   created_at: string;
   client?: {
     id: string;

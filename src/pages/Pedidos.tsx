@@ -1,6 +1,6 @@
 import { useUpload } from '../contexts/UploadContext';
 import React, { useState, useEffect, useMemo } from "react";
-import { Plus, Search, FileText, Upload, Loader2, ShoppingBag, Trash2, ArrowUpRight, TrendingUp, DollarSign, Calendar, ChevronRight, X, Sparkles, Navigation } from "lucide-react";
+import { Plus, Search, FileText, Upload, Loader2, ShoppingBag, Trash2, ArrowUpRight, TrendingUp, DollarSign, Calendar, ChevronRight, X, Sparkles, Navigation, UserCog } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { posthog } from "../lib/posthog";
@@ -332,6 +332,12 @@ export default function PedidosPage() {
                              </Link>
                              <div className="flex items-center gap-2 mt-1">
                                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{order.client?.cnpj || "N/A"}</span>
+                                {order.intake_link_label && (
+                                   <span title={`Enviado pelo link "${order.intake_link_label}"`} className="flex items-center gap-1 px-2 py-0.5 bg-cyan-50 dark:bg-cyan-500/10 border border-cyan-100 dark:border-cyan-900/40 rounded-lg text-[7px] font-black text-cyan-600 uppercase tracking-widest">
+                                      <UserCog className="w-2.5 h-2.5" />
+                                      {order.intake_link_label}
+                                   </span>
+                                )}
                              </div>
                           </div>
                        </div>
@@ -394,6 +400,13 @@ export default function PedidosPage() {
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
+
+                {order.intake_link_label && (
+                  <span title={`Enviado pelo link "${order.intake_link_label}"`} className="flex items-center gap-1 w-fit px-2 py-0.5 bg-cyan-50 dark:bg-cyan-500/10 border border-cyan-100 dark:border-cyan-900/40 rounded-lg text-[7px] font-black text-cyan-600 uppercase tracking-widest">
+                    <UserCog className="w-2.5 h-2.5" />
+                    {order.intake_link_label}
+                  </span>
+                )}
 
                 <div className="flex items-center justify-between pt-3 border-t border-slate-50 dark:border-zinc-800/50">
                   <div className="flex flex-col gap-1">

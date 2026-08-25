@@ -106,6 +106,7 @@ async function requireOwnerAuth(req: express.Request): Promise<{ id: string } | 
 
 interface IntakeSession {
   linkId: string;
+  linkLabel: string;
   ownerId: string;
   supabase: SupabaseClient;
 }
@@ -127,7 +128,7 @@ async function requireIntakeSession(req: express.Request, res: express.Response)
   const supabase = getServiceClient();
   const { data: link } = await supabase
     .from('order_intake_links')
-    .select('id, user_id, active, session_epoch')
+    .select('id, user_id, active, session_epoch, label')
     .eq('id', payload.linkId)
     .maybeSingle();
 
@@ -136,7 +137,7 @@ async function requireIntakeSession(req: express.Request, res: express.Response)
     return null;
   }
 
-  return { linkId: link.id, ownerId: link.user_id, supabase };
+  return { linkId: link.id, linkLabel: link.label, ownerId: link.user_id, supabase };
 }
 
 async function handleSetPin(req: express.Request, res: express.Response, payload: any) {
@@ -396,6 +397,7 @@ async function handleSubmit(req: express.Request, res: express.Response, payload
     file_name: fileName || String(filePath).split('/').pop(),
     file_path: filePath,
     source: 'order_intake_link',
+    intake_link_label: session.linkLabel,
   }]);
 
   if (insertError) {
