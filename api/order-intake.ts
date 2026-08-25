@@ -260,6 +260,14 @@ async function handleParse(req: express.Request, res: express.Response, payload:
   const { extractedText = '', imageData, imageMimeType } = payload || {};
   if (!extractedText && !imageData) return res.status(400).json({ error: 'Arquivo vazio ou não suportado.' });
   if (!process.env.GEMINI_API_KEY) return res.status(500).json({ error: 'IA não configurada no servidor.' });
+  // Mesma lista de src/lib/orderDocument.ts (MIMES_ACEITOS_PELA_IA) — repetida
+  // aqui, e não importada, pra não puxar o módulo de leitura de arquivo do
+  // navegador (canvas, pdf.js) pro bundle desta função serverless. O
+  // navegador só produz esses valores; isto é defesa contra um payload
+  // forjado direto na API.
+  if (imageData && !['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'application/pdf'].includes(imageMimeType)) {
+    return res.status(400).json({ error: 'Formato de arquivo não suportado.' });
+  }
 
   const { data: settingsRow } = await session.supabase
     .from('user_settings')

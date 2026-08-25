@@ -5,7 +5,6 @@ import { describe, it, expect, vi } from 'vitest';
 // import (ambiente node dos testes não tem), gerando rejeições não tratadas.
 // Essas três funções são só regex/heurística local, não usam nada disso.
 vi.mock('./geminiProxy', () => ({ geminiWithSystem: vi.fn() }));
-vi.mock('./pdfjsLoader', () => ({ loadPdfjs: vi.fn() }));
 
 import { extractCNPJLocally, extractCategoryLocally, extractValueLocally } from './orderProcessor';
 

@@ -68,6 +68,9 @@ export interface ParseIntakeResult {
   categories: string[];
   clientMatch: { id: string; name: string } | null;
   error?: string;
+  /** A própria IA avaliando a confiança de cada campo — usado pra decidir se
+   *  mostra um aviso de "confira este valor" em vez de aceitar calado. */
+  confidence?: { client?: string; category?: string; value?: string };
 }
 export async function parseIntakeOrder(
   sessionToken: string,

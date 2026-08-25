@@ -1,6 +1,5 @@
 import { geminiWithSystem } from "./geminiProxy";
-import { loadPdfjs } from "./pdfjsLoader";
-import { compressImage } from "./imageCompression";
+import { prepareOrderDocument, type OrderDocumentKind } from "./orderDocument";
 import {
   ORDER_EXTRACTION_SYSTEM_INSTRUCTION,
   buildOrderExtractionPrompt,
@@ -15,79 +14,52 @@ import {
 export type { OrderExtractionResult };
 export { extractCNPJLocally, extractCategoryLocally, extractValueLocally };
 
-export type DetectedFileType = "pdf" | "excel" | "image" | "unknown";
-
-export async function detectFileType(file: File): Promise<{ type: DetectedFileType; mimeType: string }> {
-  const buffer = await file.slice(0, 12).arrayBuffer();
-  const bytes = new Uint8Array(buffer);
-  if (bytes[0] === 0x25 && bytes[1] === 0x50) return { type: "pdf", mimeType: "application/pdf" };
-  if (bytes[0] === 0x50 && bytes[1] === 0x4B) return { type: "excel", mimeType: "application/vnd.openxmlformats" };
-
-  const name = file.name.toLowerCase();
-  if (name.endsWith(".pdf")) return { type: "pdf", mimeType: "application/pdf" }; // Fallback
-  if (name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".png") || name.endsWith(".webp")) return { type: "image", mimeType: file.type };
-
-  return { type: "unknown", mimeType: file.type };
-}
+export type DetectedFileType = OrderDocumentKind;
 
 export interface LocalFileData {
   type: DetectedFileType;
-  /** Texto extraído localmente (PDF/planilha) — vazio pra imagem, que não
-   *  tem extração local nenhuma (só a IA lê foto). */
+  /** Texto extraído localmente (PDF/planilha) — pode vir vazio (PDF
+   *  escaneado, foto) sem que isso seja um erro: o documento em si ainda
+   *  vai pra IA pelo `imageData` abaixo. */
   extractedText: string;
-  /** Preenchido só pra imagem: base64 já comprimido, pronto pra mandar pra IA. */
+  /** Bytes do documento (imagem OU pdf) prontos pra IA ler, em base64. O
+   *  nome é herdado de quando só existia imagem — hoje carrega qualquer
+   *  anexo que o Gemini aceita. */
   imageData?: string;
   imageMimeType?: string;
+  /** Preenchido quando a leitura local falhou mas o fluxo seguiu de
+   *  qualquer forma — vai pro log do servidor, não pro usuário. */
+  localError?: string;
 }
 
-/** Lê o arquivo localmente (sem IA nenhuma): texto de PDF/planilha, ou
- *  compressão + base64 de imagem. Usado tanto pelo upload normal
+/** Lê o arquivo localmente (sem IA nenhuma): texto de PDF/planilha quando dá,
+ *  e os bytes do documento prontos pra IA ler. Usado tanto pelo upload normal
  *  (processOrderFile abaixo) quanto pela tela de enviar pedido por link
- *  (OrderIntake.tsx), que manda esse resultado pro servidor pra IA ler. */
+ *  (OrderIntake.tsx), que manda esse resultado pro servidor pra IA ler.
+ *
+ *  Delega pra prepareOrderDocument (orderDocument.ts), que NUNCA lança —
+ *  antes, uma falha aqui (pdf.js quebrando, PDF escaneado, HEIC não
+ *  reconhecido) derrubava a tela inteira de enviar pedido antes mesmo de a
+ *  IA ser chamada. */
 export async function extractLocalFileData(file: File): Promise<LocalFileData> {
-  const detected = await detectFileType(file);
-  let extractedText = "";
-
-  if (detected.type === "pdf") {
-    const pdfjs = await loadPdfjs();
-    const buffer = await file.arrayBuffer();
-    // pdf.js v6 removeu eval() do motor de renderização/parsing por completo —
-    // não existe mais a opção isEvalSupported (nem falta fazer nada pelo CSP).
-    const pdf = await pdfjs.getDocument({ data: buffer }).promise;
-    for (let i = 1; i <= Math.min(pdf.numPages, 3); i++) {
-      const page = await pdf.getPage(i);
-      const content = await page.getTextContent();
-      extractedText += content.items.map((item: any) => item.str).join(" ") + "\n";
-    }
-    return { type: detected.type, extractedText };
+  const prepared = await prepareOrderDocument(file);
+  if (prepared.fatalMessage) {
+    throw new Error(prepared.fatalMessage);
   }
-
-  if (detected.type === "excel") {
-    const buffer = await file.arrayBuffer();
-    const { default: ExcelJS } = await import("exceljs"); // ~940 kB: só carrega quando o usuário importa/exporta planilha
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(buffer);
-    if (workbook.worksheets.length > 0) {
-      workbook.worksheets[0].eachRow(row => {
-        const rowValues = Array.isArray(row.values) ? row.values.slice(1).join(',') : '';
-        extractedText += rowValues + '\n';
-      });
-    }
-    return { type: detected.type, extractedText };
-  }
-
-  if (detected.type === "image") {
-    const compressed = await compressImage(file);
-    return { type: detected.type, extractedText: "", imageData: compressed.base64, imageMimeType: compressed.mime };
-  }
-
-  return { type: detected.type, extractedText: "" };
+  return {
+    type: prepared.kind,
+    extractedText: prepared.extractedText,
+    imageData: prepared.inlineData?.data,
+    imageMimeType: prepared.inlineData?.mimeType,
+    localError: prepared.localError,
+  };
 }
 
 export async function processOrderFile(file: File, knownClients: string[] = [], categories: string[] = []): Promise<OrderExtractionResult> {
   try {
     const local = await extractLocalFileData(file);
     const { extractedText, imageData, imageMimeType } = local;
+    if (local.localError) console.warn("Leitura local do pedido com ressalva:", local.localError);
 
     const localCnpj = extractCNPJLocally(extractedText);
     const localValue = extractValueLocally(extractedText);

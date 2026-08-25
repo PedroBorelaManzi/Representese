@@ -18,6 +18,11 @@ export interface OrderExtractionResult {
   status: "ready" | "error";
   error?: string;
   method?: "local" | "ai";
+  /** A própria IA avaliando quanto confia em cada campo — pedido no prompt,
+   *  mas até agora nunca lido de volta. Usado pra decidir quando confiar no
+   *  valor da IA (ver `reconcileExtractionResult`) e pra avisar o usuário
+   *  quando o campo merece conferência, em vez de cadastrar calado. */
+  confidence?: { client?: string; category?: string; value?: string };
 }
 
 /** Tira acentos e pontuação pra comparar texto sem depender de como o
@@ -413,14 +418,24 @@ export function reconcileExtractionResult(
   }
 
   const valorIa = typeof data.value === "number" ? data.value : parseFloat(data.value);
+  const confidence = data.confidence && typeof data.confidence === "object" ? data.confidence : undefined;
+
+  // O prompt pede esse veredito da própria IA desde a primeira versão, mas
+  // ninguém nunca olhava de volta. Quando ela mesma marca "baixa" confiança
+  // no valor E a regex local achou um número com rótulo confiável, a heurística
+  // determinística vale mais que um palpite que a própria IA desconfia.
+  const iaValida = isFinite(valorIa) && valorIa > 0;
+  const iaDesconfiaDoValor = confidence?.value === "baixa";
+  const finalValue = iaValida && !(iaDesconfiaDoValor && localValue > 0) ? valorIa : localValue;
 
   return {
     client: data.client || "Desconhecido",
     cnpj: (data.cnpj || localCnpj || "").replace(/\D/g, ""),
     category: finalCategory,
-    value: isFinite(valorIa) && valorIa > 0 ? valorIa : localValue,
+    value: finalValue,
     address: data.address || "",
     status: "ready",
     method: "ai",
+    confidence,
   };
 }

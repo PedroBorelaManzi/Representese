@@ -141,6 +141,11 @@ export default function OrderIntake() {
         setCategories(result.categories || categories);
         setValue(result.value ? String(result.value) : "");
         if (result.category) setCategory(result.category);
+        // "baixa" é a própria IA avisando que não tem certeza — vale mais
+        // que ficar calado e deixar um valor errado passar batido.
+        if (result.confidence?.value === "baixa") {
+          toast.warning("Não tenho certeza do valor — confira antes de enviar.");
+        }
         if (result.clientMatch) {
           setClientMode("match");
         } else {

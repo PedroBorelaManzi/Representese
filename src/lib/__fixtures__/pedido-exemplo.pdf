@@ -1,0 +1,60 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 675 >>
+stream
+BT /F1 10 Tf 40 780 Td
+(EMPRESA FICTICIA MOVEIS LTDA) Tj
+0 -14 Td
+(CNPJ: 00.000.000/0001-00) Tj
+0 -14 Td
+(DANFE - DOCUMENTO AUXILIAR DA NOTA FISCAL ELETRONICA) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(DESTINATARIO / REMETENTE) Tj
+0 -14 Td
+(Nome/Razao Social: CLIENTE TESTE MATERIAIS PARA CONSTRUCAO LTDA) Tj
+0 -14 Td
+(CNPJ: 11.111.111/0001-11) Tj
+0 -14 Td
+(Endereco: Rua Ficticia, 100 - Cidade Teste/SP) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(DADOS DOS PRODUTOS) Tj
+0 -14 Td
+(001 KIT PORTA MODELO A  2  R$ 424,03  R$ 848,06) Tj
+0 -14 Td
+(002 GABINETE MODELO B   2  R$ 594,95  R$ 1.189,90) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(SubTotal IPI Total \(+\) R$ 9.139,97 R$ 286,60 R$ 9.426,57 ST \(+\) R$ 0,00) Tj
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000000967 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+1037
+%%EOF
