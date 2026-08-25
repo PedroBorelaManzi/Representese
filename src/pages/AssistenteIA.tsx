@@ -38,6 +38,7 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
 import { geminiWithSystem, geminiText } from "../lib/geminiProxy";
+import { compressImage } from "../lib/imageCompression";
 import { posthog } from "../lib/posthog";
 import { cn } from "../lib/utils";
 import { toast } from "sonner";
@@ -445,47 +446,6 @@ EMPRESAS REPRESENTADAS DO USUÁRIO (use exatamente estes nomes como "category" a
 
   const cancel = () => {
     abortRef.current?.abort();
-  };
-
-  // Comprime/redimensiona a imagem para caber no limite do servidor (~4,5MB na Vercel).
-  // Também normaliza HEIC (foto de iPhone) e PNG pesado para JPEG.
-  const compressImage = (
-    file: File,
-    maxDim = 1600,
-    quality = 0.8
-  ): Promise<{ dataUrl: string; base64: string; mime: string }> => {
-    return new Promise((resolve, reject) => {
-      const objectUrl = URL.createObjectURL(file);
-      const img = new Image();
-      img.onload = () => {
-        try {
-          let { width, height } = img;
-          if (width > maxDim || height > maxDim) {
-            const scale = Math.min(maxDim / width, maxDim / height);
-            width = Math.round(width * scale);
-            height = Math.round(height * scale);
-          }
-          const canvas = document.createElement("canvas");
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext("2d");
-          if (!ctx) throw new Error("canvas");
-          ctx.drawImage(img, 0, 0, width, height);
-          const dataUrl = canvas.toDataURL("image/jpeg", quality);
-          const base64 = dataUrl.split(",")[1] || "";
-          URL.revokeObjectURL(objectUrl);
-          resolve({ dataUrl, base64, mime: "image/jpeg" });
-        } catch (err) {
-          URL.revokeObjectURL(objectUrl);
-          reject(err);
-        }
-      };
-      img.onerror = () => {
-        URL.revokeObjectURL(objectUrl);
-        reject(new Error("Não consegui ler essa imagem."));
-      };
-      img.src = objectUrl;
-    });
   };
 
   // Anexar foto (ex.: pedido para a IA ler e lançar)

@@ -29,6 +29,7 @@ const Landing = lazyWithRetry(() => import("./pages/LandingPitch"));
 const Login = lazyWithRetry(() => import('./pages/Login'));
 const Register = lazyWithRetry(() => import('./pages/Register'));
 const Recovery = lazyWithRetry(() => import('./pages/Recovery'));
+const OrderIntake = lazyWithRetry(() => import('./pages/OrderIntake'));
 const Checkout = lazyWithRetry(() => import('./pages/Checkout'));
 const OrderBumpPage = lazyWithRetry(() => import("./pages/OrderBump"));
 const Dashboard = lazyWithRetry(() => import("./pages/Dashboard"));
@@ -114,6 +115,7 @@ export default function App() {
                   <Route path='/login' element={<Login />} />
                   <Route path='/register' element={<Register />} />
                   <Route path='/recovery' element={<Recovery />} />
+                  <Route path='/enviar/:token' element={<OrderIntake />} />
                   <Route path='/checkout' element={<Checkout />} />
                   <Route path='/planos' element={<PlanosPage />} />
                   

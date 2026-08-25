@@ -3,34 +3,11 @@ import cors from 'cors';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { corsOriginCheck } from './_lib/cors';
 
 const app = express();
 
-const allowedOrigins = [
-  'https://www.representese.com',
-  'https://representese.com',
-  'http://localhost:3000'
-];
-
-app.use(cors({
-  origin: (origin, callback) => {
-    const ok =
-      !origin ||
-      allowedOrigins.includes(origin) ||
-      /\.representese\.com$/.test(origin) ||   // qualquer subdomínio (www, app, etc.)
-      // Só previews DESTE projeto (representese-*.vercel.app) — antes qualquer
-      // site *.vercel.app podia chamar a API (defesa em profundidade).
-      /^https:\/\/representese[a-z0-9-]*\.vercel\.app$/.test(origin) ||
-      origin.startsWith('capacitor://') ||     // app nativo iOS
-      origin === 'http://localhost' ||         // app nativo Android
-      origin === 'https://localhost';          // app nativo
-    if (ok) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  }
-}));
+app.use(cors({ origin: corsOriginCheck }));
 
 // Limite elevado para aceitar imagens (pedido por foto) em base64.
 // A Vercel ainda limita o corpo a ~4,5MB; o cliente comprime antes de enviar.

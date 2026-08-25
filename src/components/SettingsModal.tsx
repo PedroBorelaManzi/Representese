@@ -7,6 +7,7 @@ import {
   Bell,
   Shield,
   Smartphone,
+  Users,
   LogOut
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -21,6 +22,7 @@ import { SettingsSubscription } from './settings/SettingsSubscription';
 import { SettingsNotifications } from './settings/SettingsNotifications';
 import { SettingsSecurity } from './settings/SettingsSecurity';
 import { SettingsMobile } from './settings/SettingsMobile';
+import { SettingsTeam } from './settings/SettingsTeam';
 import { useModalEsc } from '../hooks/useModalEsc';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 
@@ -35,7 +37,8 @@ const menuItems = [
   { id: 'subscription', label: 'Minha Assinatura', icon: CreditCard, color: 'text-emerald-500' },
   { id: 'notifications', label: 'Notificações', icon: Bell, color: 'text-amber-500' },
   { id: 'security', label: 'Segurança', icon: Shield, color: 'text-red-500' },
-  { id: 'mobile', label: 'Celular/App', icon: Smartphone, color: 'text-purple-500' }
+  { id: 'mobile', label: 'Celular/App', icon: Smartphone, color: 'text-purple-500' },
+  { id: 'team', label: 'Equipe', icon: Users, color: 'text-cyan-500' }
 ];
 
 export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
@@ -178,6 +181,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 {activeTab === 'security' && <SettingsSecurity />}
                 {activeTab === 'subscription' && <SettingsSubscription onClose={onClose} />}
                 {activeTab === 'mobile' && <SettingsMobile />}
+                {activeTab === 'team' && <SettingsTeam />}
               </motion.div>
             </AnimatePresence>
           </div>
