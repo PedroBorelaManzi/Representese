@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, CheckCircle2, Loader2, ArrowRight, RefreshCw, FileText, AlertTriangle } from "lucide-react";
+import { Camera, Image as ImageIcon, CheckCircle2, Loader2, ArrowRight, RefreshCw, FileText, AlertTriangle } from "lucide-react";
 import { Logo } from "../components/Logo";
 import { toast } from "sonner";
 import { extractLocalFileData } from "../lib/orderProcessor";
@@ -107,6 +107,14 @@ export default function OrderIntake() {
     setCategory("");
     setValue("");
   };
+
+  /* Três entradas separadas em vez de uma só: o atributo `capture` é o que
+     manda o celular abrir a câmera direto, e ele vale pro input inteiro —
+     não dá pra ter "tirar foto" e "escolher arquivo existente" no mesmo.
+     Cada botão dispara o input com o accept/capture certo pra sua intenção. */
+  const inputCamera = useRef<HTMLInputElement>(null);
+  const inputGaleria = useRef<HTMLInputElement>(null);
+  const inputArquivo = useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const picked = e.target.files?.[0];
@@ -252,11 +260,36 @@ export default function OrderIntake() {
                 </div>
 
                 {!file ? (
-                  <label className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-slate-200 dark:border-zinc-800 rounded-2xl py-14 cursor-pointer hover:border-emerald-300 hover:bg-emerald-50/30 dark:hover:bg-emerald-500/5 transition-all">
-                    <Upload className="w-8 h-8 text-slate-300" />
-                    <span className="text-xs font-black uppercase tracking-widest text-slate-500">Toque para anexar</span>
-                    <input type="file" accept=".pdf,.xlsx,.xls,image/*" capture="environment" className="hidden" onChange={handleFileChange} />
-                  </label>
+                  <div className="space-y-3">
+                    {[
+                      { ref: inputCamera, Icone: Camera, titulo: "Tirar foto", ajuda: "Fotografar o pedido em papel" },
+                      { ref: inputGaleria, Icone: ImageIcon, titulo: "Galeria de fotos", ajuda: "Escolher uma foto já tirada" },
+                      { ref: inputArquivo, Icone: FileText, titulo: "Arquivo", ajuda: "PDF ou planilha salva no aparelho" },
+                    ].map(({ ref, Icone, titulo, ajuda }) => (
+                      <button
+                        key={titulo}
+                        type="button"
+                        onClick={() => ref.current?.click()}
+                        className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-slate-200 dark:border-zinc-800 hover:border-emerald-300 hover:bg-emerald-50/30 dark:hover:bg-emerald-500/5 transition-all text-left"
+                      >
+                        <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 shrink-0">
+                          <Icone className="w-5 h-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-black text-slate-900 dark:text-white">{titulo}</p>
+                          <p className="text-[11px] font-medium text-slate-400 dark:text-zinc-500">{ajuda}</p>
+                        </div>
+                      </button>
+                    ))}
+
+                    {/* capture="environment" só no primeiro: é ele que abre a
+                        câmera. Sem esse atributo, os outros dois deixam o
+                        próprio celular oferecer galeria e gerenciador de
+                        arquivos, que é o comportamento esperado de cada um. */}
+                    <input ref={inputCamera} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
+                    <input ref={inputGaleria} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                    <input ref={inputArquivo} type="file" accept=".pdf,.xlsx,.xls" className="hidden" onChange={handleFileChange} />
+                  </div>
                 ) : analyzing ? (
                   <div className="flex flex-col items-center justify-center gap-3 py-14">
                     <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
