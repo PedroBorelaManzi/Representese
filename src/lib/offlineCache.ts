@@ -14,6 +14,7 @@ export const CacheKeys = {
   USER_SETTINGS: 'rm_cache_user_settings',
   APPOINTMENTS: 'rm_cache_appointments',
   ALL_TIME_CATEGORIES: 'rm_cache_all_time_categories',
+  ORDER_ITEMS: 'rm_cache_order_items',
   /** Marca quando a sincronização completa (clientes, pedidos, agenda, feriados
    *  e arquivos) rodou pela última vez — TTL de 24h faz a chave "expirar"
    *  sozinha, sinalizando que já passou um dia e é hora de rodar de novo. */

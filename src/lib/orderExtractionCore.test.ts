@@ -17,6 +17,8 @@ describe('reconcileExtractionResult', () => {
       address: 'Rua A, 1',
       status: 'ready',
       method: 'ai',
+      confidence: undefined,
+      items: [],
     });
   });
 
@@ -61,6 +63,7 @@ describe('reconcileExtractionResult', () => {
       address: '',
       status: 'ready',
       method: 'local',
+      items: [],
     });
   });
 
@@ -68,6 +71,48 @@ describe('reconcileExtractionResult', () => {
     const raw = JSON.stringify({ cnpj: '', category: '', value: 10, address: '' });
     const result = reconcileExtractionResult(raw, '', 0, '', []);
     expect(result.client).toBe('Desconhecido');
+  });
+
+  it('lê os itens do pedido quando a IA devolve a lista', () => {
+    const raw = JSON.stringify({
+      client: 'X', cnpj: '', category: '', value: 100, address: '',
+      items: [
+        { description: 'KIT PORTA MODELO A', code: '103373', quantity: 2, unitValue: 424.03, totalValue: 848.06 },
+        { description: 'GABINETE MODELO B', quantity: 1, totalValue: 594.95 },
+      ],
+    });
+    const result = reconcileExtractionResult(raw, '', 0, '', []);
+    expect(result.items).toEqual([
+      { description: 'KIT PORTA MODELO A', code: '103373', quantity: 2, unitValue: 424.03, totalValue: 848.06 },
+      { description: 'GABINETE MODELO B', code: undefined, quantity: 1, unitValue: undefined, totalValue: 594.95 },
+    ]);
+  });
+
+  it('descarta item sem descrição ou sem quantidade — não inventa item fantasma', () => {
+    const raw = JSON.stringify({
+      client: 'X', cnpj: '', category: '', value: 100, address: '',
+      items: [
+        { description: '', quantity: 2 },
+        { description: 'Produto sem quantidade' },
+        { description: 'Produto quantidade zero', quantity: 0 },
+        { description: 'Produto válido', quantity: 3 },
+      ],
+    });
+    const result = reconcileExtractionResult(raw, '', 0, '', []);
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].description).toBe('Produto válido');
+  });
+
+  it('resposta sem "items" nenhum vira lista vazia, não erro', () => {
+    const raw = JSON.stringify({ client: 'X', cnpj: '', category: '', value: 100, address: '' });
+    const result = reconcileExtractionResult(raw, '', 0, '', []);
+    expect(result.items).toEqual([]);
+  });
+
+  it('"items" que não é array (a IA mandou algo estranho) vira lista vazia', () => {
+    const raw = JSON.stringify({ client: 'X', cnpj: '', category: '', value: 100, address: '', items: 'nao é uma lista' });
+    const result = reconcileExtractionResult(raw, '', 0, '', []);
+    expect(result.items).toEqual([]);
   });
 });
 

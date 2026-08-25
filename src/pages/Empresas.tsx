@@ -33,6 +33,7 @@ import { useFocusTrap } from "../hooks/useFocusTrap";
 import { syncQueue } from "../lib/syncQueue";
 import { offlineCache, CacheKeys } from "../lib/offlineCache";
 import { ajustarFaturamento } from "../lib/faturamento";
+import { salvarItensDoPedido } from "../lib/orderItems";
 import { EmptyState } from "../components/ui";
 import TourArrow from "../components/TourArrow";
 
@@ -248,7 +249,8 @@ export default function EmpresasPage() {
             value: res.value || 0,
             status: 'ready',
             cnpj: res.cnpj || "",
-            address: res.address || ""
+            address: res.address || "",
+            items: res.items || []
           } : item
         ));
       } catch (err) {
@@ -322,6 +324,13 @@ export default function EmpresasPage() {
         } else {
            await supabase.storage.from("client_vault").upload(path, item.file, { upsert: true });
            await supabase.from("orders").upsert([orderPayload], { onConflict: "client_id,file_path" });
+
+           if (item.items?.length && user) {
+             await salvarItensDoPedido(supabase, {
+               userId: user.id, orderId: orderPayload.id, clientId: cid, category: item.category || 'GERAL',
+               orderDate: orderPayload.created_at, items: item.items,
+             });
+           }
 
            const { data: clientData } = await supabase.from("clients").select("faturamento").eq("id", cid).single();
            if (clientData) {

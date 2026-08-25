@@ -10,10 +10,12 @@ import { processOrderFile } from "../lib/orderProcessor";
 import { getHighPrecisionCoordinates } from "../lib/geminiGeocoding";
 import { cn } from "../lib/utils";
 import { ajustarFaturamento } from "../lib/faturamento";
+import { salvarItensDoPedido } from "../lib/orderItems";
 import { PageHeader, useConfirm } from "../components/ui";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Client, Order } from "../types";
+import type { ItemExtraido } from "../lib/orderExtractionCore";
 
 interface BatchResult {
   file: File;
@@ -24,6 +26,7 @@ interface BatchResult {
   clientId?: string;
   address?: string;
   cnpj?: string;
+  items?: ItemExtraido[];
 }
 
 interface AnalysisResult {
@@ -33,6 +36,7 @@ interface AnalysisResult {
   category?: string;
   value?: number;
   status?: string;
+  items?: ItemExtraido[];
 }
 
 export default function PedidosPage() {
@@ -138,11 +142,17 @@ export default function PedidosPage() {
       const formattedName = `${selectedCategory}___VALOR_${orderValue}___${cleanName}`;
       const path = `${user.id}/${cid}/${formattedName}`;
       await supabase.storage.from("client_vault").upload(path, selectedFile, { upsert: true });
-      await supabase.from("orders").upsert([{ user_id: user.id, client_id: cid, category: selectedCategory, value: parseFloat(orderValue), file_name: formattedName, file_path: path }], { onConflict: "client_id,file_path" });
+      const { data: orderRow } = await supabase.from("orders").upsert([{ user_id: user.id, client_id: cid, category: selectedCategory, value: parseFloat(orderValue), file_name: formattedName, file_path: path }], { onConflict: "client_id,file_path" }).select("id, created_at").single();
       const { data: clientData } = await supabase.from("clients").select("faturamento").eq("id", cid).single();
       if (clientData) {
         const updatedFat = ajustarFaturamento(clientData.faturamento, selectedCategory, parseFloat(orderValue));
         await supabase.from("clients").update({ faturamento: updatedFat }).eq("id", cid).eq("user_id", user?.id);
+      }
+      if (orderRow && analysisResult?.items?.length) {
+        await salvarItensDoPedido(supabase, {
+          userId: user.id, orderId: orderRow.id, clientId: cid, category: selectedCategory,
+          orderDate: orderRow.created_at, items: analysisResult.items,
+        });
       }
       setIsManualModalOpen(false); loadData();
       toast.success("Pedido registrado com sucesso!");
@@ -163,7 +173,7 @@ export default function PedidosPage() {
           const clientName = c.name?.trim().toLowerCase();
           return (cleanResCnpj && clientCnpj === cleanResCnpj) || (clientName && clientName === cleanResName);
         });
-        setBatchResults(prev => [...prev, { file, client: res.client, category: res.category || "Outros", value: res.value || 0, needsNewClient: !match, clientId: match?.id, address: res.address, cnpj: res.cnpj }]);
+        setBatchResults(prev => [...prev, { file, client: res.client, category: res.category || "Outros", value: res.value || 0, needsNewClient: !match, clientId: match?.id, address: res.address, cnpj: res.cnpj, items: res.items }]);
       } catch (err) {} 
     }
     setIsProcessingBatch(false);
@@ -177,11 +187,17 @@ export default function PedidosPage() {
       const formattedName = `${res.category}___VALOR_${res.value}___${cleanName}`;
       const path = `${user?.id}/${cid}/${formattedName}`;
       await supabase.storage.from("client_vault").upload(path, res.file, { upsert: true });
-      await supabase.from("orders").upsert([{ user_id: user?.id, client_id: cid, category: res.category, value: res.value, file_name: formattedName, file_path: path }], { onConflict: "client_id,file_path" });
+      const { data: orderRow } = await supabase.from("orders").upsert([{ user_id: user?.id, client_id: cid, category: res.category, value: res.value, file_name: formattedName, file_path: path }], { onConflict: "client_id,file_path" }).select("id, created_at").single();
       const { data: clientData } = await supabase.from("clients").select("faturamento").eq("id", cid).single();
       if (clientData) {
         const updatedFat = ajustarFaturamento(clientData.faturamento, res.category, res.value);
         await supabase.from("clients").update({ faturamento: updatedFat }).eq("id", cid);
+      }
+      if (orderRow && user && res.items?.length) {
+        await salvarItensDoPedido(supabase, {
+          userId: user.id, orderId: orderRow.id, clientId: cid || null, category: res.category,
+          orderDate: orderRow.created_at, items: res.items,
+        });
       }
       setBatchResults(prev => prev.filter(item => item.file !== res.file)); loadData();
       toast.success("Pedido em lote processado!");

@@ -198,6 +198,7 @@ export default function OrderIntake() {
         value: Number(value),
         filePath: prepared.filePath,
         fileName: file.name,
+        items: parseResult?.items,
       });
 
       setStep("success");

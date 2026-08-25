@@ -7,6 +7,7 @@
 //  - sessionToken        → o funcionário, já verificado com token+PIN, manda
 //    o token de sessão emitido por 'verify' — nunca tem sessão do Supabase.
 import { supabase } from './supabase';
+import type { ItemExtraido } from './orderExtractionCore';
 
 async function callOrderIntakeApi<T>(
   action: string,
@@ -71,6 +72,9 @@ export interface ParseIntakeResult {
   /** A própria IA avaliando a confiança de cada campo — usado pra decidir se
    *  mostra um aviso de "confira este valor" em vez de aceitar calado. */
   confidence?: { client?: string; category?: string; value?: string };
+  /** Produtos lidos do pedido — repassados de volta em 'submit' pra virarem
+   *  order_items (área de Produtos). */
+  items?: ItemExtraido[];
 }
 export async function parseIntakeOrder(
   sessionToken: string,
@@ -108,7 +112,7 @@ export async function uploadIntakeFile(filePath: string, uploadToken: string, fi
 
 export async function submitIntakeOrder(
   sessionToken: string,
-  payload: { orderId: string; clientId: string; category: string; value: number; filePath: string; fileName: string }
+  payload: { orderId: string; clientId: string; category: string; value: number; filePath: string; fileName: string; items?: ItemExtraido[] }
 ): Promise<void> {
   await callOrderIntakeApi('submit', payload, { sessionToken });
 }

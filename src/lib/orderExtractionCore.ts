@@ -9,6 +9,18 @@
 // documento exatamente do mesmo jeito, sem duas versões do prompt que podem
 // desalinhar com o tempo.
 
+/** Um produto/linha da tabela de itens do pedido. Só o que a IA consegue
+ *  ler de uma tabela de verdade — a extração local (regex) não tenta achar
+ *  itens, só o cabeçalho do documento (CNPJ/valor/representada). */
+export interface ItemExtraido {
+  /** Nome do produto exatamente como está escrito no documento. */
+  description: string;
+  code?: string;
+  quantity: number;
+  unitValue?: number;
+  totalValue?: number;
+}
+
 export interface OrderExtractionResult {
   client: string;
   cnpj: string;
@@ -23,11 +35,16 @@ export interface OrderExtractionResult {
    *  valor da IA (ver `reconcileExtractionResult`) e pra avisar o usuário
    *  quando o campo merece conferência, em vez de cadastrar calado. */
   confidence?: { client?: string; category?: string; value?: string };
+  /** Produtos do pedido, pra área de Produtos (unidades vendidas por
+   *  representada). Sempre [] no modo local — só a IA lê tabela de itens. */
+  items: ItemExtraido[];
 }
 
 /** Tira acentos e pontuação pra comparar texto sem depender de como o
- *  documento foi digitado/digitalizado. */
-function normalizar(texto: string): string {
+ *  documento foi digitado/digitalizado. Também é a chave usada pra agrupar
+ *  produtos na área de Produtos (orderItems.ts): duas grafias do mesmo nome
+ *  ("Kit Porta 80cm" / "KIT PORTA 80 CM") caem na mesma chave. */
+export function normalizar(texto: string): string {
   return texto
     .toLowerCase()
     .normalize("NFD")
@@ -39,7 +56,7 @@ function normalizar(texto: string): string {
 export const ORDER_EXTRACTION_SYSTEM_INSTRUCTION = `Você lê pedidos de venda e notas fiscais brasileiras (impressas, digitalizadas ou escritas à mão) e extrai os dados para lançamento.
 
 Devolva SOMENTE um objeto JSON com este formato exato:
-{ "client": string, "cnpj": string, "category": string, "value": number, "address": string, "confidence": { "client": "alta"|"media"|"baixa", "category": "alta"|"media"|"baixa", "value": "alta"|"media"|"baixa" } }
+{ "client": string, "cnpj": string, "category": string, "value": number, "address": string, "confidence": { "client": "alta"|"media"|"baixa", "category": "alta"|"media"|"baixa", "value": "alta"|"media"|"baixa" }, "items": [{ "description": string, "code": string, "quantity": number, "unitValue": number, "totalValue": number }] }
 
 === A DISTINÇÃO MAIS IMPORTANTE ===
 Todo pedido tem DUAS empresas. Não as confunda:
@@ -76,7 +93,17 @@ Em nota fiscal o emitente costuma vir no TOPO (com logo e inscrição estadual) 
 Diga honestamente o quanto tem certeza de cada campo. Use "baixa" quando estiver chutando — é melhor o usuário conferir do que gravar errado.
 
 === address ===
-Endereço de entrega/faturamento do COMPRADOR. Se não houver, "".`;
+Endereço de entrega/faturamento do COMPRADOR. Se não houver, "".
+
+=== items (os produtos do pedido) ===
+Uma linha por produto da tabela de itens do documento — é o que permite ver depois quantas unidades de cada produto foram vendidas.
+- "description": nome/descrição do produto EXATAMENTE como está escrito (não resuma, não traduza, não corrija abreviação).
+- "code": código/referência do produto, se houver uma coluna pra isso. Senão "".
+- "quantity": quantidade vendida deste item, como número (aceita casas decimais, ex: 2.5 metros). Sem quantidade legível, não inclua o item — não invente "1".
+- "unitValue" e "totalValue": mesmo formato de "value" (ponto decimal, sem separador de milhar, sem "R$"). Se só um dos dois estiver escrito, calcule o outro (totalValue = unitValue × quantity) — mas só quando a conta bater com o resto do documento; senão devolva só o que está escrito e omita o outro.
+- Pedido escrito à mão sem tabela clara: tente separar por linha (cada produto que a pessoa listou).
+- Documento sem NENHUMA tabela de itens identificável (ex: só um total resumido) → devolva "items": [].
+- NUNCA invente um item que não está no documento. Melhor "items": [] do que um item chutado.`;
 
 /* ─────────────────── CNPJ ─────────────────── */
 
@@ -390,6 +417,9 @@ export function reconcileExtractionResult(
       address: "",
       status: "ready",
       method: "local",
+      // Modo local não sabe ler tabela de itens — só a IA le. Sem resposta
+      // da IA (JSON inválido/vazio), não tem produto pra área de Produtos.
+      items: [],
     };
   }
 
@@ -437,5 +467,31 @@ export function reconcileExtractionResult(
     status: "ready",
     method: "ai",
     confidence,
+    items: parseItensDaIa(data.items),
   };
+}
+
+/** Filtra e normaliza a lista de itens que a IA devolveu — nunca confia cega
+ *  no formato: item sem descrição ou sem quantidade legível é descartado em
+ *  vez de virar produto fantasma na área de Produtos. */
+function parseItensDaIa(bruto: unknown): ItemExtraido[] {
+  if (!Array.isArray(bruto)) return [];
+
+  return bruto
+    .filter((it): it is Record<string, unknown> => !!it && typeof it === "object")
+    .map((it) => {
+      const description = typeof it.description === "string" ? it.description.trim() : "";
+      const quantidade = typeof it.quantity === "number" ? it.quantity : parseFloat(String(it.quantity));
+      const unitValue = typeof it.unitValue === "number" ? it.unitValue : parseFloat(String(it.unitValue));
+      const totalValue = typeof it.totalValue === "number" ? it.totalValue : parseFloat(String(it.totalValue));
+      const item: ItemExtraido = {
+        description,
+        code: typeof it.code === "string" && it.code.trim() ? it.code.trim() : undefined,
+        quantity: isFinite(quantidade) && quantidade > 0 ? quantidade : 0,
+        unitValue: isFinite(unitValue) && unitValue > 0 ? unitValue : undefined,
+        totalValue: isFinite(totalValue) && totalValue > 0 ? totalValue : undefined,
+      };
+      return item;
+    })
+    .filter((it) => it.description && it.quantity > 0);
 }

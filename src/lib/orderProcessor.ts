@@ -111,7 +111,8 @@ export async function processOrderFile(file: File, knownClients: string[] = [], 
         value: 0,
         address: "",
         status: "error",
-        error: err instanceof Error ? err.message : "Erro desconhecido"
+        error: err instanceof Error ? err.message : "Erro desconhecido",
+        items: [],
     };
   }
 }

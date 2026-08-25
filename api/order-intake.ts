@@ -23,8 +23,10 @@ import {
   extractCategoryLocallyDetailed,
   extractValueLocally,
   reconcileExtractionResult,
+  type ItemExtraido,
 } from '../src/lib/orderExtractionCore.js';
 import { ajustarFaturamento } from '../src/lib/faturamento.js';
+import { salvarItensDoPedido } from '../src/lib/orderItems.js';
 
 /**
  * Backend do link de "enviar pedido" (funcionário sem login na conta real —
@@ -415,7 +417,7 @@ async function handleSubmit(req: express.Request, res: express.Response, payload
   const session = await requireIntakeSession(req, res);
   if (!session) return;
 
-  const { orderId, clientId, category, value, filePath, fileName } = payload || {};
+  const { orderId, clientId, category, value, filePath, fileName, items } = payload || {};
   if (!orderId || !clientId || !category || !value || !filePath) {
     return res.status(400).json({ error: 'Dados incompletos.' });
   }
@@ -457,6 +459,17 @@ async function handleSubmit(req: express.Request, res: express.Response, payload
     // acima e este INSERT — trata como já concluído, não como erro.
     if ((insertError as any).code === '23505') return res.status(200).json({ ok: true });
     return res.status(500).json({ error: 'Erro ao registrar pedido.' });
+  }
+
+  if (Array.isArray(items) && items.length > 0) {
+    await salvarItensDoPedido(session.supabase, {
+      userId: session.ownerId,
+      orderId,
+      clientId,
+      category,
+      orderDate: new Date().toISOString(),
+      items: items as ItemExtraido[],
+    });
   }
 
   const { data: clientData } = await session.supabase.from('clients').select('faturamento').eq('id', clientId).single();
