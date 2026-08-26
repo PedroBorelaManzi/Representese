@@ -380,7 +380,12 @@ async function handlePrepareUpload(req: express.Request, res: express.Response, 
     // sobrescreve um CNPJ já cadastrado (a escolha manual pode estar errada).
     const cleanLearnCnpj = learnCnpj ? String(learnCnpj).replace(/\D/g, '') : '';
     if (cleanLearnCnpj && cleanLearnCnpj.length === 14 && !ownedClient.cnpj) {
-      await session.supabase.from('clients').update({ cnpj: cleanLearnCnpj }).eq('id', finalClientId);
+      // .eq('user_id', ...) aqui é redundante com a checagem de posse duas
+      // linhas acima (finalClientId não muda entre elas) — mantido mesmo
+      // assim como defesa em profundidade: a proteção contra escrever no
+      // cliente de outra conta fica explícita nesta query, não implícita na
+      // ordem do código.
+      await session.supabase.from('clients').update({ cnpj: cleanLearnCnpj }).eq('id', finalClientId).eq('user_id', session.ownerId);
     }
   }
 
@@ -449,8 +454,10 @@ async function handleSubmit(req: express.Request, res: express.Response, payload
   }
 
   // Idempotência: reenvio depois de uma conexão que caiu no meio não pode
-  // duplicar o pedido nem somar o faturamento duas vezes.
-  const { data: existingOrder } = await session.supabase.from('orders').select('id').eq('id', orderId).maybeSingle();
+  // duplicar o pedido nem somar o faturamento duas vezes. orderId é um UUID
+  // aleatório gerado no navegador (praticamente impossível de adivinhar),
+  // mas o filtro por user_id vem de graça e fecha até esse cenário teórico.
+  const { data: existingOrder } = await session.supabase.from('orders').select('id').eq('id', orderId).eq('user_id', session.ownerId).maybeSingle();
   if (existingOrder) return res.status(200).json({ ok: true });
 
   // Mesma checagem de prepare_upload, repetida aqui de propósito: o clientId
@@ -493,10 +500,14 @@ async function handleSubmit(req: express.Request, res: express.Response, payload
     });
   }
 
-  const { data: clientData } = await session.supabase.from('clients').select('faturamento').eq('id', clientId).single();
+  // Mesma redundância proposital de defesa em profundidade do trecho acima
+  // (ownedClient): clientId já foi confirmado do dono do link, mas a query
+  // de escrita repete o filtro por user_id em vez de confiar só na ordem
+  // do código.
+  const { data: clientData } = await session.supabase.from('clients').select('faturamento').eq('id', clientId).eq('user_id', session.ownerId).single();
   if (clientData) {
     const updatedFat = ajustarFaturamento(clientData.faturamento, category, numericValue);
-    await session.supabase.from('clients').update({ faturamento: updatedFat }).eq('id', clientId);
+    await session.supabase.from('clients').update({ faturamento: updatedFat }).eq('id', clientId).eq('user_id', session.ownerId);
   }
 
   return res.status(200).json({ ok: true });
