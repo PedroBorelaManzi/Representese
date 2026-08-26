@@ -32,6 +32,11 @@ export interface OrderExtractionResult {
    *  ex.: "30/60/90" — vira parcelas automaticamente (ver Order.payment_terms).
    *  "" quando o documento não menciona ou é à vista. */
   paymentTerms?: string;
+  /** Prazo de entrega em dias corridos a partir do pedido, quando o próprio
+   *  documento menciona ("prazo de entrega: 10 dias" etc.) — usado pra
+   *  pré-preencher Order.delivery_date. Sem menção no documento, undefined
+   *  (aí quem decide é o prazo padrão configurado pra empresa, se houver). */
+  deliveryLeadDays?: number;
   status: "ready" | "error";
   error?: string;
   method?: "local" | "ai";
@@ -44,6 +49,17 @@ export interface OrderExtractionResult {
    *  representada). Sempre [] no modo local — só a IA lê os produtos,
    *  estejam em tabela ou descritos no corpo do texto. */
   items: ItemExtraido[];
+}
+
+/** "Prazo de entrega: 10 dias" lido do documento → data de entrega (ISO,
+ *  yyyy-mm-dd), contando a partir de agora. Usado nos pontos que gravam o
+ *  pedido (Pedidos.tsx, Empresas.tsx, api/order-intake.ts) quando
+ *  `OrderExtractionResult.deliveryLeadDays` veio preenchido — o valor lido
+ *  do PRÓPRIO documento sempre tem prioridade sobre o prazo padrão da
+ *  empresa (esse último é aplicado por um trigger no banco só quando o
+ *  pedido chega com delivery_date vazia). */
+export function deliveryLeadDaysToISODate(days: number): string {
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 }
 
 /** Tira acentos e pontuação pra comparar texto sem depender de como o
@@ -62,7 +78,7 @@ export function normalizar(texto: string): string {
 export const ORDER_EXTRACTION_SYSTEM_INSTRUCTION = `Você lê pedidos de venda e notas fiscais brasileiras (impressas, digitalizadas ou escritas à mão) e extrai os dados para lançamento.
 
 Devolva SOMENTE um objeto JSON com este formato exato:
-{ "client": string, "cnpj": string, "category": string, "value": number, "address": string, "paymentTerms": string, "confidence": { "client": "alta"|"media"|"baixa", "category": "alta"|"media"|"baixa", "value": "alta"|"media"|"baixa" }, "items": [{ "description": string, "code": string, "quantity": number, "unitValue": number, "totalValue": number }] }
+{ "client": string, "cnpj": string, "category": string, "value": number, "address": string, "paymentTerms": string, "deliveryLeadDays": number, "confidence": { "client": "alta"|"media"|"baixa", "category": "alta"|"media"|"baixa", "value": "alta"|"media"|"baixa" }, "items": [{ "description": string, "code": string, "quantity": number, "unitValue": number, "totalValue": number }] }
 
 === A DISTINÇÃO MAIS IMPORTANTE ===
 Todo pedido tem DUAS empresas. Não as confunda:
@@ -106,6 +122,12 @@ Procure por "condição de pagamento", "forma de pagamento", "parcelas", "boleto
 - Quando for parcelado em dias corridos (o formato mais comum: "30/60/90 dias", "30/60", "a combinar 45 dias"), devolva só os números separados por "/", na ordem, ex.: "30/60/90" ou "45".
 - Quando for à vista, no ato, ou não houver menção nenhuma a prazo/parcelamento, devolva "".
 - Nunca invente um prazo que não está escrito.
+
+=== deliveryLeadDays (prazo de entrega) ===
+Procure por "prazo de entrega", "entrega em X dias", "prazo de produção/expedição" etc.
+- Quando o documento disser um número de dias até a entrega, devolva esse número (ex.: "prazo de entrega: 10 dias" → 10).
+- Quando não houver menção nenhuma a prazo de entrega, omita o campo (não devolva 0).
+- Isso é DIFERENTE de paymentTerms: um é quando o produto chega, o outro é quando a fatura vence.
 
 === items (os produtos do pedido) ===
 Todo produto que o pedido menciona, mesmo sem tabela nenhuma — é o que permite ver depois quantas unidades de cada produto foram vendidas. A MAIORIA dos pedidos reais não tem coluna/tabela: o produto está descrito no CORPO/TEXTO do pedido, junto com a quantidade, do jeito que a pessoa escreveu (impresso, digitado ou à mão). Leia essas descrições como leria uma lista de compras:
@@ -471,6 +493,9 @@ export function reconcileExtractionResult(
   const paymentTermsBruto = typeof data.paymentTerms === "string" ? data.paymentTerms.trim() : "";
   const paymentTerms = /^[0-9]+(\/[0-9]+)*$/.test(paymentTermsBruto) ? paymentTermsBruto : "";
 
+  const deliveryLeadDaysBruto = typeof data.deliveryLeadDays === "number" ? data.deliveryLeadDays : parseInt(data.deliveryLeadDays, 10);
+  const deliveryLeadDays = isFinite(deliveryLeadDaysBruto) && deliveryLeadDaysBruto > 0 ? deliveryLeadDaysBruto : undefined;
+
   const valorIa = typeof data.value === "number" ? data.value : parseFloat(data.value);
   const confidence = data.confidence && typeof data.confidence === "object" ? data.confidence : undefined;
 
@@ -489,6 +514,7 @@ export function reconcileExtractionResult(
     value: finalValue,
     address: data.address || "",
     paymentTerms,
+    deliveryLeadDays,
     status: "ready",
     method: "ai",
     confidence,

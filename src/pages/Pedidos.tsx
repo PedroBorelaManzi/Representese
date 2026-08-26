@@ -17,7 +17,7 @@ import { OrderDetailModal } from "../components/OrderDetailModal";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Client, Order } from "../types";
-import { normalizar, type ItemExtraido } from "../lib/orderExtractionCore";
+import { normalizar, deliveryLeadDaysToISODate, type ItemExtraido } from "../lib/orderExtractionCore";
 
 interface BatchResult {
   file: File;
@@ -30,6 +30,7 @@ interface BatchResult {
   cnpj?: string;
   items?: ItemExtraido[];
   paymentTerms?: string;
+  deliveryLeadDays?: number;
 }
 
 interface AnalysisResult {
@@ -41,6 +42,7 @@ interface AnalysisResult {
   status?: string;
   items?: ItemExtraido[];
   paymentTerms?: string;
+  deliveryLeadDays?: number;
 }
 
 export default function PedidosPage() {
@@ -181,7 +183,12 @@ export default function PedidosPage() {
       const formattedName = `${selectedCategory}___VALOR_${orderValue}___${cleanName}`;
       const path = `${user.id}/${cid}/${formattedName}`;
       await supabase.storage.from("client_vault").upload(path, selectedFile, { upsert: true });
-      const { data: orderRow } = await supabase.from("orders").upsert([{ user_id: user.id, client_id: cid, category: selectedCategory, value: parseFloat(orderValue), file_name: formattedName, file_path: path, payment_terms: analysisResult?.paymentTerms || null }], { onConflict: "client_id,file_path" }).select("id, created_at").single();
+      const { data: orderRow } = await supabase.from("orders").upsert([{
+        user_id: user.id, client_id: cid, category: selectedCategory, value: parseFloat(orderValue),
+        file_name: formattedName, file_path: path,
+        payment_terms: analysisResult?.paymentTerms || null,
+        delivery_date: analysisResult?.deliveryLeadDays ? deliveryLeadDaysToISODate(analysisResult.deliveryLeadDays) : null,
+      }], { onConflict: "client_id,file_path" }).select("id, created_at").single();
       const { data: clientData } = await supabase.from("clients").select("faturamento").eq("id", cid).single();
       if (clientData) {
         const updatedFat = ajustarFaturamento(clientData.faturamento, selectedCategory, parseFloat(orderValue));
@@ -214,7 +221,7 @@ export default function PedidosPage() {
           const clientName = c.name?.trim().toLowerCase();
           return (cleanResCnpj && clientCnpj === cleanResCnpj) || (clientName && clientName === cleanResName);
         });
-        setBatchResults(prev => [...prev, { file, client: res.client, category: res.category || "Outros", value: res.value || 0, needsNewClient: !match, clientId: match?.id, address: res.address, cnpj: res.cnpj, items: res.items, paymentTerms: res.paymentTerms }]);
+        setBatchResults(prev => [...prev, { file, client: res.client, category: res.category || "Outros", value: res.value || 0, needsNewClient: !match, clientId: match?.id, address: res.address, cnpj: res.cnpj, items: res.items, paymentTerms: res.paymentTerms, deliveryLeadDays: res.deliveryLeadDays }]);
       } catch (err) {} 
     }
     setIsProcessingBatch(false);
@@ -228,7 +235,12 @@ export default function PedidosPage() {
       const formattedName = `${res.category}___VALOR_${res.value}___${cleanName}`;
       const path = `${user?.id}/${cid}/${formattedName}`;
       await supabase.storage.from("client_vault").upload(path, res.file, { upsert: true });
-      const { data: orderRow } = await supabase.from("orders").upsert([{ user_id: user?.id, client_id: cid, category: res.category, value: res.value, file_name: formattedName, file_path: path, payment_terms: res.paymentTerms || null }], { onConflict: "client_id,file_path" }).select("id, created_at").single();
+      const { data: orderRow } = await supabase.from("orders").upsert([{
+        user_id: user?.id, client_id: cid, category: res.category, value: res.value,
+        file_name: formattedName, file_path: path,
+        payment_terms: res.paymentTerms || null,
+        delivery_date: res.deliveryLeadDays ? deliveryLeadDaysToISODate(res.deliveryLeadDays) : null,
+      }], { onConflict: "client_id,file_path" }).select("id, created_at").single();
       const { data: clientData } = await supabase.from("clients").select("faturamento").eq("id", cid).single();
       if (clientData) {
         const updatedFat = ajustarFaturamento(clientData.faturamento, res.category, res.value);

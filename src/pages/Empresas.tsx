@@ -40,6 +40,7 @@ import { EmptyState } from "../components/ui";
 import TourArrow from "../components/TourArrow";
 import { InlineEditField } from "../components/InlineEditField";
 import { OrderDetailModal } from "../components/OrderDetailModal";
+import { deliveryLeadDaysToISODate } from "../lib/orderExtractionCore";
 import type { Order as OrderType } from "../types";
 
 // Modal de importação de relatório: carrega sob demanda (puxa o pdfjs junto)
@@ -82,6 +83,7 @@ export default function EmpresasPage() {
   const [viewDate, setViewDate] = useState(new Date());
   const [managingCompany, setManagingCompany] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [editDeliveryDays, setEditDeliveryDays] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<any[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
@@ -268,7 +270,8 @@ export default function EmpresasPage() {
             cnpj: res.cnpj || "",
             address: res.address || "",
             items: res.items || [],
-            paymentTerms: res.paymentTerms || ""
+            paymentTerms: res.paymentTerms || "",
+            deliveryLeadDays: res.deliveryLeadDays
           } : item
         ));
       } catch (err) {
@@ -322,6 +325,7 @@ export default function EmpresasPage() {
           file_name: formattedName,
           file_path: path,
           payment_terms: item.paymentTerms || null,
+          delivery_date: item.deliveryLeadDays ? deliveryLeadDaysToISODate(item.deliveryLeadDays) : null,
           created_at: new Date().toISOString()
         };
 
@@ -436,8 +440,21 @@ export default function EmpresasPage() {
   const handleUpdateCompany = async () => {
     if (!managingCompany || !editName.trim()) return;
     try {
-      const updatedCategories = settings.categories.map((c: string) => c === managingCompany ? editName.trim() : c);
-      await updateSettings({ categories: updatedCategories });
+      const newName = editName.trim();
+      const updatedCategories = settings.categories.map((c: string) => c === managingCompany ? newName : c);
+
+      // Prazo de entrega padrão (dias) — em branco remove a configuração
+      // (volta a ficar sem prazo padrão, preenchimento manual). Troca de
+      // nome da empresa migra a chave junto, senão a configuração "perdia"
+      // o vínculo silenciosamente.
+      const updatedDeliveryDays = { ...(settings.delivery_lead_days || {}) };
+      delete updatedDeliveryDays[managingCompany];
+      const parsedDays = parseInt(editDeliveryDays, 10);
+      if (editDeliveryDays.trim() && isFinite(parsedDays) && parsedDays > 0) {
+        updatedDeliveryDays[newName] = parsedDays;
+      }
+
+      await updateSettings({ categories: updatedCategories, delivery_lead_days: updatedDeliveryDays });
       if (!offlineCache.isOnline()) {
          allOrders.filter(o => o.category === managingCompany).forEach(o => {
             syncQueue.enqueue('orders', 'UPDATE', { category: editName.trim() }, o.id);
@@ -622,8 +639,9 @@ export default function EmpresasPage() {
                     <button 
                       onClick={(e) => { 
                         e.stopPropagation(); 
-                        setManagingCompany(cat); 
+                        setManagingCompany(cat);
                         setEditName(cat);
+                        setEditDeliveryDays(String(settings?.delivery_lead_days?.[cat] ?? ""));
                       }} 
                       className="p-1.5 md:p-2 hover:bg-white/20 rounded-full transition-all relative z-20"
                     >
@@ -949,6 +967,20 @@ export default function EmpresasPage() {
                    <div>
                      <label className="text-[8px] md:text-[9px] font-black uppercase text-slate-400 tracking-widest mb-2 block">Nome da Empresa</label>
                      <input value={editName} onChange={e => setEditName(e.target.value)} className="w-full p-4 md:p-5 bg-slate-50 dark:bg-zinc-850 rounded-2xl md:rounded-3xl font-black uppercase text-sm outline-none border border-slate-100 dark:border-zinc-800" />
+                   </div>
+                   <div>
+                     <label className="text-[8px] md:text-[9px] font-black uppercase text-slate-400 tracking-widest mb-2 block">Prazo de entrega padrão (dias)</label>
+                     <input
+                       type="number"
+                       min={1}
+                       value={editDeliveryDays}
+                       onChange={e => setEditDeliveryDays(e.target.value)}
+                       placeholder="Em branco = sem prazo padrão"
+                       className="w-full p-4 md:p-5 bg-slate-50 dark:bg-zinc-850 rounded-2xl md:rounded-3xl font-black text-sm outline-none border border-slate-100 dark:border-zinc-800"
+                     />
+                     <p className="text-[8px] md:text-[9px] font-medium text-slate-400 mt-2 leading-relaxed">
+                       Usado pra pré-preencher a data de entrega de um pedido novo dessa empresa. Deixe em branco se preferir preencher a data manualmente em cada pedido.
+                     </p>
                    </div>
                    <div className="flex flex-col gap-3">
                      <button onClick={handleUpdateCompany} className="w-full py-4 md:py-5 bg-emerald-600 text-white rounded-[20px] md:rounded-[24px] font-black uppercase tracking-widest text-[9px] md:text-[10px]">Salvar Alterações</button>

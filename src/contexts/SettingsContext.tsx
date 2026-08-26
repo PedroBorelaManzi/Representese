@@ -18,6 +18,10 @@ interface Settings {
   categories: string[];
   /** Percentual de comissão por empresa representada. Ex.: { "Empresa A": 5, "Empresa B": 7.5 } */
   commissions: Record<string, number>;
+  /** Prazo padrão de entrega por empresa, em dias — usado pra pré-preencher
+   *  a data de entrega de um pedido novo quando ninguém informa. Empresa sem
+   *  entrada aqui fica com a data de entrega em branco (preenchimento manual). */
+  delivery_lead_days: Record<string, number>;
   revenue_ceiling: number;
   subscription_status: SubscriptionStatus;
   plan_id: string;
@@ -43,6 +47,7 @@ const defaultSettings: Settings = {
   has_completed_onboarding: false,
   categories: [],
   commissions: {},
+  delivery_lead_days: {},
   revenue_ceiling: 1000000,
   subscription_status: 'inactive', // Default para leads novos sem plano
   plan_id: 'exclusivo',
@@ -126,6 +131,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           has_completed_onboarding: cached.has_completed_onboarding ?? defaultSettings.has_completed_onboarding,
           categories: cached.categories || [],
           commissions: cached.commissions || {},
+          delivery_lead_days: cached.delivery_lead_days || {},
           revenue_ceiling: parseFloat(cached.revenue_ceiling?.toString() || "1000000") ?? defaultSettings.revenue_ceiling,
           subscription_status: (cached.subscription_status as SubscriptionStatus) || 'active',
           plan_id: cached.plan_id || 'exclusivo',
@@ -204,6 +210,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           has_completed_onboarding: hasCompleted,
           categories: categories,
           commissions: data.commissions || {},
+          delivery_lead_days: data.delivery_lead_days || {},
           revenue_ceiling: parseFloat(data.revenue_ceiling?.toString() || "1000000") ?? defaultSettings.revenue_ceiling,
           subscription_status: effectiveStatus,
           plan_id: planId,
