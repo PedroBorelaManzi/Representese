@@ -174,11 +174,17 @@ export default function OrderIntake() {
         setClientName(prefillClientName);
         setClientCnpj(result.cnpj || "");
         setClientAddress(result.address || "");
-        // Sem identificação automática, abre a busca na lista de clientes em
-        // vez de já cair em "cliente novo" — a maioria dos casos em que a
-        // leitura não bate é o cliente já estar cadastrado, só que a IA não
-        // reconheceu a grafia/CNPJ; procurar antes de criar evita duplicata.
-        setClientMode(result.clientMatch ? "match" : "pick");
+        // clientMatch já veio checado no servidor contra TODOS os clientes da
+        // conta (CNPJ ou nome exatos, não só os desta sessão) — se veio nulo
+        // e o documento tem um CNPJ de 14 dígitos, é prova de que esse CNPJ
+        // realmente não está cadastrado ainda, não só que a IA não reconheceu
+        // a grafia. Nesse caso vai direto pro cadastro de cliente novo, já
+        // preenchido: confirmar o pedido cria o cliente e liga o pedido a ele
+        // na mesma hora, sem precisar procurar algo que não existe. Só cai na
+        // busca da lista quando não há CNPJ pra provar isso (aí pode ser um
+        // cliente já cadastrado que a leitura só não bateu por nome/grafia).
+        const cnpjNovo = (result.cnpj || "").replace(/\D/g, "").length === 14;
+        setClientMode(result.clientMatch ? "match" : cnpjNovo ? "new" : "pick");
       }
     } catch (err: any) {
       // Sessão pode ter expirado (PIN trocado, link desativado) — manda de
@@ -420,6 +426,9 @@ export default function OrderIntake() {
                           >
                             <ChevronLeft className="w-3.5 h-3.5" /> Escolher da lista de clientes
                           </button>
+                          <p className="text-[11px] font-medium text-slate-400 dark:text-zinc-500">
+                            Cliente novo — confirmar o pedido já cadastra e liga o pedido a ele.
+                          </p>
                           <input
                             type="text"
                             value={clientName}

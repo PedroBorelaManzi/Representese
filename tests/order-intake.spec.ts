@@ -150,4 +150,38 @@ test.describe('Enviar Pedido (link do funcionário)', () => {
     await expect(page.getByText('Tirar foto')).toBeVisible();
     await expect(page.getByRole('button', { name: /confirmar pedido/i })).not.toBeVisible();
   });
+
+  test('CNPJ de 14 dígitos sem cadastro pula direto pro cadastro de cliente novo (sem busca)', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium', 'Fluxo de negócio — roda só no desktop (chromium).');
+
+    await page.addInitScript(() => {
+      localStorage.setItem(
+        'rm_order_intake_session_token-de-teste',
+        JSON.stringify({ sessionToken: 'fake-session-token', categories: ['ACME'], clients: [{ id: 'c1', name: 'Cliente Alfa' }] })
+      );
+    });
+
+    await page.route('**/api/order-intake', async (route) => {
+      const body = route.request().postDataJSON();
+      if (body.action === 'parse') {
+        // CNPJ de 14 dígitos, clientMatch nulo: o servidor já conferiu contra
+        // TODOS os clientes da conta e não achou — é prova de CNPJ novo.
+        await json(route, {
+          status: 'ready', client: 'Empresa Nova Ltda', cnpj: '11222333000181',
+          category: 'ACME', value: 300, categories: ['ACME'], clientMatch: null,
+        });
+        return;
+      }
+      await json(route, { error: 'not mocked' }, 500);
+    });
+
+    await page.goto('/enviar/token-de-teste');
+    await page.locator('input[accept=".pdf,.xlsx,.xls"]').setInputFiles(join(HERE, '../src/lib/__fixtures__/pedido-exemplo.pdf'));
+
+    // Não deve nem oferecer a busca — o CNPJ já prova que é cliente novo.
+    await expect(page.getByPlaceholder('Buscar cliente por nome ou CNPJ')).not.toBeVisible();
+    await expect(page.getByText(/confirmar o pedido já cadastra/i)).toBeVisible();
+    await expect(page.getByPlaceholder('Nome do cliente novo')).toHaveValue('Empresa Nova Ltda');
+    await expect(page.getByPlaceholder('CNPJ (opcional)')).toHaveValue('11222333000181');
+  });
 });

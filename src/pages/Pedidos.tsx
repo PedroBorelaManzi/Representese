@@ -130,10 +130,17 @@ export default function PedidosPage() {
         setManualClientCnpj(result.cnpj || "");
         if (match) {
           setSelectedClient(match.id); setShowNewClientForm(false);
+        } else if (cleanResCnpj?.length === 14) {
+          // CNPJ de 14 dígitos que não bateu em nenhum cliente cadastrado é
+          // prova de que esse CNPJ realmente não existe ainda — vai direto
+          // pro cadastro de cliente novo, já preenchido: confirmar o pedido
+          // cria o cliente e liga o pedido a ele na mesma hora, sem precisar
+          // procurar algo que não existe.
+          setSelectedClient(""); setShowClientPicker(false); setShowNewClientForm(true);
         } else {
-          // Sem identificação automática, abre a busca na lista em vez de já
-          // cair em "cliente novo" — a maioria dos casos assim é o cliente já
-          // estar cadastrado e a IA não ter reconhecido a grafia/CNPJ.
+          // Sem CNPJ pra provar que é novo, abre a busca na lista em vez de
+          // já cair em "cliente novo" — pode ser cliente já cadastrado que a
+          // IA só não reconheceu a grafia.
           setSelectedClient(""); setShowNewClientForm(false); setShowClientPicker(true);
         }
         if (result.category) {
@@ -534,6 +541,9 @@ export default function PedidosPage() {
                                 <button type="button" onClick={() => { setShowNewClientForm(false); setShowClientPicker(true); }} className="flex items-center gap-1.5 text-[8px] md:text-[9px] font-black uppercase text-emerald-600">
                                    <ChevronLeft className="w-3.5 h-3.5" /> Escolher da lista de clientes
                                 </button>
+                                <p className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-tight">
+                                   Cliente novo — confirmar o pedido já cadastra e liga o pedido a ele.
+                                </p>
                                 <input
                                   type="text"
                                   value={manualClientName}
