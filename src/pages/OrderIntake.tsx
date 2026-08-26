@@ -422,7 +422,11 @@ export default function OrderIntake() {
                                 {clientesFiltrados.length === 0 ? (
                                   <p className="p-3.5 text-xs font-medium text-slate-400 text-center">Nenhum cliente encontrado.</p>
                                 ) : (
-                                  clientesFiltrados.slice(0, 30).map((c) => (
+                                  // Sem busca digitada, limita a exibição pra não travar com
+                                  // carteiras grandes — mas o limite é só de EXIBIÇÃO: assim
+                                  // que a pessoa digita, o filtro roda na lista inteira, não só
+                                  // nesses primeiros. Com busca digitada, mostra todo o resultado.
+                                  (clientSearch.trim() ? clientesFiltrados : clientesFiltrados.slice(0, 50)).map((c) => (
                                     <button
                                       key={c.id}
                                       type="button"
@@ -434,6 +438,11 @@ export default function OrderIntake() {
                                   ))
                                 )}
                               </div>
+                              {!clientSearch.trim() && clientesFiltrados.length > 50 && (
+                                <p className="text-[10px] font-medium text-slate-400 text-center">
+                                  Mostrando os 50 primeiros de {clientesFiltrados.length} — digite pra encontrar outro.
+                                </p>
+                              )}
                             </>
                           )}
 

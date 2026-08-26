@@ -17,7 +17,8 @@ import {
   LayoutGrid,
   Trash2,
   Sparkles,
-  FileSpreadsheet
+  FileSpreadsheet,
+  UserCog
 } from "lucide-react";
 import { supabase, logError } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
@@ -676,6 +677,11 @@ export default function EmpresasPage() {
                           {order.client?.name || "Cliente Desconhecido"}
                         </h4>
                       </Link>
+                      {order.intake_link_label && (
+                        <span title={`Enviado pelo link "${order.intake_link_label}"`} className="mt-2 flex items-center gap-1 w-fit px-2 py-0.5 bg-cyan-50 dark:bg-cyan-500/10 border border-cyan-100 dark:border-cyan-900/40 rounded-lg text-[7px] font-black text-cyan-600 uppercase tracking-widest">
+                          <UserCog className="w-2.5 h-2.5" /> {order.intake_link_label}
+                        </span>
+                      )}
                     </div>
 
                     <div className="pt-5 md:pt-7 border-t border-slate-50 dark:border-zinc-800/50 flex justify-between items-center relative z-10">

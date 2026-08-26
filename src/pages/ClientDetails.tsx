@@ -19,7 +19,8 @@ import {
   AlertCircle,
   CheckCircle2,
   CreditCard,
-  PhoneCall
+  PhoneCall,
+  UserCog
 } from "lucide-react";
 import { supabase, logError } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
@@ -869,6 +870,11 @@ export default function ClientDetails() {
                               <div className="flex items-center gap-2 mb-1.5">
                                 <span className="px-3 py-1 bg-emerald-600 text-white text-[8px] font-black uppercase tracking-widest rounded-full">{file.category || "Geral"}</span>
                                 {orderValueStr && <span className="px-3 py-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 text-[8px] font-black uppercase tracking-widest rounded-full">{orderValueStr}</span>}
+                                {file.intake_link_label && (
+                                  <span title={`Enviado pelo link "${file.intake_link_label}"`} className="flex items-center gap-1 px-3 py-1 bg-cyan-50 dark:bg-cyan-500/10 border border-cyan-100 dark:border-cyan-900/40 rounded-full text-[8px] font-black text-cyan-600 uppercase tracking-widest">
+                                    <UserCog className="w-2.5 h-2.5" /> {file.intake_link_label}
+                                  </span>
+                                )}
                               </div>
                               <h4 className="text-sm font-black text-slate-900 dark:text-zinc-100 truncate max-w-xs uppercase tracking-tight">{actualName}</h4>
                               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 flex items-center gap-2">

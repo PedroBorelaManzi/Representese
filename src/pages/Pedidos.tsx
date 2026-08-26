@@ -575,7 +575,10 @@ export default function PedidosPage() {
                                    {clientesParaEscolher.length === 0 ? (
                                      <p className="p-4 text-[10px] font-bold text-slate-400 text-center uppercase">Nenhum cliente encontrado</p>
                                    ) : (
-                                     clientesParaEscolher.slice(0, 30).map(c => (
+                                     // Sem busca digitada, limita a exibição pra não travar com
+                                     // carteiras grandes — é só limite de EXIBIÇÃO: digitando, o
+                                     // filtro roda na lista inteira, não só nesses primeiros.
+                                     (clientPickerSearch.trim() ? clientesParaEscolher : clientesParaEscolher.slice(0, 50)).map(c => (
                                        <button
                                          key={c.id}
                                          type="button"
@@ -587,6 +590,11 @@ export default function PedidosPage() {
                                      ))
                                    )}
                                 </div>
+                                {!clientPickerSearch.trim() && clientesParaEscolher.length > 50 && (
+                                  <p className="text-[9px] font-bold text-slate-400 text-center uppercase">
+                                    Mostrando os 50 primeiros de {clientesParaEscolher.length} — digite pra encontrar outro
+                                  </p>
+                                )}
                                 <button type="button" onClick={() => { setShowClientPicker(false); setShowNewClientForm(true); }} className="flex items-center gap-1.5 text-[8px] md:text-[9px] font-black uppercase text-slate-400 hover:text-emerald-600 transition-colors">
                                    <UserPlus className="w-3.5 h-3.5" /> Cliente novo
                                 </button>

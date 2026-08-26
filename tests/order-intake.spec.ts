@@ -251,4 +251,46 @@ test.describe('Enviar Pedido (link do funcionário)', () => {
     await expect(page.getByText('Tirar foto')).toBeVisible();
     await expect(page.getByRole('button', { name: /confirmar pedido/i })).not.toBeVisible();
   });
+
+  test('busca de cliente encontra além dos 50 primeiros exibidos por padrão', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium', 'Fluxo de negócio — roda só no desktop (chromium).');
+
+    // 55 clientes, ordenados por nome (mesma ordem que o servidor devolve) —
+    // "Zulu Distribuidora" fica por último, fora da exibição padrão de 50,
+    // só alcançável buscando.
+    const muitosClientes = Array.from({ length: 54 }, (_, i) => ({
+      id: `c${i}`,
+      name: `Cliente ${String(i + 1).padStart(3, '0')}`,
+    })).concat([{ id: 'c-zulu', name: 'Zulu Distribuidora' }]);
+
+    await page.addInitScript((clientes) => {
+      localStorage.setItem(
+        'rm_order_intake_session_token-de-teste',
+        JSON.stringify({ sessionToken: 'fake-session-token', categories: ['ACME'], clients: clientes })
+      );
+    }, muitosClientes);
+
+    await page.route('**/api/order-intake', async (route) => {
+      const body = route.request().postDataJSON();
+      if (body.action === 'parse') {
+        await json(route, { status: 'ready', client: '', cnpj: '', category: 'ACME', value: 150, categories: ['ACME'], clientMatch: null });
+        return;
+      }
+      await json(route, { error: 'not mocked' }, 500);
+    });
+
+    await page.goto('/enviar/token-de-teste');
+    await page.locator('input[accept=".pdf,.xlsx,.xls"]').setInputFiles(join(HERE, '../src/lib/__fixtures__/pedido-exemplo.pdf'));
+
+    const busca = page.getByPlaceholder('Buscar cliente por nome ou CNPJ');
+    await expect(busca).toBeVisible();
+
+    // Sem busca: "Zulu" não aparece (está fora dos 50 primeiros exibidos).
+    await expect(page.getByRole('button', { name: 'Zulu Distribuidora' })).not.toBeVisible();
+    await expect(page.getByText(/mostrando os 50 primeiros de 55/i)).toBeVisible();
+
+    // Buscando, o filtro roda na lista inteira — encontra mesmo fora dos 50.
+    await busca.fill('zulu');
+    await expect(page.getByRole('button', { name: 'Zulu Distribuidora' })).toBeVisible();
+  });
 });
