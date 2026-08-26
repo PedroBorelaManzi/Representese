@@ -103,7 +103,8 @@ Endereço de entrega/faturamento do COMPRADOR. Se não houver, "".
 
 === paymentTerms (condição de pagamento) ===
 Procure por "condição de pagamento", "forma de pagamento", "parcelas", "boleto", "duplicata" etc. — é sobre quando a FATURA vence, não sobre quando o produto chega ("prazo de entrega" é outra coisa, não é este campo).
-- Quando for parcelado em dias corridos (o formato mais comum: "30/60/90 dias", "30/60", "a combinar 45 dias"), devolva só os números separados por "/", na ordem, ex.: "30/60/90" ou "45".
+- Cada fábrica/fornecedor usa um padrão diferente — não existe um formato fixo. Pode ser 1 prazo só ("60 dias", "90 dias líquido") ou vários parcelados ("30/60/90 dias", "30/60", "7/14/21", "28/35/42"). Leia o que o documento realmente diz, não assuma que é sempre 3 parcelas.
+- Devolva só os números de dias separados por "/", na ordem em que aparecem — 1 número se for prazo único (ex.: "60"), ou vários se for parcelado (ex.: "30/60/90", "7/14/21").
 - Quando for à vista, no ato, ou não houver menção nenhuma a prazo/parcelamento, devolva "".
 - Nunca invente um prazo que não está escrito.
 
