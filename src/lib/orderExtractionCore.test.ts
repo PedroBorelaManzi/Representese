@@ -1,5 +1,18 @@
 import { describe, it, expect } from 'vitest';
-import { reconcileExtractionResult, buildOrderExtractionPrompt } from './orderExtractionCore';
+import { reconcileExtractionResult, buildOrderExtractionPrompt, ORDER_EXTRACTION_SYSTEM_INSTRUCTION } from './orderExtractionCore';
+
+// A maioria dos pedidos reais não tem uma tabela de produtos — o produto
+// está descrito no corpo do texto ("2 kit porta onix branco"). Guarda de
+// regressão: se alguém reescrever a instrução e ela voltar a exigir uma
+// tabela, este teste avisa antes de o comportamento quebrar em produção de
+// novo (era exatamente esse o pedido do dono: "não a tabela de produtos,
+// ele tem que ler os produtos que estão na descrição do pedido").
+describe('ORDER_EXTRACTION_SYSTEM_INSTRUCTION', () => {
+  it('instrui a IA a ler produto descrito em texto corrido, não só em tabela', () => {
+    expect(ORDER_EXTRACTION_SYSTEM_INSTRUCTION).toContain('mesmo sem tabela nenhuma');
+    expect(ORDER_EXTRACTION_SYSTEM_INSTRUCTION).toContain('CORPO/TEXTO do pedido');
+  });
+});
 
 // reconcileExtractionResult é o ponto onde a resposta da IA (que pode vir
 // mal formada) se junta com as dicas locais — usado tanto pelo upload normal

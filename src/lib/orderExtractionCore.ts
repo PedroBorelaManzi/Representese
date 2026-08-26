@@ -9,9 +9,10 @@
 // documento exatamente do mesmo jeito, sem duas versões do prompt que podem
 // desalinhar com o tempo.
 
-/** Um produto/linha da tabela de itens do pedido. Só o que a IA consegue
- *  ler de uma tabela de verdade — a extração local (regex) não tenta achar
- *  itens, só o cabeçalho do documento (CNPJ/valor/representada). */
+/** Um produto do pedido — venha de uma tabela ou descrito no corpo do texto
+ *  ("2 kit porta onix branco"). Só o que a IA consegue ler: a extração
+ *  local (regex) não tenta achar itens, só o cabeçalho do documento
+ *  (CNPJ/valor/representada). */
 export interface ItemExtraido {
   /** Nome do produto exatamente como está escrito no documento. */
   description: string;
@@ -36,7 +37,8 @@ export interface OrderExtractionResult {
    *  quando o campo merece conferência, em vez de cadastrar calado. */
   confidence?: { client?: string; category?: string; value?: string };
   /** Produtos do pedido, pra área de Produtos (unidades vendidas por
-   *  representada). Sempre [] no modo local — só a IA lê tabela de itens. */
+   *  representada). Sempre [] no modo local — só a IA lê os produtos,
+   *  estejam em tabela ou descritos no corpo do texto. */
   items: ItemExtraido[];
 }
 
@@ -96,13 +98,16 @@ Diga honestamente o quanto tem certeza de cada campo. Use "baixa" quando estiver
 Endereço de entrega/faturamento do COMPRADOR. Se não houver, "".
 
 === items (os produtos do pedido) ===
-Uma linha por produto da tabela de itens do documento — é o que permite ver depois quantas unidades de cada produto foram vendidas.
+Todo produto que o pedido menciona, mesmo sem tabela nenhuma — é o que permite ver depois quantas unidades de cada produto foram vendidas. A MAIORIA dos pedidos reais não tem coluna/tabela: o produto está descrito no CORPO/TEXTO do pedido, junto com a quantidade, do jeito que a pessoa escreveu (impresso, digitado ou à mão). Leia essas descrições como leria uma lista de compras:
+  "2 kit porta onix branco, 3 gabinete aço jupiter 1171mm pr" → dois produtos: quantidade 2 e quantidade 3.
+  Uma lista com um produto por linha (com ou sem marcador "-"/"•") → um item por linha.
+  Um parágrafo corrido citando os produtos em sequência → separe cada produto citado.
+Só quando não há tabela NEM lista, aplique as mesmas regras:
 - "description": nome/descrição do produto EXATAMENTE como está escrito (não resuma, não traduza, não corrija abreviação).
-- "code": código/referência do produto, se houver uma coluna pra isso. Senão "".
-- "quantity": quantidade vendida deste item, como número (aceita casas decimais, ex: 2.5 metros). Sem quantidade legível, não inclua o item — não invente "1".
-- "unitValue" e "totalValue": mesmo formato de "value" (ponto decimal, sem separador de milhar, sem "R$"). Se só um dos dois estiver escrito, calcule o outro (totalValue = unitValue × quantity) — mas só quando a conta bater com o resto do documento; senão devolva só o que está escrito e omita o outro.
-- Pedido escrito à mão sem tabela clara: tente separar por linha (cada produto que a pessoa listou).
-- Documento sem NENHUMA tabela de itens identificável (ex: só um total resumido) → devolva "items": [].
+- "code": código/referência do produto, se aparecer (coluna própria ou junto do nome). Senão "".
+- "quantity": quantidade deste item, como número (aceita casas decimais, ex: 2.5 metros). Sem quantidade legível — nem no texto corrido, nem numa tabela — não inclua o item; não invente "1".
+- "unitValue" e "totalValue": mesmo formato de "value" (ponto decimal, sem separador de milhar, sem "R$"). Se só um dos dois estiver escrito, calcule o outro (totalValue = unitValue × quantity) — mas só quando a conta bater com o resto do documento; senão devolva só o que está escrito e omita o outro. Pedido sem valor por item (só o total geral) — devolva quantity mesmo sem unitValue/totalValue.
+- Documento onde REALMENTE não dá pra identificar produto nenhum (ex: só um total resumido, sem nada que se pareça com item) → devolva "items": [].
 - NUNCA invente um item que não está no documento. Melhor "items": [] do que um item chutado.`;
 
 /* ─────────────────── CNPJ ─────────────────── */
@@ -417,8 +422,9 @@ export function reconcileExtractionResult(
       address: "",
       status: "ready",
       method: "local",
-      // Modo local não sabe ler tabela de itens — só a IA le. Sem resposta
-      // da IA (JSON inválido/vazio), não tem produto pra área de Produtos.
+      // Modo local não sabe achar produto (tabela ou texto corrido) — só a
+      // IA lê. Sem resposta da IA (JSON inválido/vazio), não tem produto
+      // pra área de Produtos.
       items: [],
     };
   }
