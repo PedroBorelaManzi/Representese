@@ -98,18 +98,6 @@ describe('reconcileExtractionResult', () => {
     expect(result.paymentTerms).toBe('');
   });
 
-  it('deliveryLeadDays lido do documento passa direto', () => {
-    const raw = JSON.stringify({ client: 'X', cnpj: '', category: '', value: 10, address: '', deliveryLeadDays: 10 });
-    const result = reconcileExtractionResult(raw, '', 0, '', []);
-    expect(result.deliveryLeadDays).toBe(10);
-  });
-
-  it('deliveryLeadDays ausente/inválido vira undefined, não 0', () => {
-    const raw = JSON.stringify({ client: 'X', cnpj: '', category: '', value: 10, address: '' });
-    const result = reconcileExtractionResult(raw, '', 0, '', []);
-    expect(result.deliveryLeadDays).toBeUndefined();
-  });
-
   it('sem cliente na resposta da IA, usa "Desconhecido" em vez de string vazia', () => {
     const raw = JSON.stringify({ cnpj: '', category: '', value: 10, address: '' });
     const result = reconcileExtractionResult(raw, '', 0, '', []);

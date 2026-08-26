@@ -254,7 +254,6 @@ export default function OrderIntake() {
         fileName: file.name,
         items: parseResult?.items,
         paymentTerms: parseResult?.paymentTerms,
-        deliveryLeadDays: parseResult?.deliveryLeadDays,
       });
 
       setStep("success");

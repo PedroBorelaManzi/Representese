@@ -40,7 +40,6 @@ import { EmptyState } from "../components/ui";
 import TourArrow from "../components/TourArrow";
 import { InlineEditField } from "../components/InlineEditField";
 import { OrderDetailModal } from "../components/OrderDetailModal";
-import { deliveryLeadDaysToISODate } from "../lib/orderExtractionCore";
 import type { Order as OrderType } from "../types";
 
 // Modal de importação de relatório: carrega sob demanda (puxa o pdfjs junto)
@@ -270,8 +269,7 @@ export default function EmpresasPage() {
             cnpj: res.cnpj || "",
             address: res.address || "",
             items: res.items || [],
-            paymentTerms: res.paymentTerms || "",
-            deliveryLeadDays: res.deliveryLeadDays
+            paymentTerms: res.paymentTerms || ""
           } : item
         ));
       } catch (err) {
@@ -325,7 +323,6 @@ export default function EmpresasPage() {
           file_name: formattedName,
           file_path: path,
           payment_terms: item.paymentTerms || null,
-          delivery_date: item.deliveryLeadDays ? deliveryLeadDaysToISODate(item.deliveryLeadDays) : null,
           created_at: new Date().toISOString()
         };
 
