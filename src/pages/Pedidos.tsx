@@ -1,6 +1,6 @@
 import { useUpload } from '../contexts/UploadContext';
 import React, { useState, useEffect, useMemo } from "react";
-import { Plus, Search, FileText, Upload, Loader2, ShoppingBag, Trash2, ArrowUpRight, TrendingUp, DollarSign, Calendar, ChevronRight, X, Sparkles, Navigation, UserCog, UserPlus, ChevronLeft } from "lucide-react";
+import { Plus, Search, FileText, Upload, Loader2, ShoppingBag, Trash2, ArrowUpRight, TrendingUp, DollarSign, Calendar, ChevronRight, X, Sparkles, Navigation, UserCog, UserPlus, ChevronLeft, Truck } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { posthog } from "../lib/posthog";
@@ -12,6 +12,8 @@ import { cn } from "../lib/utils";
 import { ajustarFaturamento } from "../lib/faturamento";
 import { salvarItensDoPedido } from "../lib/orderItems";
 import { PageHeader, useConfirm } from "../components/ui";
+import { InlineEditField } from "../components/InlineEditField";
+import { OrderDetailModal } from "../components/OrderDetailModal";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Client, Order } from "../types";
@@ -27,6 +29,7 @@ interface BatchResult {
   address?: string;
   cnpj?: string;
   items?: ItemExtraido[];
+  paymentTerms?: string;
 }
 
 interface AnalysisResult {
@@ -37,6 +40,7 @@ interface AnalysisResult {
   value?: number;
   status?: string;
   items?: ItemExtraido[];
+  paymentTerms?: string;
 }
 
 export default function PedidosPage() {
@@ -76,6 +80,7 @@ export default function PedidosPage() {
   const [batchResults, setBatchResults] = useState<BatchResult[]>([]);
   const [isProcessingBatch, setIsProcessingBatch] = useState(false);
   const [viewDate] = useState(new Date());
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   useEffect(() => { if (user) { loadData();  } }, [user]);
 
@@ -176,7 +181,7 @@ export default function PedidosPage() {
       const formattedName = `${selectedCategory}___VALOR_${orderValue}___${cleanName}`;
       const path = `${user.id}/${cid}/${formattedName}`;
       await supabase.storage.from("client_vault").upload(path, selectedFile, { upsert: true });
-      const { data: orderRow } = await supabase.from("orders").upsert([{ user_id: user.id, client_id: cid, category: selectedCategory, value: parseFloat(orderValue), file_name: formattedName, file_path: path }], { onConflict: "client_id,file_path" }).select("id, created_at").single();
+      const { data: orderRow } = await supabase.from("orders").upsert([{ user_id: user.id, client_id: cid, category: selectedCategory, value: parseFloat(orderValue), file_name: formattedName, file_path: path, payment_terms: analysisResult?.paymentTerms || null }], { onConflict: "client_id,file_path" }).select("id, created_at").single();
       const { data: clientData } = await supabase.from("clients").select("faturamento").eq("id", cid).single();
       if (clientData) {
         const updatedFat = ajustarFaturamento(clientData.faturamento, selectedCategory, parseFloat(orderValue));
@@ -209,7 +214,7 @@ export default function PedidosPage() {
           const clientName = c.name?.trim().toLowerCase();
           return (cleanResCnpj && clientCnpj === cleanResCnpj) || (clientName && clientName === cleanResName);
         });
-        setBatchResults(prev => [...prev, { file, client: res.client, category: res.category || "Outros", value: res.value || 0, needsNewClient: !match, clientId: match?.id, address: res.address, cnpj: res.cnpj, items: res.items }]);
+        setBatchResults(prev => [...prev, { file, client: res.client, category: res.category || "Outros", value: res.value || 0, needsNewClient: !match, clientId: match?.id, address: res.address, cnpj: res.cnpj, items: res.items, paymentTerms: res.paymentTerms }]);
       } catch (err) {} 
     }
     setIsProcessingBatch(false);
@@ -223,7 +228,7 @@ export default function PedidosPage() {
       const formattedName = `${res.category}___VALOR_${res.value}___${cleanName}`;
       const path = `${user?.id}/${cid}/${formattedName}`;
       await supabase.storage.from("client_vault").upload(path, res.file, { upsert: true });
-      const { data: orderRow } = await supabase.from("orders").upsert([{ user_id: user?.id, client_id: cid, category: res.category, value: res.value, file_name: formattedName, file_path: path }], { onConflict: "client_id,file_path" }).select("id, created_at").single();
+      const { data: orderRow } = await supabase.from("orders").upsert([{ user_id: user?.id, client_id: cid, category: res.category, value: res.value, file_name: formattedName, file_path: path, payment_terms: res.paymentTerms || null }], { onConflict: "client_id,file_path" }).select("id, created_at").single();
       const { data: clientData } = await supabase.from("clients").select("faturamento").eq("id", cid).single();
       if (clientData) {
         const updatedFat = ajustarFaturamento(clientData.faturamento, res.category, res.value);
@@ -256,6 +261,17 @@ export default function PedidosPage() {
       toast.success("Pedido excluído!");
       loadData();
     } catch (err) { toast.error(err instanceof Error ? err.message : 'Erro desconhecido'); }
+  };
+
+  /** Área "Entregas" no card: entrega/NF editáveis direto, sem abrir o pedido. */
+  const patchOrder = (orderId: string, patch: Partial<Order>) => {
+    setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, ...patch } : o)));
+  };
+
+  const saveOrderField = (order: Order, field: keyof Order) => async (rawValue: string) => {
+    const { error } = await supabase.from("orders").update({ [field]: rawValue || null }).eq("id", order.id);
+    if (error) throw error;
+    patchOrder(order.id, { [field]: rawValue || null } as Partial<Order>);
   };
 
   const monthlyOrders = useMemo(() => {
@@ -420,9 +436,23 @@ export default function PedidosPage() {
                        </div>
 
                        <div className="col-span-1 text-right flex justify-end gap-2">
+                          <button onClick={() => setSelectedOrder(order)} className="p-3 bg-white dark:bg-zinc-800 rounded-xl text-slate-200 hover:text-emerald-600 transition-all shadow-sm border border-slate-50 dark:border-zinc-700" title="Ver detalhes do pedido">
+                             <Truck className="w-4 h-4" />
+                          </button>
                           <button onClick={() => handleDeleteOrder(order)} className="p-3 bg-white dark:bg-zinc-800 rounded-xl text-slate-200 hover:text-red-500 transition-all shadow-sm border border-slate-50 dark:border-zinc-700">
                              <Trash2 className="w-4 h-4" />
                           </button>
+                       </div>
+
+                       <div className="col-span-12 mt-4 pt-4 border-t border-slate-50 dark:border-zinc-800/50 flex items-center gap-8 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                          <div className="flex items-center gap-2">
+                             <span>Entrega:</span>
+                             <InlineEditField type="date" value={order.delivery_date} onSave={saveOrderField(order, "delivery_date")} label="Data de entrega" />
+                          </div>
+                          <div className="flex items-center gap-2">
+                             <span>NF:</span>
+                             <InlineEditField type="text" value={order.nf_number} onSave={saveOrderField(order, "nf_number")} label="Número da NF" placeholder="NF" />
+                          </div>
                        </div>
                     </motion.div>
                   ))
@@ -491,11 +521,33 @@ export default function PedidosPage() {
                     {order.client?.city || "N/A"}
                   </div>
                 </div>
+
+                <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-50 dark:border-zinc-800/50">
+                  <div className="flex items-center gap-1.5 text-[8px] font-black text-slate-400 uppercase tracking-widest">
+                    <span>Entrega:</span>
+                    <InlineEditField type="date" value={order.delivery_date} onSave={saveOrderField(order, "delivery_date")} label="Data de entrega" />
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[8px] font-black text-slate-400 uppercase tracking-widest">
+                    <span>NF:</span>
+                    <InlineEditField type="text" value={order.nf_number} onSave={saveOrderField(order, "nf_number")} label="Número da NF" placeholder="NF" />
+                  </div>
+                  <button onClick={() => setSelectedOrder(order)} className="p-2 bg-slate-50 dark:bg-zinc-800 rounded-lg text-slate-400 shrink-0" title="Ver detalhes do pedido">
+                    <Truck className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </motion.div>
             ))
           )}
         </div>
       </div>
+
+      <OrderDetailModal
+        order={selectedOrder}
+        isOpen={!!selectedOrder}
+        onClose={() => setSelectedOrder(null)}
+        onUpdated={patchOrder}
+        commissions={settings?.commissions || {}}
+      />
 
       <AnimatePresence>
         {isManualModalOpen && (

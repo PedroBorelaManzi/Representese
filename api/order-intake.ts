@@ -443,7 +443,7 @@ async function handleSubmit(req: express.Request, res: express.Response, payload
   const session = await requireIntakeSession(req, res);
   if (!session) return;
 
-  const { orderId, clientId, category, value, filePath, fileName, items } = payload || {};
+  const { orderId, clientId, category, value, filePath, fileName, items, paymentTerms } = payload || {};
   if (!orderId || !clientId || !category || !value || !filePath) {
     return res.status(400).json({ error: 'Dados incompletos.' });
   }
@@ -480,6 +480,7 @@ async function handleSubmit(req: express.Request, res: express.Response, payload
     file_path: filePath,
     source: 'order_intake_link',
     intake_link_label: session.linkLabel,
+    payment_terms: typeof paymentTerms === 'string' && paymentTerms ? paymentTerms : null,
   }]);
 
   if (insertError) {

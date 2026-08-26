@@ -28,6 +28,7 @@ describe('reconcileExtractionResult', () => {
       category: 'Cozimax',
       value: 500,
       address: 'Rua A, 1',
+      paymentTerms: '',
       status: 'ready',
       method: 'ai',
       confidence: undefined,
@@ -74,10 +75,27 @@ describe('reconcileExtractionResult', () => {
       category: '',
       value: 300,
       address: '',
+      paymentTerms: '',
       status: 'ready',
       method: 'local',
       items: [],
     });
+  });
+
+  // paymentTerms alimenta o trigger de parcelas no banco (regenerate_order_installments,
+  // ver migração add_order_delivery_and_installments) — só formato "30/60/90"
+  // sobrevive; qualquer coisa que a IA escreva fora desse padrão vira "" em vez
+  // de gerar uma parcela com data quebrada.
+  it('paymentTerms no formato "dias/dias" passa direto', () => {
+    const raw = JSON.stringify({ client: 'X', cnpj: '', category: '', value: 10, address: '', paymentTerms: '30/60/90' });
+    const result = reconcileExtractionResult(raw, '', 0, '', []);
+    expect(result.paymentTerms).toBe('30/60/90');
+  });
+
+  it('paymentTerms fora do padrão (texto livre, "à vista" etc.) vira string vazia', () => {
+    const raw = JSON.stringify({ client: 'X', cnpj: '', category: '', value: 10, address: '', paymentTerms: 'à vista' });
+    const result = reconcileExtractionResult(raw, '', 0, '', []);
+    expect(result.paymentTerms).toBe('');
   });
 
   it('sem cliente na resposta da IA, usa "Desconhecido" em vez de string vazia', () => {

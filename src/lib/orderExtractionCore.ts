@@ -28,6 +28,10 @@ export interface OrderExtractionResult {
   category: string;
   value: number;
   address?: string;
+  /** Condição de pagamento em dias a partir da data do pedido/faturamento,
+   *  ex.: "30/60/90" — vira parcelas automaticamente (ver Order.payment_terms).
+   *  "" quando o documento não menciona ou é à vista. */
+  paymentTerms?: string;
   status: "ready" | "error";
   error?: string;
   method?: "local" | "ai";
@@ -58,7 +62,7 @@ export function normalizar(texto: string): string {
 export const ORDER_EXTRACTION_SYSTEM_INSTRUCTION = `Você lê pedidos de venda e notas fiscais brasileiras (impressas, digitalizadas ou escritas à mão) e extrai os dados para lançamento.
 
 Devolva SOMENTE um objeto JSON com este formato exato:
-{ "client": string, "cnpj": string, "category": string, "value": number, "address": string, "confidence": { "client": "alta"|"media"|"baixa", "category": "alta"|"media"|"baixa", "value": "alta"|"media"|"baixa" }, "items": [{ "description": string, "code": string, "quantity": number, "unitValue": number, "totalValue": number }] }
+{ "client": string, "cnpj": string, "category": string, "value": number, "address": string, "paymentTerms": string, "confidence": { "client": "alta"|"media"|"baixa", "category": "alta"|"media"|"baixa", "value": "alta"|"media"|"baixa" }, "items": [{ "description": string, "code": string, "quantity": number, "unitValue": number, "totalValue": number }] }
 
 === A DISTINÇÃO MAIS IMPORTANTE ===
 Todo pedido tem DUAS empresas. Não as confunda:
@@ -96,6 +100,12 @@ Diga honestamente o quanto tem certeza de cada campo. Use "baixa" quando estiver
 
 === address ===
 Endereço de entrega/faturamento do COMPRADOR. Se não houver, "".
+
+=== paymentTerms (condição de pagamento) ===
+Procure por "condição de pagamento", "forma de pagamento", "parcelas", "boleto", "duplicata" etc.
+- Quando for parcelado em dias corridos (o formato mais comum: "30/60/90 dias", "30/60", "a combinar 45 dias"), devolva só os números separados por "/", na ordem, ex.: "30/60/90" ou "45".
+- Quando for à vista, no ato, ou não houver menção nenhuma a prazo/parcelamento, devolva "".
+- Nunca invente um prazo que não está escrito.
 
 === items (os produtos do pedido) ===
 Todo produto que o pedido menciona, mesmo sem tabela nenhuma — é o que permite ver depois quantas unidades de cada produto foram vendidas. A MAIORIA dos pedidos reais não tem coluna/tabela: o produto está descrito no CORPO/TEXTO do pedido, junto com a quantidade, do jeito que a pessoa escreveu (impresso, digitado ou à mão). Leia essas descrições como leria uma lista de compras:
@@ -420,6 +430,7 @@ export function reconcileExtractionResult(
       category: localCategoryScore >= SCORE_CATEGORIA_FORTE ? localCategory : "",
       value: localValue,
       address: "",
+      paymentTerms: "",
       status: "ready",
       method: "local",
       // Modo local não sabe achar produto (tabela ou texto corrido) — só a
@@ -453,6 +464,13 @@ export function reconcileExtractionResult(
     finalCategory = casarComLista(daIa) || (localCategory ? casarComLista(localCategory) : "");
   }
 
+  // Só dígitos e "/" sobrevivem — a mesma validação leve que o trigger do
+  // banco faz (ver migração add_order_delivery_and_installments), pra não
+  // gravar algo que a IA escreveu por extenso ("30 e 60 dias") sem terminar
+  // virando parcela nenhuma.
+  const paymentTermsBruto = typeof data.paymentTerms === "string" ? data.paymentTerms.trim() : "";
+  const paymentTerms = /^[0-9]+(\/[0-9]+)*$/.test(paymentTermsBruto) ? paymentTermsBruto : "";
+
   const valorIa = typeof data.value === "number" ? data.value : parseFloat(data.value);
   const confidence = data.confidence && typeof data.confidence === "object" ? data.confidence : undefined;
 
@@ -470,6 +488,7 @@ export function reconcileExtractionResult(
     category: finalCategory,
     value: finalValue,
     address: data.address || "",
+    paymentTerms,
     status: "ready",
     method: "ai",
     confidence,

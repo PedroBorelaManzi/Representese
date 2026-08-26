@@ -39,6 +39,13 @@ export interface Order {
   source?: string;
   intake_link_label?: string;
   created_at: string;
+  /** Área "Entregas" — todos opcionais, preenchidos depois do lançamento do pedido. */
+  delivery_date?: string | null;
+  nf_number?: string | null;
+  /** Data de faturamento — também é a data-base usada pra calcular o vencimento das parcelas. */
+  invoice_date?: string | null;
+  /** Condição de pagamento em dias a partir da data-base, ex.: "30/60/90". Vazio/null = à vista (1 parcela só). */
+  payment_terms?: string | null;
   client?: {
     id: string;
     name: string;
@@ -46,6 +53,20 @@ export interface Order {
     city?: string;
     state?: string;
   };
+}
+
+/** Parcela de pagamento de um pedido — gerada automaticamente por um trigger
+ *  no banco a partir de `Order.payment_terms` (ver migração
+ *  add_order_delivery_and_installments), editável individualmente depois. */
+export interface OrderInstallment {
+  id: string;
+  order_id: string;
+  user_id: string;
+  installment_number: number;
+  due_date: string;
+  value: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Appointment {

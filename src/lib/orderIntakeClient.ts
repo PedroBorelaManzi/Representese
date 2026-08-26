@@ -93,6 +93,9 @@ export interface ParseIntakeResult {
   /** Produtos lidos do pedido — repassados de volta em 'submit' pra virarem
    *  order_items (área de Produtos). */
   items?: ItemExtraido[];
+  /** Condição de pagamento lida do documento (ex.: "30/60/90") — repassada de
+   *  volta em 'submit' pra gerar as parcelas (order_installments). */
+  paymentTerms?: string;
 }
 export async function parseIntakeOrder(
   sessionToken: string,
@@ -134,7 +137,7 @@ export async function uploadIntakeFile(filePath: string, uploadToken: string, fi
 
 export async function submitIntakeOrder(
   sessionToken: string,
-  payload: { orderId: string; clientId: string; category: string; value: number; filePath: string; fileName: string; items?: ItemExtraido[] }
+  payload: { orderId: string; clientId: string; category: string; value: number; filePath: string; fileName: string; items?: ItemExtraido[]; paymentTerms?: string }
 ): Promise<void> {
   await callOrderIntakeApi('submit', payload, { sessionToken });
 }

@@ -86,24 +86,38 @@ export default function Comissoes() {
       const startPrev = new Date(year, month - 1, 1).toISOString();
       const endPrev = new Date(year, month, 0, 23, 59, 59).toISOString();
 
+      // Fonte: order_installments, não orders — cada parcela conta no mês do
+      // SEU vencimento (due_date), não no mês em que o pedido foi lançado.
+      // Pedido sem condição de pagamento explícita continua com 1 parcela só,
+      // vencendo na própria data do pedido (ver trigger
+      // regenerate_order_installments), então o comportamento de hoje não
+      // muda pra quem nunca usa parcelamento.
+      const startCurrentDate = startCurrent.split("T")[0];
+      const endCurrentDate = endCurrent.split("T")[0];
+      const startPrevDate = startPrev.split("T")[0];
+      const endPrevDate = endPrev.split("T")[0];
+
+      const toMonthOrders = (rows: any[] | null): MonthOrder[] =>
+        (rows || []).map((r) => ({ category: r.orders?.category || "", value: Number(r.value) || 0, created_at: r.due_date }));
+
       const [curRes, prevRes] = await Promise.all([
         supabase
-          .from("orders")
-          .select("category, value, created_at")
+          .from("order_installments")
+          .select("due_date, value, orders!inner(category)")
           .eq("user_id", user!.id)
-          .gte("created_at", startCurrent)
-          .lte("created_at", endCurrent),
+          .gte("due_date", startCurrentDate)
+          .lte("due_date", endCurrentDate),
         supabase
-          .from("orders")
-          .select("category, value, created_at")
+          .from("order_installments")
+          .select("due_date, value, orders!inner(category)")
           .eq("user_id", user!.id)
-          .gte("created_at", startPrev)
-          .lte("created_at", endPrev),
+          .gte("due_date", startPrevDate)
+          .lte("due_date", endPrevDate),
       ]);
       if (curRes.error) throw curRes.error;
       return {
-        current: (curRes.data || []) as MonthOrder[],
-        previous: (prevRes.data || []) as MonthOrder[],
+        current: toMonthOrders(curRes.data),
+        previous: toMonthOrders(prevRes.data),
       };
     },
     enabled: !!user,

@@ -253,6 +253,7 @@ export default function OrderIntake() {
         filePath: prepared.filePath,
         fileName: file.name,
         items: parseResult?.items,
+        paymentTerms: parseResult?.paymentTerms,
       });
 
       setStep("success");

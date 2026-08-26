@@ -18,7 +18,8 @@ import {
   Trash2,
   Sparkles,
   FileSpreadsheet,
-  UserCog
+  UserCog,
+  Truck
 } from "lucide-react";
 import { supabase, logError } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
@@ -37,6 +38,9 @@ import { ajustarFaturamento } from "../lib/faturamento";
 import { salvarItensDoPedido } from "../lib/orderItems";
 import { EmptyState } from "../components/ui";
 import TourArrow from "../components/TourArrow";
+import { InlineEditField } from "../components/InlineEditField";
+import { OrderDetailModal } from "../components/OrderDetailModal";
+import type { Order as OrderType } from "../types";
 
 // Modal de importação de relatório: carrega sob demanda (puxa o pdfjs junto)
 const ImportReportModal = React.lazy(() => import("../components/ImportReportModal"));
@@ -81,6 +85,7 @@ export default function EmpresasPage() {
   const [selectedFiles, setSelectedFiles] = useState<any[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
+  const [selectedOrder, setSelectedOrder] = useState<OrderType | null>(null);
 
   const upsellPanelRef = useRef<HTMLDivElement>(null);
   const addCompanyPanelRef = useRef<HTMLDivElement>(null);
@@ -138,6 +143,17 @@ export default function EmpresasPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  /** Área "Entregas" no card: entrega/NF editáveis direto, sem abrir o pedido. */
+  const patchOrder = (orderId: string, patch: Partial<OrderType>) => {
+    setAllOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, ...patch } : o)));
+  };
+
+  const saveOrderField = (order: any, field: keyof OrderType) => async (rawValue: string) => {
+    const { error } = await supabase.from("orders").update({ [field]: rawValue || null }).eq("id", order.id);
+    if (error) throw error;
+    patchOrder(order.id, { [field]: rawValue || null } as Partial<OrderType>);
   };
 
   const nextMonth = () => {
@@ -251,7 +267,8 @@ export default function EmpresasPage() {
             status: 'ready',
             cnpj: res.cnpj || "",
             address: res.address || "",
-            items: res.items || []
+            items: res.items || [],
+            paymentTerms: res.paymentTerms || ""
           } : item
         ));
       } catch (err) {
@@ -302,8 +319,9 @@ export default function EmpresasPage() {
           client_id: cid, 
           category: item.category || 'GERAL', 
           value: parseFloat(item.value), 
-          file_name: formattedName, 
+          file_name: formattedName,
           file_path: path,
+          payment_terms: item.paymentTerms || null,
           created_at: new Date().toISOString()
         };
 
@@ -690,9 +708,25 @@ export default function EmpresasPage() {
                           {order.category}
                         </span>
                       </div>
-                      <Link to={'/dashboard/clientes/' + order.client_id} className="p-2 md:p-3 bg-slate-50 dark:bg-zinc-800 rounded-xl md:rounded-2xl hover:bg-emerald-50 transition-colors group/arrow">
-                         <ArrowUpRight className="w-4 h-4 md:w-5 md:h-5 text-slate-400 group-hover/arrow:text-emerald-600 transition-colors" />
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => setSelectedOrder(order)} className="p-2 md:p-3 bg-slate-50 dark:bg-zinc-800 rounded-xl md:rounded-2xl hover:bg-emerald-50 transition-colors" title="Ver detalhes do pedido">
+                           <Truck className="w-4 h-4 md:w-5 md:h-5 text-slate-400 hover:text-emerald-600 transition-colors" />
+                        </button>
+                        <Link to={'/dashboard/clientes/' + order.client_id} className="p-2 md:p-3 bg-slate-50 dark:bg-zinc-800 rounded-xl md:rounded-2xl hover:bg-emerald-50 transition-colors group/arrow">
+                           <ArrowUpRight className="w-4 h-4 md:w-5 md:h-5 text-slate-400 group-hover/arrow:text-emerald-600 transition-colors" />
+                        </Link>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 pt-4 border-t border-slate-50 dark:border-zinc-800/50 flex items-center justify-between gap-3 relative z-10 text-[8px] md:text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                      <div className="flex items-center gap-1.5">
+                        <span>Entrega:</span>
+                        <InlineEditField type="date" value={order.delivery_date} onSave={saveOrderField(order, "delivery_date")} label="Data de entrega" />
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span>NF:</span>
+                        <InlineEditField type="text" value={order.nf_number} onSave={saveOrderField(order, "nf_number")} label="Número da NF" placeholder="NF" />
+                      </div>
                     </div>
                   </div>
                 ))
@@ -927,6 +961,14 @@ export default function EmpresasPage() {
       </AnimatePresence>
 
       {tourTarget && <TourArrow targetId={tourTarget} label="Clique aqui" />}
+
+      <OrderDetailModal
+        order={selectedOrder}
+        isOpen={!!selectedOrder}
+        onClose={() => setSelectedOrder(null)}
+        onUpdated={patchOrder}
+        commissions={settings?.commissions || {}}
+      />
     </div>
   );
 }
