@@ -19,7 +19,8 @@ import {
   Sparkles,
   FileSpreadsheet,
   UserCog,
-  Truck
+  Truck,
+  Target
 } from "lucide-react";
 import { supabase, logError } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
@@ -87,6 +88,9 @@ export default function EmpresasPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<OrderType | null>(null);
+  const [showGoalsConfig, setShowGoalsConfig] = useState(false);
+  const [draftGoals, setDraftGoals] = useState<Record<string, string>>({});
+  const [savingGoals, setSavingGoals] = useState(false);
 
   const upsellPanelRef = useRef<HTMLDivElement>(null);
   const addCompanyPanelRef = useRef<HTMLDivElement>(null);
@@ -155,6 +159,37 @@ export default function EmpresasPage() {
     const { error } = await supabase.from("orders").update({ [field]: rawValue || null }).eq("id", order.id);
     if (error) throw error;
     patchOrder(order.id, { [field]: rawValue || null } as Partial<OrderType>);
+  };
+
+  useEffect(() => {
+    if (showGoalsConfig) {
+      const draft: Record<string, string> = {};
+      (settings.categories || []).forEach((c: string) => {
+        const goal = settings.monthly_goals?.[c];
+        draft[c] = goal ? String(goal) : "";
+      });
+      setDraftGoals(draft);
+    }
+  }, [showGoalsConfig, settings.categories, settings.monthly_goals]);
+
+  const handleSaveGoals = async () => {
+    setSavingGoals(true);
+    try {
+      const merged = { ...(settings.monthly_goals || {}) };
+      Object.entries(draftGoals).forEach(([name, raw]) => {
+        const clean = String(raw).replace(/\./g, "").replace(",", ".");
+        const parsed = parseFloat(clean);
+        if (raw && !isNaN(parsed) && parsed > 0) merged[name] = parsed;
+        else delete merged[name];
+      });
+      await updateSettings({ monthly_goals: merged });
+      toast.success("Metas salvas!");
+      setShowGoalsConfig(false);
+    } catch {
+      toast.error("Erro ao salvar as metas.");
+    } finally {
+      setSavingGoals(false);
+    }
   };
 
   const nextMonth = () => {
@@ -525,6 +560,11 @@ export default function EmpresasPage() {
               </button>
             </div>
 
+            <button onClick={() => setShowGoalsConfig(true)} className="flex items-center gap-2 px-5 py-3 bg-white dark:bg-zinc-900 hover:bg-slate-50 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-800 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-sm active:scale-95 whitespace-nowrap">
+              <Target className="w-4 h-4 text-emerald-600" />
+              Configurar Meta
+            </button>
+
             <button onClick={() => setIsImportReportOpen(true)} className="flex items-center gap-2 px-5 py-3 bg-white dark:bg-zinc-900 hover:bg-slate-50 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-800 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-sm active:scale-95 whitespace-nowrap">
               <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
               Importar Relatório
@@ -742,6 +782,10 @@ export default function EmpresasPage() {
                         <span>NF:</span>
                         <InlineEditField type="text" value={order.nf_number} onSave={saveOrderField(order, "nf_number")} label="Número da NF" placeholder="NF" />
                       </div>
+                    </div>
+                    <div className="mt-2 flex items-start gap-1.5 relative z-10 text-[8px] md:text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                      <span className="shrink-0 pt-1">Obs:</span>
+                      <InlineEditField type="textarea" value={order.notes} onSave={saveOrderField(order, "notes")} label="Observações do pedido" placeholder="Nenhuma observação" className="flex-1 normal-case font-medium" />
                     </div>
                   </div>
                 ))
@@ -998,6 +1042,54 @@ export default function EmpresasPage() {
         onUpdated={patchOrder}
         commissions={settings?.commissions || {}}
       />
+
+      <AnimatePresence>
+        {showGoalsConfig && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowGoalsConfig(false)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-xl" />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative z-10 w-full max-w-md max-h-[80vh] flex flex-col bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-zinc-800 overflow-hidden">
+              <div className="px-6 py-5 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-zinc-100">Meta mensal por empresa</h3>
+                  <p className="text-xs font-bold text-slate-400 dark:text-zinc-500 mt-0.5">Em branco = sem meta pra essa empresa</p>
+                </div>
+                <button onClick={() => setShowGoalsConfig(false)} className="p-2 hover:bg-slate-50 dark:hover:bg-zinc-800 rounded-full transition-colors shrink-0">
+                  <X className="w-4 h-4 text-slate-400" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4">
+                {(settings.categories || []).length === 0 ? (
+                  <div className="text-center py-8 text-sm font-bold text-slate-400 dark:text-zinc-500">
+                    Nenhuma empresa representada cadastrada ainda.
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2.5">
+                    {(settings.categories || []).map((c: string) => (
+                      <div key={c} className="flex items-center gap-3">
+                        <span className="flex-1 text-sm font-bold text-slate-700 dark:text-zinc-200 truncate">{c}</span>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={draftGoals[c] ?? ""}
+                          onChange={(e) => setDraftGoals((prev) => ({ ...prev, [c]: e.target.value }))}
+                          placeholder="Ex: 50.000"
+                          className="w-32 text-sm font-black border border-slate-100 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 rounded-2xl px-4 py-2.5 outline-none text-right focus:ring-2 focus:ring-emerald-500"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="px-6 py-4 border-t border-slate-100 dark:border-zinc-800">
+                <button onClick={handleSaveGoals} disabled={savingGoals || (settings.categories || []).length === 0} className="w-full py-3 rounded-2xl text-xs font-black uppercase tracking-widest bg-emerald-600 text-white hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
+                  {savingGoals ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                  Salvar metas
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

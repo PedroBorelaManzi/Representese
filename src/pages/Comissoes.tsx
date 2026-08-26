@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { ExportCommissionsButton } from "../components/ExportCommissionsButton";
 import { computeCommissionRows, computeCommissionTotals, type MonthOrder } from "../lib/commissions";
+import { CommissionValue } from "../components/CommissionValue";
 
 const BRL = (n: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0);
@@ -264,7 +265,7 @@ export default function Comissoes() {
               Comissão a receber · {MONTHS[month]}
             </div>
             <div className="text-4xl md:text-5xl font-black text-white mt-2 tracking-tight">
-              {isLoading ? <Loader2 className="w-8 h-8 animate-spin" /> : BRL(totals.comissao)}
+              {isLoading ? <Loader2 className="w-8 h-8 animate-spin" /> : <CommissionValue>{BRL(totals.comissao)}</CommissionValue>}
             </div>
             <div className="flex flex-wrap items-center gap-4 mt-4">
               <div className="text-xs font-bold text-emerald-50/90">
@@ -381,7 +382,7 @@ export default function Comissoes() {
                       {r.pct > 0 ? (
                         <>
                           <div className="text-base font-black text-emerald-600">
-                            {BRL(r.comissao)}
+                            <CommissionValue>{BRL(r.comissao)}</CommissionValue>
                           </div>
                           <div className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
                             {r.pct}% de comissão

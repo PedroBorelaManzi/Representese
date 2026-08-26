@@ -46,6 +46,8 @@ export interface Order {
   invoice_date?: string | null;
   /** Condição de pagamento em dias a partir da data-base, ex.: "30/60/90". Vazio/null = à vista (1 parcela só). */
   payment_terms?: string | null;
+  /** Observações livres do pedido — aparecem direto no card, sem abrir o pedido. */
+  notes?: string | null;
   client?: {
     id: string;
     name: string;

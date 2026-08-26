@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Search, Truck, Loader2, Settings2, Check, Clock } from "lucide-react";
+import { Search, Truck, Loader2, Settings2, Check, Clock, PackageCheck, PackageX, CalendarClock } from "lucide-react";
+import { cn } from "../lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { supabase } from "../lib/supabase";
@@ -24,6 +25,7 @@ export default function EntregasPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [deliveryFilter, setDeliveryFilter] = useState<"all" | "delivered" | "pending" | "no_date">("all");
 
   const companies = useMemo(() => (settings?.categories || []).filter((c) => c && c.trim()), [settings?.categories]);
   const [configOpen, setConfigOpen] = useState(false);
@@ -90,13 +92,28 @@ export default function EntregasPage() {
     patchOrder(order.id, { [field]: value } as Partial<Order>);
   };
 
+  // "Entregue"/"Não entregue" deriva da própria data de entrega — não existe
+  // um status separado, então é a data marcada (passada ou futura) que decide.
+  const today = new Date().toLocaleDateString("en-CA"); // yyyy-mm-dd local, comparável direto com delivery_date
+  const deliveryStatus = (o: Order): "delivered" | "pending" | "no_date" => {
+    if (!o.delivery_date) return "no_date";
+    return o.delivery_date <= today ? "delivered" : "pending";
+  };
+
+  const statusCounts = useMemo(() => {
+    const counts = { delivered: 0, pending: 0, no_date: 0 };
+    orders.forEach((o) => { counts[deliveryStatus(o)]++; });
+    return counts;
+  }, [orders]);
+
   const filteredOrders = useMemo(() => {
     const termo = searchTerm.trim().toLowerCase();
-    if (!termo) return orders;
-    return orders.filter(
-      (o) => o.client?.name?.toLowerCase().includes(termo) || o.category?.toLowerCase().includes(termo) || o.nf_number?.toLowerCase().includes(termo)
-    );
-  }, [orders, searchTerm]);
+    return orders.filter((o) => {
+      if (deliveryFilter !== "all" && deliveryStatus(o) !== deliveryFilter) return false;
+      if (!termo) return true;
+      return o.client?.name?.toLowerCase().includes(termo) || o.category?.toLowerCase().includes(termo) || o.nf_number?.toLowerCase().includes(termo);
+    });
+  }, [orders, searchTerm, deliveryFilter]);
 
   return (
     <div className="h-full flex flex-col gap-6 md:gap-10 pb-20 overflow-x-hidden">
@@ -132,6 +149,30 @@ export default function EntregasPage() {
             <span className="text-[8px] md:text-[10px] font-black text-emerald-600 uppercase tracking-widest">Total:</span>
             <span className="text-xs md:text-sm font-black text-slate-900 dark:text-zinc-100">{filteredOrders.length}</span>
           </div>
+        </div>
+
+        <div className="px-4 md:px-8 py-3 flex flex-wrap items-center gap-2 border-b border-slate-50 dark:border-zinc-850">
+          {([
+            { key: "all", label: "Todos", icon: null, count: orders.length },
+            { key: "delivered", label: "Entregues", icon: PackageCheck, count: statusCounts.delivered },
+            { key: "pending", label: "Não entregues", icon: PackageX, count: statusCounts.pending },
+            { key: "no_date", label: "Sem data de entrega", icon: CalendarClock, count: statusCounts.no_date },
+          ] as const).map((f) => (
+            <button
+              key={f.key}
+              onClick={() => setDeliveryFilter(f.key)}
+              className={cn(
+                "flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all",
+                deliveryFilter === f.key
+                  ? "bg-emerald-600 text-white shadow-sm"
+                  : "bg-slate-50 dark:bg-zinc-900 text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800"
+              )}
+            >
+              {f.icon && <f.icon className="w-3 h-3" />}
+              {f.label}
+              <span className={cn("opacity-70", deliveryFilter === f.key ? "text-white" : "text-slate-400")}>({f.count})</span>
+            </button>
+          ))}
         </div>
 
         {loading ? (

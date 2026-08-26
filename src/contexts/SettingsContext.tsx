@@ -35,6 +35,14 @@ interface Settings {
    *  tracejada na própria barra da empresa no gráfico "Faturamento por
    *  empresa" do Início. Empresa sem entrada aqui não mostra meta nenhuma. */
   monthly_goals: Record<string, number>;
+  /** Teto único do gráfico "Faturamento por empresa" (Início) — linha de
+   *  referência geral, independente da meta por empresa. */
+  revenue_ceiling: number;
+  /** Esconde (borra) valores de comissão pela tela toda até digitar a senha
+   *  configurada em Configurações > Privacidade. */
+  hide_commissions: boolean;
+  /** SHA-256(senha + user_id), calculado no cliente — nunca a senha em texto puro. */
+  commission_password_hash?: string;
   subscription_status: SubscriptionStatus;
   plan_id: string;
   avatar_url?: string;
@@ -63,6 +71,9 @@ const defaultSettings: Settings = {
   commission_mode: {},
   product_commissions: {},
   monthly_goals: {},
+  revenue_ceiling: 1000000,
+  hide_commissions: false,
+  commission_password_hash: undefined,
   subscription_status: 'inactive', // Default para leads novos sem plano
   plan_id: 'exclusivo',
   avatar_url: undefined,
@@ -149,6 +160,9 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           commission_mode: cached.commission_mode || {},
           product_commissions: cached.product_commissions || {},
           monthly_goals: cached.monthly_goals || {},
+          revenue_ceiling: parseFloat(cached.revenue_ceiling?.toString() || "1000000") ?? defaultSettings.revenue_ceiling,
+          hide_commissions: cached.hide_commissions ?? false,
+          commission_password_hash: cached.commission_password_hash,
           subscription_status: (cached.subscription_status as SubscriptionStatus) || 'active',
           plan_id: cached.plan_id || 'exclusivo',
           avatar_url: cached.avatar_url,
@@ -230,6 +244,9 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           commission_mode: data.commission_mode || {},
           product_commissions: data.product_commissions || {},
           monthly_goals: data.monthly_goals || {},
+          revenue_ceiling: parseFloat(data.revenue_ceiling?.toString() || "1000000") ?? defaultSettings.revenue_ceiling,
+          hide_commissions: data.hide_commissions ?? false,
+          commission_password_hash: data.commission_password_hash,
           subscription_status: effectiveStatus,
           plan_id: planId,
           avatar_url: finalAvatar,

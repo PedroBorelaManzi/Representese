@@ -461,6 +461,10 @@ export default function PedidosPage() {
                              <span>NF:</span>
                              <InlineEditField type="text" value={order.nf_number} onSave={saveOrderField(order, "nf_number")} label="Número da NF" placeholder="NF" />
                           </div>
+                          <div className="flex items-start gap-2 flex-1 min-w-0 normal-case">
+                             <span className="shrink-0 uppercase pt-1">Obs:</span>
+                             <InlineEditField type="textarea" value={order.notes} onSave={saveOrderField(order, "notes")} label="Observações do pedido" placeholder="Nenhuma observação" className="flex-1" />
+                          </div>
                        </div>
                     </motion.div>
                   ))
@@ -542,6 +546,11 @@ export default function PedidosPage() {
                   <button onClick={() => setSelectedOrder(order)} className="p-2 bg-slate-50 dark:bg-zinc-800 rounded-lg text-slate-400 shrink-0" title="Ver detalhes do pedido">
                     <Truck className="w-3.5 h-3.5" />
                   </button>
+                </div>
+
+                <div className="flex items-start gap-1.5 text-[8px] font-black text-slate-400 uppercase tracking-widest">
+                  <span className="shrink-0 pt-1">Obs:</span>
+                  <InlineEditField type="textarea" value={order.notes} onSave={saveOrderField(order, "notes")} label="Observações do pedido" placeholder="Nenhuma observação" className="flex-1 normal-case font-medium" />
                 </div>
               </motion.div>
             ))

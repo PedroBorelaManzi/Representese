@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, FileText, Loader2, Truck, Hash, Receipt, CreditCard, CalendarDays } from "lucide-react";
+import { X, FileText, Loader2, Truck, Hash, Receipt, CreditCard, CalendarDays, StickyNote } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
 import { InlineEditField } from "./InlineEditField";
+import { CommissionValue } from "./CommissionValue";
 import { PdfViewerModal } from "./PdfViewerModal";
 import type { Order, OrderInstallment } from "../types";
 
@@ -138,6 +139,16 @@ export function OrderDetailModal({ order, isOpen, onClose, onUpdated, commission
                     className={inputCls}
                   />
                 </div>
+                <div className="col-span-2">
+                  <label className="flex items-center gap-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5"><StickyNote className="w-3 h-3" /> Observações</label>
+                  <textarea
+                    defaultValue={order.notes || ""}
+                    onBlur={(e) => saveField("notes", e.target.value).catch((err) => toast.error(err.message))}
+                    placeholder="Aparece direto no card, sem precisar abrir o pedido"
+                    rows={2}
+                    className={cn(inputCls, "resize-none")}
+                  />
+                </div>
               </div>
 
               <div>
@@ -171,7 +182,7 @@ export function OrderDetailModal({ order, isOpen, onClose, onUpdated, commission
                               <InlineEditField type="currency" value={inst.value} onSave={(v) => saveInstallment(inst, "value", v)} label={`Valor da parcela ${inst.installment_number}`} className="justify-end" />
                             </td>
                             <td className="px-4 py-2 text-right font-black text-emerald-600 tabular-nums">
-                              {formatBRL((Number(inst.value) || 0) * (pct / 100))}
+                              <CommissionValue>{formatBRL((Number(inst.value) || 0) * (pct / 100))}</CommissionValue>
                             </td>
                           </tr>
                         ))

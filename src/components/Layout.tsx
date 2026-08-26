@@ -39,6 +39,7 @@ import { LocalNotifications } from '@capacitor/local-notifications';
 import { WhatsAppButton } from './WhatsAppButton';
 import { Logo } from './Logo';
 import { SubscriptionGuard } from './SubscriptionGuard';
+import { CommissionPrivacyProvider } from '../contexts/CommissionPrivacyContext';
 import { ErrorBoundary } from './ErrorBoundary';
 import { useIsSupportAdmin } from '../hooks/useIsSupportAdmin';
 import { toast } from 'sonner';
@@ -239,6 +240,7 @@ export default function Layout() {
 
   return (
     <SubscriptionGuard>
+    <CommissionPrivacyProvider>
       <div className="flex h-screen bg-slate-100/60 dark:bg-zinc-950 transition-colors duration-300">
         <FullSyncBanner />
         {/* Skip link: invisível até receber foco via Tab (a11y) */}
@@ -635,6 +637,7 @@ export default function Layout() {
           </main>
         </div>
       </div>
+    </CommissionPrivacyProvider>
     </SubscriptionGuard>
   );
 }

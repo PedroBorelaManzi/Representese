@@ -3,7 +3,7 @@ import { Pencil, Loader2 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { toast } from "sonner";
 
-type FieldType = "date" | "text" | "currency";
+type FieldType = "date" | "text" | "currency" | "textarea";
 
 interface InlineEditFieldProps {
   /** ISO date ("2026-08-26"/timestamp), texto puro, ou número — conforme `type`. */
@@ -50,7 +50,7 @@ export function InlineEditField({ value, type, onSave, placeholder, className, l
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement & HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (editing) {
@@ -79,6 +79,27 @@ export function InlineEditField({ value, type, onSave, placeholder, className, l
   };
 
   if (editing) {
+    if (type === "textarea") {
+      return (
+        <textarea
+          ref={inputRef}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") { e.preventDefault(); setEditing(false); }
+          }}
+          onClick={(e) => e.stopPropagation()}
+          placeholder={placeholder}
+          aria-label={label}
+          rows={2}
+          className={cn(
+            "w-full min-w-0 resize-none bg-slate-50 dark:bg-zinc-800 border border-emerald-300 dark:border-emerald-700 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-900 dark:text-zinc-100 outline-none focus:ring-2 focus:ring-emerald-500/30",
+            className
+          )}
+        />
+      );
+    }
     return (
       <input
         ref={inputRef}
@@ -110,16 +131,17 @@ export function InlineEditField({ value, type, onSave, placeholder, className, l
       aria-label={label}
       className={cn(
         "group/field inline-flex items-center gap-1.5 text-left rounded-lg px-1.5 py-1 -mx-1.5 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors disabled:opacity-60 min-w-0",
+        type === "textarea" && "items-start",
         className
       )}
     >
-      <span className={cn("truncate", value === null || value === undefined || value === "" ? "text-slate-300 dark:text-zinc-600" : "text-slate-900 dark:text-zinc-100")}>
+      <span className={cn(type === "textarea" ? "line-clamp-2 whitespace-pre-line" : "truncate", value === null || value === undefined || value === "" ? "text-slate-300 dark:text-zinc-600" : "text-slate-900 dark:text-zinc-100")}>
         {displayValue(value, type)}
       </span>
       {saving ? (
         <Loader2 className="w-3 h-3 text-emerald-500 animate-spin shrink-0" />
       ) : (
-        <Pencil className="w-3 h-3 text-slate-300 dark:text-zinc-600 opacity-0 group-hover/field:opacity-100 transition-opacity shrink-0" />
+        <Pencil className="w-3 h-3 text-slate-300 dark:text-zinc-600 opacity-0 group-hover/field:opacity-100 transition-opacity shrink-0 mt-0.5" />
       )}
     </button>
   );
