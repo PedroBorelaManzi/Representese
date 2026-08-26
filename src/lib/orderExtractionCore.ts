@@ -5,7 +5,7 @@
 // chave. Extraído de orderProcessor.ts pra poder ser importado tanto pelo
 // app (Vite/browser) quanto pelo endpoint serverless de enviar pedido por
 // link (api/order-intake.ts, roda em Node na Vercel) — assim as duas
-// entradas de pedido (pelo painel e pelo link do funcionário) sempre leem o
+// entradas de pedido (pelo painel e pelo link do colaborador) sempre leem o
 // documento exatamente do mesmo jeito, sem duas versões do prompt que podem
 // desalinhar com o tempo.
 
@@ -396,7 +396,7 @@ ${extractedText.substring(0, 10000)}
 const SCORE_CATEGORIA_FORTE = 100;
 
 /** Junta a resposta bruta da IA com as dicas locais — mesma regra de
- *  prioridade nos dois lugares que chamam isso (app e link do funcionário). */
+ *  prioridade nos dois lugares que chamam isso (app e link do colaborador). */
 export function reconcileExtractionResult(
   rawGeminiText: string,
   localCnpj: string,

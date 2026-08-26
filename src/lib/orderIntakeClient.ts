@@ -4,7 +4,7 @@
 // Duas formas de autenticação, conforme quem está chamando:
 //  - useOwnerAuth: true  → o representante logado (Configurações > Equipe),
 //    manda a própria sessão do Supabase.
-//  - sessionToken        → o funcionário, já verificado com token+PIN, manda
+//  - sessionToken        → o colaborador, já verificado com token+PIN, manda
 //    o token de sessão emitido por 'verify' — nunca tem sessão do Supabase.
 import { supabase } from './supabase';
 import type { ItemExtraido } from './orderExtractionCore';

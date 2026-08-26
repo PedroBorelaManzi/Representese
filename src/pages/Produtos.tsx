@@ -86,7 +86,7 @@ export default function ProdutosPage() {
     enabled: !!user,
     // O padrão do app é staleTime:Infinity (só sincroniza na mão) — bom pra
     // telas que o usuário mesmo edita, ruim aqui: pedido pelo link do
-    // funcionário chega por uma sessão completamente separada (o celular
+    // colaborador chega por uma sessão completamente separada (o celular
     // dele), então nada dispara o invalidateQueries local pra avisar esta
     // aba. Sem isso, quem abria Produtos uma vez ficava preso naquele
     // instantâneo pra sempre, mesmo lançando pedidos novos depois — sempre

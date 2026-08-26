@@ -29,13 +29,13 @@ import { ajustarFaturamento } from '../src/lib/faturamento.js';
 import { salvarItensDoPedido } from '../src/lib/orderItems.js';
 
 /**
- * Backend do link de "enviar pedido" (funcionário sem login na conta real —
+ * Backend do link de "enviar pedido" (colaborador sem login na conta real —
  * ver src/pages/OrderIntake.tsx). Duas formas de autenticação convivem aqui:
  *
  *  - 'set_pin' exige uma sessão Supabase de verdade (o DONO da conta,
  *    gerenciando o próprio link pelas Configurações).
  *  - 'verify'/'parse'/'prepare_upload'/'submit' NÃO usam sessão Supabase
- *    nenhuma — o funcionário nunca tem uma. A identidade dele é o par
+ *    nenhuma — o colaborador nunca tem uma. A identidade dele é o par
  *    token+PIN (uma vez, em 'verify') e depois um token de sessão assinado
  *    (api/_lib/sessionToken.ts) enviado como Bearer nas chamadas seguintes.
  *
@@ -146,7 +146,7 @@ interface IntakeSession {
   supabase: SupabaseClient;
 }
 
-/** Valida o token de sessão do funcionário E reconfirma no banco que o link
+/** Valida o token de sessão do colaborador E reconfirma no banco que o link
  *  segue ativo e o PIN não mudou desde que a sessão foi emitida — é isso que
  *  faz "desativar link" / "trocar PIN" cortar o acesso na hora, mesmo pra
  *  quem já tinha "entrado" antes. Em caso de falha, já escreve a resposta de
@@ -247,7 +247,7 @@ async function handleVerify(req: express.Request, res: express.Response, payload
   const { data: settings } = await supabase.from('user_settings').select('categories').eq('user_id', link.user_id).maybeSingle();
 
   // Lista de clientes do dono do link — só id/nome/cnpj (nunca faturamento,
-  // notas ou outro dado sensível), pra o funcionário poder escolher da lista
+  // notas ou outro dado sensível), pra o colaborador poder escolher da lista
   // quando a leitura automática não acha ou erra o cliente, em vez de só
   // poder digitar um nome novo às cegas.
   const { data: clientRows } = await supabase
@@ -337,7 +337,7 @@ async function handleParse(req: express.Request, res: express.Response, payload:
 
   // Mesma regra de match do resto do app (Pedidos.tsx): só exato (CNPJ ou
   // nome idênticos) auto-seleciona; qualquer outra coisa vira "cliente novo"
-  // pro funcionário conferir, nunca um cadastro escondido. A regra continua
+  // pro colaborador conferir, nunca um cadastro escondido. A regra continua
   // exata de propósito — o que melhorou foi a chance de a IA devolver o nome
   // já na grafia do cadastro, porque agora ela recebe a lista.
   let clientMatch: { id: string; name: string } | null = null;
@@ -364,7 +364,7 @@ async function handlePrepareUpload(req: express.Request, res: express.Response, 
 
   let finalClientId: string | undefined = clientId || undefined;
 
-  // O clientId vem do navegador do funcionário (foi ele quem escolheu o
+  // O clientId vem do navegador do colaborador (foi ele quem escolheu o
   // "match" que a IA sugeriu, ou um cliente da lista) — sem essa checagem,
   // um clientId de OUTRA conta (adivinhado ou reaproveitado de outra sessão)
   // criaria um pedido referenciando um cliente que não é do dono deste link.
@@ -461,7 +461,7 @@ async function handleSubmit(req: express.Request, res: express.Response, payload
   if (existingOrder) return res.status(200).json({ ok: true });
 
   // Mesma checagem de prepare_upload, repetida aqui de propósito: o clientId
-  // que chega neste payload passou pelo navegador do funcionário entre as
+  // que chega neste payload passou pelo navegador do colaborador entre as
   // duas chamadas, então não dá pra confiar cegamente que segue sendo o
   // mesmo cliente já validado como do dono do link.
   const { data: ownedClient } = await session.supabase
@@ -514,7 +514,7 @@ async function handleSubmit(req: express.Request, res: express.Response, payload
 }
 
 /** Categorias e clientes atualizados, sem pedir o PIN de novo — a sessão do
- *  funcionário é de longa duração (ver sessionToken.ts), então o snapshot
+ *  colaborador é de longa duração (ver sessionToken.ts), então o snapshot
  *  guardado no aparelho no momento do PIN fica velho rápido: cliente
  *  cadastrado depois nunca aparecia na busca de quem já tinha "entrado"
  *  antes. Chamado toda vez que a tela de anexar abre, pra sessão salva

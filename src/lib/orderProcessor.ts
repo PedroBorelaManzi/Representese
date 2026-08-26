@@ -74,18 +74,23 @@ export async function processOrderFile(file: File, knownClients: string[] = [], 
 
     let textResult = "";
     try {
-        const geminiCall = geminiWithSystem(userPrompt, ORDER_EXTRACTION_SYSTEM_INSTRUCTION, {
+        // Sem corrida contra um timeout curto: um pedido com vários itens pra
+        // listar (o prompt pede a lista completa de produtos) legitimamente
+        // demora mais que uma resposta de chat simples, e "items" só existe
+        // vindo da IA — não tem fallback local nenhum pra produto. Um timeout
+        // de 15s aqui não falhava alto: caía calado pro modo local (JSON
+        // vazio), que cadastrava o pedido certinho (cliente/valor/categoria
+        // ainda vêm da heurística local) mas SEMPRE sem produto nenhum, sem
+        // avisar ninguém — era pra IA só ter tempo insuficiente, virava
+        // "produto nunca cadastra". O caminho equivalente do link de
+        // colaborador (api/order-intake.ts) nunca teve esse limite e nunca
+        // teve esse sintoma.
+        textResult = await geminiWithSystem(userPrompt, ORDER_EXTRACTION_SYSTEM_INSTRUCTION, {
           model: "gemini-2.5-flash",
           imageData,
           imageMimeType,
           generationConfig: { responseMimeType: "application/json" },
         });
-
-        const timeoutLimit = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error("Timeout_IA_15_segundos")), 15000);
-        });
-
-        textResult = await Promise.race([geminiCall, timeoutLimit]) as string;
     } catch (iaError) {
         console.warn("IA falhou, usando modo de backup local. Motivo:", iaError);
         textResult = "{}"; // Força o JSON vazio para cair na leitura local

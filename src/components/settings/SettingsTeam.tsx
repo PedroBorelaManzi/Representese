@@ -20,7 +20,7 @@ interface IntakeLink {
 /** Um PIN de 6 dígitos gerado aqui mesmo — mais fácil pro representante só
  *  aceitar o sugerido do que ter que inventar e decorar um novo toda vez.
  *  O representante pode digitar um PIN diferente, dentro do intervalo de
- *  src/lib/pinFormat.ts (mesma regra que a tela do funcionário valida e o
+ *  src/lib/pinFormat.ts (mesma regra que a tela do colaborador valida e o
  *  servidor reforça). */
 function randomPin(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
@@ -95,7 +95,7 @@ export const SettingsTeam = React.memo(function SettingsTeam() {
 
       await setIntakePin(created.id, newPin);
 
-      toast.success('Link criado! Copie e envie pro funcionário.');
+      toast.success('Link criado! Copie e envie pro colaborador.');
       setIsCreating(false);
       setNewLabel('');
       setNewPin(randomPin());
@@ -156,7 +156,7 @@ export const SettingsTeam = React.memo(function SettingsTeam() {
       <div>
         <h2 className="text-xl md:text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Equipe</h2>
         <p className="text-[10px] md:text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-          Links pra um funcionário só enviar pedidos, sem ver nada da sua conta
+          Links pra um colaborador só enviar pedidos, sem ver nada da sua conta
         </p>
       </div>
 
@@ -218,7 +218,7 @@ export const SettingsTeam = React.memo(function SettingsTeam() {
                     className="pt-4 border-t border-slate-200 dark:border-zinc-800 space-y-3 overflow-hidden"
                   >
                     <p className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase leading-relaxed">
-                      Novo PIN de {PIN_MIN} a {PIN_MAX} dígitos — anote pra passar pro funcionário. O PIN antigo para de funcionar assim que você confirmar.
+                      Novo PIN de {PIN_MIN} a {PIN_MAX} dígitos — anote pra passar pro colaborador. O PIN antigo para de funcionar assim que você confirmar.
                     </p>
                     <div className="flex gap-2">
                       <input

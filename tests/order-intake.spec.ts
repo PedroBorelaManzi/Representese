@@ -17,7 +17,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const json = (route: Route, body: unknown, status = 200) =>
   route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
-test.describe('Enviar Pedido (link do funcionário)', () => {
+test.describe('Enviar Pedido (link do colaborador)', () => {
   test('PIN errado mostra erro; PIN certo avança pro passo de anexar', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'chromium', 'Fluxo de negócio — roda só no desktop (chromium).');
 

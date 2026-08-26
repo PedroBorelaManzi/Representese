@@ -1,7 +1,7 @@
 // api/_lib/sessionToken.ts
 //
 // Token de sessão do link de "enviar pedido" — depois do PIN certo, o
-// funcionário fica "logado" só nessa telinha por tempo indeterminado (na
+// colaborador fica "logado" só nessa telinha por tempo indeterminado (na
 // prática, pra sempre), sem precisar redigitar o PIN de novo. Não é um JWT de
 // verdade (não precisamos de biblioteca nova pra isso): payload em base64url
 // + assinatura HMAC-SHA256 com um segredo que só o servidor conhece — se
