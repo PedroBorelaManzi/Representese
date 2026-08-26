@@ -13,6 +13,7 @@ import {
   submitIntakeOrder,
   type ParseIntakeResult,
 } from "../lib/orderIntakeClient";
+import { PIN_MIN_LENGTH, PIN_MAX_LENGTH, isValidPinFormat } from "../lib/pinFormat";
 
 /** Sessão fica no localStorage (sobrevive a fechar o app/navegador) — o PIN
  *  é digitado uma vez só e vale pra sempre nesse aparelho, até o dono da
@@ -77,8 +78,8 @@ export default function OrderIntake() {
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!/^\d{6}$/.test(pin)) {
-      toast.error("Digite o PIN de 6 dígitos.");
+    if (!isValidPinFormat(pin)) {
+      toast.error(`Digite o PIN (de ${PIN_MIN_LENGTH} a ${PIN_MAX_LENGTH} dígitos).`);
       return;
     }
     setVerifying(true);
@@ -240,15 +241,15 @@ export default function OrderIntake() {
                     autoFocus
                     type="text"
                     inputMode="numeric"
-                    maxLength={6}
+                    maxLength={PIN_MAX_LENGTH}
                     value={pin}
-                    onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, PIN_MAX_LENGTH))}
                     placeholder="••••••"
                     className="w-full text-center text-3xl tracking-[0.5em] font-black py-5 bg-slate-50 dark:bg-zinc-950/50 border border-slate-200 dark:border-zinc-800 rounded-2xl outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all dark:text-white"
                   />
                   <button
                     type="submit"
-                    disabled={verifying || pin.length !== 6}
+                    disabled={verifying || pin.length < PIN_MIN_LENGTH}
                     className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-black text-sm transition-all shadow-xl shadow-emerald-600/25 disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {verifying ? <Loader2 className="w-5 h-5 animate-spin" /> : <ArrowRight className="w-5 h-5" />}

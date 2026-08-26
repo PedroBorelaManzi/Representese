@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { setIntakePin } from '../../lib/orderIntakeClient';
+import { PIN_MIN_LENGTH as PIN_MIN, PIN_MAX_LENGTH as PIN_MAX, isValidPinFormat as isValidPin } from '../../lib/pinFormat';
 import { useConfirm } from '../ui';
 
 interface IntakeLink {
@@ -17,7 +18,10 @@ interface IntakeLink {
 }
 
 /** Um PIN de 6 dígitos gerado aqui mesmo — mais fácil pro representante só
- *  aceitar o sugerido do que ter que inventar e decorar um novo toda vez. */
+ *  aceitar o sugerido do que ter que inventar e decorar um novo toda vez.
+ *  O representante pode digitar um PIN diferente, dentro do intervalo de
+ *  src/lib/pinFormat.ts (mesma regra que a tela do funcionário valida e o
+ *  servidor reforça). */
 function randomPin(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
@@ -68,8 +72,8 @@ export const SettingsTeam = React.memo(function SettingsTeam() {
   const handleCreate = async () => {
     if (!user) return;
     const label = newLabel.trim() || 'Link para pedidos';
-    if (!/^\d{6}$/.test(newPin)) {
-      toast.error('O PIN precisa ter 6 dígitos.');
+    if (!isValidPin(newPin)) {
+      toast.error(`O PIN precisa ter de ${PIN_MIN} a ${PIN_MAX} dígitos.`);
       return;
     }
     setSavingNew(true);
@@ -109,8 +113,8 @@ export const SettingsTeam = React.memo(function SettingsTeam() {
   };
 
   const handleRotatePin = async (linkId: string) => {
-    if (!/^\d{6}$/.test(rotatePin)) {
-      toast.error('O PIN precisa ter 6 dígitos.');
+    if (!isValidPin(rotatePin)) {
+      toast.error(`O PIN precisa ter de ${PIN_MIN} a ${PIN_MAX} dígitos.`);
       return;
     }
     setSavingRotate(true);
@@ -214,15 +218,15 @@ export const SettingsTeam = React.memo(function SettingsTeam() {
                     className="pt-4 border-t border-slate-200 dark:border-zinc-800 space-y-3 overflow-hidden"
                   >
                     <p className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase leading-relaxed">
-                      Novo PIN de 6 dígitos — anote pra passar pro funcionário. O PIN antigo para de funcionar assim que você confirmar.
+                      Novo PIN de {PIN_MIN} a {PIN_MAX} dígitos — anote pra passar pro funcionário. O PIN antigo para de funcionar assim que você confirmar.
                     </p>
                     <div className="flex gap-2">
                       <input
                         type="text"
                         inputMode="numeric"
-                        maxLength={6}
+                        maxLength={PIN_MAX}
                         value={rotatePin}
-                        onChange={(e) => setRotatePin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        onChange={(e) => setRotatePin(e.target.value.replace(/\D/g, '').slice(0, PIN_MAX))}
                         className="flex-1 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm font-black tracking-[0.3em] text-center outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
                       />
                       <button
@@ -277,13 +281,13 @@ export const SettingsTeam = React.memo(function SettingsTeam() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">PIN de 6 dígitos</label>
+              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">PIN de {PIN_MIN} a {PIN_MAX} dígitos</label>
               <input
                 type="text"
                 inputMode="numeric"
-                maxLength={6}
+                maxLength={PIN_MAX}
                 value={newPin}
-                onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, PIN_MAX))}
                 className="w-full bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm font-black tracking-[0.3em] text-center outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
               />
               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight px-1">Já sugerimos um — pode trocar se preferir.</p>

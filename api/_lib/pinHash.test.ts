@@ -28,10 +28,12 @@ describe('pinHash', () => {
     expect(verifyPin('123456', 'scrypt$16384$8$1$naoehex$naoehex')).toBe(false);
   });
 
-  it('isValidPinFormat exige exatamente 6 dígitos numéricos', () => {
+  it('isValidPinFormat aceita de 4 a 8 dígitos numéricos', () => {
+    expect(isValidPinFormat('1234')).toBe(true);
     expect(isValidPinFormat('123456')).toBe(true);
-    expect(isValidPinFormat('12345')).toBe(false);
-    expect(isValidPinFormat('1234567')).toBe(false);
+    expect(isValidPinFormat('12345678')).toBe(true);
+    expect(isValidPinFormat('123')).toBe(false);
+    expect(isValidPinFormat('123456789')).toBe(false);
     expect(isValidPinFormat('12a456')).toBe(false);
     expect(isValidPinFormat('')).toBe(false);
   });

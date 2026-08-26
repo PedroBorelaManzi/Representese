@@ -6,6 +6,9 @@
 // simples. Formato auto-descritivo (scrypt$N$r$p$salt$hash) pra dar pra
 // aumentar o custo no futuro sem invalidar hashes antigos.
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
+import { isValidPinFormat } from '../../src/lib/pinFormat.js';
+
+export { isValidPinFormat };
 
 const SCRYPT_N = 16384;
 const SCRYPT_R = 8;
@@ -44,10 +47,4 @@ export function verifyPin(pin: string, stored: string | null | undefined): boole
   } catch {
     return false;
   }
-}
-
-/** PIN de 6 dígitos numéricos — combinado com o limite de tentativas em
- *  api/order-intake.ts, torna força bruta impraticável. */
-export function isValidPinFormat(pin: string): boolean {
-  return /^\d{6}$/.test(pin);
 }

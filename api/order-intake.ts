@@ -81,10 +81,10 @@ if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) 
   verifyIpLimiter = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(20, '15 m'), prefix: 'order-intake-verify-ip' });
   parseLimiter = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(20, '10 m'), prefix: 'order-intake-parse' });
 } else {
-  // Sem isso, o PIN de 6 dígitos (1 milhão de combinações) fica só protegido
-  // pelo travamento no banco (5 erradas) — ainda funciona, mas o Upstash é a
-  // primeira linha de defesa contra tentativa em massa. Mesmo aviso alto que
-  // api/ai.ts já dá pro rate limit da IA.
+  // Sem isso, o PIN (4 a 8 dígitos — no mínimo, só 10 mil combinações) fica
+  // só protegido pelo travamento no banco (5 erradas) — ainda funciona, mas
+  // o Upstash é a primeira linha de defesa contra tentativa em massa. Mesmo
+  // aviso alto que api/ai.ts já dá pro rate limit da IA.
   console.error(
     'ATENÇÃO: UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN não configuradas — ' +
     'rate limit do link de enviar pedido está DESLIGADO no nível de rede.'
@@ -180,7 +180,7 @@ async function handleSetPin(req: express.Request, res: express.Response, payload
   if (!user) return res.status(401).json({ error: 'Sessão inválida.' });
 
   const { linkId, pin } = payload || {};
-  if (!isValidPinFormat(pin)) return res.status(400).json({ error: 'PIN deve ter 6 dígitos numéricos.' });
+  if (!isValidPinFormat(pin)) return res.status(400).json({ error: 'PIN deve ter de 4 a 8 dígitos numéricos.' });
 
   const supabase = getServiceClient();
   const { data: link } = await supabase
