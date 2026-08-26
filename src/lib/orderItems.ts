@@ -10,7 +10,7 @@
 // falha aqui não pode derrubar o registro do pedido, que já terminou.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { normalizar, type ItemExtraido } from "./orderExtractionCore";
+import { normalizar, type ItemExtraido } from "./orderExtractionCore.js";
 
 export interface SalvarItensDoPedidoParams {
   userId: string;
