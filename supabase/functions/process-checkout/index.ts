@@ -20,12 +20,22 @@ const normalizePlanId = (val: string): string => {
   return 'profissional';
 };
 
+// ANNUAL aqui é o valor TOTAL da cobrança anual (bate com selectedPlan.prices.ANNUAL
+// em Checkout.tsx: 1044/1584/2124 = 12x o valor mensal). Antes desse conserto,
+// esta tabela tinha 87/132/177 — o preço mensal EQUIVALENTE, não o total — e como
+// esse backend recalcula o valor sozinho (nunca lê o finalPrice que o frontend
+// manda), toda cobrança anual estava saindo por 1/12 do valor combinado com o
+// cliente (ex.: R$87 cobrados no total em vez de R$1044 no plano Exclusivo).
 const PLAN_PRICES = {
-  'exclusivo': { MONTHLY: 97, SEMIANNUAL: 77, ANNUAL: 87 },
-  'profissional': { MONTHLY: 147, SEMIANNUAL: 117, ANNUAL: 132 },
-  'master': { MONTHLY: 197, SEMIANNUAL: 157, ANNUAL: 177 },
-  'default': { MONTHLY: 147, SEMIANNUAL: 117, ANNUAL: 132 }
+  'exclusivo': { MONTHLY: 97, SEMIANNUAL: 77, ANNUAL: 1044 },
+  'profissional': { MONTHLY: 147, SEMIANNUAL: 117, ANNUAL: 1584 },
+  'master': { MONTHLY: 197, SEMIANNUAL: 157, ANNUAL: 2124 },
+  'default': { MONTHLY: 147, SEMIANNUAL: 117, ANNUAL: 1584 }
 };
+
+// Mesma tabela de handle-asaas-webhook (periodDaysFromDescription) — aqui
+// não precisa ler descrição nenhuma, billingCycle já está em mãos.
+const PERIOD_DAYS: Record<string, number> = { MONTHLY: 32, SEMIANNUAL: 190, ANNUAL: 370 };
 
 const jsonResponse = (body: Record<string, unknown>, status = 200) =>
   new Response(JSON.stringify(body), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status });
@@ -198,10 +208,17 @@ serve(async (req) => {
                 user_id: userId, code: couponCode, status: 'confirmed'
             }, { onConflict: 'user_id,code' }).then(() => {}, () => {});
         }
+        // Prazo do cupom grátis segue o ciclo escolhido (mensal/semestral/
+        // anual) — antes era sempre 30 dias fixos, mesmo pra quem resgatou
+        // num plano anual (derrubaria o acesso de um cupom anual em 1 mês).
+        // billing_cycle gravado também, pra regularize-subscription saber
+        // depois qual valor cobrar se o cupom expirar sem renovação.
+        const freeDays = PERIOD_DAYS[billingCycle as keyof typeof PERIOD_DAYS] || PERIOD_DAYS.MONTHLY;
         await supabaseAdmin.from('user_entitlements').update({
             subscription_status: 'active',
             plan_id: canonicalPlanId,
-            current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+            billing_cycle: billingCycle || 'MONTHLY',
+            current_period_end: new Date(Date.now() + freeDays * 24 * 60 * 60 * 1000).toISOString()
         }).eq('user_id', userId);
         return jsonResponse({ success: true, isFree: true })
     }
@@ -257,7 +274,15 @@ serve(async (req) => {
 
     if (billingCycle === 'MONTHLY') {
       paymentBody.cycle = 'MONTHLY'
-      paymentBody.nextDueDate = new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString().split('T')[0]
+      // Cobrança de HOJE, não de amanhã. Antes: nextDueDate = amanhã. A
+      // assinatura era criada com sucesso no Asaas (por isso a tela sempre
+      // dizia "pagamento processado"), mas o motor de cobrança do Asaas só
+      // tenta a primeira cobrança NO DIA marcado em nextDueDate — com
+      // "amanhã", nenhum valor saía do cartão no dia do cadastro, e o
+      // cliente ficava sem acesso (liberado só pelo webhook de pagamento
+      // confirmado) até essa cobrança futura de fato acontecer, sem nenhum
+      // aviso de que nada tinha sido cobrado ainda.
+      paymentBody.nextDueDate = new Date().toISOString().split('T')[0]
       const subResp = await fetch(`${ASAAS_API_URL}/subscriptions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'access_token': ASAAS_API_KEY },

@@ -1,4 +1,4 @@
-﻿// supabase/functions/regularize-subscription/index.ts
+// supabase/functions/regularize-subscription/index.ts
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -14,11 +14,15 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
-const PLAN_PRICES: Record<string, number> = {
-  'exclusivo': 97,
-  'profissional': 147,
-  'master': 197,
-  'default': 147
+// Mesma tabela de process-checkout — ANNUAL é o valor TOTAL do ano (não o
+// mensal equivalente). Antes, esta função sempre cobrava PLAN_PRICES[planId]
+// (o preço mensal) na regularização, mesmo de quem estava no plano anual —
+// cobraria R$147 pra reativar um Profissional anual de R$1.584.
+const PLAN_PRICES: Record<string, Record<string, number>> = {
+  'exclusivo': { MONTHLY: 97, SEMIANNUAL: 77, ANNUAL: 1044 },
+  'profissional': { MONTHLY: 147, SEMIANNUAL: 117, ANNUAL: 1584 },
+  'master': { MONTHLY: 197, SEMIANNUAL: 157, ANNUAL: 2124 },
+  'default': { MONTHLY: 147, SEMIANNUAL: 117, ANNUAL: 1584 }
 }
 
 serve(async (req) => {
@@ -51,7 +55,7 @@ serve(async (req) => {
 
     const userId = caller.id
 
-    console.log(`Regularização v1.0.4 - Iniciando para: ${userId}`)
+    console.log(`Regularização v1.0.5 - Iniciando para: ${userId}`)
 
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!)
     const { data: { user }, error: authError } = await supabase.auth.admin.getUserById(userId)
@@ -63,8 +67,18 @@ serve(async (req) => {
       .eq('user_id', userId)
       .single()
 
+    // billing_cycle vive em user_entitlements (gravado pelo webhook e pelo
+    // process-checkout a cada cobrança confirmada) — é isso que diz se essa
+    // pessoa está no mensal ou no anual. Sem registro ainda, assume mensal.
+    const { data: entitlement } = await supabase
+      .from('user_entitlements')
+      .select('billing_cycle')
+      .eq('user_id', userId)
+      .maybeSingle()
+    const cycle = (entitlement?.billing_cycle as 'MONTHLY' | 'SEMIANNUAL' | 'ANNUAL' | null) || 'MONTHLY'
+
     const searchResp = await fetch(`${ASAAS_API_URL}/customers?email=${encodeURIComponent(user.email!)}`, {
-      headers: { 
+      headers: {
         'access_token': ASAAS_API_KEY!,
         'Content-Type': 'application/json'
       }
@@ -83,8 +97,7 @@ serve(async (req) => {
     }
 
     const planId = settings?.plan_id || 'profissional'
-    const baseValue = PLAN_PRICES[planId] || PLAN_PRICES['default']
-    const totalToPay = baseValue // Removida a multa de R$ 30
+    const totalToPay = (PLAN_PRICES[planId] || PLAN_PRICES['default'])[cycle]
 
     const paymentResp = await fetch(`${ASAAS_API_URL}/payments`, {
       method: 'POST',
@@ -94,7 +107,14 @@ serve(async (req) => {
         billingType: 'UNDEFINED',
         value: totalToPay,
         dueDate: new Date().toISOString().split('T')[0],
-        description: `Regularização (Plano ${planId})`,
+        // Mesmo formato de descrição do process-checkout ("Plano X - CICLO")
+        // — é assim que o handle-asaas-webhook identifica, quando esse
+        // pagamento for confirmado, se deve estender o acesso por 32 dias
+        // (mensal) ou 370 dias (anual). Com a descrição antiga
+        // ("Regularização (Plano X)") o webhook não reconhecia o ciclo e
+        // sempre assumia mensal — derrubando de novo em ~1 mês quem tinha
+        // acabado de regularizar um plano anual.
+        description: `Plano ${planId} - ${cycle}`,
         externalReference: `REG_${userId}`
       })
     })

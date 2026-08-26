@@ -24,6 +24,7 @@ interface Settings {
   avatar_url?: string;
   trial_ends_at?: string;
   current_period_end?: string;
+  billing_cycle?: string;
   is_admin?: boolean;
   phone?: string;
   /** Cidade escolhida para a previsão do tempo na Agenda (coordenadas já resolvidas). */
@@ -131,6 +132,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           avatar_url: cached.avatar_url,
           trial_ends_at: cached.trial_ends_at,
           current_period_end: cached.current_period_end,
+          billing_cycle: cached.billing_cycle,
           is_admin: cached.is_admin ?? defaultSettings.is_admin,
           phone: cached.phone,
           weather_city: cached.weather_city,
@@ -142,7 +144,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
 
       // 1. Fetch Entitlements (Secure)
       const { data: entData, error: entError } = await supabase.from('user_entitlements')
-         .select('plan_id, subscription_status, trial_ends_at, current_period_end')
+         .select('plan_id, subscription_status, trial_ends_at, current_period_end, billing_cycle')
          .eq('user_id', user.id)
          .maybeSingle();
       
@@ -208,6 +210,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           avatar_url: finalAvatar,
           trial_ends_at: entData?.trial_ends_at,
           current_period_end: entData?.current_period_end,
+          billing_cycle: entData?.billing_cycle,
           is_admin: data.is_admin ?? defaultSettings.is_admin,
           phone: data.phone,
           weather_city: data.weather_city ?? undefined,

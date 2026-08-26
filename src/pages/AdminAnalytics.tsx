@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { useSettings } from '../contexts/SettingsContext';
 import { Navigate } from 'react-router-dom';
-import { BarChart3, Clock, LayoutDashboard, MousePointerClick, Search, ChevronDown, ChevronUp, User, Users, LineChart, Download, Building2, Phone } from 'lucide-react';
+import { BarChart3, Clock, LayoutDashboard, MousePointerClick, Search, ChevronDown, ChevronUp, User, Users, LineChart, Download, Building2, Phone, UserCog } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell
@@ -41,7 +41,7 @@ export default function AdminAnalytics() {
 function AdminAnalyticsContent({ settings }: { settings: any }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'sistema' | 'landing' | 'leads'>('sistema');
+  const [activeTab, setActiveTab] = useState<'sistema' | 'landing' | 'leads' | 'usuarios'>('sistema');
 
   // --- QUERY 1: Sistema (Usuários Logados) ---
   const { data, isLoading } = useQuery({
@@ -237,6 +237,63 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
     refetchOnMount: 'always',
   });
 
+  // --- QUERY 5: Gerenciar Usuários (status, uso e vencimento da assinatura) ---
+  const { data: userMgmtData, isLoading: isLoadingUserMgmt } = useQuery({
+    queryKey: ['admin_user_management'],
+    queryFn: async () => {
+      const [{ data: profiles, error: profilesError }, { data: entitlements, error: entError }] = await Promise.all([
+        supabase.from('user_settings').select('user_id, email, created_at, is_admin'),
+        supabase.from('user_entitlements').select('user_id, subscription_status, plan_id, current_period_end, billing_cycle'),
+      ]);
+      if (profilesError) throw profilesError;
+      if (entError) throw entError;
+
+      // "Último acesso" e "acessos/dia" vêm de user_events (page_view), não de
+      // auth.users.last_sign_in_at — esse campo não é alcançável pelo SDK do
+      // cliente e fica desatualizado pra quem mantém sessão persistida (o app
+      // não passa por login de novo a cada abertura). Janela de 30 dias.
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const { data: events, error: eventsError } = await supabase
+        .from('user_events')
+        .select('user_id, created_at')
+        .eq('event_type', 'page_view')
+        .gte('created_at', thirtyDaysAgo)
+        .limit(50000);
+      if (eventsError) throw eventsError;
+
+      const accessCountByUser = new Map<string, number>();
+      const lastAccessByUser = new Map<string, string>();
+      (events || []).forEach((e) => {
+        accessCountByUser.set(e.user_id, (accessCountByUser.get(e.user_id) || 0) + 1);
+        const prev = lastAccessByUser.get(e.user_id);
+        if (!prev || e.created_at > prev) lastAccessByUser.set(e.user_id, e.created_at);
+      });
+
+      const entByUser = new Map((entitlements || []).map((e) => [e.user_id, e]));
+
+      return (profiles || [])
+        .filter((p) => !p.is_admin)
+        .map((p) => {
+          const ent = entByUser.get(p.user_id);
+          return {
+            userId: p.user_id,
+            email: p.email || 'Sem e-mail',
+            createdAt: p.created_at,
+            subscriptionStatus: ent?.subscription_status || 'inactive',
+            planId: ent?.plan_id || null,
+            billingCycle: ent?.billing_cycle || null,
+            currentPeriodEnd: ent?.current_period_end || null,
+            avgAccessesPerDay: (accessCountByUser.get(p.user_id) || 0) / 30,
+            lastAccess: lastAccessByUser.get(p.user_id) || null,
+          };
+        })
+        .sort((a, b) => (b.lastAccess || '').localeCompare(a.lastAccess || ''));
+    },
+    enabled: activeTab === 'usuarios' && !!settings?.is_admin,
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
+
   const exportRawLeadsToCSV = async () => {
     if (!rawLeadsData || rawLeadsData.length === 0) return;
     try {
@@ -322,6 +379,19 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
             CRM & Leads
           </div>
           {activeTab === 'leads' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600" />}
+        </button>
+        <button
+          onClick={() => setActiveTab('usuarios')}
+          className={cn(
+            "px-6 py-3 font-semibold text-sm transition-all relative",
+            activeTab === 'usuarios' ? "text-blue-600" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+          )}
+        >
+          <div className="flex items-center gap-2">
+            <UserCog className="w-4 h-4" />
+            Gerenciar Usuários
+          </div>
+          {activeTab === 'usuarios' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />}
         </button>
       </div>
 
@@ -777,6 +847,104 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
           </div>
         )}
         </div>
+      )}
+
+      {activeTab === 'usuarios' && (
+        isLoadingUserMgmt ? (
+          <div className="h-64 bg-zinc-100 dark:bg-zinc-800 rounded-2xl animate-pulse"></div>
+        ) : (
+          <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl overflow-hidden shadow-sm">
+            <div className="p-6 border-b border-slate-200 dark:border-zinc-800">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Gerenciar Usuários</h3>
+              <p className="text-sm text-slate-500 dark:text-zinc-400">
+                Status da assinatura, uso do sistema (últimos 30 dias) e vencimento de cada conta. "Acessos/dia" é a
+                média de aberturas do sistema por dia nos últimos 30 dias.
+              </p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm whitespace-nowrap">
+                <thead className="bg-slate-50 dark:bg-zinc-800/50 text-slate-500 dark:text-zinc-400 font-medium">
+                  <tr>
+                    <th className="px-6 py-4">E-mail</th>
+                    <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4">Plano</th>
+                    <th className="px-6 py-4">Ciclo</th>
+                    <th className="px-6 py-4">Acessos/dia</th>
+                    <th className="px-6 py-4">Último acesso</th>
+                    <th className="px-6 py-4">Renova / Vence em</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-zinc-800">
+                  {userMgmtData?.map((u) => {
+                    const statusLabel: Record<string, string> = {
+                      active: 'Ativo',
+                      past_due: 'Inadimplente',
+                      canceled: 'Cancelado',
+                      trialing: 'Trial',
+                      inactive: 'Sem plano',
+                    };
+                    const statusStyle: Record<string, string> = {
+                      active: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400',
+                      past_due: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400',
+                      canceled: 'bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-400',
+                      trialing: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400',
+                      inactive: 'bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-400',
+                    };
+                    const cycleLabel: Record<string, string> = {
+                      MONTHLY: 'Mensal',
+                      SEMIANNUAL: 'Semestral',
+                      ANNUAL: 'Anual',
+                    };
+                    const daysToExpire = u.currentPeriodEnd
+                      ? Math.ceil((new Date(u.currentPeriodEnd).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                      : null;
+                    const expireSoon = u.subscriptionStatus === 'active' && daysToExpire !== null && daysToExpire <= 15;
+
+                    return (
+                      <tr key={u.userId} className="hover:bg-slate-50 dark:hover:bg-zinc-800/30 transition-colors">
+                        <td className="px-6 py-4 text-slate-900 dark:text-white font-medium">{u.email}</td>
+                        <td className="px-6 py-4">
+                          <span className={cn(
+                            "px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider",
+                            statusStyle[u.subscriptionStatus] || statusStyle.inactive
+                          )}>
+                            {statusLabel[u.subscriptionStatus] || u.subscriptionStatus}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-slate-600 dark:text-zinc-300 capitalize">{u.planId || '—'}</td>
+                        <td className="px-6 py-4 text-slate-600 dark:text-zinc-300">
+                          {u.billingCycle ? (cycleLabel[u.billingCycle] || u.billingCycle) : '—'}
+                        </td>
+                        <td className="px-6 py-4 text-slate-600 dark:text-zinc-300">
+                          {u.avgAccessesPerDay > 0 ? `${u.avgAccessesPerDay.toFixed(1)}/dia` : '—'}
+                        </td>
+                        <td className="px-6 py-4 text-slate-600 dark:text-zinc-300">
+                          {u.lastAccess
+                            ? new Date(u.lastAccess).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
+                            : 'Sem acesso registrado'}
+                        </td>
+                        <td className={cn(
+                          "px-6 py-4 font-semibold",
+                          expireSoon ? "text-amber-600 dark:text-amber-400" : "text-slate-600 dark:text-zinc-300"
+                        )}>
+                          {u.currentPeriodEnd ? new Date(u.currentPeriodEnd).toLocaleDateString('pt-BR') : '—'}
+                          {expireSoon && <span className="ml-1 text-[10px] uppercase font-bold">({daysToExpire}d)</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {userMgmtData?.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-12 text-center text-slate-500 dark:text-zinc-400">
+                        Nenhum usuário encontrado.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )
       )}
 
     </div>

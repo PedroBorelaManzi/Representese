@@ -43,6 +43,7 @@ import { useIsSupportAdmin } from '../hooks/useIsSupportAdmin';
 import { toast } from 'sonner';
 import FullSyncBanner from './FullSyncBanner';
 import { UpdateNudge } from './UpdateNudge';
+import RenewalBanner from './RenewalBanner';
 
 const SettingsModal = React.lazy(() => import('./SettingsModal'));
 const OnboardingModal = React.lazy(() => import('./OnboardingModal'));
@@ -614,6 +615,7 @@ export default function Layout() {
             }}
           >
             <div className="mx-auto">
+              <RenewalBanner />
               <AnimatePresence mode="wait">
                 <motion.div
                   key={location.pathname}

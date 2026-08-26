@@ -21,6 +21,22 @@ const matchPlanId = (val: string): string | null => {
   return null;
 };
 
+// process-checkout grava a descrição da cobrança como "Plano X - CICLO"
+// (CICLO = MONTHLY/SEMIANNUAL/ANNUAL) — é o único jeito de saber, aqui no
+// webhook, tanto por quanto tempo essa cobrança cobre o acesso quanto qual
+// era o ciclo escolhido (billing_cycle, usado depois pela regularização
+// pra cobrar o valor certo). SEMIANNUAL é checado antes de ANNUAL de
+// propósito: a palavra "ANNUAL" está contida dentro de "SEMIANNUAL", então
+// checar na ordem errada classificaria semestral como anual.
+const cycleFromDescription = (description: string | undefined): 'MONTHLY' | 'SEMIANNUAL' | 'ANNUAL' => {
+  const desc = (description || '').toUpperCase();
+  if (desc.includes('SEMIANNUAL')) return 'SEMIANNUAL';
+  if (desc.includes('ANNUAL')) return 'ANNUAL';
+  return 'MONTHLY';
+};
+
+const PERIOD_DAYS: Record<string, number> = { MONTHLY: 32, SEMIANNUAL: 190, ANNUAL: 370 };
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
@@ -105,6 +121,18 @@ serve(async (req) => {
     if (payment.description && newStatus === 'active') {
       const matched = matchPlanId(payment.description);
       if (matched) updateData.plan_id = matched;
+    }
+
+    // Até quando essa cobrança cobre o acesso, e qual foi o ciclo escolhido
+    // (billing_cycle — usado depois pela regularização pra cobrar o valor
+    // certo em vez de sempre assumir mensal). Sem current_period_end, o app
+    // inteiro dependia de NUNCA perder um webhook de renovação, sem nenhuma
+    // segunda checagem — ver a checagem em SettingsContext.tsx que rebaixa
+    // pra "past_due" sozinha quando essa data já passou.
+    if (newStatus === 'active') {
+      const cycle = cycleFromDescription(payment.description);
+      updateData.billing_cycle = cycle;
+      updateData.current_period_end = new Date(Date.now() + PERIOD_DAYS[cycle] * 24 * 60 * 60 * 1000).toISOString();
     }
 
     await supabase.from('user_entitlements').upsert({
