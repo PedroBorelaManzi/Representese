@@ -31,7 +31,10 @@ interface Settings {
    *  productAnalytics.ts). Produto sem entrada aqui usa o % da empresa
    *  (commissions) como padrão. */
   product_commissions: Record<string, number>;
-  revenue_ceiling: number;
+  /** Meta de faturamento mensal por empresa, em R$ — mostrada como linha
+   *  tracejada na própria barra da empresa no gráfico "Faturamento por
+   *  empresa" do Início. Empresa sem entrada aqui não mostra meta nenhuma. */
+  monthly_goals: Record<string, number>;
   subscription_status: SubscriptionStatus;
   plan_id: string;
   avatar_url?: string;
@@ -59,7 +62,7 @@ const defaultSettings: Settings = {
   delivery_lead_days: {},
   commission_mode: {},
   product_commissions: {},
-  revenue_ceiling: 1000000,
+  monthly_goals: {},
   subscription_status: 'inactive', // Default para leads novos sem plano
   plan_id: 'exclusivo',
   avatar_url: undefined,
@@ -145,7 +148,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           delivery_lead_days: cached.delivery_lead_days || {},
           commission_mode: cached.commission_mode || {},
           product_commissions: cached.product_commissions || {},
-          revenue_ceiling: parseFloat(cached.revenue_ceiling?.toString() || "1000000") ?? defaultSettings.revenue_ceiling,
+          monthly_goals: cached.monthly_goals || {},
           subscription_status: (cached.subscription_status as SubscriptionStatus) || 'active',
           plan_id: cached.plan_id || 'exclusivo',
           avatar_url: cached.avatar_url,
@@ -226,7 +229,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           delivery_lead_days: data.delivery_lead_days || {},
           commission_mode: data.commission_mode || {},
           product_commissions: data.product_commissions || {},
-          revenue_ceiling: parseFloat(data.revenue_ceiling?.toString() || "1000000") ?? defaultSettings.revenue_ceiling,
+          monthly_goals: data.monthly_goals || {},
           subscription_status: effectiveStatus,
           plan_id: planId,
           avatar_url: finalAvatar,
