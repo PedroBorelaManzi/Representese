@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, Image as ImageIcon, CheckCircle2, Loader2, ArrowRight, RefreshCw, FileText, AlertTriangle, Search, UserPlus, ChevronLeft } from "lucide-react";
+import { Camera, Image as ImageIcon, CheckCircle2, Loader2, ArrowRight, RefreshCw, FileText, AlertTriangle, Search, UserPlus, ChevronLeft, X } from "lucide-react";
 import { Logo } from "../components/Logo";
 import { toast } from "sonner";
 import { extractLocalFileData } from "../lib/orderProcessor";
@@ -469,6 +469,15 @@ export default function OrderIntake() {
                     >
                       {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
                       {submitting ? "Enviando..." : "Confirmar Pedido"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={resetReview}
+                      disabled={submitting}
+                      className="w-full flex items-center justify-center gap-1.5 py-2 text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-red-500 transition-colors disabled:opacity-50"
+                    >
+                      <X className="w-3.5 h-3.5" /> Cancelar e começar de novo
                     </button>
                   </div>
                 )}

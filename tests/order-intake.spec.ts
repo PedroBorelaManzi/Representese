@@ -120,4 +120,34 @@ test.describe('Enviar Pedido (link do funcionário)', () => {
     // que fica ao lado do nome selecionado.
     await expect(page.getByRole('button', { name: 'Trocar' })).toHaveCount(2);
   });
+
+  test('cancelar o pedido em revisão volta pro passo de anexar, limpo', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium', 'Fluxo de negócio — roda só no desktop (chromium).');
+
+    await page.addInitScript(() => {
+      localStorage.setItem(
+        'rm_order_intake_session_token-de-teste',
+        JSON.stringify({ sessionToken: 'fake-session-token', categories: ['ACME'], clients: [] })
+      );
+    });
+
+    await page.route('**/api/order-intake', async (route) => {
+      const body = route.request().postDataJSON();
+      if (body.action === 'parse') {
+        await json(route, { status: 'ready', client: 'Cliente X', cnpj: '', category: 'ACME', value: 150, categories: ['ACME'], clientMatch: { id: 'c1', name: 'Cliente X' } });
+        return;
+      }
+      await json(route, { error: 'not mocked' }, 500);
+    });
+
+    await page.goto('/enviar/token-de-teste');
+    await page.locator('input[accept=".pdf,.xlsx,.xls"]').setInputFiles(join(HERE, '../src/lib/__fixtures__/pedido-exemplo.pdf'));
+
+    await expect(page.getByRole('button', { name: /confirmar pedido/i })).toBeVisible();
+    await page.getByRole('button', { name: /cancelar e começar de novo/i }).click();
+
+    // Volta pra tela de anexar arquivo, sem nenhum resquício do pedido cancelado.
+    await expect(page.getByText('Tirar foto')).toBeVisible();
+    await expect(page.getByRole('button', { name: /confirmar pedido/i })).not.toBeVisible();
+  });
 });
