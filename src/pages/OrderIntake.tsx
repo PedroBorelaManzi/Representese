@@ -1,10 +1,11 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, Image as ImageIcon, CheckCircle2, Loader2, ArrowRight, RefreshCw, FileText, AlertTriangle } from "lucide-react";
+import { Camera, Image as ImageIcon, CheckCircle2, Loader2, ArrowRight, RefreshCw, FileText, AlertTriangle, Search, UserPlus, ChevronLeft } from "lucide-react";
 import { Logo } from "../components/Logo";
 import { toast } from "sonner";
 import { extractLocalFileData } from "../lib/orderProcessor";
+import { normalizar } from "../lib/orderExtractionCore";
 import {
   verifyIntakeLink,
   parseIntakeOrder,
@@ -12,6 +13,7 @@ import {
   uploadIntakeFile,
   submitIntakeOrder,
   type ParseIntakeResult,
+  type IntakeClientOption,
 } from "../lib/orderIntakeClient";
 import { PIN_MIN_LENGTH, PIN_MAX_LENGTH, isValidPinFormat } from "../lib/pinFormat";
 
@@ -27,6 +29,7 @@ function sessionKey(token: string) {
 interface StoredSession {
   sessionToken: string;
   categories: string[];
+  clients: IntakeClientOption[];
 }
 
 function loadStoredSession(token: string): StoredSession | null {
@@ -45,6 +48,7 @@ export default function OrderIntake() {
   const [step, setStep] = useState<Step>("pin");
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
+  const [clients, setClients] = useState<IntakeClientOption[]>([]);
 
   const [pin, setPin] = useState("");
   const [verifying, setVerifying] = useState(false);
@@ -54,7 +58,9 @@ export default function OrderIntake() {
   const [parseResult, setParseResult] = useState<ParseIntakeResult | null>(null);
   const [parseError, setParseError] = useState(false);
 
-  const [clientMode, setClientMode] = useState<"match" | "new">("match");
+  const [clientMode, setClientMode] = useState<"match" | "pick" | "new">("match");
+  const [pickedClient, setPickedClient] = useState<IntakeClientOption | null>(null);
+  const [clientSearch, setClientSearch] = useState("");
   const [clientName, setClientName] = useState("");
   const [clientCnpj, setClientCnpj] = useState("");
   const [clientAddress, setClientAddress] = useState("");
@@ -68,9 +74,19 @@ export default function OrderIntake() {
     if (stored) {
       setSessionToken(stored.sessionToken);
       setCategories(stored.categories);
+      setClients(stored.clients || []);
       setStep("attach");
     }
   }, [token]);
+
+  /** Clientes que batem com a busca (nome ou CNPJ), sem acento/caixa —
+   *  mesma normalização usada no resto da leitura de pedido. Lista cheia
+   *  quando a busca está vazia, pra sempre dar pra rolar e achar alguém. */
+  const clientesFiltrados = useMemo(() => {
+    const termo = normalizar(clientSearch.trim());
+    if (!termo) return clients;
+    return clients.filter((c) => normalizar(c.name).includes(termo) || (c.cnpj || "").includes(termo.replace(/\D/g, "")));
+  }, [clients, clientSearch]);
 
   if (!token) {
     return <IntakeMessage title="Link inválido" message="Confira o endereço com quem te enviou." />;
@@ -85,9 +101,11 @@ export default function OrderIntake() {
     setVerifying(true);
     try {
       const result = await verifyIntakeLink(token, pin);
+      const clientsRecebidos = result.clients || [];
       setSessionToken(result.sessionToken);
       setCategories(result.categories);
-      localStorage.setItem(sessionKey(token), JSON.stringify({ sessionToken: result.sessionToken, categories: result.categories }));
+      setClients(clientsRecebidos);
+      localStorage.setItem(sessionKey(token), JSON.stringify({ sessionToken: result.sessionToken, categories: result.categories, clients: clientsRecebidos }));
       setStep("attach");
     } catch (err: any) {
       toast.error(err.message || "PIN incorreto.");
@@ -102,6 +120,8 @@ export default function OrderIntake() {
     setParseResult(null);
     setParseError(false);
     setClientMode("match");
+    setPickedClient(null);
+    setClientSearch("");
     setClientName("");
     setClientCnpj("");
     setClientAddress("");
@@ -147,14 +167,18 @@ export default function OrderIntake() {
         if (result.confidence?.value === "baixa") {
           toast.warning("Não tenho certeza do valor — confira antes de enviar.");
         }
-        if (result.clientMatch) {
-          setClientMode("match");
-        } else {
-          setClientMode("new");
-          setClientName(result.client && result.client !== "Desconhecido" ? result.client : "");
-          setClientCnpj(result.cnpj || "");
-          setClientAddress(result.address || "");
-        }
+        // Sem prefillClientName escrito, "Desconhecido" da IA não é nome de
+        // cliente — deixar vazio evita cadastrar um cliente chamado
+        // "Desconhecido" se a pessoa não notar e confirmar assim mesmo.
+        const prefillClientName = result.client && result.client !== "Desconhecido" ? result.client : "";
+        setClientName(prefillClientName);
+        setClientCnpj(result.cnpj || "");
+        setClientAddress(result.address || "");
+        // Sem identificação automática, abre a busca na lista de clientes em
+        // vez de já cair em "cliente novo" — a maioria dos casos em que a
+        // leitura não bate é o cliente já estar cadastrado, só que a IA não
+        // reconheceu a grafia/CNPJ; procurar antes de criar evita duplicata.
+        setClientMode(result.clientMatch ? "match" : "pick");
       }
     } catch (err: any) {
       // Sessão pode ter expirado (PIN trocado, link desativado) — manda de
@@ -179,12 +203,19 @@ export default function OrderIntake() {
     if (!value || Number(value) <= 0) { toast.error("Informe o valor do pedido."); return; }
     if (clientMode === "new" && !clientName.trim()) { toast.error("Informe o nome do cliente."); return; }
     if (clientMode === "match" && !parseResult?.clientMatch) { toast.error("Nenhum cliente selecionado."); return; }
+    if (clientMode === "pick" && !pickedClient) { toast.error("Selecione um cliente da lista."); return; }
 
     setSubmitting(true);
     try {
       const prepared = await prepareIntakeUpload(sessionToken, {
-        clientId: clientMode === "match" ? parseResult?.clientMatch?.id : undefined,
+        clientId: clientMode === "match" ? parseResult?.clientMatch?.id : clientMode === "pick" ? pickedClient?.id : undefined,
         newClient: clientMode === "new" ? { name: clientName.trim(), cnpj: clientCnpj, address: clientAddress } : undefined,
+        // Cliente escolhido na lista, documento tinha CNPJ, e o cadastro ainda
+        // não tem CNPJ salvo: grava agora — é o que faz o PRÓXIMO pedido
+        // desse mesmo cliente já vir reconhecido sozinho, sem precisar
+        // procurar de novo. Só quando o cadastro está vazio, nunca sobrescreve
+        // um CNPJ que já exista (a pessoa pode ter escolhido errado).
+        learnCnpj: clientMode === "pick" && pickedClient && !pickedClient.cnpj && parseResult?.cnpj ? parseResult.cnpj : undefined,
         category,
         value: Number(value),
         fileName: file.name,
@@ -321,18 +352,74 @@ export default function OrderIntake() {
 
                     <div className="space-y-1.5">
                       <label className="text-[13px] font-bold text-slate-700 dark:text-zinc-300 ml-1">Cliente</label>
-                      {parseResult?.clientMatch && clientMode === "match" ? (
+
+                      {clientMode === "match" && parseResult?.clientMatch ? (
                         <div className="flex items-center justify-between p-3.5 bg-emerald-50 dark:bg-emerald-500/10 rounded-2xl border border-emerald-100 dark:border-emerald-500/20">
                           <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400 truncate">{parseResult.clientMatch.name}</span>
-                          <button onClick={() => setClientMode("new")} className="text-[10px] font-black uppercase text-slate-400 hover:text-slate-600 shrink-0 ml-2">Não é esse</button>
+                          <button onClick={() => setClientMode("pick")} className="text-[10px] font-black uppercase text-slate-400 hover:text-slate-600 shrink-0 ml-2">Não é esse</button>
                         </div>
-                      ) : (
+                      ) : clientMode === "pick" ? (
                         <div className="space-y-2">
                           {parseResult?.clientMatch && (
                             <button onClick={() => setClientMode("match")} className="text-[10px] font-black uppercase text-emerald-600">
                               Usar "{parseResult.clientMatch.name}" em vez disso
                             </button>
                           )}
+
+                          {pickedClient ? (
+                            <div className="flex items-center justify-between p-3.5 bg-emerald-50 dark:bg-emerald-500/10 rounded-2xl border border-emerald-100 dark:border-emerald-500/20">
+                              <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400 truncate">{pickedClient.name}</span>
+                              <button onClick={() => setPickedClient(null)} className="text-[10px] font-black uppercase text-slate-400 hover:text-slate-600 shrink-0 ml-2">Trocar</button>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="relative">
+                                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                                <input
+                                  type="text"
+                                  autoFocus
+                                  value={clientSearch}
+                                  onChange={(e) => setClientSearch(e.target.value)}
+                                  placeholder="Buscar cliente por nome ou CNPJ"
+                                  className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-zinc-950/50 border border-slate-200 dark:border-zinc-800 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all dark:text-white"
+                                />
+                              </div>
+                              <div className="max-h-52 overflow-y-auto rounded-2xl border border-slate-100 dark:border-zinc-800 divide-y divide-slate-50 dark:divide-zinc-850">
+                                {clientesFiltrados.length === 0 ? (
+                                  <p className="p-3.5 text-xs font-medium text-slate-400 text-center">Nenhum cliente encontrado.</p>
+                                ) : (
+                                  clientesFiltrados.slice(0, 30).map((c) => (
+                                    <button
+                                      key={c.id}
+                                      type="button"
+                                      onClick={() => setPickedClient(c)}
+                                      className="w-full text-left px-3.5 py-3 text-sm font-bold text-slate-700 dark:text-zinc-200 hover:bg-emerald-50/60 dark:hover:bg-emerald-500/5 transition-colors truncate"
+                                    >
+                                      {c.name}
+                                    </button>
+                                  ))
+                                )}
+                              </div>
+                            </>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => setClientMode("new")}
+                            className="flex items-center gap-1.5 text-[10px] font-black uppercase text-slate-400 hover:text-emerald-600 transition-colors"
+                          >
+                            <UserPlus className="w-3.5 h-3.5" /> Cliente novo
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <button
+                            type="button"
+                            onClick={() => setClientMode("pick")}
+                            className="flex items-center gap-1.5 text-[10px] font-black uppercase text-emerald-600"
+                          >
+                            <ChevronLeft className="w-3.5 h-3.5" /> Escolher da lista de clientes
+                          </button>
                           <input
                             type="text"
                             value={clientName}

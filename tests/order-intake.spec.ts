@@ -1,4 +1,8 @@
 import { test, expect, type Route } from '@playwright/test';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const HERE = dirname(fileURLToPath(import.meta.url));
 
 /**
  * Cobre a tela pública de "enviar pedido" (/enviar/:token) — o PIN certo/
@@ -69,5 +73,51 @@ test.describe('Enviar Pedido (link do funcionário)', () => {
     await page.goto('/enviar/token-de-teste');
     await expect(page.getByText('Anexe o arquivo do pedido')).toBeVisible();
     await expect(page.getByText('Digite o PIN')).not.toBeVisible();
+  });
+
+  test('sem cliente identificado, abre a busca na lista — escolher um encerra a busca', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium', 'Fluxo de negócio — roda só no desktop (chromium).');
+
+    await page.addInitScript(() => {
+      localStorage.setItem(
+        'rm_order_intake_session_token-de-teste',
+        JSON.stringify({
+          sessionToken: 'fake-session-token',
+          categories: ['ACME'],
+          clients: [
+            { id: 'c1', name: 'Cliente Alfa' },
+            { id: 'c2', name: 'Cliente Beta' },
+          ],
+        })
+      );
+    });
+
+    await page.route('**/api/order-intake', async (route) => {
+      const body = route.request().postDataJSON();
+      if (body.action === 'parse') {
+        // clientMatch null: leitura não achou o cliente — é exatamente o
+        // caso que deve abrir a busca na lista em vez de já cair em
+        // "cliente novo".
+        await json(route, { status: 'ready', client: '', cnpj: '', category: 'ACME', value: 150, categories: ['ACME'], clientMatch: null });
+        return;
+      }
+      await json(route, { error: 'not mocked' }, 500);
+    });
+
+    await page.goto('/enviar/token-de-teste');
+    await expect(page.getByText('Anexe o arquivo do pedido')).toBeVisible();
+
+    await page.locator('input[accept=".pdf,.xlsx,.xls"]').setInputFiles(join(HERE, '../src/lib/__fixtures__/pedido-exemplo.pdf'));
+
+    const busca = page.getByPlaceholder('Buscar cliente por nome ou CNPJ');
+    await expect(busca).toBeVisible();
+    await busca.fill('Beta');
+    await page.getByRole('button', { name: 'Cliente Beta' }).click();
+
+    await expect(page.getByText('Cliente Beta')).toBeVisible();
+    await expect(busca).not.toBeVisible();
+    // Dois botões "Trocar" na tela (arquivo e cliente) — o do cliente é o
+    // que fica ao lado do nome selecionado.
+    await expect(page.getByRole('button', { name: 'Trocar' })).toHaveCount(2);
   });
 });

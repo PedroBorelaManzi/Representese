@@ -51,9 +51,16 @@ export async function setIntakePin(linkId: string, pin: string): Promise<void> {
   await callOrderIntakeApi('set_pin', { linkId, pin }, { useOwnerAuth: true });
 }
 
+export interface IntakeClientOption {
+  id: string;
+  name: string;
+  cnpj?: string;
+}
+
 export interface VerifyIntakeResult {
   sessionToken: string;
   categories: string[];
+  clients: IntakeClientOption[];
 }
 export async function verifyIntakeLink(token: string, pin: string): Promise<VerifyIntakeResult> {
   return callOrderIntakeApi<VerifyIntakeResult>('verify', { token, pin });
@@ -95,6 +102,10 @@ export async function prepareIntakeUpload(
   payload: {
     clientId?: string;
     newClient?: { name: string; cnpj?: string; address?: string };
+    /** CNPJ lido do documento pra gravar no cadastro de um cliente
+     *  escolhido manualmente que ainda não tinha CNPJ salvo — é o que faz o
+     *  próximo pedido desse cliente já vir reconhecido sozinho. */
+    learnCnpj?: string;
     category: string;
     value: number;
     fileName: string;

@@ -246,8 +246,19 @@ async function handleVerify(req: express.Request, res: express.Response, payload
 
   const { data: settings } = await supabase.from('user_settings').select('categories').eq('user_id', link.user_id).maybeSingle();
 
+  // Lista de clientes do dono do link — só id/nome/cnpj (nunca faturamento,
+  // notas ou outro dado sensível), pra o funcionário poder escolher da lista
+  // quando a leitura automática não acha ou erra o cliente, em vez de só
+  // poder digitar um nome novo às cegas.
+  const { data: clientRows } = await supabase
+    .from('clients')
+    .select('id, name, cnpj')
+    .eq('user_id', link.user_id)
+    .order('name');
+  const clients = (clientRows || []).map((c) => ({ id: c.id, name: c.name, cnpj: c.cnpj || undefined }));
+
   const sessionToken = signSession({ linkId: link.id, ownerId: link.user_id, sessionEpoch: link.session_epoch }, getSessionSecret());
-  return res.status(200).json({ sessionToken, categories: settings?.categories || [] });
+  return res.status(200).json({ sessionToken, categories: settings?.categories || [], clients });
 }
 
 async function handleParse(req: express.Request, res: express.Response, payload: any) {
@@ -348,19 +359,29 @@ async function handlePrepareUpload(req: express.Request, res: express.Response, 
   const session = await requireIntakeSession(req, res);
   if (!session) return;
 
-  const { clientId, newClient, category, value, fileName } = payload || {};
+  const { clientId, newClient, learnCnpj, category, value, fileName } = payload || {};
   if (!category || !value || !fileName) return res.status(400).json({ error: 'Dados incompletos.' });
 
   let finalClientId: string | undefined = clientId || undefined;
 
   // O clientId vem do navegador do funcionário (foi ele quem escolheu o
-  // "match" que a IA sugeriu) — sem essa checagem, um clientId de OUTRA
-  // conta (adivinhado ou reaproveitado de outra sessão) criaria um pedido
-  // referenciando um cliente que não é do dono deste link.
+  // "match" que a IA sugeriu, ou um cliente da lista) — sem essa checagem,
+  // um clientId de OUTRA conta (adivinhado ou reaproveitado de outra sessão)
+  // criaria um pedido referenciando um cliente que não é do dono deste link.
   if (finalClientId) {
     const { data: ownedClient } = await session.supabase
-      .from('clients').select('id').eq('id', finalClientId).eq('user_id', session.ownerId).maybeSingle();
+      .from('clients').select('id, cnpj').eq('id', finalClientId).eq('user_id', session.ownerId).maybeSingle();
     if (!ownedClient) return res.status(400).json({ error: 'Cliente inválido.' });
+
+    // Memória de cliente: documento trouxe um CNPJ e o cadastro escolhido
+    // ainda não tinha nenhum — grava agora, sem perguntar de novo. É o que
+    // faz o PRÓXIMO pedido desse cliente já vir reconhecido sozinho, sem
+    // precisar buscar na lista outra vez. Só quando está vazio: nunca
+    // sobrescreve um CNPJ já cadastrado (a escolha manual pode estar errada).
+    const cleanLearnCnpj = learnCnpj ? String(learnCnpj).replace(/\D/g, '') : '';
+    if (cleanLearnCnpj && cleanLearnCnpj.length === 14 && !ownedClient.cnpj) {
+      await session.supabase.from('clients').update({ cnpj: cleanLearnCnpj }).eq('id', finalClientId);
+    }
   }
 
   if (!finalClientId && newClient?.name) {

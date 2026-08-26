@@ -1,6 +1,6 @@
 import { useUpload } from '../contexts/UploadContext';
 import React, { useState, useEffect, useMemo } from "react";
-import { Plus, Search, FileText, Upload, Loader2, ShoppingBag, Trash2, ArrowUpRight, TrendingUp, DollarSign, Calendar, ChevronRight, X, Sparkles, Navigation, UserCog } from "lucide-react";
+import { Plus, Search, FileText, Upload, Loader2, ShoppingBag, Trash2, ArrowUpRight, TrendingUp, DollarSign, Calendar, ChevronRight, X, Sparkles, Navigation, UserCog, UserPlus, ChevronLeft } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { posthog } from "../lib/posthog";
@@ -15,7 +15,7 @@ import { PageHeader, useConfirm } from "../components/ui";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Client, Order } from "../types";
-import type { ItemExtraido } from "../lib/orderExtractionCore";
+import { normalizar, type ItemExtraido } from "../lib/orderExtractionCore";
 
 interface BatchResult {
   file: File;
@@ -68,6 +68,10 @@ export default function PedidosPage() {
   const [isAnalyzingManual, setIsAnalyzingManual] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [showNewClientForm, setShowNewClientForm] = useState(false);
+  const [showClientPicker, setShowClientPicker] = useState(false);
+  const [clientPickerSearch, setClientPickerSearch] = useState("");
+  const [manualClientName, setManualClientName] = useState("");
+  const [manualClientCnpj, setManualClientCnpj] = useState("");
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
   const [batchResults, setBatchResults] = useState<BatchResult[]>([]);
   const [isProcessingBatch, setIsProcessingBatch] = useState(false);
@@ -109,6 +113,7 @@ export default function PedidosPage() {
   const handleManualFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
     setSelectedFile(file); setIsAnalyzingManual(true);
+    setShowClientPicker(false); setClientPickerSearch("");
     try {
       const result = await processOrderFile(file, clients.map(c => c.name), settings.categories || []);
       if (result.status === "ready") {
@@ -120,7 +125,17 @@ export default function PedidosPage() {
           const clientName = c.name?.trim().toLowerCase();
           return (cleanResCnpj && clientCnpj === cleanResCnpj) || (clientName && clientName === cleanResName);
         });
-        if (match) { setSelectedClient(match.id); setShowNewClientForm(false); } else { setShowNewClientForm(true); setSelectedClient(""); }
+        // Sem "Desconhecido" da IA virando nome de cliente novo por descuido.
+        setManualClientName(result.client && result.client !== "Desconhecido" ? result.client : "");
+        setManualClientCnpj(result.cnpj || "");
+        if (match) {
+          setSelectedClient(match.id); setShowNewClientForm(false);
+        } else {
+          // Sem identificação automática, abre a busca na lista em vez de já
+          // cair em "cliente novo" — a maioria dos casos assim é o cliente já
+          // estar cadastrado e a IA não ter reconhecido a grafia/CNPJ.
+          setSelectedClient(""); setShowNewClientForm(false); setShowClientPicker(true);
+        }
         if (result.category) {
           const catMatch = (settings.categories || []).find((cat: string) => cat.toLowerCase().includes(result.category.toLowerCase()));
           if (catMatch) setSelectedCategory(catMatch);
@@ -131,12 +146,24 @@ export default function PedidosPage() {
 
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); if (!user || !selectedCategory || !orderValue || !selectedFile) return;
+    if (showNewClientForm && !manualClientName.trim()) { toast.error("Informe o nome do cliente."); return; }
+    if (!showNewClientForm && !selectedClient) { toast.error("Selecione um cliente."); return; }
     setIsSaving(true);
     try {
       let cid = selectedClient;
-      if (showNewClientForm && analysisResult) {
-        const n = await registerNewClient(analysisResult.client, analysisResult.cnpj || "", analysisResult.address || "");
+      if (showNewClientForm) {
+        const n = await registerNewClient(manualClientName.trim(), manualClientCnpj || "", analysisResult?.address || "");
         if (n) cid = n.id;
+      } else if (cid && analysisResult?.cnpj) {
+        // Mem\u00f3ria de cliente: documento trouxe um CNPJ e o cadastro escolhido
+        // ainda n\u00e3o tinha nenhum \u2014 grava agora, sem perguntar de novo. \u00c9 o
+        // que faz o PR\u00d3XIMO pedido desse cliente j\u00e1 vir reconhecido sozinho.
+        // S\u00f3 quando est\u00e1 vazio: nunca sobrescreve um CNPJ j\u00e1 cadastrado.
+        const escolhido = clients.find(c => c.id === cid);
+        const cleanCnpj = analysisResult.cnpj.replace(/\D/g, "");
+        if (escolhido && !escolhido.cnpj && cleanCnpj.length === 14) {
+          await supabase.from("clients").update({ cnpj: cleanCnpj }).eq("id", cid).eq("user_id", user.id);
+        }
       }
       const cleanName = selectedFile.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w\s.-]/g, "").replace(/\s+/g, "_");
       const formattedName = `${selectedCategory}___VALOR_${orderValue}___${cleanName}`;
@@ -158,6 +185,8 @@ export default function PedidosPage() {
       toast.success("Pedido registrado com sucesso!");
       posthog.capture('order_logged', { category: selectedCategory });
       clearDraft("manual_order");
+      setShowNewClientForm(false); setShowClientPicker(false); setClientPickerSearch("");
+      setManualClientName(""); setManualClientCnpj(""); setAnalysisResult(null);
     } catch (err) { toast.error(err instanceof Error ? err.message : 'Erro desconhecido'); } finally { setIsSaving(false); }
   };
 
@@ -235,6 +264,14 @@ export default function PedidosPage() {
   const filteredOrders = useMemo(() => {
     return monthlyOrders.filter(o => o.client?.name?.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [monthlyOrders, searchTerm]);
+
+  /** Clientes que batem com a busca do seletor manual (nome ou CNPJ), sem
+   *  acento/caixa. Lista cheia quando a busca está vazia. */
+  const clientesParaEscolher = useMemo(() => {
+    const termo = normalizar(clientPickerSearch.trim());
+    if (!termo) return clients;
+    return clients.filter((c) => normalizar(c.name || "").includes(termo) || (c.cnpj || "").includes(termo.replace(/\D/g, "")));
+  }, [clients, clientPickerSearch]);
 
   const stats = useMemo(() => [
     { label: "Faturamento Total", val: monthlyOrders.reduce((a,b)=>a+(b.value||0),0), icon: DollarSign, color: "text-emerald-600", bg: "bg-emerald-50", suffix: "BRL" },
@@ -480,6 +517,73 @@ export default function PedidosPage() {
                           <p className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest">{selectedFile ? selectedFile.name : "Solte o arquivo aqui"}</p>
                        </div>
                     </div>
+
+                    {selectedFile && !isAnalyzingManual && (
+                       <div className="space-y-3 md:space-y-4">
+                          <label className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase tracking-widest px-2">Cliente</label>
+
+                          {selectedClient && !showNewClientForm && !showClientPicker ? (
+                             <div className="flex items-center justify-between p-4 md:p-6 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-900/40 rounded-[20px] md:rounded-[28px]">
+                                <span className="text-[10px] md:text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-widest truncate">
+                                   {clients.find(c => c.id === selectedClient)?.name || "Cliente selecionado"}
+                                </span>
+                                <button type="button" onClick={() => { setShowClientPicker(true); setSelectedClient(""); }} className="text-[8px] md:text-[9px] font-black uppercase text-slate-400 hover:text-slate-600 shrink-0 ml-3">Trocar</button>
+                             </div>
+                          ) : showNewClientForm ? (
+                             <div className="space-y-3">
+                                <button type="button" onClick={() => { setShowNewClientForm(false); setShowClientPicker(true); }} className="flex items-center gap-1.5 text-[8px] md:text-[9px] font-black uppercase text-emerald-600">
+                                   <ChevronLeft className="w-3.5 h-3.5" /> Escolher da lista de clientes
+                                </button>
+                                <input
+                                  type="text"
+                                  value={manualClientName}
+                                  onChange={e => setManualClientName(e.target.value)}
+                                  placeholder="Nome do cliente novo"
+                                  className="w-full p-4 md:p-5 bg-slate-50 dark:bg-zinc-950 border border-slate-100 dark:border-zinc-800 rounded-[20px] md:rounded-[24px] text-xs md:text-sm font-bold outline-none"
+                                />
+                                <input
+                                  type="text"
+                                  value={manualClientCnpj}
+                                  onChange={e => setManualClientCnpj(e.target.value)}
+                                  placeholder="CNPJ (opcional)"
+                                  className="w-full p-4 md:p-5 bg-slate-50 dark:bg-zinc-950 border border-slate-100 dark:border-zinc-800 rounded-[20px] md:rounded-[24px] text-xs md:text-sm font-bold outline-none"
+                                />
+                             </div>
+                          ) : (
+                             <div className="space-y-2">
+                                <div className="relative">
+                                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                                   <input
+                                     type="text"
+                                     value={clientPickerSearch}
+                                     onChange={e => setClientPickerSearch(e.target.value)}
+                                     placeholder="Buscar cliente por nome ou CNPJ"
+                                     className="w-full pl-11 pr-4 py-4 bg-slate-50 dark:bg-zinc-950 border border-slate-100 dark:border-zinc-800 rounded-[20px] text-xs md:text-sm font-bold outline-none"
+                                   />
+                                </div>
+                                <div className="max-h-40 overflow-y-auto rounded-[20px] border border-slate-100 dark:border-zinc-800 divide-y divide-slate-50 dark:divide-zinc-850">
+                                   {clientesParaEscolher.length === 0 ? (
+                                     <p className="p-4 text-[10px] font-bold text-slate-400 text-center uppercase">Nenhum cliente encontrado</p>
+                                   ) : (
+                                     clientesParaEscolher.slice(0, 30).map(c => (
+                                       <button
+                                         key={c.id}
+                                         type="button"
+                                         onClick={() => { setSelectedClient(c.id); setShowClientPicker(false); setClientPickerSearch(""); }}
+                                         className="w-full text-left px-4 py-3 text-xs font-bold text-slate-700 dark:text-zinc-200 hover:bg-emerald-50/60 dark:hover:bg-emerald-500/5 transition-colors truncate"
+                                       >
+                                         {c.name}
+                                       </button>
+                                     ))
+                                   )}
+                                </div>
+                                <button type="button" onClick={() => { setShowClientPicker(false); setShowNewClientForm(true); }} className="flex items-center gap-1.5 text-[8px] md:text-[9px] font-black uppercase text-slate-400 hover:text-emerald-600 transition-colors">
+                                   <UserPlus className="w-3.5 h-3.5" /> Cliente novo
+                                </button>
+                             </div>
+                          )}
+                       </div>
+                    )}
 
                     <div className="grid grid-cols-2 gap-4 md:gap-6">
                        <div className="space-y-3 md:space-y-4">
