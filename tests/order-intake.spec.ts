@@ -184,4 +184,71 @@ test.describe('Enviar Pedido (link do funcionário)', () => {
     await expect(page.getByPlaceholder('Nome do cliente novo')).toHaveValue('Empresa Nova Ltda');
     await expect(page.getByPlaceholder('CNPJ (opcional)')).toHaveValue('11222333000181');
   });
+
+  test('sessão salva antiga (sem clientes ainda) atualiza a lista sozinha, sem pedir PIN', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium', 'Fluxo de negócio — roda só no desktop (chromium).');
+
+    // Simula uma sessão salva ANTES da lista de clientes existir nesse
+    // formato (ou só desatualizada) — o bug real que isso corrige.
+    await page.addInitScript(() => {
+      localStorage.setItem(
+        'rm_order_intake_session_token-de-teste',
+        JSON.stringify({ sessionToken: 'fake-session-token', categories: ['ACME'] })
+      );
+    });
+
+    await page.route('**/api/order-intake', async (route) => {
+      const body = route.request().postDataJSON();
+      if (body.action === 'session_data') {
+        await json(route, { categories: ['ACME'], clients: [{ id: 'c1', name: 'Cliente Recém-Cadastrado' }] });
+        return;
+      }
+      if (body.action === 'parse') {
+        await json(route, { status: 'ready', client: '', cnpj: '', category: 'ACME', value: 150, categories: ['ACME'], clientMatch: null });
+        return;
+      }
+      await json(route, { error: 'not mocked' }, 500);
+    });
+
+    await page.goto('/enviar/token-de-teste');
+    // Pula direto pro passo de anexar — a sessão salva já bastava, sem PIN.
+    await expect(page.getByText('Anexe o arquivo do pedido')).toBeVisible();
+
+    await page.locator('input[accept=".pdf,.xlsx,.xls"]').setInputFiles(join(HERE, '../src/lib/__fixtures__/pedido-exemplo.pdf'));
+
+    const busca = page.getByPlaceholder('Buscar cliente por nome ou CNPJ');
+    await expect(busca).toBeVisible();
+    // A lista não fica vazia: o refresh em segundo plano já trouxe o cliente
+    // que tinha sido cadastrado depois da sessão salva ter sido criada.
+    await expect(page.getByRole('button', { name: 'Cliente Recém-Cadastrado' })).toBeVisible();
+  });
+
+  test('X no topo cancela o pedido em revisão', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium', 'Fluxo de negócio — roda só no desktop (chromium).');
+
+    await page.addInitScript(() => {
+      localStorage.setItem(
+        'rm_order_intake_session_token-de-teste',
+        JSON.stringify({ sessionToken: 'fake-session-token', categories: ['ACME'], clients: [] })
+      );
+    });
+
+    await page.route('**/api/order-intake', async (route) => {
+      const body = route.request().postDataJSON();
+      if (body.action === 'parse') {
+        await json(route, { status: 'ready', client: 'Cliente X', cnpj: '', category: 'ACME', value: 150, categories: ['ACME'], clientMatch: { id: 'c1', name: 'Cliente X' } });
+        return;
+      }
+      await json(route, { error: 'not mocked' }, 500);
+    });
+
+    await page.goto('/enviar/token-de-teste');
+    await page.locator('input[accept=".pdf,.xlsx,.xls"]').setInputFiles(join(HERE, '../src/lib/__fixtures__/pedido-exemplo.pdf'));
+
+    await expect(page.getByRole('button', { name: /confirmar pedido/i })).toBeVisible();
+    await page.getByRole('button', { name: 'Cancelar pedido' }).click();
+
+    await expect(page.getByText('Tirar foto')).toBeVisible();
+    await expect(page.getByRole('button', { name: /confirmar pedido/i })).not.toBeVisible();
+  });
 });

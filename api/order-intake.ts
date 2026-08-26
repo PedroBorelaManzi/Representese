@@ -502,11 +502,33 @@ async function handleSubmit(req: express.Request, res: express.Response, payload
   return res.status(200).json({ ok: true });
 }
 
+/** Categorias e clientes atualizados, sem pedir o PIN de novo — a sessão do
+ *  funcionário é de longa duração (ver sessionToken.ts), então o snapshot
+ *  guardado no aparelho no momento do PIN fica velho rápido: cliente
+ *  cadastrado depois nunca aparecia na busca de quem já tinha "entrado"
+ *  antes. Chamado toda vez que a tela de anexar abre, pra sessão salva
+ *  nunca ficar mais desatualizada que o tempo de um carregamento de página. */
+async function handleSessionData(req: express.Request, res: express.Response) {
+  const session = await requireIntakeSession(req, res);
+  if (!session) return;
+
+  const { data: settings } = await session.supabase.from('user_settings').select('categories').eq('user_id', session.ownerId).maybeSingle();
+  const { data: clientRows } = await session.supabase
+    .from('clients')
+    .select('id, name, cnpj')
+    .eq('user_id', session.ownerId)
+    .order('name');
+  const clients = (clientRows || []).map((c) => ({ id: c.id, name: c.name, cnpj: c.cnpj || undefined }));
+
+  return res.status(200).json({ categories: settings?.categories || [], clients });
+}
+
 app.post('/api/order-intake', async (req, res) => {
   const { action, payload } = req.body || {};
   try {
     if (action === 'set_pin') return await handleSetPin(req, res, payload);
     if (action === 'verify') return await handleVerify(req, res, payload);
+    if (action === 'session_data') return await handleSessionData(req, res);
     if (action === 'parse') return await handleParse(req, res, payload);
     if (action === 'prepare_upload') return await handlePrepareUpload(req, res, payload);
     if (action === 'submit') return await handleSubmit(req, res, payload);

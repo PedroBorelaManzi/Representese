@@ -66,6 +66,17 @@ export async function verifyIntakeLink(token: string, pin: string): Promise<Veri
   return callOrderIntakeApi<VerifyIntakeResult>('verify', { token, pin });
 }
 
+export interface IntakeSessionData {
+  categories: string[];
+  clients: IntakeClientOption[];
+}
+/** Categorias e clientes atualizados, sem pedir PIN de novo — a sessão salva
+ *  no aparelho pode ser antiga (é de longa duração de propósito), então o
+ *  que veio no 'verify' original pode já estar desatualizado. */
+export async function getIntakeSessionData(sessionToken: string): Promise<IntakeSessionData> {
+  return callOrderIntakeApi<IntakeSessionData>('session_data', {}, { sessionToken });
+}
+
 export interface ParseIntakeResult {
   status: 'ready' | 'error';
   client?: string;

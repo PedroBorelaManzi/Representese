@@ -8,6 +8,7 @@ import { extractLocalFileData } from "../lib/orderProcessor";
 import { normalizar } from "../lib/orderExtractionCore";
 import {
   verifyIntakeLink,
+  getIntakeSessionData,
   parseIntakeOrder,
   prepareIntakeUpload,
   uploadIntakeFile,
@@ -71,12 +72,27 @@ export default function OrderIntake() {
   useEffect(() => {
     if (!token) return;
     const stored = loadStoredSession(token);
-    if (stored) {
-      setSessionToken(stored.sessionToken);
-      setCategories(stored.categories);
-      setClients(stored.clients || []);
-      setStep("attach");
-    }
+    if (!stored) return;
+    setSessionToken(stored.sessionToken);
+    setCategories(stored.categories);
+    setClients(stored.clients || []);
+    setStep("attach");
+
+    // A sessão salva no aparelho pode ser velha (dura pra sempre, de
+    // propósito) — o snapshot de categorias/clientes de quando o PIN foi
+    // digitado pode ter ficado pra trás (cliente cadastrado depois nunca
+    // aparecia na busca). Atualiza em segundo plano, sem travar a tela nem
+    // pedir o PIN de novo; se falhar (rede, sessão revogada), a tela
+    // continua com o que já tinha — a chamada seguinte que precisar da
+    // sessão de verdade (parse/prepare_upload) é quem vai avisar do jeito
+    // certo se o link tiver sido desativado.
+    getIntakeSessionData(stored.sessionToken)
+      .then((fresh) => {
+        setCategories(fresh.categories);
+        setClients(fresh.clients);
+        localStorage.setItem(sessionKey(token), JSON.stringify({ ...stored, categories: fresh.categories, clients: fresh.clients }));
+      })
+      .catch(() => {});
   }, [token]);
 
   /** Clientes que batem com a busca (nome ou CNPJ), sem acento/caixa —
@@ -298,7 +314,19 @@ export default function OrderIntake() {
 
             {step === "attach" && (
               <motion.div key="attach" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-                <div className="text-center space-y-2">
+                <div className="relative text-center space-y-2">
+                  {file && (
+                    <button
+                      type="button"
+                      onClick={resetReview}
+                      aria-label="Cancelar pedido"
+                      title="Cancelar pedido"
+                      disabled={submitting}
+                      className="absolute -top-2 -right-2 p-2 rounded-full text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all disabled:opacity-50"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  )}
                   <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Enviar Pedido</h1>
                   <p className="text-sm text-slate-500 dark:text-zinc-400 font-medium">Anexe o arquivo do pedido (foto, PDF ou planilha)</p>
                 </div>
