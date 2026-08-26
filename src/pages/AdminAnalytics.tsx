@@ -634,7 +634,11 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
             <div className="p-6 border-b border-slate-200 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Contatos capturados (antes dos planos)</h3>
-                <p className="text-sm text-slate-500 dark:text-zinc-400">Quem preencheu nome/e-mail/telefone no formulário de /register, mas ainda não necessariamente virou cliente.</p>
+                <p className="text-sm text-slate-500 dark:text-zinc-400">
+                  Quem preencheu nome/e-mail/telefone no formulário de /register — nunca cria conta nova nem duplica nada
+                  (reenviar o mesmo e-mail só atualiza esta linha). Ainda não é necessariamente cliente — isso só é
+                  confirmado na tabela "Contas criadas no sistema" abaixo.
+                </p>
               </div>
               <button
                 onClick={exportRawLeadsToCSV}
@@ -694,8 +698,12 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
           <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl overflow-hidden shadow-sm">
             <div className="p-6 border-b border-slate-200 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Base de Leads e Clientes</h3>
-                <p className="text-sm text-slate-500 dark:text-zinc-400">Gerencie todos os cadastros feitos pelo sistema.</p>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Contas criadas no sistema (login de verdade)</h3>
+                <p className="text-sm text-slate-500 dark:text-zinc-400">
+                  Diferente da tabela de "Contatos" acima: aqui só entra quem realmente criou conta (tem login no site). A
+                  mesma pessoa pode aparecer nas duas tabelas — uma vez como contato que preencheu o formulário, outra
+                  como conta de verdade — isso não é duplicidade, são dois estágios diferentes.
+                </p>
               </div>
               <button
                 onClick={exportToCSV}
@@ -738,7 +746,7 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
                             ? "bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-400"
                             : "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400"
                         )}>
-                          {lead.subscription_status === 'active' ? 'Assinante' : lead.subscription_status === 'inactive' ? 'Lead' : 'Inativo/Canc'}
+                          {lead.subscription_status === 'active' ? 'Assinante' : lead.subscription_status === 'inactive' ? 'Sem plano' : 'Inativo/Canc'}
                         </span>
                       </td>
                     </tr>
