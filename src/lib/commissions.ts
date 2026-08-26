@@ -8,6 +8,11 @@ export interface MonthOrder {
   category: string;
   value: number;
   created_at: string;
+  /** Comissão já calculada pra esta parcela quando a empresa está em modo
+   *  "por produto" (blend dos % de cada item do pedido) — presente, substitui
+   *  o cálculo padrão (valor × percentual da empresa) só nesta linha. Ausente
+   *  = comportamento de sempre (fixo por empresa). */
+  commissionOverride?: number;
 }
 
 export interface CommissionRow {
@@ -30,15 +35,22 @@ export interface CommissionTotals {
 /** Normaliza nome de empresa para casar pedidos com categorias mesmo com caixa diferente. */
 export const normalizeCompanyName = (s: string) => (s || "").trim().toUpperCase();
 
-function computeByCompany(orders: MonthOrder[]) {
+function computeByCompany(orders: MonthOrder[], commissions: Record<string, number>) {
   const value = new Map<string, number>();
   const count = new Map<string, number>();
+  const comissao = new Map<string, number>();
   orders.forEach((o) => {
     const key = normalizeCompanyName(o.category);
-    value.set(key, (value.get(key) || 0) + (Number(o.value) || 0));
+    const rowValue = Number(o.value) || 0;
+    const pct = Number(commissions[o.category] ?? commissions[key] ?? 0);
+    // Linha com override (comissão por produto, já calculada fora daqui) usa
+    // o valor pronto; senão, o cálculo de sempre — valor × % da empresa.
+    const rowComissao = o.commissionOverride ?? rowValue * (pct / 100);
+    value.set(key, (value.get(key) || 0) + rowValue);
     count.set(key, (count.get(key) || 0) + 1);
+    comissao.set(key, (comissao.get(key) || 0) + rowComissao);
   });
-  return { value, count };
+  return { value, count, comissao };
 }
 
 /**
@@ -52,8 +64,8 @@ export function computeCommissionRows(
   companies: string[],
   commissions: Record<string, number>
 ): CommissionRow[] {
-  const cur = computeByCompany(currentOrders);
-  const prev = computeByCompany(previousOrders);
+  const cur = computeByCompany(currentOrders, commissions);
+  const prev = computeByCompany(previousOrders, commissions);
 
   // Considera todas as empresas: as cadastradas + quaisquer que apareçam nos pedidos
   const allKeys = new Set<string>();
@@ -75,7 +87,10 @@ export function computeCommissionRows(
       const faturamentoPrev = prev.value.get(key) || 0;
       const pedidos = cur.count.get(key) || 0;
       const pct = Number(commissions[name] ?? commissions[key] ?? 0);
-      const comissao = faturamento * (pct / 100);
+      // Soma já pronta do computeByCompany — respeita override por produto
+      // linha a linha; sem override em nenhuma linha, é idêntico a
+      // faturamento × pct (mesma conta de sempre, só calculada por pedido).
+      const comissao = cur.comissao.get(key) || 0;
       return { key, name, faturamento, faturamentoPrev, pedidos, pct, comissao };
     })
     .sort((a, b) => b.comissao - a.comissao);
@@ -85,6 +100,9 @@ export function computeCommissionTotals(rows: CommissionRow[]): CommissionTotals
   const faturamento = rows.reduce((s, r) => s + r.faturamento, 0);
   const comissao = rows.reduce((s, r) => s + r.comissao, 0);
   const comissaoPrev = rows.reduce((s, r) => s + r.faturamentoPrev * (r.pct / 100), 0);
-  const semConfig = rows.filter((r) => r.faturamento > 0 && r.pct === 0).length;
+  // pct===0 sozinho não basta mais: empresa em modo "por produto" pode não
+  // ter % de empresa configurado (não precisa, cada produto tem o seu) e
+  // ainda assim já estar rendendo comissão de verdade via override.
+  const semConfig = rows.filter((r) => r.faturamento > 0 && r.pct === 0 && r.comissao === 0).length;
   return { faturamento, comissao, comissaoPrev, semConfig };
 }

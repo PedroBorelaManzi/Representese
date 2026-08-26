@@ -5,9 +5,10 @@ import {
 } from "recharts";
 import {
   PackageSearch, ChevronLeft, ChevronRight, Boxes, Building2, Layers,
-  Search, X, ArrowUpDown, DollarSign, ShoppingBag, TrendingUp,
+  Search, X, ArrowUpDown, DollarSign, ShoppingBag, TrendingUp, Percent,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "sonner";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
@@ -58,7 +59,7 @@ function labelDoPeriodo(tipo: PeriodoTipo, refDate: Date): string {
 
 export default function ProdutosPage() {
   const { user } = useAuth();
-  const { settings } = useSettings();
+  const { settings, updateSettings } = useSettings();
 
   const [periodo, setPeriodo] = useState<PeriodoTipo>("mes");
   const [refDate, setRefDate] = useState(() => new Date());
@@ -192,6 +193,21 @@ export default function ProdutosPage() {
 
     return { serie, topClientes };
   }, [produtoSelecionado, rows, refDate, clientNames]);
+
+  const saveProductCommission = async (produto: RankedProduct, raw: string) => {
+    const parsed = parseFloat(raw);
+    const pct = raw.trim() && isFinite(parsed) ? Math.max(0, Math.min(100, parsed)) : undefined;
+    const groupKey = `${produto.category}::${produto.productKey}`;
+    const merged = { ...(settings?.product_commissions || {}) };
+    if (pct === undefined) delete merged[groupKey];
+    else merged[groupKey] = pct;
+    try {
+      await updateSettings({ product_commissions: merged });
+      toast.success("% de comissão salvo!");
+    } catch {
+      toast.error("Erro ao salvar o % de comissão.");
+    }
+  };
 
   const semNadaAindaNoTotal = !isLoading && rows.length === 0;
   const semResultadoNoFiltro = !isLoading && rows.length > 0 && ranking.length === 0;
@@ -453,6 +469,30 @@ export default function ProdutosPage() {
                   <p className="text-[10px] font-bold text-slate-400 uppercase">Ticket médio</p>
                 </div>
               </div>
+
+              {settings?.commission_mode?.[produtoSelecionado.category] === 'per_product' ? (
+                <div className="mb-6">
+                  <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
+                    <Percent className="w-3 h-3" /> % de comissão deste produto
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.5}
+                    inputMode="decimal"
+                    defaultValue={settings?.product_commissions?.[`${produtoSelecionado.category}::${produtoSelecionado.productKey}`] ?? ""}
+                    placeholder={`Padrão da empresa: ${Number(settings?.commissions?.[produtoSelecionado.category] ?? 0)}%`}
+                    onBlur={(e) => saveProductCommission(produtoSelecionado, e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-zinc-950/50 border border-slate-200 dark:border-zinc-800 rounded-2xl text-sm font-black outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+              ) : (
+                <div className="mb-6 rounded-2xl bg-slate-50 dark:bg-zinc-950/50 px-4 py-3 text-[10px] font-bold text-slate-400 dark:text-zinc-500">
+                  {produtoSelecionado.category} usa comissão fixa por empresa hoje. Pra definir um % só deste
+                  produto, ative "Por produto" em Comissões → Configurar %.
+                </div>
+              )}
 
               <h3 className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-3">Últimos 6 meses</h3>
               <div style={{ height: 160 }} className="mb-6">

@@ -22,6 +22,15 @@ interface Settings {
    *  a data de entrega de um pedido novo quando ninguém informa. Empresa sem
    *  entrada aqui fica com a data de entrega em branco (preenchimento manual). */
   delivery_lead_days: Record<string, number>;
+  /** Como a comissão dessa empresa é calculada: "fixed" (% único sobre tudo,
+   *  o padrão) ou "per_product" (cada produto tem seu próprio %, configurado
+   *  em product_commissions). Empresa ausente aqui = "fixed". */
+  commission_mode: Record<string, 'fixed' | 'per_product'>;
+  /** % de comissão por produto, só usado quando a empresa está em
+   *  "per_product". Chave = "Empresa::chave_do_produto" (mesmo groupKey de
+   *  productAnalytics.ts). Produto sem entrada aqui usa o % da empresa
+   *  (commissions) como padrão. */
+  product_commissions: Record<string, number>;
   revenue_ceiling: number;
   subscription_status: SubscriptionStatus;
   plan_id: string;
@@ -48,6 +57,8 @@ const defaultSettings: Settings = {
   categories: [],
   commissions: {},
   delivery_lead_days: {},
+  commission_mode: {},
+  product_commissions: {},
   revenue_ceiling: 1000000,
   subscription_status: 'inactive', // Default para leads novos sem plano
   plan_id: 'exclusivo',
@@ -132,6 +143,8 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           categories: cached.categories || [],
           commissions: cached.commissions || {},
           delivery_lead_days: cached.delivery_lead_days || {},
+          commission_mode: cached.commission_mode || {},
+          product_commissions: cached.product_commissions || {},
           revenue_ceiling: parseFloat(cached.revenue_ceiling?.toString() || "1000000") ?? defaultSettings.revenue_ceiling,
           subscription_status: (cached.subscription_status as SubscriptionStatus) || 'active',
           plan_id: cached.plan_id || 'exclusivo',
@@ -211,6 +224,8 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           categories: categories,
           commissions: data.commissions || {},
           delivery_lead_days: data.delivery_lead_days || {},
+          commission_mode: data.commission_mode || {},
+          product_commissions: data.product_commissions || {},
           revenue_ceiling: parseFloat(data.revenue_ceiling?.toString() || "1000000") ?? defaultSettings.revenue_ceiling,
           subscription_status: effectiveStatus,
           plan_id: planId,

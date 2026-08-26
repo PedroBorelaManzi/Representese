@@ -89,6 +89,46 @@ describe('computeCommissionRows', () => {
   });
 });
 
+describe('computeCommissionRows — comissão por produto (commissionOverride)', () => {
+  it('linha com override usa o valor pronto, ignorando o % da empresa', () => {
+    const rows = computeCommissionRows(
+      [{ ...order('Cozimax', 1000), commissionOverride: 85 }],
+      [],
+      ['Cozimax'],
+      { Cozimax: 10 } // 10% de 1000 seria 100 — o override (85) é que vale
+    );
+    expect(rows[0].comissao).toBe(85);
+    expect(rows[0].faturamento).toBe(1000); // faturamento não muda, só a comissão
+  });
+
+  it('mistura pedido com override e pedido sem override na mesma empresa/mês', () => {
+    const rows = computeCommissionRows(
+      [
+        { ...order('Cozimax', 1000), commissionOverride: 85 }, // por produto
+        order('Cozimax', 500), // sem override, usa os 10% da empresa = 50
+      ],
+      [],
+      ['Cozimax'],
+      { Cozimax: 10 }
+    );
+    expect(rows[0].faturamento).toBe(1500);
+    expect(rows[0].comissao).toBe(135); // 85 + 50
+  });
+
+  it('empresa em modo por produto sem % de empresa configurado não conta como "sem config" se já tem comissão via override', () => {
+    const rows = computeCommissionRows(
+      [{ ...order('SoProduto', 1000), commissionOverride: 42 }],
+      [],
+      ['SoProduto'],
+      {} // nenhum % de empresa configurado — tudo vem do override
+    );
+    const totals = computeCommissionTotals(rows);
+    expect(rows[0].pct).toBe(0);
+    expect(rows[0].comissao).toBe(42);
+    expect(totals.semConfig).toBe(0);
+  });
+});
+
 describe('computeCommissionTotals', () => {
   it('soma faturamento e comissão de todas as linhas', () => {
     const rows = computeCommissionRows(

@@ -39,6 +39,7 @@ export default function Comissoes() {
   const [refDate, setRefDate] = useState(() => new Date());
   const [configOpen, setConfigOpen] = useState(false);
   const [draftCommissions, setDraftCommissions] = useState<Record<string, number>>({});
+  const [draftMode, setDraftMode] = useState<Record<string, 'fixed' | 'per_product'>>({});
   const [saving, setSaving] = useState(false);
 
   const year = refDate.getFullYear();
@@ -56,16 +57,22 @@ export default function Comissoes() {
   useEffect(() => {
     if (configOpen) {
       const draft: Record<string, number> = {};
+      const draftM: Record<string, 'fixed' | 'per_product'> = {};
       companies.forEach((c) => {
         draft[c] = Number(commissions[c] ?? 0);
+        draftM[c] = settings?.commission_mode?.[c] === 'per_product' ? 'per_product' : 'fixed';
       });
       setDraftCommissions(draft);
+      setDraftMode(draftM);
     }
-  }, [configOpen, companies, commissions]);
+  }, [configOpen, companies, commissions, settings?.commission_mode]);
+
+  const commissionMode = settings?.commission_mode || {};
+  const productCommissions = settings?.product_commissions || {};
 
   // Busca pedidos do mês de referência e do mês anterior (para comparação)
   const { data, isLoading } = useQuery({
-    queryKey: ["comissoes-orders", user?.id, year, month],
+    queryKey: ["comissoes-orders", user?.id, year, month, commissionMode, productCommissions],
     queryFn: async () => {
       // Sem internet, nem tenta a rede — evita o "Nenhum pedido em [mês]"
       // enganoso quando na verdade é só falta de sinal, e reaproveita o que
@@ -97,24 +104,76 @@ export default function Comissoes() {
       const startPrevDate = startPrev.split("T")[0];
       const endPrevDate = endPrev.split("T")[0];
 
-      const toMonthOrders = (rows: any[] | null): MonthOrder[] =>
-        (rows || []).map((r) => ({ category: r.orders?.category || "", value: Number(r.value) || 0, created_at: r.due_date }));
-
       const [curRes, prevRes] = await Promise.all([
         supabase
           .from("order_installments")
-          .select("due_date, value, orders!inner(category)")
+          .select("due_date, value, order_id, orders!inner(category)")
           .eq("user_id", user!.id)
           .gte("due_date", startCurrentDate)
           .lte("due_date", endCurrentDate),
         supabase
           .from("order_installments")
-          .select("due_date, value, orders!inner(category)")
+          .select("due_date, value, order_id, orders!inner(category)")
           .eq("user_id", user!.id)
           .gte("due_date", startPrevDate)
           .lte("due_date", endPrevDate),
       ]);
       if (curRes.error) throw curRes.error;
+
+      const allRows = [...(curRes.data || []), ...(prevRes.data || [])];
+
+      // Empresas em modo "por produto": a comissão de cada parcela precisa do
+      // blend dos % de produto do pedido inteiro (não só o valor da parcela),
+      // então busca os itens dos pedidos envolvidos — só desses pedidos, não
+      // de todos, pra não puxar order_items à toa quando ninguém usa isso.
+      const orderIdsPorProduto = Array.from(
+        new Set(
+          allRows
+            .filter((r: any) => commissionMode[r.orders?.category] === "per_product")
+            .map((r: any) => r.order_id)
+        )
+      );
+
+      const blendPctPorPedido = new Map<string, number>();
+      if (orderIdsPorProduto.length > 0) {
+        const { data: itemsData } = await supabase
+          .from("order_items")
+          .select("order_id, category, product_key, total_value")
+          .in("order_id", orderIdsPorProduto);
+
+        const porPedido = new Map<string, { totalValue: number; totalComissao: number }>();
+        (itemsData || []).forEach((item: any) => {
+          const valor = Number(item.total_value) || 0;
+          if (valor <= 0) return;
+          const groupKey = `${item.category}::${item.product_key}`;
+          // Produto sem % próprio configurado usa o % da empresa como padrão
+          // — assim ativar "por produto" não zera a comissão de produtos que
+          // ainda não foram configurados individualmente.
+          const pctProduto = Number(
+            productCommissions[groupKey] ?? commissions[item.category] ?? 0
+          );
+          const acc = porPedido.get(item.order_id) || { totalValue: 0, totalComissao: 0 };
+          acc.totalValue += valor;
+          acc.totalComissao += valor * (pctProduto / 100);
+          porPedido.set(item.order_id, acc);
+        });
+        porPedido.forEach((acc, orderId) => {
+          if (acc.totalValue > 0) blendPctPorPedido.set(orderId, (acc.totalComissao / acc.totalValue) * 100);
+        });
+      }
+
+      const toMonthOrders = (rows: any[] | null): MonthOrder[] =>
+        (rows || []).map((r) => {
+          const value = Number(r.value) || 0;
+          const blendPct = blendPctPorPedido.get(r.order_id);
+          return {
+            category: r.orders?.category || "",
+            value,
+            created_at: r.due_date,
+            commissionOverride: blendPct !== undefined ? value * (blendPct / 100) : undefined,
+          };
+        });
+
       return {
         current: toMonthOrders(curRes.data),
         previous: toMonthOrders(prevRes.data),
@@ -146,7 +205,8 @@ export default function Comissoes() {
     try {
       // Mescla com as comissões existentes (preserva empresas fora da lista atual)
       const merged = { ...commissions, ...draftCommissions };
-      await updateSettings({ commissions: merged });
+      const mergedMode = { ...(settings?.commission_mode || {}), ...draftMode };
+      await updateSettings({ commissions: merged, commission_mode: mergedMode });
       toast.success("Comissões salvas!");
       setConfigOpen(false);
     } catch {
@@ -377,30 +437,68 @@ export default function Comissoes() {
                     Cadastre na aba Empresas.
                   </div>
                 ) : (
-                  <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-4">
                     {companies.map((c) => (
-                      <div key={c} className="flex items-center gap-3">
-                        <div className="flex-1 text-sm font-bold text-slate-700 dark:text-zinc-200 truncate">
-                          {c}
+                      <div key={c} className="flex flex-col gap-2 pb-3 border-b border-slate-50 dark:border-zinc-800 last:border-0 last:pb-0">
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1 text-sm font-bold text-slate-700 dark:text-zinc-200 truncate">
+                            {c}
+                          </div>
+                          <div className="relative w-28">
+                            <input
+                              type="number"
+                              min={0}
+                              max={100}
+                              step={0.5}
+                              inputMode="decimal"
+                              value={draftCommissions[c] ?? 0}
+                              onChange={(e) =>
+                                setDraftCommissions((prev) => ({
+                                  ...prev,
+                                  [c]: Math.max(0, Math.min(100, Number(e.target.value) || 0)),
+                                }))
+                              }
+                              className="w-full pl-3 pr-8 py-2.5 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm font-black text-right outline-none focus:ring-2 focus:ring-emerald-500"
+                            />
+                            <Percent className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                          </div>
                         </div>
-                        <div className="relative w-28">
-                          <input
-                            type="number"
-                            min={0}
-                            max={100}
-                            step={0.5}
-                            inputMode="decimal"
-                            value={draftCommissions[c] ?? 0}
-                            onChange={(e) =>
-                              setDraftCommissions((prev) => ({
-                                ...prev,
-                                [c]: Math.max(0, Math.min(100, Number(e.target.value) || 0)),
-                              }))
-                            }
-                            className="w-full pl-3 pr-8 py-2.5 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm font-black text-right outline-none focus:ring-2 focus:ring-emerald-500"
-                          />
-                          <Percent className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <div className="flex items-center gap-2 pl-0.5">
+                          <button
+                            type="button"
+                            onClick={() => setDraftMode((prev) => ({ ...prev, [c]: 'fixed' }))}
+                            className={cn(
+                              "px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors",
+                              (draftMode[c] ?? 'fixed') === 'fixed'
+                                ? "bg-emerald-600 text-white"
+                                : "bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500"
+                            )}
+                          >
+                            Fixo por empresa
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDraftMode((prev) => ({ ...prev, [c]: 'per_product' }))}
+                            className={cn(
+                              "px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors",
+                              draftMode[c] === 'per_product'
+                                ? "bg-emerald-600 text-white"
+                                : "bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500"
+                            )}
+                          >
+                            Por produto
+                          </button>
+                          {draftMode[c] === 'per_product' && (
+                            <span className="text-[9px] font-bold text-slate-400 dark:text-zinc-500">
+                              % acima = padrão pra produto sem % próprio
+                            </span>
+                          )}
                         </div>
+                        {draftMode[c] === 'per_product' && (
+                          <p className="text-[9px] font-bold text-amber-600 dark:text-amber-400">
+                            Configure o % de cada produto na aba Produtos.
+                          </p>
+                        )}
                       </div>
                     ))}
                   </div>
