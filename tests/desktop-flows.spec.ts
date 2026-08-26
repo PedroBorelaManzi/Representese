@@ -41,4 +41,25 @@ test.describe('Etapa 1: Revisão Frontend (Web Desktop) - Fluxos Principais', ()
     await expect(page.locator('text=sucesso profissional')).toBeVisible();
     await expect(page.locator('text=Exclusivo')).toBeVisible();
   });
+
+  test('Checkout reaproveita nome/e-mail/telefone já preenchidos em /register', async ({ page }) => {
+    // Sem sessão de login, a única forma de "lembrar" o que foi preenchido em
+    // /register é o localStorage — simula esse rascunho já salvo (ver
+    // src/lib/leadStorage.ts) em vez de depender de uma chamada real ao
+    // Supabase pra criar o lead.
+    await page.addInitScript(() => {
+      localStorage.setItem(
+        'rm_lead_data',
+        JSON.stringify({ name: 'Maria da Silva', email: 'maria@exemplo.com', phone: '(11) 98765-4321' })
+      );
+    });
+
+    await page.goto('/checkout?plan=profissional&period=MONTHLY');
+    await page.waitForLoadState('domcontentloaded');
+
+    await expect(page.getByText('Confirme seus dados')).toBeVisible();
+    await expect(page.locator('input[type="email"]')).toHaveValue('maria@exemplo.com');
+    await expect(page.locator('input[autocomplete="name"]')).toHaveValue('Maria da Silva');
+    await expect(page.locator('input[autocomplete="tel"]')).toHaveValue('(11) 98765-4321');
+  });
 });

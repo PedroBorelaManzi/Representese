@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { supabase } from "../lib/supabase";
 import { posthog } from "../lib/posthog";
 import { useAuth } from "../contexts/AuthContext";
+import { loadLeadData, clearLeadData } from "../lib/leadStorage";
 
 const plans = {
   exclusivo: {
@@ -84,11 +85,16 @@ export default function Checkout() {
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
   const [installments, setInstallments] = useState(12);
 
+  // Nome/e-mail/telefone que a pessoa já preencheu em /register minutos
+  // antes — sem sessão de login nenhuma (não existe conta ainda), a única
+  // forma de "lembrar" isso entre as duas telas é este localStorage. Sem
+  // ele, essas mesmas perguntas apareciam em branco de novo aqui.
+  const leadData = !user ? loadLeadData() : null;
   const [formData, setFormData] = useState({
-    name: user?.user_metadata?.full_name || "", 
-    email: user?.email || "", 
-    cpfCnpj: user?.user_metadata?.cpf_cnpj || "", 
-    phone: user?.user_metadata?.phone || user?.user_metadata?.phone_number || "", 
+    name: user?.user_metadata?.full_name || leadData?.name || "",
+    email: user?.email || leadData?.email || "",
+    cpfCnpj: user?.user_metadata?.cpf_cnpj || "",
+    phone: user?.user_metadata?.phone || user?.user_metadata?.phone_number || leadData?.phone || "",
     password: "",
     cardNumber: "", expiry: "", ccv: "", holderName: "", cep: "", addressNumber: ""
   });
@@ -260,6 +266,7 @@ export default function Checkout() {
         }
 
         userId = authData?.user?.id;
+        clearLeadData();
       } else {
         const { error: updateError } = await supabase.auth.updateUser({
           data: { cpf_cnpj: formData.cpfCnpj, full_name: formData.name, phone: formData.phone }
@@ -438,8 +445,12 @@ export default function Checkout() {
               {step === 1 ? (
                 <motion.div key="step1" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -30 }} className="space-y-6">
                   <div>
-                    <h2 className="text-2xl md:text-3xl font-black tracking-tight">Crie sua conta</h2>
-                    <p className="text-slate-500 mt-1.5 text-[15px]">Seus dados de acesso ao painel. Leva menos de um minuto.</p>
+                    <h2 className="text-2xl md:text-3xl font-black tracking-tight">{leadData ? "Confirme seus dados" : "Crie sua conta"}</h2>
+                    <p className="text-slate-500 mt-1.5 text-[15px]">
+                      {leadData
+                        ? "Já trouxemos o que você preencheu antes — confira, complete o que faltar e crie sua senha."
+                        : "Seus dados de acesso ao painel. Leva menos de um minuto."}
+                    </p>
                   </div>
 
                   <div className="bg-white rounded-3xl p-6 md:p-8 border border-slate-200 shadow-sm space-y-6">

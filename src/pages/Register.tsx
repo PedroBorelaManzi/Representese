@@ -9,6 +9,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { isValidPhone, formatPhone } from "../lib/validators";
 import { cn } from "../lib/utils";
 import { usePageMeta } from "../hooks/usePageMeta";
+import { saveLeadData } from "../lib/leadStorage";
 
 export default function Register() {
   usePageMeta(
@@ -60,6 +61,10 @@ export default function Register() {
       });
 
       if (error) throw error;
+
+      // Pro Checkout reaproveitar (nome/e-mail/telefone), em vez de pedir
+      // tudo de novo do zero minutos depois.
+      saveLeadData({ name: name.trim(), email: email.trim(), phone, company: company.trim() || undefined });
 
       toast.success("Agora escolha o seu plano!");
       navigate("/planos");
