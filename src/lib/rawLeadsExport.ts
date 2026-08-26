@@ -34,7 +34,27 @@ export interface SubscriptionLead {
   phone?: string | null;
   subscription_status: string;
   created_at: string;
+  billing_cep?: string | null;
+  billing_street?: string | null;
+  billing_number?: string | null;
+  billing_complement?: string | null;
+  billing_neighborhood?: string | null;
+  billing_city?: string | null;
+  billing_state?: string | null;
 }
+
+/** Endereço inteiro numa linha só, pra planilha — "—" quando nada foi
+ *  coletado (contas de antes desse campo existir, ou endereço não salvo). */
+const formatEnderecoCompleto = (lead: SubscriptionLead): string => {
+  const partes = [
+    lead.billing_street && `${lead.billing_street}, ${lead.billing_number || 'S/N'}`,
+    lead.billing_complement,
+    lead.billing_neighborhood,
+    lead.billing_city && lead.billing_state ? `${lead.billing_city}/${lead.billing_state}` : (lead.billing_city || lead.billing_state),
+    lead.billing_cep && `CEP ${lead.billing_cep}`,
+  ].filter(Boolean);
+  return partes.length ? partes.join(' — ') : '—';
+};
 
 const WEEKDAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
@@ -144,6 +164,7 @@ export async function exportSubscriptionLeadsAsExcel(leads: SubscriptionLead[]) 
     { header: 'Data de Cadastro', key: 'date', width: 18 },
     { header: 'Email', key: 'email', width: 32 },
     { header: 'WhatsApp', key: 'phone', width: 18 },
+    { header: 'Endereço', key: 'endereco', width: 50 },
     { header: 'Status', key: 'status', width: 18 },
   ];
 
@@ -152,13 +173,14 @@ export async function exportSubscriptionLeadsAsExcel(leads: SubscriptionLead[]) 
       date: new Date(lead.created_at).toLocaleDateString('pt-BR'),
       email: lead.email || '—',
       phone: lead.phone || '—',
+      endereco: formatEnderecoCompleto(lead),
       status: lead.subscription_status || '—',
     });
   });
 
   styleTableHeader(sheet.getRow(1), BRAND.primary);
   zebraStripe(sheet, 2, leads.length + 1);
-  if (leads.length > 0) autoFilter(sheet, 1, 4, leads.length + 1);
+  if (leads.length > 0) autoFilter(sheet, 1, 5, leads.length + 1);
   sheet.views = [{ state: 'frozen', ySplit: 1 }];
 
   const buffer = await workbook.xlsx.writeBuffer();
@@ -197,11 +219,12 @@ export function exportRawLeadsAsCSV(leads: RawLead[]) {
 
 export function exportSubscriptionLeadsAsCSV(leads: SubscriptionLead[]) {
   const csv = buildCsv(
-    ['Data de Cadastro', 'Email', 'WhatsApp', 'Status'],
+    ['Data de Cadastro', 'Email', 'WhatsApp', 'Endereço', 'Status'],
     leads.map((lead) => [
       new Date(lead.created_at).toLocaleDateString('pt-BR'),
       lead.email,
       lead.phone || '',
+      formatEnderecoCompleto(lead),
       lead.subscription_status,
     ])
   );

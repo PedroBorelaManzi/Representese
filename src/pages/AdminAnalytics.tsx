@@ -205,7 +205,7 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
       // reflete se o usuário realmente pagou. A fonte de verdade da assinatura é
       // user_entitlements, atualizada pelo webhook do Asaas em cada pagamento.
       const [{ data: leads, error: leadsError }, { data: entitlements, error: entError }] = await Promise.all([
-        supabase.from('user_settings').select('user_id, email, phone, created_at, is_admin').order('created_at', { ascending: false }),
+        supabase.from('user_settings').select('user_id, email, phone, created_at, is_admin, billing_cep, billing_street, billing_number, billing_complement, billing_neighborhood, billing_city, billing_state').order('created_at', { ascending: false }),
         supabase.from('user_entitlements').select('user_id, subscription_status, plan_id'),
       ]);
       if (leadsError) throw leadsError;
@@ -722,11 +722,20 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
                     <th className="px-6 py-4">Data</th>
                     <th className="px-6 py-4">E-mail</th>
                     <th className="px-6 py-4">WhatsApp</th>
+                    <th className="px-6 py-4">Endereço</th>
                     <th className="px-6 py-4">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-zinc-800">
-                  {leadsData?.map(lead => (
+                  {leadsData?.map(lead => {
+                    const enderecoCompleto = [
+                      lead.billing_street && `${lead.billing_street}, ${lead.billing_number || 'S/N'}`,
+                      lead.billing_complement,
+                      lead.billing_neighborhood,
+                      lead.billing_cep && `CEP ${lead.billing_cep}`,
+                    ].filter(Boolean).join(' — ');
+                    const cidadeUf = [lead.billing_city, lead.billing_state].filter(Boolean).join('/');
+                    return (
                     <tr key={lead.user_id} className="hover:bg-slate-50 dark:hover:bg-zinc-800/30 transition-colors">
                       <td className="px-6 py-4 text-slate-600 dark:text-zinc-300">
                         {new Date(lead.created_at).toLocaleDateString('pt-BR')}
@@ -737,10 +746,13 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
                       <td className="px-6 py-4 text-slate-600 dark:text-zinc-300">
                         {lead.phone || '-'}
                       </td>
+                      <td className="px-6 py-4 text-slate-600 dark:text-zinc-300" title={enderecoCompleto || undefined}>
+                        {cidadeUf || '-'}
+                      </td>
                       <td className="px-6 py-4">
                         <span className={cn(
                           "px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider",
-                          lead.subscription_status === 'active' 
+                          lead.subscription_status === 'active'
                             ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400"
                             : lead.subscription_status === 'inactive'
                             ? "bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-400"
@@ -750,10 +762,11 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
                         </span>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                   {leadsData?.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="px-6 py-12 text-center text-slate-500 dark:text-zinc-400">
+                      <td colSpan={5} className="px-6 py-12 text-center text-slate-500 dark:text-zinc-400">
                         Nenhum lead encontrado.
                       </td>
                     </tr>

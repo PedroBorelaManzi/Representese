@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ShieldCheck, CreditCard, QrCode, Lock, CheckCircle2,
   ArrowLeft, ChevronRight, Loader2, Eye, EyeOff, RefreshCw,
-  ShieldAlert, Crown, Gem, Trophy, Check, User, Mail, Phone, Hash, Tag, Copy,
+  ShieldAlert, Crown, Gem, Trophy, Check, User, Mail, Phone, Hash, Tag, Copy, MapPin,
 } from "lucide-react";
 import { cn } from '../lib/utils';
 import { Logo } from '../components/Logo';
@@ -13,6 +13,7 @@ import { supabase } from "../lib/supabase";
 import { posthog } from "../lib/posthog";
 import { useAuth } from "../contexts/AuthContext";
 import { loadLeadData, clearLeadData } from "../lib/leadStorage";
+import { lookupCep } from "../lib/cepLookup";
 
 const plans = {
   exclusivo: {
@@ -96,8 +97,14 @@ export default function Checkout() {
     cpfCnpj: user?.user_metadata?.cpf_cnpj || "",
     phone: user?.user_metadata?.phone || user?.user_metadata?.phone_number || leadData?.phone || "",
     password: "",
-    cardNumber: "", expiry: "", ccv: "", holderName: "", cep: "", addressNumber: ""
+    // Endereço: coletado uma vez só, no passo 1, pra toda forma de
+    // pagamento — antes só existia CEP/número, e só aparecia no passo 2
+    // quando o pagamento era cartão (o Asaas exige isso pra cobrar). Fica
+    // salvo no cadastro (user_settings) independente da forma de pagamento.
+    cep: "", street: "", addressNumber: "", addressComplement: "", neighborhood: "", city: "", state: "",
+    cardNumber: "", expiry: "", ccv: "", holderName: ""
   });
+  const [isLookingUpCep, setIsLookingUpCep] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -136,7 +143,32 @@ export default function Checkout() {
   const docNameMatch = isCpf ? (isPersonalName && !/ltda|s\/?a|eireli|me|epp|cnpj/i.test(formData.name)) : (formData.name.trim().length >= 3);
   const phoneValid = isValidPhone(cleanPhone);
 
-  const isStep1Valid = formData.name && formData.email && formData.cpfCnpj && docValid && docNameMatch && formData.phone && phoneValid && (user ? true : isPasswordValid) && aceitouTermos;
+  const cleanCep = formData.cep.replace(/\D/g, '');
+  const isAddressValid = cleanCep.length === 8 && formData.street.trim() && formData.addressNumber.trim() && formData.city.trim() && formData.state.trim();
+
+  const isStep1Valid = formData.name && formData.email && formData.cpfCnpj && docValid && docNameMatch && formData.phone && phoneValid && isAddressValid && (user ? true : isPasswordValid) && aceitouTermos;
+
+  const handleCepChange = async (rawCep: string) => {
+    const formatted = formatCep(rawCep);
+    setFormData(prev => ({ ...prev, cep: formatted }));
+    const digits = formatted.replace(/\D/g, '');
+    if (digits.length !== 8) return;
+    setIsLookingUpCep(true);
+    try {
+      const result = await lookupCep(digits);
+      if (result) {
+        setFormData(prev => ({
+          ...prev,
+          street: result.street || prev.street,
+          neighborhood: result.neighborhood || prev.neighborhood,
+          city: result.city || prev.city,
+          state: result.state || prev.state,
+        }));
+      }
+    } finally {
+      setIsLookingUpCep(false);
+    }
+  };
 
   const baseValue = selectedPlan.prices[billingCycle];
   const couponDiscount = appliedCoupon ? (baseValue * appliedCoupon.discount) / 100 : 0;
@@ -223,8 +255,8 @@ export default function Checkout() {
       if (!/^\d{2}\/\d{2}$/.test(formData.expiry)) return toast.error("Validade do cartão inválida (MM/AA).");
       if (formData.ccv.length < 3) return toast.error("CVC inválido.");
       if (formData.holderName.trim().length < 3) return toast.error("Informe o nome do titular do cartão.");
-      if (formData.cep.replace(/\D/g, '').length !== 8) return toast.error("Informe o CEP do titular do cartão.");
-      if (!formData.addressNumber.trim()) return toast.error("Informe o número do endereço do titular.");
+      // CEP e número do endereço já são obrigatórios no passo 1 (isStep1Valid)
+      // — não precisa validar de novo aqui.
     }
     setLoading(true);
 
@@ -272,6 +304,24 @@ export default function Checkout() {
           data: { cpf_cnpj: formData.cpfCnpj, full_name: formData.name, phone: formData.phone }
         });
         if (updateError) throw new Error("Erro ao salvar documento: " + updateError.message);
+      }
+
+      // Endereço fica em user_settings (não em user_metadata) porque é o
+      // Analytics do dono (aba CRM & Leads) que precisa ler isso, e essa
+      // tela já consulta user_settings — não teria como ler user_metadata
+      // de outra conta dali. Falha aqui não pode travar o pagamento: só loga.
+      if (userId) {
+        const { error: addressError } = await supabase.from('user_settings').upsert({
+          user_id: userId,
+          billing_cep: cleanCep,
+          billing_street: formData.street.trim(),
+          billing_number: formData.addressNumber.trim(),
+          billing_complement: formData.addressComplement.trim() || null,
+          billing_neighborhood: formData.neighborhood.trim() || null,
+          billing_city: formData.city.trim(),
+          billing_state: formData.state.trim().toUpperCase(),
+        }, { onConflict: 'user_id' });
+        if (addressError) console.error('Erro ao salvar endereço:', addressError);
       }
 
       const { data, error } = await supabase.functions.invoke('process-checkout', {
@@ -550,6 +600,75 @@ export default function Checkout() {
                         {formErrors.phone && <p className="text-[12px] text-red-500 font-bold pt-1 animate-in fade-in slide-in-from-top-1">{formErrors.phone}</p>}
                       </div>
                     </div>
+
+                    <div className="border-t border-slate-100" />
+
+                    {/* Endereço: um passo só, pra qualquer forma de pagamento —
+                        antes só era pedido no passo 2, e só se o pagamento fosse
+                        cartão (o Asaas exige CEP/número pra cobrar). Digitando o
+                        CEP, o resto preenche sozinho (BrasilAPI). */}
+                    <div className="space-y-1.5">
+                      <label className="text-[13px] font-bold text-slate-700">CEP</label>
+                      <div className="relative">
+                        <MapPin className="w-[18px] h-[18px] text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                        <input required type="text" inputMode="numeric" autoComplete="postal-code" value={formData.cep}
+                          onChange={(e) => handleCepChange(e.target.value)}
+                          placeholder="00000-000"
+                          className={cn(inputBase, inputOk, "pr-10")} />
+                        {isLookingUpCep && <Loader2 className="w-4 h-4 text-slate-400 animate-spin absolute right-4 top-1/2 -translate-y-1/2" />}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-5">
+                      <div className="space-y-1.5">
+                        <label className="text-[13px] font-bold text-slate-700">Rua</label>
+                        <input required type="text" autoComplete="address-line1" value={formData.street}
+                          onChange={(e) => setFormData({ ...formData, street: e.target.value })}
+                          placeholder="Rua, avenida..."
+                          className={cn(inputBase.replace('pl-11', 'pl-4'), inputOk)} />
+                      </div>
+                      <div className="space-y-1.5 md:w-32">
+                        <label className="text-[13px] font-bold text-slate-700">Número</label>
+                        <input required type="text" value={formData.addressNumber}
+                          onChange={(e) => setFormData({ ...formData, addressNumber: e.target.value.slice(0, 10) })}
+                          placeholder="123"
+                          className={cn(inputBase.replace('pl-11', 'pl-4'), inputOk)} />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div className="space-y-1.5">
+                        <label className="text-[13px] font-bold text-slate-700">Complemento (opcional)</label>
+                        <input type="text" value={formData.addressComplement}
+                          onChange={(e) => setFormData({ ...formData, addressComplement: e.target.value })}
+                          placeholder="Apto, bloco..."
+                          className={cn(inputBase.replace('pl-11', 'pl-4'), inputOk)} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[13px] font-bold text-slate-700">Bairro</label>
+                        <input type="text" value={formData.neighborhood}
+                          onChange={(e) => setFormData({ ...formData, neighborhood: e.target.value })}
+                          placeholder="Bairro"
+                          className={cn(inputBase.replace('pl-11', 'pl-4'), inputOk)} />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-5">
+                      <div className="space-y-1.5">
+                        <label className="text-[13px] font-bold text-slate-700">Cidade</label>
+                        <input required type="text" autoComplete="address-level2" value={formData.city}
+                          onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                          placeholder="Cidade"
+                          className={cn(inputBase.replace('pl-11', 'pl-4'), inputOk)} />
+                      </div>
+                      <div className="space-y-1.5 md:w-24">
+                        <label className="text-[13px] font-bold text-slate-700">UF</label>
+                        <input required type="text" maxLength={2} autoComplete="address-level1" value={formData.state}
+                          onChange={(e) => setFormData({ ...formData, state: e.target.value.toUpperCase() })}
+                          placeholder="SP"
+                          className={cn(inputBase.replace('pl-11', 'pl-4'), inputOk, "uppercase")} />
+                      </div>
+                    </div>
                   </div>
 
                   {/* Aceite registrado: é o que sustenta a cobrança recorrente
@@ -630,16 +749,6 @@ export default function Checkout() {
                           <div className="relative">
                             <User className="w-[18px] h-[18px] text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
                             <input type="text" autoComplete="cc-name" value={formData.holderName} onChange={(e) => setFormData({ ...formData, holderName: e.target.value })} placeholder="Como impresso no cartão" className={cn(inputBase, inputOk, "uppercase")} />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-5">
-                          <div className="space-y-1.5">
-                            <label className="text-[13px] font-bold text-slate-700">CEP do titular</label>
-                            <input type="text" inputMode="numeric" autoComplete="postal-code" value={formData.cep} onChange={(e) => setFormData({ ...formData, cep: formatCep(e.target.value) })} placeholder="00000-000" className={cn(inputBase, inputOk, "pl-4")} />
-                          </div>
-                          <div className="space-y-1.5">
-                            <label className="text-[13px] font-bold text-slate-700">Nº do endereço</label>
-                            <input type="text" value={formData.addressNumber} onChange={(e) => setFormData({ ...formData, addressNumber: e.target.value.slice(0, 10) })} placeholder="123" className={cn(inputBase, inputOk, "pl-4")} />
                           </div>
                         </div>
                         {billingCycle === 'ANNUAL' && (
