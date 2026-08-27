@@ -84,6 +84,8 @@ export default function EmpresasPage() {
   const [managingCompany, setManagingCompany] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editDeliveryDays, setEditDeliveryDays] = useState("");
+  const [editCommissionPct, setEditCommissionPct] = useState("");
+  const [editCommissionMode, setEditCommissionMode] = useState<'fixed' | 'per_product'>('fixed');
   const [selectedFiles, setSelectedFiles] = useState<any[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
@@ -486,7 +488,26 @@ export default function EmpresasPage() {
         updatedDeliveryDays[newName] = parsedDays;
       }
 
-      await updateSettings({ categories: updatedCategories, delivery_lead_days: updatedDeliveryDays });
+      // % de comissão fixo + modo (fixo/por produto) — mesma migração de
+      // chave no rename que já vale pra prazo de entrega.
+      const updatedCommissions = { ...(settings.commissions || {}) };
+      delete updatedCommissions[managingCompany];
+      const parsedPct = parseFloat(editCommissionPct.replace(',', '.'));
+      if (editCommissionPct.trim() && isFinite(parsedPct) && parsedPct > 0) {
+        updatedCommissions[newName] = Math.max(0, Math.min(100, parsedPct));
+      }
+      const updatedCommissionMode = { ...(settings.commission_mode || {}) };
+      delete updatedCommissionMode[managingCompany];
+      if (editCommissionMode === 'per_product') {
+        updatedCommissionMode[newName] = 'per_product';
+      }
+
+      await updateSettings({
+        categories: updatedCategories,
+        delivery_lead_days: updatedDeliveryDays,
+        commissions: updatedCommissions,
+        commission_mode: updatedCommissionMode,
+      });
       if (!offlineCache.isOnline()) {
          allOrders.filter(o => o.category === managingCompany).forEach(o => {
             syncQueue.enqueue('orders', 'UPDATE', { category: editName.trim() }, o.id);
@@ -679,6 +700,8 @@ export default function EmpresasPage() {
                         setManagingCompany(cat);
                         setEditName(cat);
                         setEditDeliveryDays(String(settings?.delivery_lead_days?.[cat] ?? ""));
+                        setEditCommissionPct(String(settings?.commissions?.[cat] ?? ""));
+                        setEditCommissionMode(settings?.commission_mode?.[cat] === 'per_product' ? 'per_product' : 'fixed');
                       }} 
                       className="p-1.5 md:p-2 hover:bg-white/20 rounded-full transition-all relative z-20"
                     >
@@ -1008,6 +1031,44 @@ export default function EmpresasPage() {
                    <div>
                      <label className="text-[8px] md:text-[9px] font-black uppercase text-slate-400 tracking-widest mb-2 block">Nome da Empresa</label>
                      <input value={editName} onChange={e => setEditName(e.target.value)} className="w-full p-4 md:p-5 bg-slate-50 dark:bg-zinc-850 rounded-2xl md:rounded-3xl font-black uppercase text-sm outline-none border border-slate-100 dark:border-zinc-800" />
+                   </div>
+                   <div>
+                     <label className="text-[8px] md:text-[9px] font-black uppercase text-slate-400 tracking-widest mb-2 block">Comissão</label>
+                     <div className="flex items-center gap-2 mb-3">
+                       <button
+                         type="button"
+                         onClick={() => setEditCommissionMode('fixed')}
+                         className={cn(
+                           "flex-1 px-3 py-2.5 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-colors",
+                           editCommissionMode === 'fixed' ? "bg-emerald-600 text-white" : "bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500"
+                         )}
+                       >
+                         Valor fixo
+                       </button>
+                       <button
+                         type="button"
+                         onClick={() => setEditCommissionMode('per_product')}
+                         className={cn(
+                           "flex-1 px-3 py-2.5 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-colors",
+                           editCommissionMode === 'per_product' ? "bg-emerald-600 text-white" : "bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500"
+                         )}
+                       >
+                         Por produto
+                       </button>
+                     </div>
+                     <input
+                       type="text"
+                       inputMode="decimal"
+                       value={editCommissionPct}
+                       onChange={e => setEditCommissionPct(e.target.value)}
+                       placeholder={editCommissionMode === 'fixed' ? "% que vale pra todos os produtos" : "% padrão (produto sem % próprio)"}
+                       className="w-full p-4 md:p-5 bg-slate-50 dark:bg-zinc-850 rounded-2xl md:rounded-3xl font-black text-sm outline-none border border-slate-100 dark:border-zinc-800"
+                     />
+                     {editCommissionMode === 'per_product' && (
+                       <p className="text-[8px] md:text-[9px] font-medium text-slate-400 mt-2 leading-relaxed">
+                         Configure o % de cada produto (ou de um grupo inteiro) na aba Produtos.
+                       </p>
+                     )}
                    </div>
                    <div>
                      <label className="text-[8px] md:text-[9px] font-black uppercase text-slate-400 tracking-widest mb-2 block">Prazo de entrega padrão (dias)</label>

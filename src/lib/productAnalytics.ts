@@ -106,6 +106,91 @@ export function aggregateProductRanking(rows: OrderItemRow[]): RankedProduct[] {
   return resultado.sort((a, b) => b.totalQuantity - a.totalQuantity);
 }
 
+export interface ProductGroup {
+  /** category + palavra comum — único dentro da representada. */
+  key: string;
+  category: string;
+  /** A palavra que deu nome ao grupo (ex.: "kit", "fechadura"). */
+  label: string;
+  products: RankedProduct[];
+}
+
+const PALAVRA_MIN_LEN = 3;
+/** Palavras genéricas demais pra virar nome de grupo sozinhas — sem essa
+ *  lista, quase todo catálogo agruparia por "com"/"para"/"sem" etc. */
+const PALAVRAS_IGNORADAS = new Set([
+  "com", "sem", "para", "por", "uma", "um", "dos", "das", "aos", "nao",
+  "cor", "kit", "und", "unid", "unidade", "unidades", "cx", "pct",
+]);
+
+function tokenizarNome(nome: string): string[] {
+  return nome
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length >= PALAVRA_MIN_LEN && !/^\d+$/.test(w) && !PALAVRAS_IGNORADAS.has(w));
+}
+
+/**
+ * Agrupa produtos JÁ RANQUEADOS (um por `groupKey`, ou seja, já colapsados
+ * por nome exato) pela palavra que mais se repete entre os nomes — dentro da
+ * MESMA representada, nunca cruzando empresas. Ex.: "Kit Porta 80cm Branco",
+ * "Kit Porta 90cm Cinza" e "Fechadura Porta Alumínio" compartilham a palavra
+ * "porta" → viram um grupo "Porta" de 3 itens, mesmo sem nome idêntico.
+ *
+ * Cada produto entra em UM grupo só: a palavra mais frequente entre as suas
+ * próprias palavras (empate resolvido pela ordem alfabética, determinístico).
+ * Produto sem nenhuma palavra repetida com outro da mesma empresa vira grupo
+ * de 1 item só — continua aparecendo, só não teve nada em comum encontrado.
+ */
+export function groupProductsByRepeatedName(products: RankedProduct[]): ProductGroup[] {
+  // Frequência de cada palavra, por empresa — produto de empresas diferentes
+  // nunca contam pra frequência um do outro.
+  const freqPorEmpresa = new Map<string, Map<string, number>>();
+  const tokensPorProduto = new Map<string, string[]>();
+
+  products.forEach((p) => {
+    const tokens = Array.from(new Set(tokenizarNome(p.productName)));
+    tokensPorProduto.set(p.groupKey, tokens);
+    const freq = freqPorEmpresa.get(p.category) || new Map<string, number>();
+    tokens.forEach((t) => freq.set(t, (freq.get(t) || 0) + 1));
+    freqPorEmpresa.set(p.category, freq);
+  });
+
+  const grupos = new Map<string, ProductGroup>();
+  products.forEach((p) => {
+    const tokens = tokensPorProduto.get(p.groupKey) || [];
+    const freq = freqPorEmpresa.get(p.category) || new Map<string, number>();
+
+    let melhorPalavra = "";
+    let melhorFreq = 1; // precisa aparecer em pelo menos 2 produtos pra virar grupo
+    tokens
+      .slice()
+      .sort()
+      .forEach((t) => {
+        const f = freq.get(t) || 0;
+        if (f > melhorFreq) {
+          melhorFreq = f;
+          melhorPalavra = t;
+        }
+      });
+
+    // Sem palavra repetida: grupo de 1 item só, chave própria (o groupKey do
+    // produto), pra não se misturar com outros produtos "sem grupo".
+    const groupKeySuffix = melhorPalavra || `__solo__${p.productKey}`;
+    const key = `${p.category}::${groupKeySuffix}`;
+    const label = melhorPalavra ? melhorPalavra.charAt(0).toUpperCase() + melhorPalavra.slice(1) : p.productName;
+
+    const existing = grupos.get(key);
+    if (existing) existing.products.push(p);
+    else grupos.set(key, { key, category: p.category, label, products: [p] });
+  });
+
+  return Array.from(grupos.values()).sort((a, b) => b.products.length - a.products.length);
+}
+
 export interface MonthPoint {
   /** "2026-08" */
   monthKey: string;

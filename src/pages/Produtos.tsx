@@ -17,10 +17,12 @@ import { PageHeader, EmptyState, Skeleton } from "../components/ui";
 import { cn } from "../lib/utils";
 import {
   aggregateProductRanking,
+  groupProductsByRepeatedName,
   monthlySeries,
   filterByPeriod,
   type OrderItemRow,
   type RankedProduct,
+  type ProductGroup,
   type PeriodoTipo,
 } from "../lib/productAnalytics";
 
@@ -209,6 +211,33 @@ export default function ProdutosPage() {
     }
   };
 
+  /** Mesmo % pra todos os produtos do grupo de uma vez — uma gravação só. */
+  const saveGroupCommission = async (group: ProductGroup, raw: string) => {
+    const parsed = parseFloat(raw);
+    const pct = raw.trim() && isFinite(parsed) ? Math.max(0, Math.min(100, parsed)) : undefined;
+    const merged = { ...(settings?.product_commissions || {}) };
+    group.products.forEach((p) => {
+      const key = `${p.category}::${p.productKey}`;
+      if (pct === undefined) delete merged[key];
+      else merged[key] = pct;
+    });
+    try {
+      await updateSettings({ product_commissions: merged });
+      toast.success(`% aplicado aos ${group.products.length} itens do grupo "${group.label}"!`);
+    } catch {
+      toast.error("Erro ao salvar o % de comissão do grupo.");
+    }
+  };
+
+  // Grupos automáticos por nome repetido — só faz sentido com UMA empresa
+  // selecionada (senão palavras de fábricas diferentes se misturariam na
+  // lista) e que já esteja no modo "por produto".
+  const empresaEmModoPorProduto = !!categoriaFiltro && settings?.commission_mode?.[categoriaFiltro] === "per_product";
+  const grupos = useMemo(
+    () => (empresaEmModoPorProduto ? groupProductsByRepeatedName(rankingExibido) : []),
+    [empresaEmModoPorProduto, rankingExibido]
+  );
+
   const semNadaAindaNoTotal = !isLoading && rows.length === 0;
   const semResultadoNoFiltro = !isLoading && rows.length > 0 && ranking.length === 0;
 
@@ -325,6 +354,23 @@ export default function ProdutosPage() {
               )}
             </div>
           </div>
+
+          {empresaEmModoPorProduto && grupos.length > 0 && (
+            <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-5 mb-6">
+              <h3 className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-1 flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5" /> Grupos detectados em {categoriaFiltro}
+              </h3>
+              <p className="text-[10px] font-medium text-slate-400 dark:text-zinc-500 mb-4">
+                Produtos com nome parecido, agrupados automaticamente — defina um % pra todo o grupo de uma vez, ou
+                abra cada produto individualmente pra um % só dele.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                {grupos.map((g) => (
+                  <GroupCommissionCard key={g.key} group={g} onSave={saveGroupCommission} productCommissions={settings?.product_commissions || {}} />
+                ))}
+              </div>
+            </div>
+          )}
 
           {semResultadoNoFiltro ? (
             <EmptyState
@@ -542,6 +588,51 @@ function KpiCard({
       </div>
       <p className="text-lg lg:text-xl font-black text-slate-900 dark:text-white truncate">{value}</p>
       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{label}</p>
+    </div>
+  );
+}
+
+/** Cartão de um grupo detectado (nome que se repete entre produtos) — campo
+ *  de % que grava pra todos os itens do grupo de uma vez. Se os itens do
+ *  grupo já tiverem percentuais diferentes entre si (alguns configurados
+ *  item a item), o campo fica em branco — salvar aqui uniformiza todos. */
+function GroupCommissionCard({
+  group,
+  onSave,
+  productCommissions,
+}: {
+  group: ProductGroup;
+  onSave: (group: ProductGroup, raw: string) => Promise<void>;
+  productCommissions: Record<string, number>;
+}) {
+  const valores = group.products.map((p) => productCommissions[`${p.category}::${p.productKey}`]);
+  const todosIguais = valores.every((v) => v === valores[0]);
+  const [draft, setDraft] = useState(todosIguais && valores[0] !== undefined ? String(valores[0]) : "");
+  const [saving, setSaving] = useState(false);
+
+  return (
+    <div className="rounded-2xl border border-slate-100 dark:border-zinc-800 p-4">
+      <p className="text-sm font-black text-slate-900 dark:text-zinc-100 truncate">{group.label}</p>
+      <p className="text-[10px] font-medium text-slate-400 dark:text-zinc-500 mb-3 truncate" title={group.products.map((p) => p.productName).join(", ")}>
+        {group.products.length} produto{group.products.length !== 1 ? "s" : ""} · {group.products.slice(0, 2).map((p) => p.productName).join(", ")}
+        {group.products.length > 2 ? `, +${group.products.length - 2}` : ""}
+      </p>
+      <div className="relative">
+        <input
+          type="text"
+          inputMode="decimal"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={async () => {
+            setSaving(true);
+            try { await onSave(group, draft); } finally { setSaving(false); }
+          }}
+          placeholder={todosIguais ? "% pra todos" : "misto — digite pra uniformizar"}
+          disabled={saving}
+          className="w-full pl-3 pr-8 py-2.5 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm font-black outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
+        />
+        <Percent className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+      </div>
     </div>
   );
 }

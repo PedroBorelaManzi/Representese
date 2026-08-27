@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   aggregateProductRanking,
+  groupProductsByRepeatedName,
   monthlySeries,
   filterByPeriod,
   periodoRange,
@@ -79,6 +80,60 @@ describe("aggregateProductRanking", () => {
   it("avgUnitValue é a receita total dividida pela quantidade total", () => {
     const rows = [item({ order_id: "o1", quantity: 2, total_value: 100 }), item({ order_id: "o2", quantity: 2, total_value: 300 })];
     expect(aggregateProductRanking(rows)[0].avgUnitValue).toBe(100); // 400 / 4
+  });
+});
+
+describe("groupProductsByRepeatedName", () => {
+  it("agrupa produtos que compartilham uma palavra no nome, mesmo sem serem o mesmo item", () => {
+    const rows = [
+      item({ product_key: "kit porta onix branco", product_name: "Kit Porta Ônix Branco" }),
+      item({ product_key: "kit porta onix cinza", product_name: "Kit Porta Ônix Cinza" }),
+      item({ product_key: "fechadura porta aluminio", product_name: "Fechadura Porta Alumínio" }),
+    ];
+    const ranking = aggregateProductRanking(rows);
+    const grupos = groupProductsByRepeatedName(ranking);
+    // "kit" está na lista de palavras ignoradas — a palavra que une os 3 é "porta"
+    const grupoPorta = grupos.find((g) => g.label.toLowerCase() === "porta");
+    expect(grupoPorta).toBeTruthy();
+    expect(grupoPorta!.products).toHaveLength(3);
+  });
+
+  it("nunca agrupa produtos de empresas diferentes, mesmo com nome igual", () => {
+    const rows = [
+      item({ category: "Cozimax", product_key: "fechadura porta", product_name: "Fechadura Porta" }),
+      item({ category: "Cozimax", product_key: "dobradica porta", product_name: "Dobradiça Porta" }),
+      item({ category: "AgroMax", product_key: "fechadura porta 2", product_name: "Fechadura Porta" }),
+      item({ category: "AgroMax", product_key: "dobradica porta 2", product_name: "Dobradiça Porta" }),
+    ];
+    const ranking = aggregateProductRanking(rows);
+    const grupos = groupProductsByRepeatedName(ranking);
+    const cozimaxGrupo = grupos.find((g) => g.category === "Cozimax" && g.label.toLowerCase() === "porta")!;
+    const agromaxGrupo = grupos.find((g) => g.category === "AgroMax" && g.label.toLowerCase() === "porta")!;
+    expect(cozimaxGrupo.products).toHaveLength(2);
+    expect(agromaxGrupo.products).toHaveLength(2);
+  });
+
+  it("produto sem nenhuma palavra em comum com outro vira grupo de 1 item só", () => {
+    const rows = [
+      item({ product_key: "parafuso sextavado", product_name: "Parafuso Sextavado" }),
+      item({ product_key: "arruela lisa", product_name: "Arruela Lisa" }),
+    ];
+    const ranking = aggregateProductRanking(rows);
+    const grupos = groupProductsByRepeatedName(ranking);
+    expect(grupos).toHaveLength(2);
+    grupos.forEach((g) => expect(g.products).toHaveLength(1));
+  });
+
+  it('palavra genérica demais ("kit") não vira grupo sozinha', () => {
+    const rows = [
+      item({ product_key: "kit banheiro", product_name: "Kit Banheiro" }),
+      item({ product_key: "kit cozinha", product_name: "Kit Cozinha" }),
+    ];
+    const ranking = aggregateProductRanking(rows);
+    const grupos = groupProductsByRepeatedName(ranking);
+    // Sem outra palavra em comum além de "kit" (ignorada), cada um fica sozinho
+    expect(grupos).toHaveLength(2);
+    grupos.forEach((g) => expect(g.products).toHaveLength(1));
   });
 });
 
