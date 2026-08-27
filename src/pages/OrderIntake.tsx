@@ -67,6 +67,7 @@ export default function OrderIntake() {
   const [clientAddress, setClientAddress] = useState("");
   const [category, setCategory] = useState("");
   const [value, setValue] = useState("");
+  const [paymentTerms, setPaymentTerms] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -143,6 +144,7 @@ export default function OrderIntake() {
     setClientAddress("");
     setCategory("");
     setValue("");
+    setPaymentTerms("");
   };
 
   /* Três entradas separadas em vez de uma só: o atributo `capture` é o que
@@ -177,6 +179,7 @@ export default function OrderIntake() {
         setParseResult(result);
         setCategories(result.categories || categories);
         setValue(result.value ? String(result.value) : "");
+        setPaymentTerms(result.paymentTerms || "");
         if (result.category) setCategory(result.category);
         // "baixa" é a própria IA avisando que não tem certeza — vale mais
         // que ficar calado e deixar um valor errado passar batido.
@@ -253,7 +256,7 @@ export default function OrderIntake() {
         filePath: prepared.filePath,
         fileName: file.name,
         items: parseResult?.items,
-        paymentTerms: parseResult?.paymentTerms,
+        paymentTerms: paymentTerms.trim() || undefined,
       });
 
       setStep("success");
@@ -505,6 +508,17 @@ export default function OrderIntake() {
                         value={value}
                         onChange={(e) => setValue(e.target.value)}
                         placeholder="0,00"
+                        className="w-full px-4 py-3 bg-slate-50 dark:bg-zinc-950/50 border border-slate-200 dark:border-zinc-800 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all dark:text-white"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[13px] font-bold text-slate-700 dark:text-zinc-300 ml-1">Condição de pagamento</label>
+                      <input
+                        type="text"
+                        value={paymentTerms}
+                        onChange={(e) => setPaymentTerms(e.target.value)}
+                        placeholder="Ex.: 30/60/90 dias, ou à vista"
                         className="w-full px-4 py-3 bg-slate-50 dark:bg-zinc-950/50 border border-slate-200 dark:border-zinc-800 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all dark:text-white"
                       />
                     </div>
