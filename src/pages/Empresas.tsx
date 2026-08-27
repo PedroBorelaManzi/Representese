@@ -294,12 +294,39 @@ export default function EmpresasPage() {
           return (cleanResCnpj && clientCnpj === cleanResCnpj) || (clientName && clientName === cleanResName);
         });
 
-        setSelectedFiles(prev => prev.map(item => 
+        // Sem match: o seletor de cliente do card só lista quem já existe, então
+        // um cliente novo ficava com o campo em branco até o "Enviar Pedidos" do
+        // lote inteiro rodar — parecia que nada tinha acontecido. Cadastra e já
+        // seleciona aqui, assim que a leitura termina, com o mesmo nome/CNPJ que
+        // a IA leu (editável depois, como qualquer outro cliente).
+        let autoClientId: string | null = null;
+        let autoClientName = match ? match.name : (res.client || "Desconhecido");
+        if (!match) {
+          const usableName = res.client && res.client !== "Desconhecido" ? res.client.trim() : "";
+          const usableCnpj = (res.cnpj || "").replace(/\D/g, "");
+          if (usableName || usableCnpj.length === 14) {
+            try {
+              const created = await registerNewClient(usableName || "Cliente sem nome", res.cnpj || "", res.address || "");
+              if (created) {
+                autoClientId = created.id;
+                autoClientName = created.name || autoClientName;
+                setClients(prev => prev.some((c: any) => c.id === created.id) ? prev : [...prev, created]);
+              }
+            } catch (err) {
+              // Falhou o cadastro automático (ex.: sem internet no meio do
+              // upload): cai pro fluxo manual de sempre — seletor vazio, usuário
+              // escolhe ou cadastra na mão.
+            }
+          }
+        }
+
+        setSelectedFiles(prev => prev.map(item =>
           item.file === file ? {
             ...item,
-            client: match ? match.name : (res.client || "Desconhecido"),
-            clientId: match ? match.id : null,
-            isNewClient: !match && !!res.cnpj,
+            client: autoClientName,
+            clientId: match ? match.id : autoClientId,
+            isNewClient: !match && !!autoClientId,
+            needsClientInfo: !match && !autoClientId,
             category: res.category || "",
             value: res.value || 0,
             status: 'ready',
@@ -934,17 +961,21 @@ export default function EmpresasPage() {
                                 onChange={(id) => {
                                   const client = clients.find(c => c.id === id);
                                   setSelectedFiles(prev => prev.map((it, i) => i === idx ? {
-                                    ...it, 
-                                    clientId: id, 
+                                    ...it,
+                                    clientId: id,
                                     client: client ? client.name : it.client,
-                                    isNewClient: !id && !!it.cnpj
                                   } : it));
                                 }}
                               />
-                              {item.isNewClient && !item.clientId && (
+                              {item.isNewClient && (
                                 <div className="mt-1 flex items-center gap-1.5 px-2">
                                   <Sparkles className="w-3 h-3 text-emerald-500" />
-                                  <span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">Novo Cliente Identificado</span>
+                                  <span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">Cliente novo — já cadastrado e selecionado</span>
+                                </div>
+                              )}
+                              {item.needsClientInfo && (
+                                <div className="mt-1 flex items-center gap-1.5 px-2">
+                                  <span className="text-[8px] font-black text-amber-500 uppercase tracking-widest">Sem nome nem CNPJ pra cadastrar sozinho — selecione um cliente</span>
                                 </div>
                               )}
                             </div>
