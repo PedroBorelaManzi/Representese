@@ -96,6 +96,16 @@ export interface YtdStats {
   orders: number;
 }
 
+/** Mesmos 3 tópicos da aba Entregas: entregue (data marcada já passou),
+ *  não entregue (data marcada, ainda no futuro) e sem data de entrega
+ *  ainda — dos pedidos lançados no mês selecionado. */
+export interface DeliveryStats {
+  delivered: number;
+  pending: number;
+  noDate: number;
+  total: number;
+}
+
 export interface ReportKpis {
   revenue: number;
   revenuePrev: number;
@@ -122,6 +132,7 @@ export interface ReportAnalytics {
   topCities: CityBreakdown[];
   followups: FollowupStats;
   ytd: YtdStats;
+  delivery: DeliveryStats;
 }
 
 export interface HealthThresholds {
@@ -153,7 +164,7 @@ export async function fetchReportAnalytics(
   const [ordersRes, clientsRes, appointmentsRes, followupsRes] = await Promise.all([
     supabase
       .from('orders')
-      .select('id, client_id, category, value, created_at')
+      .select('id, client_id, category, value, created_at, delivery_date')
       .eq('user_id', userId)
       .gte('created_at', trendStart.toISOString())
       .lte('created_at', end.toISOString()),
@@ -225,6 +236,10 @@ export async function fetchReportAnalytics(
   let ytdRevenue = 0;
   let ytdCommission = 0;
   let ytdOrders = 0;
+  let deliveredCount = 0;
+  let pendingCount = 0;
+  let noDateCount = 0;
+  const today = new Date().toLocaleDateString('en-CA'); // yyyy-mm-dd local, comparável direto com delivery_date
 
   orders.forEach((o) => {
     const created = new Date(o.created_at);
@@ -261,6 +276,10 @@ export async function fetchReportAnalytics(
       const wd = weekdayAgg[created.getDay()];
       wd.revenue += value;
       wd.orders += 1;
+
+      if (!o.delivery_date) noDateCount += 1;
+      else if (o.delivery_date <= today) deliveredCount += 1;
+      else pendingCount += 1;
 
       const clientCreated = clientCreatedAt.get(o.client_id);
       const isNewClient = !!clientCreated && monthKey(clientCreated) === selectedKey;
@@ -428,5 +447,6 @@ export async function fetchReportAnalytics(
     topCities,
     followups,
     ytd: { revenue: ytdRevenue, commission: ytdCommission, orders: ytdOrders },
+    delivery: { delivered: deliveredCount, pending: pendingCount, noDate: noDateCount, total: ordersCount },
   };
 }

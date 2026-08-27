@@ -30,6 +30,10 @@ import {
   ArrowLeft,
   ChevronRight,
   ExternalLink,
+  Truck,
+  PackageCheck,
+  PackageX,
+  CalendarClock,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
@@ -47,6 +51,7 @@ import {
   TopClient,
   CompanySlice,
   PortfolioHealthClient,
+  DeliveryStats,
 } from '../lib/reportAnalytics';
 import { getOutcomeLabel } from '../lib/followupService';
 import { PageHeader, Skeleton } from '../components/ui';
@@ -305,6 +310,38 @@ function YtdBanner({ revenue, commission, orders, year }: { revenue: number; com
         ))}
       </div>
     </div>
+  );
+}
+
+/** Mesmos 3 tópicos da aba Entregas (Entregues / Não entregues / Sem data de
+ *  entrega ainda), aqui recortados só pelos pedidos do mês selecionado. */
+function DeliveryBreakdown({ delivery }: { delivery: DeliveryStats }) {
+  const tiles = [
+    { key: 'delivered', label: 'Entregues', icon: PackageCheck, count: delivery.delivered, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-500/10' },
+    { key: 'pending', label: 'Não entregues', icon: PackageX, count: delivery.pending, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-500/10' },
+    { key: 'noDate', label: 'Sem data de entrega', icon: CalendarClock, count: delivery.noDate, color: 'text-slate-500 dark:text-zinc-400', bg: 'bg-slate-100 dark:bg-zinc-800' },
+  ] as const;
+  return (
+    <CardShell icon={Truck} title="Entregas do mês" subtitle={`${delivery.total} pedido${delivery.total === 1 ? '' : 's'} lançado${delivery.total === 1 ? '' : 's'} no período`}>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {tiles.map((t) => {
+          const pct = delivery.total > 0 ? (t.count / delivery.total) * 100 : 0;
+          return (
+            <div key={t.key} className="rounded-2xl border border-slate-100 dark:border-zinc-800 p-4 flex items-center gap-3">
+              <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center shrink-0', t.bg)}>
+                <t.icon className={cn('w-5 h-5', t.color)} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-lg font-black text-slate-900 dark:text-zinc-100 tabular-nums leading-none">{t.count}</p>
+                <p className="text-[9px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mt-1 truncate">
+                  {t.label} {delivery.total > 0 && `· ${pct.toFixed(0)}%`}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </CardShell>
   );
 }
 
@@ -780,6 +817,9 @@ export default function ReportsPage() {
             <KpiTile icon={Trophy} label="Comissão Estimada" value={BRL(kpis.commission)} current={kpis.commission} prev={kpis.commissionPrev} hideable />
             <KpiTile icon={Users} label="Clientes Novos" value={String(kpis.newClients)} current={kpis.newClients} prev={kpis.newClientsPrev} />
           </div>
+
+          {/* Entregas do mês */}
+          <DeliveryBreakdown delivery={data.delivery} />
 
           {/* Tendência 12 meses */}
           <CardShell icon={TrendingUp} title="Receita — últimos 12 meses" subtitle={`Terminando em ${selected.fullLabel}`}>
