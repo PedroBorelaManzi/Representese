@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save, Loader2, Building2, MapPin, Phone, Mail, Network } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
@@ -12,6 +13,7 @@ export default function ClientEdit() {
   const { id } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [existingNetworks, setExistingNetworks] = useState<string[]>([]);
@@ -109,6 +111,13 @@ export default function ClientEdit() {
           cachedClients[idx] = { ...cachedClients[idx], ...formData };
           offlineCache.set(CacheKeys.CLIENTS, cachedClients);
         }
+        // Offline, a query de clientes devolve o próprio cache antigo do
+        // react-query (não tem como buscar de novo do servidor) — atualiza
+        // esse cache direto, senão a edição só apareceria em Clientes/Mapa
+        // depois de sincronizar.
+        queryClient.setQueryData(['clients', user?.id], (old: Client[] = []) =>
+          (old || []).map((c) => (c.id === id ? { ...c, ...formData } : c))
+        );
         toast.success('Cliente atualizado offline — sincroniza quando a internet voltar.');
         navigate(`/dashboard/clientes/${id}`);
         return;
@@ -120,6 +129,10 @@ export default function ClientEdit() {
         .eq('id', id);
 
       if (error) throw error;
+      // Clientes/Mapa leem de um cache do react-query com staleTime infinito
+      // ("sync manual") — sem isso, a alteração só apareceria lá depois de
+      // uma sincronização manual, mesmo já salva no banco.
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
       toast.success('Cliente atualizado com sucesso!');
       navigate(`/dashboard/clientes/${id}`);
     } catch (err) {

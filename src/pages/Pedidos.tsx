@@ -1,5 +1,6 @@
 import { useUpload } from '../contexts/UploadContext';
 import React, { useState, useEffect, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, FileText, Upload, Loader2, ShoppingBag, Trash2, ArrowUpRight, TrendingUp, DollarSign, Calendar, ChevronRight, X, Sparkles, Navigation, UserCog, UserPlus, ChevronLeft, Truck } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
@@ -48,6 +49,7 @@ export default function PedidosPage() {
   const { settings } = useSettings();
   const navigate = useNavigate();
   const confirm = useConfirm();
+  const queryClient = useQueryClient();
   const { drafts, setDraft, clearDraft } = useUpload();
   const manualDraft = drafts["manual_order"] || { file: null, category: "", value: "", isOpen: false, clientId: "" };
   
@@ -113,7 +115,13 @@ export default function PedidosPage() {
     let lat = -23.5505, lng = -46.6333;
     if (address) { try { const coords = await getHighPrecisionCoordinates(address, name, cnpj); if (coords) { lat = coords.lat; lng = coords.lng; } } catch (e) {} }
     const { data, error } = await supabase.from("clients").insert([{ user_id: user?.id, name: cleanName, cnpj: cleanCnpj, address: address || "", lat, lng, status: "Ativo" }]).select().single();
-    if (error) throw error; loadData(); return data;
+    if (error) throw error;
+    loadData();
+    // Clientes/Mapa leem de um cache do react-query com staleTime infinito
+    // ("sync manual") — sem isso, o cliente recém-criado só apareceria lá
+    // depois de uma sincronização manual, mesmo já existindo no banco.
+    queryClient.invalidateQueries({ queryKey: ["clients"] });
+    return data;
   };
 
   const handleManualFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {

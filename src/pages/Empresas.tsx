@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { 
   Building2, 
   Plus, 
@@ -52,6 +53,7 @@ export default function EmpresasPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const confirm = useConfirm();
+  const queryClient = useQueryClient();
 
   const [allOrders, setAllOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -245,6 +247,11 @@ export default function EmpresasPage() {
        const cached = (offlineCache.get(CacheKeys.CLIENTS) as any[]) || [];
        offlineCache.set(CacheKeys.CLIENTS, [...cached, newPayload]);
        setClients([...cached, newPayload] as any[]);
+       // Offline, invalidateQueries sozinho não bastaria: a query de clientes
+       // devolve o próprio cache antigo quando está offline (não tem como
+       // buscar de novo do servidor), então o novo cliente precisa entrar
+       // direto nesse cache pra Clientes/Mapa mostrarem na hora.
+       queryClient.setQueryData(["clients", user?.id], (old: any[] = []) => [...(old || []), newPayload]);
        return newPayload;
     }
 
@@ -256,6 +263,10 @@ export default function EmpresasPage() {
 
     if (error) throw error;
     loadOrders();
+    // Clientes/Mapa leem de um cache do react-query com staleTime infinito
+    // ("sync manual") — sem isso, o cliente recém-criado só apareceria lá
+    // depois de uma sincronização manual, mesmo já existindo no banco.
+    queryClient.invalidateQueries({ queryKey: ["clients"] });
     return data;
   };
 
