@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
-import { Settings, TrendingUp, X, ChevronLeft, ChevronRight, Target, Check, Loader2 } from 'lucide-react';
+import { Settings, TrendingUp, X, ChevronLeft, ChevronRight, Target, Check, Loader2, ArrowUp } from 'lucide-react';
 import { useSettings } from '../contexts/SettingsContext';
 
 
@@ -41,23 +41,20 @@ const RevenueChart = ({ data, loading, currentDate, onPrevMonth, onNextMonth }) 
     }
   }, [showGoals, data, settings.monthly_goals]);
 
-  // A escala segue os DADOS, não o teto: com o teto padrão de R$ 1.000.000 e
-  // um mês de R$ 9.531, a barra ficaria travada perto do chão, indistinguível
-  // de zero. 15% de folga no topo pra barra mais alta não encostar no teto.
   const maiorValor = React.useMemo(
     () => Math.max(0, ...data.map(d => Number(d.value) || 0)),
     [data]
   );
   const semFaturamento = maiorValor <= 0;
+  // A escala do gráfico segue o TETO: os 25/50/75/100% do eixo lateral são
+  // sempre frações dele, e cada barra ocupa a fatia proporcional ao seu valor
+  // dentro desse teto — mudar o teto reescala eixo e barras juntos. Sem teto
+  // configurado (não deveria acontecer, sempre há um valor padrão salvo),
+  // cai de volta pra escalar pelos dados, só pra não dividir por zero.
   const MAX_REVENUE = React.useMemo(
-    () => (semFaturamento ? 1 : maiorValor * 1.15),
-    [maiorValor, semFaturamento]
+    () => (localCeiling > 0 ? localCeiling : (semFaturamento ? 1 : maiorValor * 1.15)),
+    [localCeiling, semFaturamento, maiorValor]
   );
-
-  // Teto geral do gráfico — linha de referência única, independente da meta
-  // por empresa (que aparece na própria barra de cada uma, mais abaixo).
-  const tetoVisivel = !semFaturamento && localCeiling > 0 && localCeiling <= MAX_REVENUE;
-  const tetoAltura = tetoVisivel ? (localCeiling / MAX_REVENUE) * 100 : 0;
 
   const formatShortCurrency = (val) => `R$ ${val >= 1000 ? (val / 1000).toFixed(0) + 'k' : val}`;
   const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(val);
@@ -196,20 +193,10 @@ const RevenueChart = ({ data, loading, currentDate, onPrevMonth, onNextMonth }) 
           "flex-1 flex items-stretch px-4 relative pb-2",
           data.length > 10 ? "gap-1" : data.length > 6 ? "gap-2" : "gap-4"
         )}>
-          {tetoVisivel && (
-            <div
-              className="absolute left-0 right-0 pointer-events-none z-10"
-              style={{ bottom: `calc(${rotateLabels ? '84px' : '40px'} + ${tetoAltura}%)` }}
-            >
-              <div className="border-t-2 border-dashed border-slate-400/70" />
-              <span className="absolute right-1 -top-4 text-[8px] font-black uppercase tracking-widest text-slate-500">
-                Teto {formatShortCurrency(localCeiling)}
-              </span>
-            </div>
-          )}
           {data.map((item, idx) => {
             const val = Number(item.value) || 0;
-            const h = (val / MAX_REVENUE) * 100;
+            const acimaDoTeto = val > MAX_REVENUE;
+            const h = Math.min(100, (val / MAX_REVENUE) * 100);
             const isSelected = selectedIdx === idx;
             const meta = settings.monthly_goals?.[item.name];
             const metaVisivel = meta > 0 && meta <= MAX_REVENUE;
@@ -238,6 +225,11 @@ const RevenueChart = ({ data, loading, currentDate, onPrevMonth, onNextMonth }) 
                    {bateuMeta && (
                      <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-emerald-500" title="Meta batida">
                        <Check className="w-3.5 h-3.5" strokeWidth={3} />
+                     </div>
+                   )}
+                   {acimaDoTeto && (
+                     <div className="absolute -top-5 right-1 text-amber-500" title={`Passou do teto — faturou ${formatCurrency(val)}`}>
+                       <ArrowUp className="w-3.5 h-3.5" strokeWidth={3} />
                      </div>
                    )}
 
