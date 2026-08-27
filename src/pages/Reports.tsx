@@ -675,11 +675,14 @@ export default function ReportsPage() {
   const [detailView, setDetailView] = useState<'topClients' | 'health' | 'byCompany' | 'byCity' | null>(null);
 
   const { data, isLoading, isError, refetch } = useQuery({
-    // 'v2': dados persistidos em IndexedDB de antes da expansão do relatório
-    // (ytd, weekday, newVsReturning, ...) não tinham esses campos — reidratar
-    // esse formato velho quebrava a tela com "Cannot read properties of
-    // undefined". Versionar a key invalida o cache antigo em vez de servi-lo.
-    queryKey: ['reportAnalytics', 'v2', user?.id, selected.year, selected.month],
+    // 'v3': mesmo problema do 'v2' se repetiu — o campo "delivery" (seção
+    // "Entregas do mês") foi adicionado depois que 'v2' já estava em uso, e
+    // quem tinha o relatório cacheado no IndexedDB reidratava um objeto sem
+    // "delivery", quebrando a tela com "Cannot read properties of undefined
+    // (reading 'delivered')". SEMPRE que um campo novo entrar no retorno de
+    // fetchReportAnalytics, bump a versão aqui — é isso que invalida o cache
+    // velho em vez de servi-lo com o formato antigo.
+    queryKey: ['reportAnalytics', 'v3', user?.id, selected.year, selected.month],
     queryFn: () =>
       fetchReportAnalytics(user!.id, selected.year, selected.month, settings.commissions || {}, {
         alertaDays: settings.alerta_days || 30,
