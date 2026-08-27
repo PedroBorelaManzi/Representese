@@ -528,7 +528,7 @@ export default function ProdutosPage() {
                     step={0.5}
                     inputMode="decimal"
                     defaultValue={settings?.product_commissions?.[`${produtoSelecionado.category}::${produtoSelecionado.productKey}`] ?? ""}
-                    placeholder={`Padrão da empresa: ${Number(settings?.commissions?.[produtoSelecionado.category] ?? 0)}%`}
+                    placeholder="Em branco = 0% até configurar"
                     onBlur={(e) => saveProductCommission(produtoSelecionado, e.target.value)}
                     className="w-full px-4 py-3 bg-slate-50 dark:bg-zinc-950/50 border border-slate-200 dark:border-zinc-800 rounded-2xl text-sm font-black outline-none focus:ring-2 focus:ring-emerald-500"
                   />

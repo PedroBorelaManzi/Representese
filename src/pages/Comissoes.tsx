@@ -147,12 +147,11 @@ export default function Comissoes() {
           const valor = Number(item.total_value) || 0;
           if (valor <= 0) return;
           const groupKey = `${item.category}::${item.product_key}`;
-          // Produto sem % próprio configurado usa o % da empresa como padrão
-          // — assim ativar "por produto" não zera a comissão de produtos que
-          // ainda não foram configurados individualmente.
-          const pctProduto = Number(
-            productCommissions[groupKey] ?? commissions[item.category] ?? 0
-          );
+          // Empresa em "por produto" nunca tem valor fixo (ver saveConfig) —
+          // produto ainda sem % próprio conta 0% mesmo, até ser configurado
+          // na aba Produtos. Nada de cair de volta pro % da empresa: os dois
+          // juntos conflitam de propósito.
+          const pctProduto = Number(productCommissions[groupKey] ?? 0);
           const acc = porPedido.get(item.order_id) || { totalValue: 0, totalComissao: 0 };
           acc.totalValue += valor;
           acc.totalComissao += valor * (pctProduto / 100);
@@ -207,6 +206,11 @@ export default function Comissoes() {
       // Mescla com as comissões existentes (preserva empresas fora da lista atual)
       const merged = { ...commissions, ...draftCommissions };
       const mergedMode = { ...(settings?.commission_mode || {}), ...draftMode };
+      // Empresa em "por produto" nunca fica com valor fixo — as duas coisas
+      // juntas conflitam (por isso o campo fica desabilitado nesse modo).
+      companies.forEach((c) => {
+        if (mergedMode[c] === 'per_product') delete merged[c];
+      });
       await updateSettings({ commissions: merged, commission_mode: mergedMode });
       toast.success("Comissões salvas!");
       setConfigOpen(false);
@@ -452,14 +456,15 @@ export default function Comissoes() {
                               max={100}
                               step={0.5}
                               inputMode="decimal"
-                              value={draftCommissions[c] ?? 0}
+                              value={draftMode[c] === 'per_product' ? '' : (draftCommissions[c] ?? 0)}
                               onChange={(e) =>
                                 setDraftCommissions((prev) => ({
                                   ...prev,
                                   [c]: Math.max(0, Math.min(100, Number(e.target.value) || 0)),
                                 }))
                               }
-                              className="w-full pl-3 pr-8 py-2.5 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm font-black text-right outline-none focus:ring-2 focus:ring-emerald-500"
+                              disabled={draftMode[c] === 'per_product'}
+                              className="w-full pl-3 pr-8 py-2.5 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm font-black text-right outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed"
                             />
                             <Percent className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                           </div>
@@ -489,11 +494,6 @@ export default function Comissoes() {
                           >
                             Por produto
                           </button>
-                          {draftMode[c] === 'per_product' && (
-                            <span className="text-[9px] font-bold text-slate-400 dark:text-zinc-500">
-                              % acima = padrão pra produto sem % próprio
-                            </span>
-                          )}
                         </div>
                         {draftMode[c] === 'per_product' && (
                           <p className="text-[9px] font-bold text-amber-600 dark:text-amber-400">

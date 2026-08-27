@@ -489,11 +489,14 @@ export default function EmpresasPage() {
       }
 
       // % de comissão fixo + modo (fixo/por produto) — mesma migração de
-      // chave no rename que já vale pra prazo de entrega.
+      // chave no rename que já vale pra prazo de entrega. Em modo "por
+      // produto" nunca grava valor fixo nenhum (nem o que já estava
+      // configurado antes de trocar de modo) — as duas coisas juntas
+      // conflitam, por isso o campo fica desabilitado nesse modo.
       const updatedCommissions = { ...(settings.commissions || {}) };
       delete updatedCommissions[managingCompany];
       const parsedPct = parseFloat(editCommissionPct.replace(',', '.'));
-      if (editCommissionPct.trim() && isFinite(parsedPct) && parsedPct > 0) {
+      if (editCommissionMode === 'fixed' && editCommissionPct.trim() && isFinite(parsedPct) && parsedPct > 0) {
         updatedCommissions[newName] = Math.max(0, Math.min(100, parsedPct));
       }
       const updatedCommissionMode = { ...(settings.commission_mode || {}) };
@@ -1059,10 +1062,11 @@ export default function EmpresasPage() {
                      <input
                        type="text"
                        inputMode="decimal"
-                       value={editCommissionPct}
+                       value={editCommissionMode === 'per_product' ? '' : editCommissionPct}
                        onChange={e => setEditCommissionPct(e.target.value)}
-                       placeholder={editCommissionMode === 'fixed' ? "% que vale pra todos os produtos" : "% padrão (produto sem % próprio)"}
-                       className="w-full p-4 md:p-5 bg-slate-50 dark:bg-zinc-850 rounded-2xl md:rounded-3xl font-black text-sm outline-none border border-slate-100 dark:border-zinc-800"
+                       disabled={editCommissionMode === 'per_product'}
+                       placeholder={editCommissionMode === 'fixed' ? "% que vale pra todos os produtos" : "Sem valor fixo — cada produto tem o seu"}
+                       className="w-full p-4 md:p-5 bg-slate-50 dark:bg-zinc-850 rounded-2xl md:rounded-3xl font-black text-sm outline-none border border-slate-100 dark:border-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed"
                      />
                      {editCommissionMode === 'per_product' && (
                        <p className="text-[8px] md:text-[9px] font-medium text-slate-400 mt-2 leading-relaxed">
