@@ -197,8 +197,6 @@ export default function Comissoes() {
 
   const goPrevMonth = () => setRefDate(new Date(year, month - 1, 1));
   const goNextMonth = () => setRefDate(new Date(year, month + 1, 1));
-  const isCurrentMonth =
-    year === new Date().getFullYear() && month === new Date().getMonth();
 
   const saveConfig = async () => {
     setSaving(true);
@@ -240,7 +238,6 @@ export default function Comissoes() {
               </span>
               <button
                 onClick={goNextMonth}
-                disabled={isCurrentMonth}
                 aria-label="Próximo mês"
                 className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-30"
               >

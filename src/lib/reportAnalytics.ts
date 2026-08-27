@@ -170,7 +170,7 @@ export async function fetchReportAnalytics(
       .lte('created_at', end.toISOString()),
     supabase
       .from('clients')
-      .select('id, name, city, status, last_contact, created_at')
+      .select('id, name, city, status, last_contact, created_at, network_name')
       .eq('user_id', userId),
     supabase
       .from('appointments')

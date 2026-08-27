@@ -985,6 +985,17 @@ export default function EmpresasPage() {
                                 </button>
                               )}
                             </div>
+
+                            <div className="col-span-12 flex items-center gap-3">
+                              <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest whitespace-nowrap">Pagamento</span>
+                              <input
+                                type="text"
+                                value={item.paymentTerms || ""}
+                                onChange={e => setSelectedFiles(prev => prev.map((it, i) => i === idx ? { ...it, paymentTerms: e.target.value } : it))}
+                                placeholder="Ex.: 30/60/90, ou à vista"
+                                className="flex-1 bg-slate-50 dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-xl px-3 py-2 text-[10px] font-black uppercase outline-none focus:ring-1 focus:ring-emerald-500"
+                              />
+                            </div>
                           </motion.div>
                         ))}
                       </div>

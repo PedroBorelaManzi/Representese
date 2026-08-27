@@ -21,6 +21,8 @@ export interface OrderLike {
 export interface ClientRef {
   id: string;
   name?: string | null;
+  /** Nome da rede (matriz + filiais que compram por um lugar só) — ver clientGroupKey. */
+  network_name?: string | null;
 }
 
 export interface AlertThresholds {
@@ -45,10 +47,16 @@ export interface DismissalLike {
 }
 
 /**
- * Chave de agrupamento de um cliente (matriz + filiais compartilham a mesma):
- * o nome normalizado, ou o próprio id quando o nome está vazio.
+ * Chave de agrupamento de um cliente (matriz + filiais compartilham a mesma).
+ *
+ * Prioridade: `network_name` (rede cadastrada manualmente — cobre filiais com
+ * nomes diferentes entre si, ex. "Cliente X SP" e "Cliente X RJ", que só
+ * compram por um lugar); se vazio, cai pro nome normalizado (matriz e filial
+ * cadastradas com o nome idêntico); por fim o próprio id, se nem nome houver.
  */
 export function clientGroupKey(client: ClientRef): string {
+  const network = normalizeKey(client.network_name || "");
+  if (network) return `rede:${network}`;
   return normalizeKey(client.name || "") || `id:${client.id}`;
 }
 

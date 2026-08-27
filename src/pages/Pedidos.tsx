@@ -76,6 +76,7 @@ export default function PedidosPage() {
   const [clientPickerSearch, setClientPickerSearch] = useState("");
   const [manualClientName, setManualClientName] = useState("");
   const [manualClientCnpj, setManualClientCnpj] = useState("");
+  const [manualPaymentTerms, setManualPaymentTerms] = useState("");
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
   const [batchResults, setBatchResults] = useState<BatchResult[]>([]);
   const [isProcessingBatch, setIsProcessingBatch] = useState(false);
@@ -123,6 +124,7 @@ export default function PedidosPage() {
       const result = await processOrderFile(file, clients.map(c => c.name), settings.categories || []);
       if (result.status === "ready") {
         setAnalysisResult(result); setOrderValue(result.value?.toString() || "");
+        setManualPaymentTerms(result.paymentTerms || "");
         const cleanResCnpj = result.cnpj?.replace(/\D/g, "");
         const cleanResName = result.client?.trim().toLowerCase();
         const match = clients.find(c => {
@@ -143,10 +145,14 @@ export default function PedidosPage() {
           // procurar algo que não existe.
           setSelectedClient(""); setShowClientPicker(false); setShowNewClientForm(true);
         } else {
-          // Sem CNPJ pra provar que é novo, abre a busca na lista em vez de
-          // já cair em "cliente novo" — pode ser cliente já cadastrado que a
-          // IA só não reconheceu a grafia.
-          setSelectedClient(""); setShowNewClientForm(false); setShowClientPicker(true);
+          // Sem nome batendo e sem CNPJ pra provar que é novo — mesmo assim
+          // já abre direto pro cadastro de cliente novo (pré-preenchido com
+          // o nome que a IA leu, editável): é isso que faz "não achei nem
+          // por nome nem por CNPJ" terminar em cadastrar-e-lançar na hora,
+          // em vez de depender do usuário notar o botão "Cliente novo" no
+          // fundo da lista. Quem quiser corrigir a grafia de um cliente já
+          // cadastrado ainda tem o link "Escolher da lista" pra voltar.
+          setSelectedClient(""); setShowClientPicker(false); setShowNewClientForm(true);
         }
         if (result.category) {
           const catMatch = (settings.categories || []).find((cat: string) => cat.toLowerCase().includes(result.category.toLowerCase()));
@@ -184,7 +190,7 @@ export default function PedidosPage() {
       const { data: orderRow } = await supabase.from("orders").upsert([{
         user_id: user.id, client_id: cid, category: selectedCategory, value: parseFloat(orderValue),
         file_name: formattedName, file_path: path,
-        payment_terms: analysisResult?.paymentTerms || null,
+        payment_terms: manualPaymentTerms.trim() || null,
       }], { onConflict: "client_id,file_path" }).select("id, created_at").single();
       const { data: clientData } = await supabase.from("clients").select("faturamento").eq("id", cid).single();
       if (clientData) {
@@ -202,7 +208,7 @@ export default function PedidosPage() {
       posthog.capture('order_logged', { category: selectedCategory });
       clearDraft("manual_order");
       setShowNewClientForm(false); setShowClientPicker(false); setClientPickerSearch("");
-      setManualClientName(""); setManualClientCnpj(""); setAnalysisResult(null);
+      setManualClientName(""); setManualClientCnpj(""); setManualPaymentTerms(""); setAnalysisResult(null);
     } catch (err) { toast.error(err instanceof Error ? err.message : 'Erro desconhecido'); } finally { setIsSaving(false); }
   };
 
@@ -700,8 +706,26 @@ export default function PedidosPage() {
                        </div>
                     </div>
 
-                    <button 
-                      disabled={isSaving} 
+                    {selectedFile && !isAnalyzingManual && (
+                      <div className="space-y-3 md:space-y-4">
+                         <label className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase tracking-widest px-2">Condição de pagamento</label>
+                         <input
+                           type="text"
+                           value={manualPaymentTerms}
+                           onChange={e => setManualPaymentTerms(e.target.value)}
+                           placeholder="Ex.: 30/60/90 dias, ou à vista"
+                           className="w-full p-4 md:p-6 bg-slate-50 dark:bg-zinc-950 border border-slate-100 dark:border-zinc-800 rounded-[20px] md:rounded-[28px] text-[10px] md:text-xs font-black uppercase tracking-widest outline-none"
+                         />
+                         <p className="text-[8px] md:text-[9px] font-bold text-slate-400 px-2 normal-case leading-relaxed">
+                           {manualPaymentTerms.trim()
+                             ? "É essa condição que define a data e o valor de cada parcela de comissão. Confira antes de efetivar."
+                             : "Sem condição informada, o pedido vira 1 parcela única na data da entrega/pedido."}
+                         </p>
+                      </div>
+                    )}
+
+                    <button
+                      disabled={isSaving}
                       className="w-full py-5 md:py-8 bg-emerald-600 hover:bg-emerald-700 text-white rounded-[24px] md:rounded-[32px] font-black uppercase text-[10px] md:text-xs tracking-widest shadow-2xl active:scale-[0.98] transition-all flex items-center justify-center gap-3 md:gap-4 disabled:opacity-50"
                     >
                        {isSaving ? <Loader2 className="w-5 h-5 md:w-6 md:h-6 animate-spin" /> : <Plus className="w-5 h-5 md:w-6 md:h-6" />}
@@ -766,7 +790,21 @@ export default function PedidosPage() {
                                  </div>
                               </div>
 
-                              <button 
+                              <div className="space-y-1.5">
+                                 <p className="text-[6px] md:text-[7px] font-black text-slate-300 uppercase tracking-widest leading-none px-1">Condição de pagamento</p>
+                                 <input
+                                   type="text"
+                                   value={r.paymentTerms || ""}
+                                   onChange={e => {
+                                     const val = e.target.value;
+                                     setBatchResults(prev => prev.map(item => item.file === r.file ? { ...item, paymentTerms: val } : item));
+                                   }}
+                                   placeholder="Ex.: 30/60/90, ou à vista"
+                                   className="w-full p-3 md:p-4 bg-white dark:bg-zinc-900 border border-slate-50 dark:border-zinc-850 rounded-2xl text-[8px] md:text-[10px] font-black uppercase tracking-widest outline-none"
+                                 />
+                              </div>
+
+                              <button
                                 onClick={() => confirmBatchOrder(r)}
                                 className="w-full py-4 md:py-5 bg-emerald-600 text-white rounded-[20px] md:rounded-[28px] font-black uppercase text-[8px] md:text-[10px] tracking-widest shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 md:gap-3"
                               >

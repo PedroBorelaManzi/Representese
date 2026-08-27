@@ -25,6 +25,8 @@ export interface Client {
   notes?: string;
   faturamento?: Record<string, number> | null;
   alerts?: Alert[];
+  /** Nome da rede (matriz + filiais que compram por um lugar só) — cadastros com o mesmo nome de rede compartilham a atividade de compra nos alertas de inatividade. */
+  network_name?: string | null;
 }
 
 export interface Order {

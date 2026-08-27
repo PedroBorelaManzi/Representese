@@ -34,8 +34,8 @@ import { syncQueue } from "../lib/syncQueue";
 import { offlineCache, CacheKeys } from "../lib/offlineCache";
 import { Client, Order } from "../types";
 import { computeCompanyCycles, cycleLabel, type CompanyCycle } from "../lib/purchaseCycle";
-import { computeClientAlerts, type AlertLike } from "../lib/clientAlerts";
-import { TrendingUp, Clock3 } from "lucide-react";
+import type { AlertLike } from "../lib/clientAlerts";
+import { TrendingUp, Clock3, Network } from "lucide-react";
 import ClientFollowupModal from "../components/ClientFollowupModal";
 import ClientFollowupHistory from "../components/ClientFollowupHistory";
 import { PdfViewerModal } from "../components/PdfViewerModal";
@@ -43,6 +43,7 @@ import { getClientFollowupStatus, type ClientFollowupStatus } from "../lib/follo
 import { useConfirm } from "../components/ui";
 import { useModalEsc } from "../hooks/useModalEsc";
 import { useFocusTrap } from "../hooks/useFocusTrap";
+import { useClients } from "../hooks/useClients";
 import { getCachedUriSePresente, getCachedFileUri, baixarParaCacheEmSegundoPlano } from "../lib/fileCache";
 import { ajustarFaturamento } from "../lib/faturamento";
 import { saveFileToIndexedDB } from "../lib/storage";
@@ -62,6 +63,7 @@ export default function ClientDetails() {
   const { drafts, setDraft, clearDraft } = useUpload();
   const navigate = useNavigate();
   const confirm = useConfirm();
+  const { data: walletClients } = useClients();
   
   const draft = drafts[id || ""] || { file: null, category: "", value: "", isOpen: false };
   const currentFile = draft.file;
@@ -102,31 +104,14 @@ export default function ClientDetails() {
     return computeCompanyCycles(orders).filter((c) => c.status !== "observando" || c.purchases > 0);
   }, [files]);
 
-  /* Status de inatividade vindo da MESMA fonte da lista de clientes: os pedidos
-     reais, com os limiares que o usuário configurou. O badge daqui era um
-     "Ativo no Radar" fixo no código — um cliente aberto pela aba "Alerta"
-     aparecia como ativo. */
+  /* Status de inatividade vindo da MESMA fonte da lista de clientes (useClients,
+     que já agrupa matriz + filiais por nome OU por rede — network_name): um
+     cliente que não compra direto mas cuja rede comprou não pode aparecer como
+     inativo só porque essa página olhava só os pedidos DELE, sem o grupo. */
   const alertaAtual = useMemo<AlertLike | undefined>(() => {
     if (!client?.id) return undefined;
-    const pedidos = files
-      .filter((f) => f.created_at)
-      .map((f) => ({
-        client_id: client.id,
-        created_at: f.created_at as string,
-        category: f.category,
-      }));
-    const mapa = computeClientAlerts(
-      [{ id: client.id, name: client.name }],
-      pedidos,
-      {
-        alerta: settings.alerta_days || 30,
-        critico: settings.critico_days || 45,
-        inativo: settings.inativo_days || 90,
-      },
-      settings.categories || []
-    );
-    return mapa.get(client.id)?.alerts?.[0];
-  }, [client?.id, client?.name, files, settings.alerta_days, settings.critico_days, settings.inativo_days, settings.categories]);
+    return (walletClients || []).find((c) => c.id === client.id)?.alerts?.[0] as AlertLike | undefined;
+  }, [client?.id, walletClients]);
 
   useEffect(() => {
     if (user && id) {
@@ -628,6 +613,11 @@ export default function ClientDetails() {
                   </span>
                 )}
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">CNPJ: {client.cnpj}</span>
+                {client.network_name && (
+                  <span className="flex items-center gap-1.5 px-3 py-1 bg-sky-50 dark:bg-sky-900/20 text-sky-600 dark:text-sky-400 text-[10px] font-black uppercase rounded-full">
+                    <Network className="w-3 h-3" /> Rede: {client.network_name}
+                  </span>
+                )}
               </div>
             </div>
           </div>

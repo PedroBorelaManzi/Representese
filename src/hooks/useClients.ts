@@ -56,7 +56,7 @@ export function useClients() {
       const { data: newOrUpdatedClients, error } = await supabase
         .from('clients')
         .select(`
-          id, name, cnpj, city, address, status, last_contact, created_at, updated_at, lat, lng, phone, email
+          id, name, cnpj, city, address, status, last_contact, created_at, updated_at, lat, lng, phone, email, network_name
         `)
         .eq('user_id', user.id)
         .gt('updated_at', maxUpdatedAt)

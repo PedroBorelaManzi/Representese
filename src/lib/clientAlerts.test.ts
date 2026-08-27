@@ -80,6 +80,25 @@ describe("computeClientAlerts", () => {
     expect(r.get("filial2")!.alerts).toEqual([]);
   });
 
+  it("network_name agrupa filiais com nomes diferentes entre si (rede cadastrada manualmente)", () => {
+    const grupo = [
+      { id: "sp", name: "Cliente X Filial SP", network_name: "Rede Cliente X" },
+      { id: "rj", name: "Cliente X Filial RJ", network_name: "rede cliente x" }, // grafia diferente, mesma rede
+      { id: "avulso", name: "Cliente Y" }, // sem rede, não deve ser afetado
+    ];
+    // só a filial SP comprou, e faz 5 dias
+    const pedidos = [{ client_id: "sp", created_at: diasAtras(5), category: "Cozimax" }];
+
+    const r = computeClientAlerts(grupo, pedidos, LIMITES, ["Cozimax"], HOJE);
+    expect(r.get("sp")!.alerts).toEqual([]);
+    expect(r.get("rj")!.alerts).toEqual([]); // não comprou, mas a rede comprou
+
+    const saude = computeWalletHealth(grupo, pedidos, LIMITES, HOJE);
+    expect(saude.get("sp")).toBe("emDia");
+    expect(saude.get("rj")).toBe("emDia"); // rede comprou, filial RJ não fica "inativo"
+    expect(saude.get("avulso")).toBe("inativo"); // fora da rede, sem pedido nenhum
+  });
+
   it("o agrupamento usa a compra mais recente do grupo, não a mais antiga", () => {
     const grupo = [
       { id: "m", name: "Padovani & Padovani" },

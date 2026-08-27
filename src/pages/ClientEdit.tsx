@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Save, Loader2, Building2, MapPin, Phone, Mail } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, Building2, MapPin, Phone, Mail, Network } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 import { offlineCache, CacheKeys } from '../lib/offlineCache';
 import { syncQueue } from '../lib/syncQueue';
@@ -9,21 +10,37 @@ import type { Client } from '../types';
 
 export default function ClientEdit() {
   const { id } = useParams();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  
+  const [existingNetworks, setExistingNetworks] = useState<string[]>([]);
+
   const [formData, setFormData] = useState({
     name: '',
     cnpj: '',
     address: '',
     phone: '',
-    email: ''
+    email: '',
+    network_name: ''
   });
 
   useEffect(() => {
     loadClient();
   }, [id]);
+
+  useEffect(() => {
+    if (!user || !offlineCache.isOnline()) return;
+    supabase
+      .from('clients')
+      .select('network_name')
+      .eq('user_id', user.id)
+      .not('network_name', 'is', null)
+      .then(({ data }) => {
+        const nomes = Array.from(new Set((data || []).map((r) => r.network_name).filter((n): n is string => !!n?.trim())));
+        setExistingNetworks(nomes);
+      });
+  }, [user]);
 
   const loadClient = async () => {
     try {
@@ -39,7 +56,8 @@ export default function ClientEdit() {
             cnpj: cached.cnpj || '',
             address: cached.address || '',
             phone: cached.phone || '',
-            email: cached.email || ''
+            email: cached.email || '',
+            network_name: cached.network_name || ''
           });
         } else {
           toast.error('Cliente ainda não sincronizado — conecte à internet uma vez pra editar offline.');
@@ -62,7 +80,8 @@ export default function ClientEdit() {
           cnpj: data.cnpj || '',
           address: data.address || '',
           phone: data.phone || '',
-          email: data.email || ''
+          email: data.email || '',
+          network_name: data.network_name || ''
         });
       }
     } catch (err) {
@@ -161,6 +180,27 @@ export default function ClientEdit() {
                 placeholder="00.000.000/0000-00"
               />
             </div>
+          </div>
+
+          <div className="space-y-4">
+            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Rede (opcional)</label>
+            <div className="relative">
+              <Network className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
+              <input
+                type="text"
+                list="redes-existentes"
+                value={formData.network_name}
+                onChange={e => setFormData({ ...formData, network_name: e.target.value })}
+                className="w-full pl-16 pr-6 py-5 bg-slate-50 dark:bg-zinc-950 border border-slate-100 dark:border-zinc-800 rounded-2xl text-sm font-bold outline-none focus:border-emerald-500 transition-colors text-slate-900 dark:text-zinc-100"
+                placeholder="Ex.: Rede Supermercados ABC"
+              />
+              <datalist id="redes-existentes">
+                {existingNetworks.map((n) => <option key={n} value={n} />)}
+              </datalist>
+            </div>
+            <p className="text-[10px] font-bold text-slate-400 px-2 normal-case leading-relaxed">
+              Use o mesmo nome de rede em matriz e filiais que compram por um lugar só — as demais deixam de aparecer como inativas enquanto a rede estiver comprando.
+            </p>
           </div>
 
           <div className="space-y-4">
