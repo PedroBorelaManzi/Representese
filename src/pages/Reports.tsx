@@ -35,6 +35,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
 import { downloadExcelReport, downloadCSVReport } from '../lib/reportGenerator';
+import { CommissionValue } from '../components/CommissionValue';
 import {
   fetchReportAnalytics,
   TrendPoint,
@@ -121,12 +122,15 @@ function KpiTile({
   value,
   current,
   prev,
+  hideable,
 }: {
   icon: typeof Wallet;
   label: string;
   value: string;
   current: number;
   prev: number;
+  /** Comissão em R$ — some no `title` também (senão vazaria no hover mesmo com o blur visual). */
+  hideable?: boolean;
 }) {
   return (
     <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200/80 dark:border-zinc-800/80 p-5 flex flex-col gap-3">
@@ -136,8 +140,8 @@ function KpiTile({
           <Icon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
         </div>
       </div>
-      <p className="text-2xl font-black text-slate-900 dark:text-zinc-50 tabular-nums leading-none truncate" title={value}>
-        {value}
+      <p className="text-2xl font-black text-slate-900 dark:text-zinc-50 tabular-nums leading-none truncate" title={hideable ? undefined : value}>
+        {hideable ? <CommissionValue>{value}</CommissionValue> : value}
       </p>
       <DeltaChip current={current} prev={prev} />
     </div>
@@ -280,9 +284,9 @@ function CardShell({
 /** Faixa compacta com os 3 acumulados do ano — contexto rápido sem precisar trocar de mês. */
 function YtdBanner({ revenue, commission, orders, year }: { revenue: number; commission: number; orders: number; year: number }) {
   const items = [
-    { label: 'Receita no ano', value: BRL(revenue) },
-    { label: 'Comissão no ano', value: BRL(commission) },
-    { label: 'Pedidos no ano', value: String(orders) },
+    { label: 'Receita no ano', value: BRL(revenue), isCommission: false },
+    { label: 'Comissão no ano', value: BRL(commission), isCommission: true },
+    { label: 'Pedidos no ano', value: String(orders), isCommission: false },
   ];
   return (
     <div className="bg-slate-900 dark:bg-zinc-950 rounded-3xl border border-slate-800 dark:border-zinc-800 p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-8">
@@ -293,7 +297,9 @@ function YtdBanner({ revenue, commission, orders, year }: { revenue: number; com
       <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
         {items.map((it) => (
           <div key={it.label} className="flex items-baseline gap-2">
-            <span className="text-sm sm:text-base font-black text-white tabular-nums">{it.value}</span>
+            <span className="text-sm sm:text-base font-black text-white tabular-nums">
+              {it.isCommission ? <CommissionValue>{it.value}</CommissionValue> : it.value}
+            </span>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{it.label}</span>
           </div>
         ))}
@@ -584,7 +590,9 @@ function ByCompanyDetail({ companies }: { companies: CompanySlice[] }) {
               <span className="text-sm font-bold text-slate-800 dark:text-zinc-200 truncate uppercase tracking-tight">{company.name}</span>
               <div className="flex items-baseline gap-3 shrink-0">
                 <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 tabular-nums">
-                  {company.commissionPct > 0 ? `${company.commissionPct}% → ${BRL(company.commissionValue)}` : 'comissão não configurada'}
+                  {company.commissionPct > 0 ? (
+                    <>{company.commissionPct}% → <CommissionValue>{BRL(company.commissionValue)}</CommissionValue></>
+                  ) : 'comissão não configurada'}
                 </span>
                 <span className="text-sm font-black text-slate-900 dark:text-zinc-100 tabular-nums">{BRL(company.revenue)}</span>
               </div>
@@ -769,7 +777,7 @@ export default function ReportsPage() {
             <KpiTile icon={Wallet} label="Receita" value={BRL(kpis.revenue)} current={kpis.revenue} prev={kpis.revenuePrev} />
             <KpiTile icon={ShoppingBag} label="Pedidos" value={String(kpis.orders)} current={kpis.orders} prev={kpis.ordersPrev} />
             <KpiTile icon={TrendingUp} label="Ticket Médio" value={BRL(kpis.avgTicket)} current={kpis.avgTicket} prev={kpis.avgTicketPrev} />
-            <KpiTile icon={Trophy} label="Comissão Estimada" value={BRL(kpis.commission)} current={kpis.commission} prev={kpis.commissionPrev} />
+            <KpiTile icon={Trophy} label="Comissão Estimada" value={BRL(kpis.commission)} current={kpis.commission} prev={kpis.commissionPrev} hideable />
             <KpiTile icon={Users} label="Clientes Novos" value={String(kpis.newClients)} current={kpis.newClients} prev={kpis.newClientsPrev} />
           </div>
 
@@ -905,7 +913,9 @@ export default function ReportsPage() {
                         <span className="text-sm font-bold text-slate-800 dark:text-zinc-200 truncate uppercase tracking-tight">{company.name}</span>
                         <div className="flex items-baseline gap-3 shrink-0">
                           <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 tabular-nums">
-                            {company.commissionPct > 0 ? `${company.commissionPct}% → ${BRL(company.commissionValue)}` : 'comissão não configurada'}
+                            {company.commissionPct > 0 ? (
+                              <>{company.commissionPct}% → <CommissionValue>{BRL(company.commissionValue)}</CommissionValue></>
+                            ) : 'comissão não configurada'}
                           </span>
                           <span className="text-sm font-black text-slate-900 dark:text-zinc-100 tabular-nums">{BRL(company.revenue)}</span>
                         </div>
