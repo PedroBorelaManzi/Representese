@@ -50,6 +50,7 @@ interface UserMgmtRow {
   currentPeriodEnd: string | null;
   avgAccessesPerDay: number;
   lastAccess: string | null;
+  lastLocation: string | null;
 }
 
 function AdminAnalyticsContent({ settings }: { settings: any }) {
@@ -287,6 +288,26 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
         if (!prev || e.created_at > prev) lastAccessByUser.set(e.user_id, e.created_at);
       });
 
+      // Última localização de cada usuário, pra listar de cara na tabela sem
+      // precisar abrir o detalhe um por um. Vem dos mesmos eventos session_open
+      // usados no modal de detalhe (cidade/estado/país resolvidos pela Vercel).
+      const { data: sessionEvents, error: sessionsError } = await supabase
+        .from('user_events')
+        .select('user_id, metadata, created_at')
+        .eq('event_type', 'session_open')
+        .gte('created_at', thirtyDaysAgo)
+        .order('created_at', { ascending: false })
+        .limit(20000);
+      if (sessionsError) throw sessionsError;
+
+      const lastLocationByUser = new Map<string, string>();
+      (sessionEvents || []).forEach((s) => {
+        if (lastLocationByUser.has(s.user_id)) return; // já veio ordenado do mais recente
+        const { city, region, country } = (s.metadata as Record<string, any>) || {};
+        const label = [city, region, country].filter(Boolean).join(', ');
+        if (label) lastLocationByUser.set(s.user_id, label);
+      });
+
       const entByUser = new Map((entitlements || []).map((e) => [e.user_id, e]));
 
       return (profiles || [])
@@ -303,6 +324,7 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
             currentPeriodEnd: ent?.current_period_end || null,
             avgAccessesPerDay: (accessCountByUser.get(p.user_id) || 0) / 30,
             lastAccess: lastAccessByUser.get(p.user_id) || null,
+            lastLocation: lastLocationByUser.get(p.user_id) || null,
           };
         })
         .sort((a, b) => (b.lastAccess || '').localeCompare(a.lastAccess || ''));
@@ -958,6 +980,7 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
                     <th className="px-6 py-4">Ciclo</th>
                     <th className="px-6 py-4">Acessos/dia</th>
                     <th className="px-6 py-4">Último acesso</th>
+                    <th className="px-6 py-4">Última localização</th>
                     <th className="px-6 py-4">Renova / Vence em</th>
                     <th className="px-6 py-4 text-right">Ações</th>
                   </tr>
@@ -1011,6 +1034,9 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
                             ? new Date(u.lastAccess).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
                             : 'Sem acesso registrado'}
                         </td>
+                        <td className="px-6 py-4 text-slate-600 dark:text-zinc-300">
+                          {u.lastLocation || 'Não identificada'}
+                        </td>
                         <td className={cn(
                           "px-6 py-4 font-semibold",
                           expireSoon ? "text-amber-600 dark:text-amber-400" : "text-slate-600 dark:text-zinc-300"
@@ -1032,7 +1058,7 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
                   })}
                   {userMgmtData?.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="px-6 py-12 text-center text-slate-500 dark:text-zinc-400">
+                      <td colSpan={9} className="px-6 py-12 text-center text-slate-500 dark:text-zinc-400">
                         Nenhum usuário encontrado.
                       </td>
                     </tr>
