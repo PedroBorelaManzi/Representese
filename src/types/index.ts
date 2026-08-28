@@ -46,6 +46,8 @@ export interface Order {
   /** Texto livre sobre como/quando a entrega foi combinada — complementa delivery_date. */
   delivery_schedule?: string | null;
   nf_number?: string | null;
+  /** Controle de baixa da comissão dessa NF — null = ainda não definido. */
+  nf_commission_status?: "atrasado" | "pendente" | "confirmado" | null;
   /** Data de faturamento — também é a data-base usada pra calcular o vencimento das parcelas. */
   invoice_date?: string | null;
   /** Condição de pagamento em dias a partir da data-base, ex.: "30/60/90". Vazio/null = à vista (1 parcela só). */
@@ -84,6 +86,23 @@ export interface Appointment {
   google_event_id?: string;
   user_id: string;
   created_at?: string;
+}
+
+/** Item do catálogo de produtos de uma representada — cadastrado de uma vez
+ *  (upload de planilha/PDF) ou item a item, independente de já ter sido
+ *  vendido em algum pedido (diferente de order_items). */
+export interface CatalogItem {
+  id: string;
+  user_id: string;
+  category: string;
+  name: string;
+  code?: string | null;
+  unit_type: "unidade" | "caixa";
+  price?: number | null;
+  discount_pct?: number | null;
+  commission_pct?: number | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface UserSettings {

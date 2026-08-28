@@ -9,6 +9,7 @@ import { useSettings } from "../contexts/SettingsContext";
 import { PageHeader } from "../components/ui";
 import { InlineEditField } from "../components/InlineEditField";
 import { OrderDetailModal } from "../components/OrderDetailModal";
+import { NfCommissionStatusDot, type NfCommissionStatus } from "../components/NfCommissionStatusDot";
 import type { Order } from "../types";
 
 const formatBRL = (n: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0);
@@ -90,6 +91,12 @@ export default function EntregasPage() {
     const { error } = await supabase.from("orders").update({ [field]: value }).eq("id", order.id);
     if (error) throw error;
     patchOrder(order.id, { [field]: value } as Partial<Order>);
+  };
+
+  const saveNfStatus = async (order: Order, status: NfCommissionStatus) => {
+    const { error } = await supabase.from("orders").update({ nf_commission_status: status }).eq("id", order.id);
+    if (error) { toast.error("Erro ao atualizar status da NF."); return; }
+    patchOrder(order.id, { nf_commission_status: status });
   };
 
   // "Entregue"/"Não entregue" deriva da própria data de entrega — não existe
@@ -223,7 +230,8 @@ export default function EntregasPage() {
                         <div className="col-span-2 text-xs text-right">
                           <InlineEditField type="currency" value={order.value} onSave={saveOrderField(order, "value")} label="Valor do pedido" className="justify-end" />
                         </div>
-                        <div className="col-span-1 text-xs">
+                        <div className="col-span-1 text-xs flex items-center gap-1.5">
+                          <NfCommissionStatusDot status={order.nf_commission_status} onChange={(s) => saveNfStatus(order, s)} />
                           <InlineEditField type="text" value={order.nf_number} onSave={saveOrderField(order, "nf_number")} label="Número da NF" placeholder="NF" />
                         </div>
                         <div className="col-span-1 text-xs">
@@ -270,7 +278,10 @@ export default function EntregasPage() {
                       </div>
                       <div>
                         <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1">Nº NF</p>
-                        <InlineEditField type="text" value={order.nf_number} onSave={saveOrderField(order, "nf_number")} label="Número da NF" placeholder="NF" />
+                        <div className="flex items-center gap-1.5">
+                          <NfCommissionStatusDot status={order.nf_commission_status} onChange={(s) => saveNfStatus(order, s)} />
+                          <InlineEditField type="text" value={order.nf_number} onSave={saveOrderField(order, "nf_number")} label="Número da NF" placeholder="NF" />
+                        </div>
                       </div>
                       <div>
                         <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1">Faturamento</p>

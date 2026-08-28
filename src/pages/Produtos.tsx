@@ -5,7 +5,7 @@ import {
 } from "recharts";
 import {
   PackageSearch, ChevronLeft, ChevronRight, Boxes, Building2, Layers,
-  Search, X, ArrowUpDown, DollarSign, ShoppingBag, TrendingUp, Percent,
+  Search, X, ArrowUpDown, DollarSign, ShoppingBag, TrendingUp, Percent, Tags,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -25,6 +25,7 @@ import {
   type ProductGroup,
   type PeriodoTipo,
 } from "../lib/productAnalytics";
+import { CatalogoProdutos } from "../components/CatalogoProdutos";
 
 const COLORS = [
   "#10b981", "#6366f1", "#f59e0b", "#ef4444",
@@ -69,6 +70,7 @@ export default function ProdutosPage() {
   const [busca, setBusca] = useState("");
   const [sortBy, setSortBy] = useState<"quantity" | "revenue">("quantity");
   const [produtoSelecionado, setProdutoSelecionado] = useState<RankedProduct | null>(null);
+  const [aba, setAba] = useState<"vendas" | "catalogo">("vendas");
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["order_items", user?.id],
@@ -246,27 +248,82 @@ export default function ProdutosPage() {
       <PageHeader
         icon={PackageSearch}
         title="Produtos"
-        subtitle="Unidades vendidas por produto, separadas por representada"
+        subtitle={aba === "vendas" ? "Unidades vendidas por produto, separadas por representada" : "Lista de preços por representada — nome, código, preço, desconto e comissão"}
         actions={
-          <div className="flex items-center bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-1">
-            {PERIODOS.map((p) => (
-              <button
-                key={p.tipo}
-                onClick={() => setPeriodo(p.tipo)}
-                className={cn(
-                  "px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wide transition-all",
-                  periodo === p.tipo
-                    ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/25"
-                    : "text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200"
-                )}
-              >
-                {p.label}
-              </button>
-            ))}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-1">
+              {([{ key: "vendas", label: "Vendas" }, { key: "catalogo", label: "Catálogo" }] as const).map((t) => (
+                <button
+                  key={t.key}
+                  onClick={() => setAba(t.key)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wide transition-all",
+                    aba === t.key
+                      ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/25"
+                      : "text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200"
+                  )}
+                >
+                  {t.key === "catalogo" && <Tags className="w-3.5 h-3.5" />}
+                  {t.label}
+                </button>
+              ))}
+            </div>
+            {aba === "vendas" && (
+              <div className="flex items-center bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-1">
+                {PERIODOS.map((p) => (
+                  <button
+                    key={p.tipo}
+                    onClick={() => setPeriodo(p.tipo)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wide transition-all",
+                      periodo === p.tipo
+                        ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/25"
+                        : "text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200"
+                    )}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         }
       />
 
+      {aba === "catalogo" && (
+        <div className="flex items-center gap-2 flex-wrap mb-6">
+          <button
+            onClick={() => setCategoriaFiltro("")}
+            className={cn(
+              "px-3.5 py-2 rounded-xl text-xs font-black transition-all border",
+              !categoriaFiltro
+                ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-transparent"
+                : "bg-white dark:bg-zinc-900 text-slate-500 dark:text-zinc-400 border-slate-200 dark:border-zinc-800 hover:border-slate-300"
+            )}
+          >
+            Todas as representadas
+          </button>
+          {categoriasDisponiveis.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setCategoriaFiltro(cat)}
+              className={cn(
+                "px-3.5 py-2 rounded-xl text-xs font-black transition-all border",
+                categoriaFiltro === cat
+                  ? "bg-emerald-600 text-white border-transparent shadow-md shadow-emerald-600/25"
+                  : "bg-white dark:bg-zinc-900 text-slate-500 dark:text-zinc-400 border-slate-200 dark:border-zinc-800 hover:border-slate-300"
+              )}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {aba === "catalogo" ? (
+        <CatalogoProdutos categoriaFiltro={categoriaFiltro} categoriasDisponiveis={categoriasDisponiveis} />
+      ) : (
+        <>
       {periodo !== "tudo" && (
         <div className="flex items-center justify-center gap-3 mb-6">
           <button
@@ -473,6 +530,8 @@ export default function ProdutosPage() {
               </div>
             </div>
           )}
+        </>
+      )}
         </>
       )}
 

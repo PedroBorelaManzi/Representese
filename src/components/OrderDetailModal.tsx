@@ -7,6 +7,7 @@ import { cn } from "../lib/utils";
 import { InlineEditField } from "./InlineEditField";
 import { CommissionValue } from "./CommissionValue";
 import { PdfViewerModal } from "./PdfViewerModal";
+import { NfCommissionStatusDot, type NfCommissionStatus } from "./NfCommissionStatusDot";
 import type { Order, OrderInstallment } from "../types";
 
 interface OrderDetailModalProps {
@@ -72,6 +73,12 @@ export function OrderDetailModal({ order, isOpen, onClose, onUpdated, commission
     if (REGENERATING_FIELDS.has(field)) await reloadInstallments();
   };
 
+  const saveNfStatus = async (status: NfCommissionStatus) => {
+    const { error } = await supabase.from("orders").update({ nf_commission_status: status }).eq("id", order.id);
+    if (error) { toast.error("Erro ao atualizar status da NF."); return; }
+    onUpdated(order.id, { nf_commission_status: status });
+  };
+
   const saveInstallment = async (installment: OrderInstallment, field: "due_date" | "value", rawValue: string) => {
     const value = field === "value" ? parseFloat(rawValue) || 0 : rawValue;
     const { error } = await supabase.from("order_installments").update({ [field]: value }).eq("id", installment.id);
@@ -123,7 +130,10 @@ export function OrderDetailModal({ order, isOpen, onClose, onUpdated, commission
                 </div>
                 <div>
                   <label className="flex items-center gap-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5"><Hash className="w-3 h-3" /> Nº da NF</label>
-                  <input type="text" defaultValue={order.nf_number || ""} onBlur={(e) => saveField("nf_number", e.target.value).catch((err) => toast.error(err.message))} placeholder="Nº da nota fiscal" className={inputCls} />
+                  <div className="flex items-center gap-2">
+                    <NfCommissionStatusDot status={order.nf_commission_status} onChange={saveNfStatus} />
+                    <input type="text" defaultValue={order.nf_number || ""} onBlur={(e) => saveField("nf_number", e.target.value).catch((err) => toast.error(err.message))} placeholder="Nº da nota fiscal" className={cn(inputCls, "flex-1")} />
+                  </div>
                 </div>
                 <div>
                   <label className="flex items-center gap-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5"><Receipt className="w-3 h-3" /> Data de faturamento</label>
