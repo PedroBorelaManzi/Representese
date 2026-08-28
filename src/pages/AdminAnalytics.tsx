@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { useSettings } from '../contexts/SettingsContext';
 import { Navigate } from 'react-router-dom';
-import { BarChart3, Clock, LayoutDashboard, MousePointerClick, Search, ChevronDown, ChevronUp, User, Users, LineChart, Download, Building2, Phone, UserCog } from 'lucide-react';
+import { BarChart3, Clock, LayoutDashboard, MousePointerClick, Search, ChevronDown, ChevronUp, User, Users, LineChart, Download, Building2, Phone, UserCog, Settings as SettingsIcon, X, Trash2, Mail, Loader2, ShieldAlert } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell
 } from 'recharts';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
 import { exportRawLeadsAsExcel, exportSubscriptionLeadsAsExcel } from '../lib/rawLeadsExport';
 import { toast } from 'sonner';
+import { useConfirm } from '../components/ui';
 
 const COLORS = [
   '#10b981', '#6366f1', '#f59e0b', '#ef4444', 
@@ -38,9 +40,25 @@ export default function AdminAnalytics() {
   return <AdminAnalyticsContent settings={settings} />;
 }
 
+interface UserMgmtRow {
+  userId: string;
+  email: string;
+  createdAt: string;
+  subscriptionStatus: string;
+  planId: string | null;
+  billingCycle: string | null;
+  currentPeriodEnd: string | null;
+  avgAccessesPerDay: number;
+  lastAccess: string | null;
+}
+
 function AdminAnalyticsContent({ settings }: { settings: any }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
+  const [detailUser, setDetailUser] = useState<UserMgmtRow | null>(null);
+  const [deletingUser, setDeletingUser] = useState(false);
+  const queryClient = useQueryClient();
+  const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState<'sistema' | 'landing' | 'leads' | 'usuarios'>('sistema');
 
   // --- QUERY 1: Sistema (Usuários Logados) ---
@@ -293,6 +311,38 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
     staleTime: 0,
     refetchOnMount: 'always',
   });
+
+  /** Exclusão definitiva de outra conta pelo painel — cancela a assinatura no
+   *  Asaas (se houver) e apaga tudo, via a mesma Edge Function usada pra
+   *  exclusão de conta própria (delete-account), só que passando o id de
+   *  quem deve ser excluído. Só funciona pra quem está logado como admin —
+   *  a função confere isso de novo no servidor antes de apagar qualquer coisa. */
+  const handleDeleteUser = async (target: UserMgmtRow) => {
+    const ok = await confirm({
+      title: 'Excluir usuário definitivamente',
+      message: `Isso cancela a assinatura de ${target.email} (se houver) e apaga a conta e todos os dados dela pra sempre. Não tem como desfazer.`,
+      confirmLabel: 'Excluir definitivamente',
+      tone: 'danger',
+    });
+    if (!ok) return;
+
+    setDeletingUser(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-account', {
+        body: { targetUserId: target.userId },
+      });
+      if (error) throw error;
+      if (data && !data.success) throw new Error(data.message || 'Erro desconhecido');
+
+      toast.success(`Conta de ${target.email} excluída.`);
+      setDetailUser(null);
+      queryClient.invalidateQueries({ queryKey: ['admin_user_management'] });
+    } catch (err: any) {
+      toast.error(`Erro ao excluir: ${err.message || 'tente novamente'}`);
+    } finally {
+      setDeletingUser(false);
+    }
+  };
 
   const exportRawLeadsToCSV = async () => {
     if (!rawLeadsData || rawLeadsData.length === 0) return;
@@ -872,6 +922,7 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
                     <th className="px-6 py-4">Acessos/dia</th>
                     <th className="px-6 py-4">Último acesso</th>
                     <th className="px-6 py-4">Renova / Vence em</th>
+                    <th className="px-6 py-4 text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-zinc-800">
@@ -930,12 +981,21 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
                           {u.currentPeriodEnd ? new Date(u.currentPeriodEnd).toLocaleDateString('pt-BR') : '—'}
                           {expireSoon && <span className="ml-1 text-[10px] uppercase font-bold">({daysToExpire}d)</span>}
                         </td>
+                        <td className="px-6 py-4 text-right">
+                          <button
+                            onClick={() => setDetailUser(u)}
+                            title="Ver dados e gerenciar esta conta"
+                            className="p-2 rounded-xl text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors"
+                          >
+                            <SettingsIcon className="w-4 h-4" />
+                          </button>
+                        </td>
                       </tr>
                     );
                   })}
                   {userMgmtData?.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="px-6 py-12 text-center text-slate-500 dark:text-zinc-400">
+                      <td colSpan={8} className="px-6 py-12 text-center text-slate-500 dark:text-zinc-400">
                         Nenhum usuário encontrado.
                       </td>
                     </tr>
@@ -946,6 +1006,77 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
           </div>
         )
       )}
+
+      <AnimatePresence>
+        {detailUser && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => !deletingUser && setDetailUser(null)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative z-10 w-full max-w-md bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-zinc-800 p-6"
+            >
+              <div className="flex items-start justify-between mb-5">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-blue-500 mb-1">Conta do usuário</p>
+                  <h2 className="text-base font-black text-slate-900 dark:text-zinc-50 truncate flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-slate-400 shrink-0" /> {detailUser.email}
+                  </h2>
+                </div>
+                <button
+                  onClick={() => !deletingUser && setDetailUser(null)}
+                  className="p-2 rounded-full hover:bg-slate-50 dark:hover:bg-zinc-800 text-slate-400 shrink-0"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-3 text-sm">
+                {[
+                  { label: 'Status da assinatura', value: (() => {
+                      const statusLabel: Record<string, string> = { active: 'Ativo', past_due: 'Inadimplente', canceled: 'Cancelado', trialing: 'Trial', inactive: 'Sem plano' };
+                      return statusLabel[detailUser.subscriptionStatus] || detailUser.subscriptionStatus;
+                    })() },
+                  { label: 'Plano', value: detailUser.planId || '—' },
+                  { label: 'Ciclo de cobrança', value: (() => {
+                      const cycleLabel: Record<string, string> = { MONTHLY: 'Mensal', SEMIANNUAL: 'Semestral', ANNUAL: 'Anual' };
+                      return detailUser.billingCycle ? (cycleLabel[detailUser.billingCycle] || detailUser.billingCycle) : '—';
+                    })() },
+                  { label: 'Renova / vence em', value: detailUser.currentPeriodEnd ? new Date(detailUser.currentPeriodEnd).toLocaleDateString('pt-BR') : '—' },
+                  { label: 'Cadastrado em', value: detailUser.createdAt ? new Date(detailUser.createdAt).toLocaleDateString('pt-BR') : '—' },
+                  { label: 'Acessos/dia (30d)', value: detailUser.avgAccessesPerDay > 0 ? `${detailUser.avgAccessesPerDay.toFixed(1)}/dia` : 'Sem acesso registrado' },
+                  { label: 'Última vez que abriu o app', value: detailUser.lastAccess
+                      ? new Date(detailUser.lastAccess).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
+                      : 'Sem acesso registrado' },
+                ].map((row) => (
+                  <div key={row.label} className="flex items-center justify-between gap-4 py-2 border-b border-slate-50 dark:border-zinc-800 last:border-0">
+                    <span className="text-slate-400 dark:text-zinc-500 font-bold text-[11px] uppercase tracking-wide">{row.label}</span>
+                    <span className="text-slate-900 dark:text-zinc-100 font-semibold text-right">{row.value}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-6 pt-5 border-t border-slate-100 dark:border-zinc-800">
+                <div className="flex items-start gap-2 mb-3 text-[11px] text-slate-400 dark:text-zinc-500 leading-relaxed">
+                  <ShieldAlert className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  Excluir cancela a assinatura no Asaas (se houver) e apaga a conta e todos os dados dela pra sempre.
+                </div>
+                <button
+                  onClick={() => handleDeleteUser(detailUser)}
+                  disabled={deletingUser}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-red-500 hover:bg-red-600 text-white text-xs font-black uppercase tracking-widest transition-all active:scale-[0.98] disabled:opacity-50 shadow-lg shadow-red-500/20"
+                >
+                  {deletingUser ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  {deletingUser ? 'Excluindo...' : 'Excluir usuário'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

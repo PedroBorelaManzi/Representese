@@ -2,7 +2,10 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 /* Exclusão de conta (LGPD — direito ao esquecimento).
-   Só o PRÓPRIO usuário autenticado pode excluir a própria conta:
+   O usuário autenticado exclui a própria conta por padrão. Um admin
+   (user_settings.is_admin) pode excluir a conta de OUTRO usuário passando
+   { targetUserId } no corpo — usado pelo painel Gerenciar Usuários. Em
+   ambos os casos:
    1. Cancela a assinatura no Asaas (se houver)
    2. Apaga os arquivos do Storage (client_vault/userId/...)
    3. Apaga as linhas das tabelas do usuário
@@ -41,7 +44,24 @@ serve(async (req) => {
     }
 
     const admin = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!)
-    const userId = user.id
+
+    // Alvo da exclusão: o próprio usuário por padrão, ou — só se quem chamou
+    // for admin — outro usuário informado no corpo (painel Gerenciar Usuários).
+    let userId = user.id
+    let body: { targetUserId?: string } = {}
+    try { body = await req.json() } catch { /* corpo vazio = auto-exclusão */ }
+
+    if (body.targetUserId && body.targetUserId !== user.id) {
+      const { data: callerSettings } = await admin
+        .from('user_settings')
+        .select('is_admin')
+        .eq('user_id', user.id)
+        .single()
+      if (!callerSettings?.is_admin) {
+        return jsonResponse({ success: false, message: 'Sem permissão pra excluir outra conta.' }, 403)
+      }
+      userId = body.targetUserId
+    }
 
     // 1. Cancela assinatura no Asaas (best-effort: a exclusão segue mesmo se falhar)
     try {
