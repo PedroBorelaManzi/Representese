@@ -22,7 +22,7 @@ interface CatalogoProdutosProps {
 }
 
 /** Catálogo de produtos por representada: sobe uma planilha/PDF da fábrica
- *  (lista de preços) e a IA extrai nome, código, preço (unitário/caixa),
+ *  (lista de produtos) e a IA extrai nome, código, preço (unitário/caixa),
  *  desconto e comissão de cada item — diferente do ranking de vendas
  *  (order_items), que só existe depois de um pedido lançado. Comissão salva
  *  aqui já alimenta settings.product_commissions (mesma chave usada em
@@ -65,7 +65,7 @@ export function CatalogoProdutos({ categoriaFiltro, categoriasDisponiveis }: Cat
     try {
       const parsed = await parseCatalogFile(file);
       if (parsed.length === 0) {
-        toast.error("Não encontrei produtos nesse arquivo. Confira se é a lista de preços certa.");
+        toast.error("Não encontrei produtos nesse arquivo. Confira se é a lista de produtos certa.");
         return;
       }
 
@@ -141,7 +141,7 @@ export function CatalogoProdutos({ categoriaFiltro, categoriasDisponiveis }: Cat
         description={
           categoriasDisponiveis.length === 0
             ? "Cadastre uma empresa representada primeiro, na aba Empresas."
-            : "O catálogo é separado por representada — selecione uma ali em cima pra subir a lista de preços ou ver os produtos já cadastrados."
+            : "O catálogo é separado por representada — selecione uma ali em cima pra subir a lista de produtos ou ver os produtos já cadastrados."
         }
       />
     );
@@ -153,7 +153,7 @@ export function CatalogoProdutos({ categoriaFiltro, categoriasDisponiveis }: Cat
         <div>
           <h3 className="text-sm font-black text-slate-900 dark:text-zinc-100">Catálogo — {categoriaFiltro}</h3>
           <p className="text-[11px] font-medium text-slate-400 dark:text-zinc-500 mt-0.5">
-            Suba a lista de preços (Excel, PDF ou foto) e a IA já cadastra nome, código, preço, desconto e comissão de cada item.
+            Suba a lista de produtos (Excel, PDF ou foto) e a IA já cadastra nome, código, preço, desconto e comissão de cada item — tudo editável depois.
           </p>
         </div>
         <div>
@@ -164,7 +164,7 @@ export function CatalogoProdutos({ categoriaFiltro, categoriasDisponiveis }: Cat
             className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all disabled:opacity-50 shrink-0"
           >
             {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-            {uploading ? "Lendo arquivo..." : "Subir lista de preços"}
+            {uploading ? "Lendo arquivo..." : "Subir lista de produtos"}
           </button>
         </div>
       </div>
@@ -181,7 +181,7 @@ export function CatalogoProdutos({ categoriaFiltro, categoriasDisponiveis }: Cat
         <EmptyState
           icon={Package}
           title="Nenhum produto no catálogo ainda"
-          description={`Suba a lista de preços de ${categoriaFiltro} pra cadastrar os produtos de uma vez.`}
+          description={`Suba a lista de produtos de ${categoriaFiltro} pra cadastrar tudo de uma vez.`}
         />
       ) : (
         <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl overflow-hidden">
