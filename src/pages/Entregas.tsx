@@ -10,6 +10,8 @@ import { PageHeader } from "../components/ui";
 import { InlineEditField } from "../components/InlineEditField";
 import { OrderDetailModal } from "../components/OrderDetailModal";
 import { NfCommissionStatusDot, type NfCommissionStatus } from "../components/NfCommissionStatusDot";
+import { ExportDeliveriesButton } from "../components/ExportDeliveriesButton";
+import type { DeliveryReportRow } from "../lib/deliveriesExport";
 import type { Order } from "../types";
 
 const formatBRL = (n: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0);
@@ -122,6 +124,45 @@ export default function EntregasPage() {
     });
   }, [orders, searchTerm, deliveryFilter]);
 
+  const DELIVERY_STATUS_LABEL: Record<"delivered" | "pending" | "no_date", string> = {
+    delivered: "Entregue",
+    pending: "Não entregue",
+    no_date: "Sem data",
+  };
+  const NF_STATUS_LABEL: Record<string, string> = {
+    atrasado: "Atrasado",
+    pendente: "Pendente",
+    confirmado: "Confirmado",
+  };
+
+  const filterLabel = useMemo(() => {
+    const base: Record<typeof deliveryFilter, string> = {
+      all: "Todos os pedidos",
+      delivered: "Entregues",
+      pending: "Não entregues",
+      no_date: "Sem data de entrega",
+    };
+    const termo = searchTerm.trim();
+    return termo ? `${base[deliveryFilter]} · busca "${termo}"` : base[deliveryFilter];
+  }, [deliveryFilter, searchTerm]);
+
+  const reportRows = useMemo<DeliveryReportRow[]>(
+    () =>
+      filteredOrders.map((o) => ({
+        clientName: o.client?.name || "Cliente desconhecido",
+        category: o.category || "—",
+        orderDate: o.created_at || null,
+        deliverySchedule: o.delivery_schedule || null,
+        deliveryDate: o.delivery_date || null,
+        nfNumber: o.nf_number || null,
+        invoiceDate: o.invoice_date || null,
+        value: o.value || 0,
+        deliveryStatusLabel: DELIVERY_STATUS_LABEL[deliveryStatus(o)],
+        nfCommissionStatusLabel: o.nf_commission_status ? NF_STATUS_LABEL[o.nf_commission_status] || o.nf_commission_status : "Não definido",
+      })),
+    [filteredOrders]
+  );
+
   return (
     <div className="h-full flex flex-col gap-6 md:gap-10 pb-20 overflow-x-hidden">
       <PageHeader
@@ -130,13 +171,16 @@ export default function EntregasPage() {
         title="Entregas"
         subtitle="Entrega, NF e faturamento de cada pedido"
         actions={
-          <button
-            onClick={() => setConfigOpen(true)}
-            className="px-4 py-2.5 bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 border border-slate-200 dark:border-zinc-700 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all flex items-center gap-2"
-          >
-            <Settings2 className="w-4 h-4" />
-            Configurar entregas
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <ExportDeliveriesButton rows={reportRows} filterLabel={filterLabel} />
+            <button
+              onClick={() => setConfigOpen(true)}
+              className="px-4 py-2.5 bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 border border-slate-200 dark:border-zinc-700 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all flex items-center gap-2"
+            >
+              <Settings2 className="w-4 h-4" />
+              Configurar entregas
+            </button>
+          </div>
         }
       />
 
