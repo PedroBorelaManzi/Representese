@@ -39,6 +39,11 @@ export interface CommissionTotals {
 const BRL = (n: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0);
 
+/** Comissão oculta (Configurações → Privacidade, ainda não revelada nesta
+ *  sessão) — o extrato baixado não pode vazar o valor real: em vez de
+ *  bloquear o download inteiro, o arquivo sai com esses campos mascarados. */
+const BRL_OR_MASK = (n: number, hide: boolean) => (hide ? "R$ •••••" : BRL(n));
+
 const deltaOf = (cur: number, prev: number) => (prev > 0 ? ((cur - prev) / prev) * 100 : null);
 
 /* ═══════════════════════════════ PDF (impressão) ═══════════════════════════════ */
@@ -46,7 +51,8 @@ export function exportCommissionsAsPDF(
   rows: CommissionRow[],
   totals: CommissionTotals,
   month: string,
-  year: number
+  year: number,
+  hideValues = false
 ) {
   const win = window.open("", "_blank");
   if (!win) return false;
@@ -73,7 +79,7 @@ export function exportCommissionsAsPDF(
         <td class="num">${BRL(r.faturamento)}</td>
         <td class="num muted">${r.pedidos}</td>
         <td class="center">${pctHtml}</td>
-        <td class="num strong">${BRL(r.comissao)}</td>
+        <td class="num strong">${BRL_OR_MASK(r.comissao, hideValues)}</td>
         <td class="center">${deltaHtml}</td>
       </tr>`;
     })
@@ -132,8 +138,8 @@ export function exportCommissionsAsPDF(
   <div class="kpis">
     <div class="kpi highlight">
       <div class="kpi-label">Comissão total do mês</div>
-      <div class="kpi-value">${BRL(totals.comissao)}</div>
-      ${deltaPct !== null ? `<div class="kpi-sub ${deltaPct >= 0 ? "up" : "down"}">${deltaPct >= 0 ? "▲" : "▼"} ${Math.abs(deltaPct).toFixed(0)}% vs. mês anterior</div>` : ""}
+      <div class="kpi-value">${BRL_OR_MASK(totals.comissao, hideValues)}</div>
+      ${!hideValues && deltaPct !== null ? `<div class="kpi-sub ${deltaPct >= 0 ? "up" : "down"}">${deltaPct >= 0 ? "▲" : "▼"} ${Math.abs(deltaPct).toFixed(0)}% vs. mês anterior</div>` : ""}
     </div>
     <div class="kpi">
       <div class="kpi-label">Faturamento total</div>
@@ -154,7 +160,7 @@ export function exportCommissionsAsPDF(
   <table>
     <thead><tr><th>Empresa</th><th style="text-align:right">Faturamento</th><th style="text-align:right">Pedidos</th><th style="text-align:center">Comissão %</th><th style="text-align:right">Comissão</th><th style="text-align:center">Var. mês</th></tr></thead>
     <tbody>${rowsHtml || `<tr><td colspan="6" style="color:#94a3b8;text-align:center;padding:24px">Nenhum pedido neste mês.</td></tr>`}</tbody>
-    ${active.length > 0 ? `<tfoot><tr><td>Total</td><td class="num">${BRL(totals.faturamento)}</td><td class="num">${totalPedidos}</td><td></td><td class="num" style="color:#059669">${BRL(totals.comissao)}</td><td></td></tr></tfoot>` : ""}
+    ${active.length > 0 ? `<tfoot><tr><td>Total</td><td class="num">${BRL(totals.faturamento)}</td><td class="num">${totalPedidos}</td><td></td><td class="num" style="color:#059669">${BRL_OR_MASK(totals.comissao, hideValues)}</td><td></td></tr></tfoot>` : ""}
   </table>
 
   <div class="foot">Gerado pelo Represente-Se! · www.representese.com</div>
@@ -170,7 +176,8 @@ export async function exportCommissionsAsExcel(
   totals: CommissionTotals,
   month: string,
   year: number,
-  userName?: string
+  userName?: string,
+  hideValues = false
 ) {
   const { default: ExcelJS } = await import('exceljs'); // ~940 kB: só carrega quando o usuário exporta a planilha
   const workbook = new ExcelJS.Workbook();
@@ -195,13 +202,19 @@ export async function exportCommissionsAsExcel(
   row += 1;
 
   const tiles: KpiTile[] = [
-    { label: 'Comissão Total', value: totals.comissao, numFmt: CURRENCY_FMT, accent: BRAND.primaryDark, sub: deltaPct !== null ? `${deltaPct >= 0 ? '▲' : '▼'} ${Math.abs(deltaPct).toFixed(1)}% vs. mês anterior` : 'sem base de comparação' },
+    hideValues
+      ? { label: 'Comissão Total', value: 'OCULTO', accent: BRAND.primaryDark, sub: 'revele em Comissões pra baixar com o valor' }
+      : { label: 'Comissão Total', value: totals.comissao, numFmt: CURRENCY_FMT, accent: BRAND.primaryDark, sub: deltaPct !== null ? `${deltaPct >= 0 ? '▲' : '▼'} ${Math.abs(deltaPct).toFixed(1)}% vs. mês anterior` : 'sem base de comparação' },
     { label: 'Faturamento Total', value: totals.faturamento, numFmt: CURRENCY_FMT, accent: BRAND.primary },
     { label: 'Pedidos no Mês', value: totalPedidos, numFmt: INT_FMT, accent: BRAND.accentBlue },
     { label: 'Empresas Ativas', value: active.length, numFmt: INT_FMT, accent: BRAND.accentIndigo },
     { label: 'Ticket Médio', value: ticketMedio, numFmt: CURRENCY_FMT, accent: BRAND.accentPurple, sub: 'por pedido' },
-    { label: 'Comissão Média', value: comissaoMediaPedido, numFmt: CURRENCY_FMT, accent: BRAND.accentPurple, sub: 'por pedido' },
-    { label: 'Projeção Anual', value: totals.comissao * 12, numFmt: CURRENCY_FMT, accent: BRAND.accentAmber, sub: 'comissão do mês × 12' },
+    hideValues
+      ? { label: 'Comissão Média', value: 'OCULTO', accent: BRAND.accentPurple, sub: 'por pedido' }
+      : { label: 'Comissão Média', value: comissaoMediaPedido, numFmt: CURRENCY_FMT, accent: BRAND.accentPurple, sub: 'por pedido' },
+    hideValues
+      ? { label: 'Projeção Anual', value: 'OCULTO', accent: BRAND.accentAmber, sub: 'comissão do mês × 12' }
+      : { label: 'Projeção Anual', value: totals.comissao * 12, numFmt: CURRENCY_FMT, accent: BRAND.accentAmber, sub: 'comissão do mês × 12' },
     { label: 'Sem % Configurado', value: totals.semConfig, numFmt: INT_FMT, accent: BRAND.danger },
   ];
   row = addKpiGrid(summarySheet, row, tiles, { tileCols: 2, perRow: 4 }) + 1;
@@ -209,7 +222,7 @@ export async function exportCommissionsAsExcel(
   if (top3.length > 0) {
     summarySheet.mergeCells(`A${row}:H${row}`);
     const rankCell = summarySheet.getCell(`A${row}`);
-    const parts = top3.map((r, i) => `${i + 1}º ${r.name} (${BRL(r.comissao)})`).join('  ·  ');
+    const parts = top3.map((r, i) => `${i + 1}º ${r.name} (${BRL_OR_MASK(r.comissao, hideValues)})`).join('  ·  ');
     rankCell.value = { richText: [
       { text: 'Top 3 empresas do mês: ', font: { bold: true, size: 10, color: { argb: BRAND.ink } } },
       { text: parts, font: { size: 10, color: { argb: BRAND.slate } } },
@@ -239,7 +252,7 @@ export async function exportCommissionsAsExcel(
       pedidos: r.pedidos,
       ticket: r.pedidos > 0 ? r.faturamento / r.pedidos : 0,
       pct: r.pct > 0 ? r.pct / 100 : null,
-      comissao: r.comissao,
+      comissao: hideValues ? null : r.comissao,
       faturamentoPrev: r.faturamentoPrev,
       delta: delta !== null ? delta / 100 : null,
     });
@@ -271,11 +284,18 @@ export async function exportCommissionsAsExcel(
     } else {
       deltaCell.font = { color: { argb: BRAND.danger }, bold: true };
     }
-    r.getCell('comissao').font = { bold: true, color: { argb: BRAND.primaryDark } };
+    const comissaoCell = r.getCell('comissao');
+    if (hideValues) {
+      comissaoCell.value = 'OCULTO';
+      comissaoCell.numFmt = 'General';
+    }
+    comissaoCell.font = { bold: true, color: { argb: BRAND.primaryDark } };
   }
   zebraStripe(detailSheet, 2, active.length + 1);
   if (active.length > 0) {
-    addDataBars(detailSheet, `F2:F${active.length + 1}`, BRAND.primary);
+    // Barra de dados também vaza o valor relativo (comprimento da barra) —
+    // com comissão oculta, nem essa pista visual pode ficar.
+    if (!hideValues) addDataBars(detailSheet, `F2:F${active.length + 1}`, BRAND.primary);
     autoFilter(detailSheet, 1, 8, active.length + 1);
   }
 
@@ -287,7 +307,7 @@ export async function exportCommissionsAsExcel(
       pedidos: totalPedidos,
       ticket: ticketMedio,
       pct: null,
-      comissao: totals.comissao,
+      comissao: hideValues ? null : totals.comissao,
       faturamentoPrev: '',
       delta: null,
     });
@@ -295,7 +315,12 @@ export async function exportCommissionsAsExcel(
     totalRow.border = { top: { style: 'double', color: { argb: BRAND.ink } } };
     totalRow.getCell('faturamento').numFmt = CURRENCY_FMT;
     totalRow.getCell('ticket').numFmt = CURRENCY_FMT;
-    totalRow.getCell('comissao').numFmt = CURRENCY_FMT;
+    if (hideValues) {
+      totalRow.getCell('comissao').value = 'OCULTO';
+      totalRow.getCell('comissao').numFmt = 'General';
+    } else {
+      totalRow.getCell('comissao').numFmt = CURRENCY_FMT;
+    }
     totalRow.getCell('pct').value = '';
     totalRow.getCell('pct').numFmt = 'General';
     totalRow.getCell('delta').value = '';

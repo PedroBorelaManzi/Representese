@@ -40,6 +40,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
 import { downloadExcelReport, downloadCSVReport } from '../lib/reportGenerator';
 import { CommissionValue } from '../components/CommissionValue';
+import { useCommissionPrivacy } from '../contexts/CommissionPrivacyContext';
 import {
   fetchReportAnalytics,
   TrendPoint,
@@ -669,6 +670,7 @@ function LoadingSkeleton() {
 export default function ReportsPage() {
   const { user } = useAuth();
   const { settings, loading: settingsLoading } = useSettings();
+  const { isHidden: hideCommissions } = useCommissionPrivacy();
   const monthOptions = useMemo(buildMonthOptions, []);
   const [selected, setSelected] = useState<MonthOption>(monthOptions[0]);
   const [exporting, setExporting] = useState<'excel' | 'csv' | null>(null);
@@ -697,9 +699,9 @@ export default function ReportsPage() {
     if (!user || exporting) return;
     setExporting(format);
     try {
-      if (format === 'excel') await downloadExcelReport(user.id, selected.year, selected.month, settings.commissions || {}, data);
-      else await downloadCSVReport(user.id, selected.year, selected.month, settings.commissions || {}, data);
-      toast.success(`Relatório de ${selected.fullLabel} gerado com sucesso!`);
+      if (format === 'excel') await downloadExcelReport(user.id, selected.year, selected.month, settings.commissions || {}, data, hideCommissions);
+      else await downloadCSVReport(user.id, selected.year, selected.month, settings.commissions || {}, data, hideCommissions);
+      toast.success(hideCommissions ? `Relatório de ${selected.fullLabel} gerado — comissão oculta veio borrada.` : `Relatório de ${selected.fullLabel} gerado com sucesso!`);
     } catch (error) {
       console.error('Erro ao gerar relatório:', error);
       toast.error('Erro ao gerar relatório. Tente novamente.');

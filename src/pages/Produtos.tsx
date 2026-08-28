@@ -26,6 +26,8 @@ import {
   type PeriodoTipo,
 } from "../lib/productAnalytics";
 import { CatalogoProdutos } from "../components/CatalogoProdutos";
+import { HideableCommissionField } from "../components/HideableCommissionField";
+import { useCommissionPrivacy } from "../contexts/CommissionPrivacyContext";
 
 const COLORS = [
   "#10b981", "#6366f1", "#f59e0b", "#ef4444",
@@ -580,17 +582,21 @@ export default function ProdutosPage() {
                   <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
                     <Percent className="w-3 h-3" /> % de comissão deste produto
                   </label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={100}
-                    step={0.5}
-                    inputMode="decimal"
-                    defaultValue={settings?.product_commissions?.[`${produtoSelecionado.category}::${produtoSelecionado.productKey}`] ?? ""}
-                    placeholder="Em branco = 0% até configurar"
-                    onBlur={(e) => saveProductCommission(produtoSelecionado, e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-zinc-950/50 border border-slate-200 dark:border-zinc-800 rounded-2xl text-sm font-black outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
+                  <HideableCommissionField>
+                    {() => (
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={0.5}
+                        inputMode="decimal"
+                        defaultValue={settings?.product_commissions?.[`${produtoSelecionado.category}::${produtoSelecionado.productKey}`] ?? ""}
+                        placeholder="Em branco = 0% até configurar"
+                        onBlur={(e) => saveProductCommission(produtoSelecionado, e.target.value)}
+                        className="w-full px-4 py-3 bg-slate-50 dark:bg-zinc-950/50 border border-slate-200 dark:border-zinc-800 rounded-2xl text-sm font-black outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    )}
+                  </HideableCommissionField>
                 </div>
               ) : (
                 <div className="mb-6 rounded-2xl bg-slate-50 dark:bg-zinc-950/50 px-4 py-3 text-[10px] font-bold text-slate-400 dark:text-zinc-500">
@@ -664,9 +670,12 @@ function GroupCommissionCard({
   onSave: (group: ProductGroup, raw: string) => Promise<void>;
   productCommissions: Record<string, number>;
 }) {
+  const { isHidden } = useCommissionPrivacy();
   const valores = group.products.map((p) => productCommissions[`${p.category}::${p.productKey}`]);
   const todosIguais = valores.every((v) => v === valores[0]);
-  const [draft, setDraft] = useState(todosIguais && valores[0] !== undefined ? String(valores[0]) : "");
+  // Com a comissão oculta, nem semeia o input com o valor real — senão ele
+  // ficaria no DOM (inspecionável) mesmo com o campo trocado pelo cadeado.
+  const [draft, setDraft] = useState(!isHidden && todosIguais && valores[0] !== undefined ? String(valores[0]) : "");
   const [saving, setSaving] = useState(false);
 
   return (
@@ -676,22 +685,26 @@ function GroupCommissionCard({
         {group.products.length} produto{group.products.length !== 1 ? "s" : ""} · {group.products.slice(0, 2).map((p) => p.productName).join(", ")}
         {group.products.length > 2 ? `, +${group.products.length - 2}` : ""}
       </p>
-      <div className="relative">
-        <input
-          type="text"
-          inputMode="decimal"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={async () => {
-            setSaving(true);
-            try { await onSave(group, draft); } finally { setSaving(false); }
-          }}
-          placeholder={todosIguais ? "% pra todos" : "misto — digite pra uniformizar"}
-          disabled={saving}
-          className="w-full pl-3 pr-8 py-2.5 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm font-black outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
-        />
-        <Percent className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-      </div>
+      <HideableCommissionField>
+        {() => (
+          <div className="relative">
+            <input
+              type="text"
+              inputMode="decimal"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={async () => {
+                setSaving(true);
+                try { await onSave(group, draft); } finally { setSaving(false); }
+              }}
+              placeholder={todosIguais ? "% pra todos" : "misto — digite pra uniformizar"}
+              disabled={saving}
+              className="w-full pl-3 pr-8 py-2.5 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm font-black outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
+            />
+            <Percent className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+          </div>
+        )}
+      </HideableCommissionField>
     </div>
   );
 }

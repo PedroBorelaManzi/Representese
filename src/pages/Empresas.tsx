@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { HideableCommissionField } from "../components/HideableCommissionField";
 import { 
   Building2, 
   Plus, 
@@ -1112,15 +1113,19 @@ export default function EmpresasPage() {
                          Por produto
                        </button>
                      </div>
-                     <input
-                       type="text"
-                       inputMode="decimal"
-                       value={editCommissionMode === 'per_product' ? '' : editCommissionPct}
-                       onChange={e => setEditCommissionPct(e.target.value)}
-                       disabled={editCommissionMode === 'per_product'}
-                       placeholder={editCommissionMode === 'fixed' ? "% que vale pra todos os produtos" : "Sem valor fixo — cada produto tem o seu"}
-                       className="w-full p-4 md:p-5 bg-slate-50 dark:bg-zinc-850 rounded-2xl md:rounded-3xl font-black text-sm outline-none border border-slate-100 dark:border-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed"
-                     />
+                     <HideableCommissionField>
+                       {() => (
+                         <input
+                           type="text"
+                           inputMode="decimal"
+                           value={editCommissionMode === 'per_product' ? '' : editCommissionPct}
+                           onChange={e => setEditCommissionPct(e.target.value)}
+                           disabled={editCommissionMode === 'per_product'}
+                           placeholder={editCommissionMode === 'fixed' ? "% que vale pra todos os produtos" : "Sem valor fixo — cada produto tem o seu"}
+                           className="w-full p-4 md:p-5 bg-slate-50 dark:bg-zinc-850 rounded-2xl md:rounded-3xl font-black text-sm outline-none border border-slate-100 dark:border-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                         />
+                       )}
+                     </HideableCommissionField>
                      {editCommissionMode === 'per_product' && (
                        <p className="text-[8px] md:text-[9px] font-medium text-slate-400 mt-2 leading-relaxed">
                          Configure o % de cada produto (ou de um grupo inteiro) na aba Produtos.

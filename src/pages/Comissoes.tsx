@@ -23,6 +23,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ExportCommissionsButton } from "../components/ExportCommissionsButton";
 import { computeCommissionRows, computeCommissionTotals, type MonthOrder } from "../lib/commissions";
 import { CommissionValue } from "../components/CommissionValue";
+import { HideableCommissionField } from "../components/HideableCommissionField";
 
 const BRL = (n: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0);
@@ -447,23 +448,29 @@ export default function Comissoes() {
                             {c}
                           </div>
                           <div className="relative w-28">
-                            <input
-                              type="number"
-                              min={0}
-                              max={100}
-                              step={0.5}
-                              inputMode="decimal"
-                              value={draftMode[c] === 'per_product' ? '' : (draftCommissions[c] ?? 0)}
-                              onChange={(e) =>
-                                setDraftCommissions((prev) => ({
-                                  ...prev,
-                                  [c]: Math.max(0, Math.min(100, Number(e.target.value) || 0)),
-                                }))
-                              }
-                              disabled={draftMode[c] === 'per_product'}
-                              className="w-full pl-3 pr-8 py-2.5 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm font-black text-right outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed"
-                            />
-                            <Percent className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                            <HideableCommissionField>
+                              {() => (
+                                <>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    step={0.5}
+                                    inputMode="decimal"
+                                    value={draftMode[c] === 'per_product' ? '' : (draftCommissions[c] ?? 0)}
+                                    onChange={(e) =>
+                                      setDraftCommissions((prev) => ({
+                                        ...prev,
+                                        [c]: Math.max(0, Math.min(100, Number(e.target.value) || 0)),
+                                      }))
+                                    }
+                                    disabled={draftMode[c] === 'per_product'}
+                                    className="w-full pl-3 pr-8 py-2.5 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm font-black text-right outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                                  />
+                                  <Percent className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                </>
+                              )}
+                            </HideableCommissionField>
                           </div>
                         </div>
                         <div className="flex items-center gap-2 pl-0.5">

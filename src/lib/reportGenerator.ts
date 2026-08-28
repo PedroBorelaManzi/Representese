@@ -201,6 +201,11 @@ async function fetchReportData(
 const BRL = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
+/** Comissão oculta (Configurações → Privacidade, ainda não revelada nesta
+ *  sessão) — o relatório baixado não pode vazar o valor real: em vez de
+ *  bloquear o download inteiro, o arquivo sai com esses campos mascarados. */
+const BRL_OR_MASK = (v: number, hide: boolean) => (hide ? 'OCULTO' : BRL(v));
+
 const OUTCOME_LABELS: Record<FollowupLog['outcome'], string> = {
   positive: 'Positivo',
   pending: 'Pendente',
@@ -366,7 +371,8 @@ export async function generateExcelReport(
   year: number,
   month: number,
   commissions: CommissionMap = {},
-  analytics?: ReportAnalytics
+  analytics?: ReportAnalytics,
+  hideValues = false
 ): Promise<Buffer> {
   const [{ default: Excel }, theme, data] = await Promise.all([
     import('exceljs'),
@@ -398,7 +404,9 @@ export async function generateExcelReport(
   const k = analytics?.kpis;
   const tiles = [
     { label: 'Receita Total', value: data.summary.totalRevenue, numFmt: CURRENCY_FMT, accent: BRAND.primaryDark, sub: k ? deltaSub(k.revenue, k.revenuePrev) : undefined },
-    { label: 'Comissão', value: data.summary.totalCommission, numFmt: CURRENCY_FMT, accent: BRAND.primary, sub: k ? deltaSub(k.commission, k.commissionPrev) : undefined },
+    hideValues
+      ? { label: 'Comissão', value: 'OCULTO', accent: BRAND.primary, sub: 'revele em Comissões pra baixar com o valor' }
+      : { label: 'Comissão', value: data.summary.totalCommission, numFmt: CURRENCY_FMT, accent: BRAND.primary, sub: k ? deltaSub(k.commission, k.commissionPrev) : undefined },
     { label: 'Pedidos', value: data.summary.ordersCount, numFmt: INT_FMT, accent: BRAND.accentBlue, sub: k ? deltaSub(k.orders, k.ordersPrev) : undefined },
     { label: 'Ticket Médio', value: data.summary.averageOrderValue, numFmt: CURRENCY_FMT, accent: BRAND.accentIndigo, sub: k ? deltaSub(k.avgTicket, k.avgTicketPrev) : undefined },
     { label: 'Clientes Novos', value: k?.newClients ?? 0, numFmt: INT_FMT, accent: BRAND.accentPurple, sub: k ? deltaSub(k.newClients, k.newClientsPrev) : undefined },
@@ -414,7 +422,7 @@ export async function generateExcelReport(
     ytdCell.value = {
       richText: [
         { text: `Acumulado ${year}: `, font: { bold: true, size: 10, color: { argb: BRAND.ink } } },
-        { text: `${BRL(analytics.ytd.revenue)} em receita · ${BRL(analytics.ytd.commission)} em comissão · ${analytics.ytd.orders} pedidos`, font: { size: 10, color: { argb: BRAND.slate } } },
+        { text: `${BRL(analytics.ytd.revenue)} em receita · ${BRL_OR_MASK(analytics.ytd.commission, hideValues)} em comissão · ${analytics.ytd.orders} pedidos`, font: { size: 10, color: { argb: BRAND.slate } } },
       ],
     };
     row += 2;
@@ -605,8 +613,8 @@ export async function generateExcelReport(
   drow = addSectionHeader(detailSheet, drow, 7, 'PEDIDOS DO MÊS', BRAND.primary, theme);
   const ordersTable = addSimpleTable(
     detailSheet, drow, ['Cliente', 'Empresa', 'Valor', 'Comissão', 'Data'],
-    data.orders.map((o) => [o.clientName, o.category, o.value, o.commission, new Date(o.createdAt).toLocaleDateString('pt-BR')]),
-    { theme, numFmtByCol: { 3: CURRENCY_FMT, 4: CURRENCY_FMT }, headerColor: BRAND.primary, emptyLabel: 'Nenhum pedido lançado neste período.' }
+    data.orders.map((o) => [o.clientName, o.category, o.value, hideValues ? 'OCULTO' : o.commission, new Date(o.createdAt).toLocaleDateString('pt-BR')]),
+    { theme, numFmtByCol: hideValues ? { 3: CURRENCY_FMT } : { 3: CURRENCY_FMT, 4: CURRENCY_FMT }, headerColor: BRAND.primary, emptyLabel: 'Nenhum pedido lançado neste período.' }
   );
   if (data.orders.length > 0) autoFilter(detailSheet, drow, 5, ordersTable.dataEnd);
   drow = ordersTable.nextRow;
@@ -652,9 +660,10 @@ export async function downloadExcelReport(
   year: number,
   month: number,
   commissions: CommissionMap = {},
-  analytics?: ReportAnalytics
+  analytics?: ReportAnalytics,
+  hideValues = false
 ) {
-  const buffer = await generateExcelReport(userId, year, month, commissions, analytics);
+  const buffer = await generateExcelReport(userId, year, month, commissions, analytics, hideValues);
   const blob = new Blob([buffer], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   });
@@ -666,7 +675,8 @@ export async function generateCSVReport(
   year: number,
   month: number,
   commissions: CommissionMap = {},
-  analytics?: ReportAnalytics
+  analytics?: ReportAnalytics,
+  hideValues = false
 ): Promise<string> {
   const data = await fetchReportData(userId, year, month, commissions);
   const esc = (s: string) => `"${(s || '').replace(/"/g, '""')}"`;
@@ -674,7 +684,7 @@ export async function generateCSVReport(
   let csv = 'RESUMO MENSAL\n';
   csv += `Período,${data.month.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}\n`;
   csv += `Receita Total,${esc(BRL(data.summary.totalRevenue))}\n`;
-  csv += `Comissão Estimada,${esc(BRL(data.summary.totalCommission))}\n`;
+  csv += `Comissão Estimada,${esc(BRL_OR_MASK(data.summary.totalCommission, hideValues))}\n`;
   csv += `Total de Pedidos,${data.summary.ordersCount}\n`;
   csv += `Ticket Médio,${esc(BRL(data.summary.averageOrderValue))}\n`;
   csv += `Total de Clientes,${data.summary.totalClients}\n`;
@@ -689,13 +699,13 @@ export async function generateCSVReport(
   csv += 'PEDIDOS\n';
   csv += 'Cliente,Empresa,Valor,Comissão,Data\n';
   data.orders.forEach((o) => {
-    csv += `${esc(o.clientName)},${esc(o.category)},${esc(BRL(o.value))},${esc(BRL(o.commission))},${esc(new Date(o.createdAt).toLocaleDateString('pt-BR'))}\n`;
+    csv += `${esc(o.clientName)},${esc(o.category)},${esc(BRL(o.value))},${esc(BRL_OR_MASK(o.commission, hideValues))},${esc(new Date(o.createdAt).toLocaleDateString('pt-BR'))}\n`;
   });
 
   csv += '\nCOMISSÕES POR EMPRESA\n';
   csv += 'Empresa,Receita,% Comissão,Comissão\n';
   data.byCompany.forEach((c) => {
-    csv += `${esc(c.name)},${esc(BRL(c.revenue))},${esc(c.commissionPct > 0 ? `${c.commissionPct}%` : '—')},${esc(BRL(c.commissionValue))}\n`;
+    csv += `${esc(c.name)},${esc(BRL(c.revenue))},${esc(hideValues ? 'OCULTO' : (c.commissionPct > 0 ? `${c.commissionPct}%` : '—'))},${esc(BRL_OR_MASK(c.commissionValue, hideValues))}\n`;
   });
 
   if (analytics?.weekday?.length) {
@@ -736,9 +746,10 @@ export async function downloadCSVReport(
   year: number,
   month: number,
   commissions: CommissionMap = {},
-  analytics?: ReportAnalytics
+  analytics?: ReportAnalytics,
+  hideValues = false
 ) {
-  const csv = await generateCSVReport(userId, year, month, commissions, analytics);
+  const csv = await generateCSVReport(userId, year, month, commissions, analytics, hideValues);
   // BOM para o Excel abrir acentos corretamente
   const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
   triggerDownload(blob, reportFilename(year, month, 'csv'));

@@ -6,6 +6,7 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
 import { parseCatalogFile } from "../lib/catalogImport";
+import { HideableCommissionField } from "./HideableCommissionField";
 import { chaveDoProduto } from "../lib/orderItems";
 import { EmptyState } from "./ui";
 import type { CatalogItem } from "../types";
@@ -248,16 +249,20 @@ export function CatalogoProdutos({ categoriaFiltro, categoriasDisponiveis }: Cat
                       <Percent className="w-3 h-3 text-slate-300 shrink-0" />
                     </div>
                     <div className="col-span-1 flex items-center gap-1">
-                      <input
-                        type="number"
-                        step="0.5"
-                        min={0}
-                        max={100}
-                        defaultValue={item.commission_pct ?? ""}
-                        placeholder="—"
-                        onBlur={(e) => e.target.value !== String(item.commission_pct ?? "") && saveItemField(item, "commission_pct", e.target.value)}
-                        className={inputCls}
-                      />
+                      <HideableCommissionField>
+                        {() => (
+                          <input
+                            type="number"
+                            step="0.5"
+                            min={0}
+                            max={100}
+                            defaultValue={item.commission_pct ?? ""}
+                            placeholder="—"
+                            onBlur={(e) => e.target.value !== String(item.commission_pct ?? "") && saveItemField(item, "commission_pct", e.target.value)}
+                            className={inputCls}
+                          />
+                        )}
+                      </HideableCommissionField>
                     </div>
                     <div className="col-span-1 text-right">
                       <button onClick={() => deleteItem(item)} className="p-1.5 text-slate-300 hover:text-red-500 transition-colors">

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { exportCommissionsAsPDF, exportCommissionsAsExcel, type CommissionRow, type CommissionTotals } from "../lib/commissionsExport";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
+import { useCommissionPrivacy } from "../contexts/CommissionPrivacyContext";
 
 interface ExportCommissionsButtonProps {
   rows: CommissionRow[];
@@ -17,12 +18,14 @@ interface ExportCommissionsButtonProps {
 export function ExportCommissionsButton({ rows, totals, month, year, userName }: ExportCommissionsButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const { isHidden } = useCommissionPrivacy();
 
   const handleExportPdf = () => {
     setIsExporting(true);
     try {
-      const ok = exportCommissionsAsPDF(rows, totals, month, year);
+      const ok = exportCommissionsAsPDF(rows, totals, month, year, isHidden);
       if (!ok) toast.error("Permita pop-ups para gerar o relatório.");
+      if (isHidden) toast.message("Comissão oculta — o PDF saiu com os valores borrados.");
       setIsOpen(false);
     } finally {
       setIsExporting(false);
@@ -32,8 +35,8 @@ export function ExportCommissionsButton({ rows, totals, month, year, userName }:
   const handleExportExcel = async () => {
     setIsExporting(true);
     try {
-      await exportCommissionsAsExcel(rows, totals, month, year, userName);
-      toast.success("Extrato Excel gerado com sucesso!");
+      await exportCommissionsAsExcel(rows, totals, month, year, userName, isHidden);
+      toast.success(isHidden ? "Extrato Excel gerado — comissão oculta veio borrada." : "Extrato Excel gerado com sucesso!");
       setIsOpen(false);
     } catch (error) {
       console.error("Erro ao exportar:", error);
