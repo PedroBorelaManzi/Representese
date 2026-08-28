@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, FileText, Loader2, Truck, Hash, Receipt, CreditCard, CalendarDays, StickyNote } from "lucide-react";
+import { X, FileText, Loader2, Truck, Hash, Receipt, CreditCard, CalendarDays, CalendarClock, StickyNote } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
@@ -128,6 +128,16 @@ export function OrderDetailModal({ order, isOpen, onClose, onUpdated, commission
                 <div>
                   <label className="flex items-center gap-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5"><Receipt className="w-3 h-3" /> Data de faturamento</label>
                   <input type="date" defaultValue={toDateInputValue(order.invoice_date)} onBlur={(e) => saveField("invoice_date", e.target.value).catch((err) => toast.error(err.message))} className={inputCls} />
+                </div>
+                <div className="col-span-2">
+                  <label className="flex items-center gap-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5"><CalendarClock className="w-3 h-3" /> Agenda da entrega</label>
+                  <input
+                    type="text"
+                    defaultValue={order.delivery_schedule || ""}
+                    onBlur={(e) => saveField("delivery_schedule", e.target.value).catch((err) => toast.error(err.message))}
+                    placeholder='Ex.: "Manhã, portão B" ou "14h com o motorista"'
+                    className={inputCls}
+                  />
                 </div>
                 <div className="col-span-2">
                   <label className="flex items-center gap-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5"><CreditCard className="w-3 h-3" /> Condição de pagamento</label>

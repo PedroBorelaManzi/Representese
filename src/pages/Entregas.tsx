@@ -180,14 +180,15 @@ export default function EntregasPage() {
         ) : (
           <>
             <div className="hidden md:block flex-1 overflow-x-auto custom-scrollbar">
-              <div className="min-w-[1000px]">
+              <div className="min-w-[1150px]">
                 <div className="grid grid-cols-12 px-8 py-6 border-b border-slate-50 dark:border-zinc-850 bg-slate-50/10 dark:bg-zinc-900 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                   <div className="col-span-3">Pedido</div>
-                  <div className="col-span-2">Data</div>
+                  <div className="col-span-1">Data</div>
                   <div className="col-span-2">Data de entrega</div>
+                  <div className="col-span-2">Agenda da entrega</div>
                   <div className="col-span-2 text-right">Valor</div>
                   <div className="col-span-1">Nº NF</div>
-                  <div className="col-span-2">Data de faturamento</div>
+                  <div className="col-span-1">Faturamento</div>
                 </div>
                 <div className="divide-y divide-slate-50 dark:divide-zinc-850">
                   {filteredOrders.length === 0 ? (
@@ -210,11 +211,14 @@ export default function EntregasPage() {
                           </p>
                           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest truncate mt-0.5">{order.category}</p>
                         </button>
-                        <div className="col-span-2 text-xs">
+                        <div className="col-span-1 text-xs">
                           <InlineEditField type="date" value={order.created_at} onSave={saveOrderField(order, "created_at")} label="Data do pedido" />
                         </div>
                         <div className="col-span-2 text-xs">
                           <InlineEditField type="date" value={order.delivery_date} onSave={saveOrderField(order, "delivery_date")} label="Data de entrega" />
+                        </div>
+                        <div className="col-span-2 text-xs">
+                          <InlineEditField type="text" value={order.delivery_schedule} onSave={saveOrderField(order, "delivery_schedule")} label="Agenda da entrega" placeholder="Ex.: manhã, 14h..." />
                         </div>
                         <div className="col-span-2 text-xs text-right">
                           <InlineEditField type="currency" value={order.value} onSave={saveOrderField(order, "value")} label="Valor do pedido" className="justify-end" />
@@ -222,7 +226,7 @@ export default function EntregasPage() {
                         <div className="col-span-1 text-xs">
                           <InlineEditField type="text" value={order.nf_number} onSave={saveOrderField(order, "nf_number")} label="Número da NF" placeholder="NF" />
                         </div>
-                        <div className="col-span-2 text-xs">
+                        <div className="col-span-1 text-xs">
                           <InlineEditField type="date" value={order.invoice_date} onSave={saveOrderField(order, "invoice_date")} label="Data de faturamento" />
                         </div>
                       </motion.div>
@@ -259,6 +263,10 @@ export default function EntregasPage() {
                       <div>
                         <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1">Entrega</p>
                         <InlineEditField type="date" value={order.delivery_date} onSave={saveOrderField(order, "delivery_date")} label="Data de entrega" />
+                      </div>
+                      <div className="col-span-2">
+                        <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1">Agenda da entrega</p>
+                        <InlineEditField type="text" value={order.delivery_schedule} onSave={saveOrderField(order, "delivery_schedule")} label="Agenda da entrega" placeholder="Ex.: manhã, 14h..." />
                       </div>
                       <div>
                         <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1">Nº NF</p>

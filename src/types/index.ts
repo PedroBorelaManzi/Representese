@@ -43,6 +43,8 @@ export interface Order {
   created_at: string;
   /** Área "Entregas" — todos opcionais, preenchidos depois do lançamento do pedido. */
   delivery_date?: string | null;
+  /** Texto livre sobre como/quando a entrega foi combinada — complementa delivery_date. */
+  delivery_schedule?: string | null;
   nf_number?: string | null;
   /** Data de faturamento — também é a data-base usada pra calcular o vencimento das parcelas. */
   invoice_date?: string | null;
