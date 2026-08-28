@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { User } from "@supabase/supabase-js";
 import { posthog } from "../lib/posthog";
 import { offlineCache } from "../lib/offlineCache";
+import { trackSessionOpen } from "../lib/sessionTracking";
 
 type AuthContextType = {
   user: User | null;
@@ -38,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (session?.user) {
           saveOfflineUser(session.user);
           posthog.identify(session.user.id, { email: session.user.email });
+          trackSessionOpen();
         }
         setUser(session?.user ?? null);
         setLoading(false);
@@ -51,6 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (session?.user) {
         saveOfflineUser(session.user);
         posthog.identify(session.user.id, { email: session.user.email });
+        trackSessionOpen();
       } else {
         posthog.reset();
       }

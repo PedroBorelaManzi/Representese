@@ -312,6 +312,43 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
     refetchOnMount: 'always',
   });
 
+  // --- Sessões recentes do usuário aberto no detalhe: última localização e
+  // lista de dispositivos distintos (dispositivo mandado pelo cliente +
+  // cidade/estado/país resolvidos pela Vercel no momento do login). ---
+  const { data: userSessions } = useQuery({
+    queryKey: ['admin_user_sessions', detailUser?.userId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('user_events')
+        .select('metadata, created_at')
+        .eq('user_id', detailUser!.userId)
+        .eq('event_type', 'session_open')
+        .order('created_at', { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return (data || []) as { metadata: Record<string, any> | null; created_at: string }[];
+    },
+    enabled: !!detailUser,
+    staleTime: 0,
+  });
+
+  const lastLocation = (() => {
+    const withLocation = userSessions?.find((s) => s.metadata?.city || s.metadata?.region || s.metadata?.country);
+    if (!withLocation) return null;
+    const { city, region, country } = withLocation.metadata || {};
+    return [city, region, country].filter(Boolean).join(', ') || null;
+  })();
+
+  const devices = (() => {
+    if (!userSessions) return [];
+    const byLabel = new Map<string, string>(); // label -> created_at mais recente
+    userSessions.forEach((s) => {
+      const label = s.metadata?.label || 'Dispositivo desconhecido';
+      if (!byLabel.has(label)) byLabel.set(label, s.created_at);
+    });
+    return Array.from(byLabel.entries()).map(([label, lastSeen]) => ({ label, lastSeen }));
+  })();
+
   /** Exclusão definitiva de outra conta pelo painel — cancela a assinatura no
    *  Asaas (se houver) e apaga tudo, via a mesma Edge Function usada pra
    *  exclusão de conta própria (delete-account), só que passando o id de
@@ -1051,6 +1088,7 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
                   { label: 'Última vez que abriu o app', value: detailUser.lastAccess
                       ? new Date(detailUser.lastAccess).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
                       : 'Sem acesso registrado' },
+                  { label: 'Última localização', value: lastLocation || 'Não identificada' },
                 ].map((row) => (
                   <div key={row.label} className="flex items-center justify-between gap-4 py-2 border-b border-slate-50 dark:border-zinc-800 last:border-0">
                     <span className="text-slate-400 dark:text-zinc-500 font-bold text-[11px] uppercase tracking-wide">{row.label}</span>
@@ -1058,6 +1096,24 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
                   </div>
                 ))}
               </div>
+
+              {devices.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800">
+                  <p className="text-slate-400 dark:text-zinc-500 font-bold text-[11px] uppercase tracking-wide mb-2">
+                    Dispositivos usados {devices.length > 1 ? `(${devices.length})` : ''}
+                  </p>
+                  <div className="space-y-1.5">
+                    {devices.map((d) => (
+                      <div key={d.label} className="flex items-center justify-between gap-3 text-xs">
+                        <span className="text-slate-700 dark:text-zinc-300 font-semibold">{d.label}</span>
+                        <span className="text-slate-400 dark:text-zinc-500 shrink-0">
+                          {new Date(d.lastSeen).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="mt-6 pt-5 border-t border-slate-100 dark:border-zinc-800">
                 <div className="flex items-start gap-2 mb-3 text-[11px] text-slate-400 dark:text-zinc-500 leading-relaxed">

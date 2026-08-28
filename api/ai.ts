@@ -132,6 +132,49 @@ async function withGeminiRetry<T>(fn: () => Promise<T>, maxAttempts = 4): Promis
 app.post('/api/ai', async (req, res) => {
   const { action, payload } = req.body;
 
+  // Não usa Gemini — registra a sessão (dispositivo + localização aproximada,
+  // lida dos headers de geo que a Vercel já injeta automaticamente em toda
+  // requisição, sem precisar de nenhum serviço de terceiro nem chave extra)
+  // pro painel Gerenciar Usuários (Admin) mostrar de onde/quantos aparelhos
+  // cada usuário abriu o app. Fica ANTES do check de GEMINI_API_KEY de
+  // propósito: não depende dele.
+  if (action === 'track_session') {
+    try {
+      const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      const userId = (req as any).user?.id;
+      if (!supabaseUrl || !serviceKey || !userId) {
+        return res.status(200).json({ success: false });
+      }
+
+      const decodeHeader = (name: string) => {
+        const raw = req.headers[name];
+        return raw ? decodeURIComponent(String(Array.isArray(raw) ? raw[0] : raw)) : undefined;
+      };
+      const metadata = {
+        ...(payload?.device || {}),
+        city: decodeHeader('x-vercel-ip-city'),
+        region: decodeHeader('x-vercel-ip-country-region'),
+        country: decodeHeader('x-vercel-ip-country'),
+      };
+
+      const insertRes = await fetch(`${supabaseUrl}/rest/v1/user_events`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
+          Prefer: 'return=minimal',
+        },
+        body: JSON.stringify([{ user_id: userId, event_type: 'session_open', metadata }]),
+      });
+      return res.status(200).json({ success: insertRes.ok });
+    } catch (err) {
+      console.error('[api/ai] track_session falhou:', err);
+      return res.status(200).json({ success: false });
+    }
+  }
+
   if (!process.env.GEMINI_API_KEY) {
     return res.status(500).json({ error: 'GEMINI_API_KEY not configured' });
   }
