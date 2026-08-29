@@ -27,6 +27,22 @@ const customStorage = {
 export const supabase = createClient(supabaseUrl || "", supabaseAnonKey || "", {
   auth: {
     storage: customStorage,
+    // Explícitos (eram defaults implícitos do supabase-js):
+    // - autoRefreshToken: renova o access token (~1h) usando o refresh token,
+    //   com ROTAÇÃO do refresh token a cada uso (feito no servidor). O
+    //   supabase-js também pausa/retoma esse ciclo conforme a aba fica
+    //   visível/oculta.
+    // - persistSession: mantém a sessão no `customStorage` (local/sessionStorage
+    //   conforme "lembrar de mim").
+    // - detectSessionInUrl: processa o retorno de links de confirmação/OAuth.
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+    // flowType: 'pkce' seria mais seguro para OAuth/magic-link, MAS mudaria o
+    // formato dos links de confirmação de e-mail e exigiria um handler de
+    // `?code=` nas telas de callback. O login por senha e o OAuth custom
+    // (nativeGoogleAuth + exchange-auth-token) NÃO dependem disso. Migrar só
+    // depois de testar os fluxos de confirmação de cadastro e recuperação.
   }
 });
 

@@ -6,6 +6,7 @@ import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { cn } from '../../lib/utils';
+import { isPasswordValid, passwordRequirementList } from '../../lib/passwordPolicy';
 
 export const SettingsSecurity = React.memo(function SettingsSecurity() {
   const { user } = useAuth();
@@ -63,10 +64,8 @@ export const SettingsSecurity = React.memo(function SettingsSecurity() {
     }
   };
 
-  const isLength = newPassword.length >= 8;
-  const isUppercase = /[A-Z]/.test(newPassword);
-  const isNumber = /[0-9]/.test(newPassword);
-  const isSpecial = /[^A-Za-z0-9]/.test(newPassword);
+  // Requisitos de senha — fonte única em src/lib/passwordPolicy.ts
+  const passwordChecklist = passwordRequirementList(newPassword);
 
   return (
     <div className="space-y-8">
@@ -176,12 +175,7 @@ export const SettingsSecurity = React.memo(function SettingsSecurity() {
                   />
                   
                   <div className="grid grid-cols-2 gap-2 mt-3 px-1 py-2 bg-slate-100/50 dark:bg-zinc-900/50 rounded-xl border border-slate-100 dark:border-zinc-800/40">
-                    {[
-                      { label: "Mínimo de 8 caracteres", met: isLength },
-                      { label: "Uma letra maiúscula", met: isUppercase },
-                      { label: "Um número", met: isNumber },
-                      { label: "Um caractere especial", met: isSpecial },
-                    ].map((item, i) => (
+                    {passwordChecklist.map((item, i) => (
                       <div key={i} className="flex items-center gap-2 px-2">
                         <div className={cn(
                           "w-3.5 h-3.5 rounded-full flex items-center justify-center transition-colors shrink-0",
@@ -209,7 +203,7 @@ export const SettingsSecurity = React.memo(function SettingsSecurity() {
                 </div>
                 <button
                   onClick={async () => {
-                    if (!isLength || !isUppercase || !isNumber || !isSpecial) {
+                    if (!isPasswordValid(newPassword)) {
                       toast.error("A senha não atende a todos os requisitos de segurança!");
                       return;
                     }

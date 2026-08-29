@@ -13,7 +13,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 // qualquer requisição (é o que estava derrubando 100% das chamadas a este
 // endpoint desde que ele foi criado).
 import { corsOriginCheck } from './_lib/cors.js';
-import { extrairUsuario } from './_lib/authUser.js';
+import { verifyBearer } from './_lib/verifyJwt.js';
 import { hashPin, verifyPin, isValidPinFormat } from './_lib/pinHash.js';
 import { signSession, verifySession } from './_lib/sessionToken.js';
 import {
@@ -92,44 +92,16 @@ if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) 
 }
 
 /** Valida o Bearer do DONO da conta (mesma checagem de api/ai.ts) — só usada
- *  por 'set_pin', onde quem chama é o representante logado de verdade. */
+ *  por 'set_pin', onde quem chama é o representante logado de verdade.
+ *  Verificação LOCAL do JWT (ES256 contra o JWKS), com fallback de rede —
+ *  ver api/_lib/verifyJwt.ts. */
 async function requireOwnerAuth(req: express.Request): Promise<{ id: string } | null> {
   const authHeader = req.headers.authorization;
   if (!authHeader) { console.error('[requireOwnerAuth] sem header Authorization'); return null; }
-  const token = authHeader.replace('Bearer ', '');
-  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-  const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !supabaseAnonKey) {
-    console.error('[requireOwnerAuth] env ausente: url=%s anonKey=%s', !!supabaseUrl, !!supabaseAnonKey);
-    return null;
-  }
-
   try {
-    const authRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
-      headers: { Authorization: `Bearer ${token}`, apikey: supabaseAnonKey },
-      signal: AbortSignal.timeout(10_000),
-    });
-    const corpoBruto = await authRes.text().catch(() => '');
-    if (!authRes.ok) {
-      // Corpo do erro do GoTrue ajuda a distinguir token expirado de
-      // apikey rejeitada — nenhum dos dois é exposto ao cliente (a rota
-      // sempre devolve "Sessão inválida." genérico), só fica no log.
-      console.error('[requireOwnerAuth] /auth/v1/user recusou: status=%d corpo=%s', authRes.status, corpoBruto.slice(0, 300));
-      return null;
-    }
-    let json: unknown;
-    try {
-      json = JSON.parse(corpoBruto);
-    } catch {
-      console.error('[requireOwnerAuth] resposta 200 não era JSON válido: corpo=%s', corpoBruto.slice(0, 300));
-      return null;
-    }
-    // extrairUsuario cuida do formato: o /auth/v1/user devolve o usuário na
-    // raiz, e era ler `corpo.user` (inexistente) que fazia esta função
-    // rejeitar toda sessão válida — ver api/_lib/authUser.ts.
-    const usuario = extrairUsuario(json);
+    const usuario = await verifyBearer(authHeader);
     if (!usuario) {
-      console.error('[requireOwnerAuth] resposta 200 sem usuário reconhecível: corpo=%s', corpoBruto.slice(0, 300));
+      console.error('[requireOwnerAuth] token recusado pela verificação de JWT');
       return null;
     }
     return usuario;

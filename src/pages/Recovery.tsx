@@ -16,6 +16,7 @@ import { supabase } from "../lib/supabase";
 import { toast } from "sonner";
 import { Logo } from '../components/Logo';
 import { cn } from '../lib/utils';
+import { isPasswordValid, passwordRequirementList } from '../lib/passwordPolicy';
 
 export default function Recovery() {
   const [searchParams] = useSearchParams();
@@ -67,7 +68,7 @@ export default function Recovery() {
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!isLength || !isUppercase || !isNumber || !isSpecial) {
+    if (!isPasswordValid(newPassword)) {
       toast.error("A senha não atende a todos os requisitos de segurança!");
       return;
     }
@@ -91,11 +92,8 @@ export default function Recovery() {
     }
   };
 
-  // Password requirements calculation
-  const isLength = newPassword.length >= 8;
-  const isUppercase = /[A-Z]/.test(newPassword);
-  const isNumber = /[0-9]/.test(newPassword);
-  const isSpecial = /[^A-Za-z0-9]/.test(newPassword);
+  // Requisitos de senha — fonte única em src/lib/passwordPolicy.ts
+  const passwordChecklist = passwordRequirementList(newPassword);
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 sm:p-6 relative overflow-hidden font-sans [color-scheme:light]">
@@ -238,12 +236,7 @@ export default function Recovery() {
 
                   {/* Password requirements */}
                   <div className="grid grid-cols-2 gap-2 mt-3 px-3 py-3 bg-slate-50 rounded-2xl border border-slate-100">
-                    {[
-                      { label: "Mínimo de 8 caracteres", met: isLength },
-                      { label: "Uma letra maiúscula", met: isUppercase },
-                      { label: "Um número", met: isNumber },
-                      { label: "Um caractere especial", met: isSpecial },
-                    ].map((item, i) => (
+                    {passwordChecklist.map((item, i) => (
                       <div key={i} className="flex items-center gap-2 px-1">
                         <div className={cn(
                           "w-3.5 h-3.5 rounded-full flex items-center justify-center transition-colors shrink-0",

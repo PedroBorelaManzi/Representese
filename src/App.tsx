@@ -3,6 +3,7 @@ import React, { Suspense, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Capacitor } from "@capacitor/core";
 import { useAuth, AuthProvider } from "./contexts/AuthContext";
+import { SessionGateProvider } from "./contexts/SessionGateContext";
 import { SettingsProvider } from "./contexts/SettingsContext";
 import { SyncProvider } from "./contexts/SyncContext";
 import { UploadProvider } from "./contexts/UploadContext";
@@ -100,6 +101,7 @@ export default function App() {
   }, []);
   return (
     <AuthProvider>
+      <SessionGateProvider>
       <Toaster position="top-right" expand={false} richColors />
       <BrowserRouter>
         <SyncProvider>
@@ -165,6 +167,7 @@ export default function App() {
         </SyncProvider>
         <SpeedInsights />
       </BrowserRouter>
+      </SessionGateProvider>
     </AuthProvider>
   );
 }

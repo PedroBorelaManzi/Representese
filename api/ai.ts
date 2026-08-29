@@ -9,7 +9,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 // sem extensão. Sem ela, a função inteira crasha no cold start com
 // ERR_MODULE_NOT_FOUND antes de responder a qualquer requisição.
 import { corsOriginCheck } from './_lib/cors.js';
-import { extrairUsuario } from './_lib/authUser.js';
+import { verifyBearer } from './_lib/verifyJwt.js';
 
 const app = express();
 
@@ -41,34 +41,11 @@ app.use(async (req, res, next) => {
     return res.status(401).json({ error: 'Missing authorization header' });
   }
 
-  const token = authHeader.replace('Bearer ', '');
-  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-  const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return res.status(500).json({ error: 'Supabase config missing' });
-  }
-
   try {
-    const authRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        apikey: supabaseAnonKey,
-      },
-      // Auth fora do ar não pode segurar a função serverless até o limite da Vercel
-      signal: AbortSignal.timeout(10_000),
-    });
-
-    if (!authRes.ok) {
-      return res.status(401).json({ error: 'Invalid token' });
-    }
-
-    // O /auth/v1/user devolve o usuário na RAIZ do JSON, não em `user`. Ler
-    // `corpo.user` dava undefined: aqui isso passava despercebido só porque
-    // o rate limit está desligado (sem UPSTASH configurado) e ninguém mais
-    // usa req.user — no dia em que o Upstash fosse ligado, `user.id` estouraria
-    // e derrubaria TODA a IA com "Auth check failed". Ver api/_lib/authUser.ts.
-    const user = extrairUsuario(await authRes.json().catch(() => null));
+    // Verificação LOCAL do JWT (assinatura ES256 contra o JWKS do Supabase),
+    // com fallback pro /auth/v1/user só se o JWKS estiver fora do ar.
+    // Ver api/_lib/verifyJwt.ts.
+    const user = await verifyBearer(authHeader);
     if (!user) {
       return res.status(401).json({ error: 'Invalid token' });
     }
@@ -80,7 +57,7 @@ app.use(async (req, res, next) => {
         return res.status(429).json({ error: 'Rate limit exceeded. Try again later.' });
       }
     }
-    
+
     next();
   } catch (err) {
     return res.status(500).json({ error: 'Auth check failed' });

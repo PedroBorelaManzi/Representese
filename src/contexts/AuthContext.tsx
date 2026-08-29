@@ -4,6 +4,7 @@ import { User } from "@supabase/supabase-js";
 import { posthog } from "../lib/posthog";
 import { offlineCache } from "../lib/offlineCache";
 import { trackSessionOpen } from "../lib/sessionTracking";
+import { releaseSessionSlot } from "../lib/sessionGate";
 
 type AuthContextType = {
   user: User | null;
@@ -84,6 +85,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    // Libera a vaga no teto global de sessões antes de derrubar o token.
+    await releaseSessionSlot().catch(() => {});
     await supabase.auth.signOut();
     localStorage.removeItem("rm_cached_user");
     sessionStorage.removeItem("rm_cached_user");

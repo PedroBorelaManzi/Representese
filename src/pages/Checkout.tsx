@@ -44,6 +44,7 @@ import {
   formatCpfCnpj, formatPhone, formatCardNumber, formatExpiry, formatCcv, formatCep,
   passwordStrength,
 } from '../lib/validators';
+import { checkPassword, PASSWORD_MIN_LENGTH } from '../lib/passwordPolicy';
 
 function Requirement({ label, met }: { label: string; met: boolean }) {
   return (
@@ -123,13 +124,14 @@ export default function Checkout() {
   });
 
   useEffect(() => {
-    const pass = formData.password;
+    // Regras centralizadas em src/lib/passwordPolicy.ts (espelham o Supabase).
+    const c = checkPassword(formData.password);
     setPasswordRequirements({
-      length: pass.length >= 8,
-      upper: /[A-Z]/.test(pass),
-      lower: /[a-z]/.test(pass),
-      number: /[0-9]/.test(pass),
-      special: /[!@#$%^&*(),.?":{}|<>]/.test(pass)
+      length: c.length,
+      upper: c.upper,
+      lower: c.lower,
+      number: c.number,
+      special: c.symbol,
     });
   }, [formData.password]);
 
@@ -552,7 +554,7 @@ export default function Checkout() {
                           );
                         })()}
                         <div className="grid grid-cols-2 gap-2.5 pt-2.5">
-                          <Requirement label="Mín. 8 caracteres" met={passwordRequirements.length} />
+                          <Requirement label={`Mín. ${PASSWORD_MIN_LENGTH} caracteres`} met={passwordRequirements.length} />
                           <Requirement label="Letra maiúscula" met={passwordRequirements.upper} />
                           <Requirement label="Letra minúscula" met={passwordRequirements.lower} />
                           <Requirement label="Número" met={passwordRequirements.number} />
