@@ -1,11 +1,13 @@
 import React from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
-import { Sentry } from '../lib/sentry';
+import { reportException } from '../lib/sentry';
 
 interface Props {
   children: React.ReactNode;
   /** Muda quando a rota muda, para resetar o erro ao navegar para outra página. */
   resetKey?: string;
+  /** UI alternativa (ex.: tela cheia no boundary raiz). Sem isso usa a padrão. */
+  fallback?: React.ReactNode;
 }
 
 interface State {
@@ -31,7 +33,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
     // de quem estava usando — sem stack trace nenhum chegava até nós. Com o
     // Sentry configurado (VITE_SENTRY_DSN em produção) e sem ele em dev, isso
     // é um no-op silencioso local e um relatório completo em produção.
-    Sentry.captureException(error, {
+    reportException(error, {
       extra: {
         componentStack: info.componentStack,
         route: this.props.resetKey,
@@ -49,6 +51,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
+      if (this.props.fallback) return this.props.fallback;
       return (
         <div className="flex flex-col items-center justify-center text-center py-24 px-6 max-w-md mx-auto">
           <div className="w-16 h-16 rounded-3xl bg-red-50 dark:bg-red-500/10 flex items-center justify-center mb-5">

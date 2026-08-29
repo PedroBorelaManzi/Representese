@@ -154,6 +154,45 @@ h1, h2, h3, h4 {
   100% { transform: translateX(300%); }
 }
 
+/* Entrada do hero da landing em CSS puro (era framer-motion). O <h1> — que é
+   o elemento de LCP — NÃO usa nada disso: renderiza visível de cara. Só os
+   elementos secundários (badge, subtítulo, CTAs) fazem o fade-up, e sem
+   depender do chunk do framer-motion carregar primeiro. */
+@keyframes hero-fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.hero-anim {
+  opacity: 0;
+  animation: hero-fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+/* Traço decorativo sob "várias" — desenha da esquerda pra direita. */
+@keyframes hero-underline {
+  to { stroke-dashoffset: 0; }
+}
+.hero-underline {
+  stroke-dasharray: 210;
+  stroke-dashoffset: 210;
+  animation: hero-underline 1s ease-in-out 0.7s forwards;
+}
+/* Halos que flutuam devagar atrás do hero. */
+@keyframes hero-halo-a {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(40px, -24px) scale(1.12); }
+}
+@keyframes hero-halo-b {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(-34px, 30px) scale(1.15); }
+}
+.hero-halo-a { animation: hero-halo-a 18s ease-in-out infinite; }
+.hero-halo-b { animation: hero-halo-b 20s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-anim { opacity: 1; animation: none; }
+  .hero-underline { stroke-dashoffset: 0; animation: none; }
+  .hero-halo { animation: none; }
+}
+
 /* Faixas que rolam na horizontal (abas do CRM, meses dos relatórios, filtros
    do e-mail) usam `no-scrollbar` para esconder a barra de rolagem — mas a
    classe nunca existiu no CSS, então a barra aparecia mesmo assim. */

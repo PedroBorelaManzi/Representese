@@ -35,7 +35,7 @@ import { cn } from "../lib/utils";
 import { toast } from "sonner";
 import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 import { Fingerprint } from 'lucide-react';
-import { Sentry } from '../lib/sentry';
+import { reportException } from '../lib/sentry';
 import { usePageMeta } from '../hooks/usePageMeta';
 
 /* O usuário não deve nunca ver um erro cru do GoTrue/Supabase (ex.:
@@ -238,7 +238,7 @@ export default function Login() {
       navigate(destinoAposLogin, { replace: true });
     } catch (error: any) {
       console.error('Erro ao fazer login:', error);
-      Sentry.captureException(error, { tags: { origem: 'Login_handleLogin' } });
+      reportException(error, { tags: { origem: 'Login_handleLogin' } });
       toast.error(getFriendlyAuthErrorMessage(error));
     } finally {
       setIsLoading(false);

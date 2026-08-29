@@ -139,41 +139,28 @@ export default function LandingPitch() {
             className="absolute inset-0"
             style={{ background: "radial-gradient(ellipse 65% 55% at 50% -8%, rgba(16,185,129,0.12) 0%, transparent 60%)" }}
           />
-          {/* halos discretos */}
-          <motion.div
-            animate={{ x: [0, 40, 0], y: [0, -24, 0], scale: [1, 1.12, 1] }}
-            transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute top-[20%] left-[10%] w-80 h-80 bg-emerald-300/25 blur-[120px] rounded-full"
-          />
-          <motion.div
-            animate={{ x: [0, -34, 0], y: [0, 30, 0], scale: [1, 1.15, 1] }}
-            transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute top-[16%] right-[10%] w-72 h-72 bg-teal-300/25 blur-[120px] rounded-full"
-          />
+          {/* halos discretos — flutuação em CSS (era framer-motion) */}
+          <div className="hero-halo hero-halo-a absolute top-[20%] left-[10%] w-80 h-80 bg-emerald-300/25 blur-[120px] rounded-full" />
+          <div className="hero-halo hero-halo-b absolute top-[16%] right-[10%] w-72 h-72 bg-teal-300/25 blur-[120px] rounded-full" />
           {/* fade para branco embaixo */}
           <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-white via-white to-transparent" />
         </div>
 
         <div className="relative z-10 max-w-5xl mx-auto text-center">
           {/* badge */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-emerald-200 bg-emerald-50/80 backdrop-blur text-emerald-700 text-[11px] font-black uppercase tracking-widest mb-8 shadow-sm"
+          <div
+            className="hero-anim inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-emerald-200 bg-emerald-50/80 backdrop-blur text-emerald-700 text-[11px] font-black uppercase tracking-widest mb-8 shadow-sm"
           >
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
             </span>
             A plataforma de quem representa várias marcas
-          </motion.div>
+          </div>
 
-          {/* headline */}
-          <motion.h1
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+          {/* headline — elemento de LCP: renderiza visível de imediato, sem
+              animação de entrada nem dependência do chunk do framer-motion. */}
+          <h1
             className="text-4xl sm:text-6xl md:text-[76px] font-black tracking-[-0.04em] leading-[1.03] text-slate-900 mb-6"
           >
             <span className="block">
@@ -183,14 +170,12 @@ export default function LandingPitch() {
                   várias
                 </span>
                 <svg className="absolute -bottom-1.5 left-0 w-full" height="12" viewBox="0 0 200 12" fill="none" preserveAspectRatio="none">
-                  <motion.path
+                  <path
+                    className="hero-underline"
                     d="M2 9C50 3 150 3 198 9"
                     stroke="url(#g)"
                     strokeWidth="4"
                     strokeLinecap="round"
-                    initial={{ pathLength: 0 }}
-                    animate={{ pathLength: 1 }}
-                    transition={{ duration: 1, delay: 0.8, ease: "easeInOut" }}
                   />
                   <defs>
                     <linearGradient id="g" x1="0" y1="0" x2="200" y2="0" gradientUnits="userSpaceOnUse">
@@ -203,25 +188,21 @@ export default function LandingPitch() {
               empresas.
             </span>
             <span className="block">Comande todas em um só lugar.</span>
-          </motion.h1>
+          </h1>
 
           {/* subtitle */}
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.25 }}
-            className="text-lg sm:text-xl text-slate-500 font-medium leading-relaxed max-w-2xl mx-auto mb-10"
+          <p
+            className="hero-anim text-lg sm:text-xl text-slate-500 font-medium leading-relaxed max-w-2xl mx-auto mb-10"
+            style={{ animationDelay: "0.15s" }}
           >
             Pedidos, faturamento e metas separados por representada.
             CRM, agenda, e-mail e IA — tudo num só lugar.
-          </motion.p>
+          </p>
 
           {/* CTAs */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.35 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-4"
+          <div
+            className="hero-anim flex flex-col sm:flex-row items-center justify-center gap-4 mb-4"
+            style={{ animationDelay: "0.25s" }}
           >
             <Link
               to="/register"
@@ -241,17 +222,15 @@ export default function LandingPitch() {
               </span>
               Ver demonstração
             </button>
-          </motion.div>
+          </div>
 
           {/* microcopy de confiança sob o CTA primário */}
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, delay: 0.45 }}
-            className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-10"
+          <p
+            className="hero-anim text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-10"
+            style={{ animationDelay: "0.35s" }}
           >
             Garantia de 7 dias · Sem fidelidade
-          </motion.p>
+          </p>
         </div>
 
         {/* dashboard mockup (codado, janela de navegador) — entra inclinado

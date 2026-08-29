@@ -8,7 +8,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { persistQueryClient } from '@tanstack/react-query-persist-client';
 import { indexedDBPersister } from './lib/queryPersister';
 import { logError } from './lib/supabase';
-import { Sentry } from './lib/sentry';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Sentry.init() e PostHog.init() fazem trabalho de instrumentação (wrap de
 // fetch/history/console, etc.) que não precisa acontecer antes da primeira
@@ -103,10 +103,10 @@ const ErrorFallback = () => (
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <Sentry.ErrorBoundary fallback={<ErrorFallback />}>
+    <ErrorBoundary fallback={<ErrorFallback />}>
       <QueryClientProvider client={queryClient}>
         <App />
       </QueryClientProvider>
-    </Sentry.ErrorBoundary>
+    </ErrorBoundary>
   </StrictMode>,
 );

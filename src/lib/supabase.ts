@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { Sentry } from "./sentry";
+import { reportException } from "./sentry";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -134,7 +134,7 @@ export async function logAudit(action: string, metadata: any = {}) {
 
 export async function logError(error: any, contextInfo: string = "") {
   try {
-    Sentry.captureException(error, { extra: { context: contextInfo } });
+    reportException(error, { extra: { context: contextInfo } });
 
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : undefined;

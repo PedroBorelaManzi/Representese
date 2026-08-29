@@ -1,4 +1,14 @@
-import * as Sentry from '@sentry/react';
+/* Telemetria de erros (Sentry) — carregada SOB DEMANDA.
+ *
+ * O SDK do @sentry/react tem ~147 KB gzip. Antes ele entrava no bundle de
+ * entrada porque vários módulos faziam `import { Sentry } from './sentry'`.
+ * Agora o SDK só é baixado quando `initSentry()` roda (no primeiro idle, ver
+ * src/main.tsx) e os pontos de captura usam `reportException()`, que só
+ * reporta se o cliente já estiver carregado. */
+
+type SentryModule = typeof import('@sentry/react');
+
+let client: SentryModule | null = null;
 
 /* Auditoria 2026-08-07 (PAG-02): o checkout manda número do cartão, CVV e
    validade para a edge function process-checkout. Hoje esses campos não são
@@ -32,9 +42,12 @@ function redigirObjeto(obj: unknown, profundidade = 0): unknown {
 
 /* Sem VITE_SENTRY_DSN configurado, tudo aqui vira no-op silencioso —
    nada quebra localmente ou antes de a env var existir no Vercel. */
-export function initSentry() {
+export async function initSentry(): Promise<void> {
   const dsn = import.meta.env.VITE_SENTRY_DSN;
-  if (!dsn) return;
+  if (!dsn || client) return;
+
+  const Sentry = await import('@sentry/react');
+  client = Sentry;
 
   Sentry.init({
     dsn,
@@ -61,4 +74,13 @@ export function initSentry() {
   });
 }
 
-export { Sentry };
+interface CaptureContext {
+  extra?: Record<string, unknown>;
+  tags?: Record<string, string>;
+}
+
+/** Reporta um erro ao Sentry se o SDK já estiver carregado; caso contrário
+ *  é um no-op (o erro ainda cai no console e, no caso do logAudit, no banco). */
+export function reportException(error: unknown, context?: CaptureContext): void {
+  client?.captureException(error, context);
+}
