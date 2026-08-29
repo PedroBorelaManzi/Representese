@@ -31,11 +31,22 @@
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json" />
     
-    <!-- Preconnect e Preload para otimização de Performance -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" as="style" />
+    <!-- Fonte Inter self-hosted (era Google Fonts + reescrita do Cloudflare Fonts).
+         Antes o .woff2 só era descoberto depois de parsear ~63 @font-face inline
+         e casar o unicode-range com o texto — carregava lá pelos 5s, e a
+         headline (elemento de LCP no mobile) trocava de fonte no meio da tela.
+         Agora: 1 arquivo variável (latin cobre todo o pt-BR), com <link preload>
+         pra baixar já no início, em paralelo com o CSS/JS. -->
+    <link rel="preload" href="/fonts/inter-latin-var.woff2" as="font" type="font/woff2" crossorigin />
+    <style>
+      @font-face {
+        font-family: 'Inter';
+        font-style: normal;
+        font-weight: 100 900;
+        font-display: swap;
+        src: url('/fonts/inter-latin-var.woff2') format('woff2');
+      }
+    </style>
     <!-- Leaflet CSS vem do bundle (import em src/components/Map.tsx) — o link externo do unpkg era bloqueado pelo CSP -->
   </head>
   <body>
