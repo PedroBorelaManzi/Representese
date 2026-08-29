@@ -8,11 +8,24 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { persistQueryClient } from '@tanstack/react-query-persist-client';
 import { indexedDBPersister } from './lib/queryPersister';
 import { logError } from './lib/supabase';
-import { initSentry, Sentry } from './lib/sentry';
-import { initPostHog } from './lib/posthog';
+import { Sentry } from './lib/sentry';
 
-initSentry();
-initPostHog();
+// Sentry.init() e PostHog.init() fazem trabalho de instrumentação (wrap de
+// fetch/history/console, etc.) que não precisa acontecer antes da primeira
+// pintura. Adiado pro primeiro idle — tira ~100-150ms de main thread do boot
+// (ajuda TBT/INP). Erros muito precoces ainda caem nos listeners globais
+// abaixo (que gravam em audit_logs).
+const initTelemetry = () => {
+  import('./lib/sentry').then((m) => m.initSentry());
+  import('./lib/posthog').then((m) => m.initPostHog());
+};
+if (typeof window !== 'undefined') {
+  if ('requestIdleCallback' in window) {
+    (window as any).requestIdleCallback(initTelemetry, { timeout: 3000 });
+  } else {
+    setTimeout(initTelemetry, 1500);
+  }
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {

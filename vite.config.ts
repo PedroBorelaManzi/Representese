@@ -52,6 +52,14 @@ export default defineConfig(({mode}) => {
     },
     build: {
       chunkSizeWarningLimit: 2000,
+      // Sentry (~147 KB gzip) e PostHog são carregados de propósito só no
+      // primeiro idle (ver src/main.tsx). Sem tirá-los da lista de
+      // modulepreload, o Vite baixava os dois já no boot, competindo por
+      // banda com o que a primeira pintura precisa — anulando o adiamento.
+      modulePreload: {
+        resolveDependencies: (_file, deps) =>
+          deps.filter((d) => !/[\\/]assets[\\/](sentry|posthog)-/.test(d)),
+      },
       rollupOptions: {
         output: {
           // Separa libs pesadas do chunk principal: páginas sem animações não
@@ -64,8 +72,13 @@ export default defineConfig(({mode}) => {
           // junto do lazy() da página.
           manualChunks: {
             'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-            'vendor-motion': ['framer-motion'],
             'vendor-supabase': ['@supabase/supabase-js'],
+            // framer-motion saiu do manualChunks: com o Layout agora lazy e o
+            // uso de motion concentrado em páginas/modais lazy, deixar o Rollup
+            // dividir sozinho evita que o chunk nomeado 'vendor-motion' fosse
+            // parar no modulepreload do index.html por causa de um único
+            // símbolo puxado pela árvore de entrada (~46 KB gzip no 1º load da
+            // landing por nada).
           },
         },
       },

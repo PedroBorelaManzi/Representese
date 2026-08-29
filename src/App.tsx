@@ -1,4 +1,3 @@
-import { NotificationService } from './services/NotificationService';
 import React, { Suspense, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Capacitor } from "@capacitor/core";
@@ -10,7 +9,6 @@ import { UploadProvider } from "./contexts/UploadContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { ConfirmProvider } from "./components/ui";
 import { Toaster } from "sonner";
-import Layout from "./components/Layout";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { lazyWithRetry } from "./lib/lazyWithRetry";
 import { useTrackPageview } from "./hooks/useTrackPageview";
@@ -24,6 +22,12 @@ function PageviewTracker() {
 import PageTracker from "./components/PageTracker";
 import NativeAuthListener from "./components/NativeAuthListener";
 import BackButtonHandler from "./components/BackButtonHandler";
+
+// Layout é o shell autenticado (sidebar/navbar) — só usado dentro de
+// /dashboard/*. Carregado sob demanda pra não trazer framer-motion, os
+// plugins do Capacitor e todo o resto da árvore do Layout pro bundle de
+// entrada, que é o que o visitante da landing/login baixa primeiro.
+const Layout = lazyWithRetry(() => import("./components/Layout"));
 
 // Lazy Loaded Pages (com retry automático em chunk órfão após deploy)
 const Landing = lazyWithRetry(() => import("./pages/LandingPitch"));
@@ -96,8 +100,10 @@ function LandingOrRedirect() {
 
 export default function App() {
   React.useEffect(() => {
-    NotificationService.initialize();
     applyTrackingOptOutFromUrl();
+    // Import dinâmico: NotificationService puxa @capacitor/local-notifications,
+    // que não faz nada no site e só pesa o bundle de entrada.
+    void import('./services/NotificationService').then((m) => m.NotificationService.initialize());
   }, []);
   return (
     <AuthProvider>
