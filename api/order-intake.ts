@@ -443,6 +443,9 @@ async function handleSubmit(req: express.Request, res: express.Response, payload
   if (!ownedClient) return res.status(400).json({ error: 'Cliente inválido.' });
 
   const numericValue = parseFloat(value);
+  if (!Number.isFinite(numericValue) || numericValue <= 0) {
+    return res.status(400).json({ error: 'Valor do pedido inválido.' });
+  }
 
   const { error: insertError } = await session.supabase.from('orders').insert([{
     id: orderId,
