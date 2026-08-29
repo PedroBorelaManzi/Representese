@@ -3,7 +3,6 @@ import cors from 'cors';
 import { randomUUID } from 'node:crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { Ratelimit } from '@upstash/ratelimit';
-import { Redis } from '@upstash/redis';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 // A extensão .js é obrigatória em todos os imports relativos abaixo: o
 // package.json tem "type": "module", então a Vercel roda estas funções com
@@ -14,6 +13,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 // endpoint desde que ele foi criado).
 import { corsOriginCheck } from './_lib/cors.js';
 import { verifyBearer } from './_lib/verifyJwt.js';
+import { getRedis } from './_lib/upstash.js';
 import { hashPin, verifyPin, isValidPinFormat } from './_lib/pinHash.js';
 import { signSession, verifySession } from './_lib/sessionToken.js';
 import {
@@ -75,8 +75,9 @@ function getClientIp(req: express.Request): string {
 let verifyTokenLimiter: Ratelimit | null = null;
 let verifyIpLimiter: Ratelimit | null = null;
 let parseLimiter: Ratelimit | null = null;
-if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-  const redis = Redis.fromEnv();
+const intakeRedis = getRedis();
+if (intakeRedis) {
+  const redis = intakeRedis;
   verifyTokenLimiter = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(5, '15 m'), prefix: 'order-intake-verify-token' });
   verifyIpLimiter = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(20, '15 m'), prefix: 'order-intake-verify-ip' });
   parseLimiter = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(20, '10 m'), prefix: 'order-intake-parse' });
@@ -86,8 +87,9 @@ if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) 
   // o Upstash é a primeira linha de defesa contra tentativa em massa. Mesmo
   // aviso alto que api/ai.ts já dá pro rate limit da IA.
   console.error(
-    'ATENÇÃO: UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN não configuradas — ' +
-    'rate limit do link de enviar pedido está DESLIGADO no nível de rede.'
+    'ATENÇÃO: credenciais do Upstash não encontradas (UPSTASH_REDIS_REST_URL/TOKEN ' +
+    'ou KV_REST_API_URL/TOKEN) — rate limit do link de enviar pedido está DESLIGADO ' +
+    'no nível de rede.'
   );
 }
 

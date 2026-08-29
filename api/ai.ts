@@ -1,7 +1,6 @@
 ﻿import express from 'express';
 import cors from 'cors';
 import { Ratelimit } from '@upstash/ratelimit';
-import { Redis } from '@upstash/redis';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 // A extensão .js é obrigatória aqui: o package.json tem "type": "module",
 // então a Vercel roda estas funções com o resolvedor nativo de ESM do
@@ -10,6 +9,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 // ERR_MODULE_NOT_FOUND antes de responder a qualquer requisição.
 import { corsOriginCheck } from './_lib/cors.js';
 import { verifyBearer } from './_lib/verifyJwt.js';
+import { getRedis } from './_lib/upstash.js';
 
 const app = express();
 
@@ -20,9 +20,10 @@ app.use(cors({ origin: corsOriginCheck }));
 app.use(express.json({ limit: '10mb' }));
 
 let ratelimit: Ratelimit | null = null;
-if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+const aiRedis = getRedis();
+if (aiRedis) {
   ratelimit = new Ratelimit({
-    redis: Redis.fromEnv(),
+    redis: aiRedis,
     limiter: Ratelimit.slidingWindow(10, '60 s')
   });
 } else {
@@ -30,8 +31,9 @@ if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) 
   // custo inesperado da API do Gemini — nunca como um log óbvio. Em produção
   // as env vars do Upstash devem estar sempre configuradas.
   console.error(
-    'ATENÇÃO: UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN não configuradas — ' +
-    'rate limit da IA está DESLIGADO. Qualquer usuário autenticado pode chamar o Gemini sem limite.'
+    'ATENÇÃO: credenciais do Upstash não encontradas (UPSTASH_REDIS_REST_URL/TOKEN ' +
+    'ou KV_REST_API_URL/TOKEN) — rate limit da IA está DESLIGADO. Qualquer usuário ' +
+    'autenticado pode chamar o Gemini sem limite.'
   );
 }
 

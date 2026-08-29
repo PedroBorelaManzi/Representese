@@ -14,20 +14,18 @@
 // Se o Upstash não estiver configurado (dev local), o portão FICA ABERTO
 // (fail-open) — igual ao rate limit da IA.
 
-import { Redis } from '@upstash/redis';
+import { getRedis } from './upstash.js';
 
 const KEY = 'session_gate:active';
 
 export const SESSION_LIMIT = Math.max(1, parseInt(process.env.SESSION_LIMIT || '150', 10));
 export const SESSION_TTL_MS = Math.max(30_000, parseInt(process.env.SESSION_TTL_MS || '180000', 10));
 
-let redis: Redis | null = null;
-if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-  redis = Redis.fromEnv();
-} else {
+const redis = getRedis();
+if (!redis) {
   console.error(
-    'ATENÇÃO: UPSTASH_REDIS_REST_* ausentes — o teto de sessões simultâneas ' +
-      'está DESLIGADO (fail-open).',
+    'ATENÇÃO: credenciais do Upstash não encontradas (UPSTASH_REDIS_REST_URL/TOKEN ' +
+      'ou KV_REST_API_URL/TOKEN) — o teto de sessões simultâneas está DESLIGADO (fail-open).',
   );
 }
 
