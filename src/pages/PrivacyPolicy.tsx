@@ -103,11 +103,12 @@ export default function PrivacyPolicy() {
                 </li>
               </ul>
               <p>
-                A coleta acontece apenas com o app aberto — nunca em segundo plano — e no máximo uma vez a cada três
-                horas. Você pode recusar quando o aparelho pedir a permissão, revogá-la depois nas configurações do
-                sistema, ou desligar em <strong className="font-bold text-slate-700 dark:text-zinc-200">Configurações ›
-                Privacidade</strong>; nesse caso o último ponto registrado é apagado. Não vendemos nem compartilhamos sua
-                localização com terceiros.
+                A coleta acontece apenas enquanto o app ou o site está aberto — nunca em segundo plano — e a posição é
+                atualizada periodicamente durante o uso. Você pode recusar quando o aparelho ou o navegador pedir a
+                permissão, revogá-la depois nas configurações do sistema, ou desligar em{' '}
+                <strong className="font-bold text-slate-700 dark:text-zinc-200">Configurações › Privacidade</strong>;
+                nesse caso o último ponto registrado é apagado. Não vendemos nem compartilhamos sua localização com
+                terceiros.
               </p>
             </section>
 

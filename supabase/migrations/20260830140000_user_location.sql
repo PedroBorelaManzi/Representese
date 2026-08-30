@@ -6,7 +6,8 @@
 -- Finalidades declaradas na Política de Privacidade › Localização:
 --   1. centralizar o mapa de clientes na posição do usuário;
 --   2. o Represente-Se avaliar a cobertura geográfica da rede de representantes.
--- Coleta só em primeiro plano, 1x a cada 3h, nunca em segundo plano.
+-- Coleta só com app/site aberto (1x ao abrir + a cada ~10 min), nunca em
+-- segundo plano. Web e nativo. O usuário pode desligar em Configs › Privacidade.
 
 alter table public.user_settings add column if not exists last_lat double precision;
 alter table public.user_settings add column if not exists last_lng double precision;

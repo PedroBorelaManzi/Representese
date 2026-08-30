@@ -236,7 +236,7 @@ export const SettingsPrivacy = React.memo(function SettingsPrivacy() {
           </button>
         </div>
         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight leading-relaxed">
-          Só com o app aberto, no máximo a cada 3h — nunca em segundo plano.{' '}
+          Só enquanto o app ou o site está aberto — nunca em segundo plano.{' '}
           <Link to="/privacy" className="text-emerald-600 underline">Política de Privacidade</Link>
           {settings.last_location_at && (
             <> · último ponto em {new Date(settings.last_location_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</>
