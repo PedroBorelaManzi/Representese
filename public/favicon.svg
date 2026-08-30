@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Represente-Se">
+  <rect width="512" height="512" rx="116" fill="#059669"/>
+  <path fill="#ffffff" fill-rule="evenodd" d="
+    M150 108
+    h150
+    c62 0 104 40 104 100
+    c0 44 -24 78 -64 92
+    l84 104
+    h-92
+    l-74 -96
+    h-30
+    v96
+    h-88
+    z
+    M238 176
+    v76
+    h58
+    c26 0 42 -15 42 -38
+    c0 -23 -16 -38 -42 -38
+    z
+  "/>
+</svg>
