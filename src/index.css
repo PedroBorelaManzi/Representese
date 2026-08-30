@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* cache-bust: o deploy 65920f9 (revertido) serviu 503 pra index-<hash>.css e
+   navegadores cachearam a resposta vazia. Como o conteúdo do CSS não mudou, o
+   hash do arquivo seria o mesmo e o cache ruim persistiria. Esta regra (inócua)
+   entra no output e força um hash novo. Pode remover num commit futuro. */
+:root { --rm-css-build: "20260829-b"; }
+
 @theme {
   --color-zinc-850: #1f1f23;
 
