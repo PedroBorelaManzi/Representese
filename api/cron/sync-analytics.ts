@@ -61,8 +61,14 @@ async function syncPostHog(db: SupabaseClient): Promise<string> {
 
   const json = (await resp.json()) as { results?: unknown[][] };
   const rows = json.results || [];
+
+  // Só grava distinct_ids que são user_id real (a FK exige auth.users). O
+  // PostHog junta gente anônima e ids de teste — filtra contra user_settings.
+  const { data: usuarios } = await db.from('user_settings').select('user_id');
+  const validos = new Set((usuarios || []).map((u) => String((u as { user_id: string }).user_id)));
+
   const upserts = rows
-    .filter((r) => UUID_RE.test(String(r[0])))
+    .filter((r) => UUID_RE.test(String(r[0])) && validos.has(String(r[0])))
     .map((r) => ({
       user_id: String(r[0]),
       distinct_id: String(r[0]),
@@ -134,15 +140,20 @@ async function syncSentry(db: SupabaseClient): Promise<string> {
     pages += 1;
   }
 
-  const upserts = Array.from(perUser.entries()).map(([user_id, b]) => ({
-    user_id,
-    errors_30d: b.total,
-    total_errors: b.total,
-    last_error_at: b.last_at ? new Date(b.last_at).toISOString() : null,
-    last_error_title: b.last_title,
-    top_issues: Array.from(b.issues.values()).sort((a, z) => z.count - a.count).slice(0, 5),
-    synced_at: new Date().toISOString(),
-  }));
+  const { data: usuarios } = await db.from('user_settings').select('user_id');
+  const validos = new Set((usuarios || []).map((u) => String((u as { user_id: string }).user_id)));
+
+  const upserts = Array.from(perUser.entries())
+    .filter(([user_id]) => validos.has(user_id))
+    .map(([user_id, b]) => ({
+      user_id,
+      errors_30d: b.total,
+      total_errors: b.total,
+      last_error_at: b.last_at ? new Date(b.last_at).toISOString() : null,
+      last_error_title: b.last_title,
+      top_issues: Array.from(b.issues.values()).sort((a, z) => z.count - a.count).slice(0, 5),
+      synced_at: new Date().toISOString(),
+    }));
 
   if (upserts.length === 0) return 'Sentry: 0 erros com id de usuário nos últimos 30 dias';
   const { error } = await db.from('sentry_user_stats').upsert(upserts, { onConflict: 'user_id' });
