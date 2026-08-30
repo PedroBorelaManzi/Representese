@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Search, User as UserIcon, CreditCard, Cookie, Activity, Database,
-  Bot, ShieldAlert, BarChart3, ExternalLink, RefreshCw, MapPin,
+  Bot, ShieldAlert, BarChart3, ExternalLink, RefreshCw, MapPin, Navigation,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { cn } from '../../lib/utils';
@@ -42,6 +42,11 @@ type Overview = {
   rotas_distintas: number;
   segundos_total: number;
   ultima_localizacao: string | null;
+  gps_lat: number | null;
+  gps_lng: number | null;
+  gps_precisao_m: number | null;
+  gps_em: string | null;
+  compartilha_local: boolean | null;
   clientes: number;
   pedidos: number;
   representadas: number;
@@ -263,6 +268,45 @@ export default function UserDossier() {
                   <span className="inline-flex items-center gap-1"><MapPin className="w-3 h-3" />{sel.ultima_localizacao}</span>
                 )}
               </Linha>
+            </Card>
+
+            <Card
+              icon={Navigation}
+              titulo="Localização (GPS)"
+              cor="bg-rose-100 dark:bg-rose-900/30 text-rose-600"
+              acao={
+                sel.gps_lat != null && sel.gps_lng != null ? (
+                  <a
+                    href={`https://www.google.com/maps?q=${sel.gps_lat},${sel.gps_lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] font-black uppercase tracking-widest text-rose-600 inline-flex items-center gap-1"
+                  >
+                    mapa <ExternalLink className="w-3 h-3" />
+                  </a>
+                ) : undefined
+              }
+            >
+              {sel.gps_lat != null && sel.gps_lng != null ? (
+                <>
+                  <Linha label="Coordenadas">
+                    <span className="font-mono text-xs">{sel.gps_lat.toFixed(5)}, {sel.gps_lng.toFixed(5)}</span>
+                  </Linha>
+                  <Linha label="Precisão">{sel.gps_precisao_m != null ? `± ${Math.round(sel.gps_precisao_m)} m` : '—'}</Linha>
+                  <Linha label="Capturada">{fmtData(sel.gps_em)} <span className="text-slate-400">({desde(sel.gps_em)})</span></Linha>
+                  <Linha label="Compartilhamento">
+                    <span className={sel.compartilha_local === false ? 'text-red-500' : 'text-emerald-600'}>
+                      {sel.compartilha_local === false ? 'desligado pelo usuário' : 'ligado'}
+                    </span>
+                  </Linha>
+                </>
+              ) : (
+                <p className="text-sm text-slate-400 py-2">
+                  {sel.compartilha_local === false
+                    ? 'Usuário desligou o compartilhamento de localização.'
+                    : 'Sem ponto capturado ainda (permissão do aparelho não concedida ou app não reaberto).'}
+                </p>
+              )}
             </Card>
 
             <Card icon={Database} titulo="Volume de Dados" cor="bg-teal-100 dark:bg-teal-900/30 text-teal-600">

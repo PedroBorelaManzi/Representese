@@ -56,6 +56,14 @@ interface Settings {
   weather_state?: string;
   weather_lat?: number;
   weather_lng?: number;
+  /** Se o app pode enviar a localização do dispositivo (ver src/lib/geoTracking.ts
+   *  e Política de Privacidade › Localização). Padrão ligado; o gate real é a
+   *  permissão do sistema operacional. */
+  share_location?: boolean;
+  /** Último ponto capturado — escrito pelo geoTracking, só leitura na UI. */
+  last_lat?: number;
+  last_lng?: number;
+  last_location_at?: string;
 }
 
 const defaultSettings: Settings = {
@@ -83,6 +91,7 @@ const defaultSettings: Settings = {
   weather_state: undefined,
   weather_lat: undefined,
   weather_lng: undefined,
+  share_location: true,
 };
 
 interface SettingsContextType {

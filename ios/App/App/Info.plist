@@ -48,7 +48,7 @@
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Usamos sua localização para mostrar sua posição no mapa de clientes e calcular distâncias até eles.</string>
+	<string>Usamos sua localização para centralizar o mapa de clientes na sua posição e para o Represente-Se acompanhar a cobertura geográfica da rede de representantes.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Use o Face ID para entrar no Represente-Se! mais rápido, sem digitar sua senha.</string>
 	<key>NSCameraUsageDescription</key>

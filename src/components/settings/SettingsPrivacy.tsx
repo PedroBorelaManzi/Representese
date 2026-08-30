@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { EyeOff, Lock, Check, BarChart3 } from 'lucide-react';
+import { EyeOff, Lock, Check, BarChart3, MapPin } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { hashCommissionPassword } from '../../lib/commissionPrivacy';
@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { cn } from '../../lib/utils';
 import { useConsent } from '../../hooks/useConsent';
 import { setConsent } from '../../lib/cookieConsent';
+import { capturarLocalizacao, limparLocalizacao } from '../../lib/geoTracking';
 
 export const SettingsPrivacy = React.memo(function SettingsPrivacy() {
   const { user } = useAuth();
@@ -30,6 +31,20 @@ export const SettingsPrivacy = React.memo(function SettingsPrivacy() {
         ? 'Análise de uso ativada. Obrigado por ajudar a melhorar o app!'
         : 'Análise de uso desativada. Nenhum dado de navegação será coletado.'
     );
+  };
+
+  const compartilhaLocal = settings.share_location !== false;
+  const toggleLocal = async () => {
+    if (!user) return;
+    const novo = !compartilhaLocal;
+    await updateSettings({ share_location: novo });
+    if (novo) {
+      toast.success('Localização ativada.');
+      capturarLocalizacao(user.id, true);
+    } else {
+      toast.success('Localização desativada. O último ponto foi apagado.');
+      limparLocalizacao(user.id);
+    }
   };
 
   const savePassword = async () => {
@@ -191,6 +206,40 @@ export const SettingsPrivacy = React.memo(function SettingsPrivacy() {
           <Link to="/cookies" className="text-emerald-600 underline">Política de Cookies</Link>
           {decididoEm && (
             <> · escolha registrada em {new Date(decididoEm).toLocaleDateString('pt-BR')}</>
+          )}
+        </p>
+      </div>
+
+      <div className="p-4 md:p-6 rounded-2xl md:rounded-[32px] bg-slate-50 dark:bg-zinc-950 border border-slate-100 dark:border-zinc-800 space-y-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-6">
+            <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 shadow-sm text-rose-500">
+              <MapPin className="w-6 h-6" />
+            </div>
+            <div className="text-left">
+              <p className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Compartilhar Localização</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
+                Centraliza o mapa em você e mostra sua cobertura ao Represente-Se
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={toggleLocal}
+            className={cn(
+              "px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0",
+              compartilhaLocal
+                ? "bg-red-50 dark:bg-red-900/20 text-red-500"
+                : "bg-emerald-600 text-white shadow-lg shadow-emerald-500/20"
+            )}
+          >
+            {compartilhaLocal ? "Desativar" : "Ativar"}
+          </button>
+        </div>
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight leading-relaxed">
+          Só com o app aberto, no máximo a cada 3h — nunca em segundo plano.{' '}
+          <Link to="/privacy" className="text-emerald-600 underline">Política de Privacidade</Link>
+          {settings.last_location_at && (
+            <> · último ponto em {new Date(settings.last_location_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</>
           )}
         </p>
       </div>

@@ -20,6 +20,7 @@ function PageviewTracker() {
 }
 
 import PageTracker from "./components/PageTracker";
+import GeoCapture from "./components/GeoCapture";
 import CookieBanner from "./components/CookieBanner";
 import NativeAuthListener from "./components/NativeAuthListener";
 import BackButtonHandler from "./components/BackButtonHandler";
@@ -117,6 +118,7 @@ export default function App() {
             <UploadProvider>
               <PageviewTracker />
               <PageTracker />
+              <GeoCapture />
               <NativeAuthListener />
               <BackButtonHandler />
               <ConfirmProvider>

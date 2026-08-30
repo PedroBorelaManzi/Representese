@@ -1,5 +1,5 @@
 import React from "react";
-import { ShieldCheck, Lock, Eye, Scale, ArrowLeft, Cookie } from "lucide-react";
+import { ShieldCheck, Lock, Eye, Scale, ArrowLeft, Cookie, MapPin } from "lucide-react";
 import { Link } from "react-router-dom";
 import { usePageMeta } from "../hooks/usePageMeta";
 
@@ -88,8 +88,33 @@ export default function PrivacyPolicy() {
 
             <section className="space-y-4">
               <h2 className="text-xl font-bold text-slate-800 dark:text-zinc-200 flex items-center gap-3">
+                <div className="w-8 h-8 bg-rose-100 dark:bg-rose-900/30 rounded-lg flex items-center justify-center text-rose-600"><MapPin className="w-4 h-4" /></div>
+                6. Localização
+              </h2>
+              <p>
+                Com a sua permissão, coletamos a localização do seu dispositivo enquanto você usa o aplicativo. Usamos
+                esse dado para duas finalidades:
+              </p>
+              <ul className="list-disc pl-6 space-y-1">
+                <li>centralizar o mapa de clientes na sua posição e calcular distâncias até eles;</li>
+                <li>
+                  permitir que o Represente-Se acompanhe a distribuição geográfica da rede de representantes, para avaliar
+                  a cobertura de mercado.
+                </li>
+              </ul>
+              <p>
+                A coleta acontece apenas com o app aberto — nunca em segundo plano — e no máximo uma vez a cada três
+                horas. Você pode recusar quando o aparelho pedir a permissão, revogá-la depois nas configurações do
+                sistema, ou desligar em <strong className="font-bold text-slate-700 dark:text-zinc-200">Configurações ›
+                Privacidade</strong>; nesse caso o último ponto registrado é apagado. Não vendemos nem compartilhamos sua
+                localização com terceiros.
+              </p>
+            </section>
+
+            <section className="space-y-4">
+              <h2 className="text-xl font-bold text-slate-800 dark:text-zinc-200 flex items-center gap-3">
                 <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center text-orange-600"><Scale className="w-4 h-4" /></div>
-                6. Seus Direitos
+                7. Seus Direitos
               </h2>
               <p>
                 Você tem o direito de acessar, corrigir ou excluir seus dados pessoais a qualquer momento. Para excluir
