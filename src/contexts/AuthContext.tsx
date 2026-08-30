@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useMemo, ReactNode } fr
 import { supabase } from "../lib/supabase";
 import { User } from "@supabase/supabase-js";
 import { posthog } from "../lib/posthog";
+import { setSentryUser } from "../lib/sentry";
 import { offlineCache } from "../lib/offlineCache";
 import { trackSessionOpen } from "../lib/sessionTracking";
 import { releaseSessionSlot } from "../lib/sessionGate";
@@ -35,12 +36,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Liga o consentimento de cookies (gravado antes do login, sem user_id) à
+    // conta — uma vez por sessão do navegador. Ver src/lib/consentLog.ts.
+    const sincronizarConsentimento = () => {
+      if (sessionStorage.getItem('rm_consent_synced')) return;
+      sessionStorage.setItem('rm_consent_synced', '1');
+      import('../lib/consentLog').then((m) => m.sincronizarConsentimentoNoLogin()).catch(() => {});
+    };
+
     supabase.auth.getSession()
       .then(({ data: { session } }) => {
         if (session?.user) {
           saveOfflineUser(session.user);
           posthog.identify(session.user.id, { email: session.user.email });
+          setSentryUser({ id: session.user.id, email: session.user.email });
           trackSessionOpen();
+          sincronizarConsentimento();
         }
         setUser(session?.user ?? null);
         setLoading(false);
@@ -54,9 +65,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (session?.user) {
         saveOfflineUser(session.user);
         posthog.identify(session.user.id, { email: session.user.email });
+        setSentryUser({ id: session.user.id, email: session.user.email });
         trackSessionOpen();
+        sincronizarConsentimento();
       } else {
         posthog.reset();
+        setSentryUser(null);
       }
       setUser(session?.user ?? null);
       setLoading(false);

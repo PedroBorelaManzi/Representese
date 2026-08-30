@@ -84,3 +84,11 @@ interface CaptureContext {
 export function reportException(error: unknown, context?: CaptureContext): void {
   client?.captureException(error, context);
 }
+
+/** Liga os erros do Sentry a um usuário, pra dar pra ver na Ficha do admin
+ *  quantas falhas cada conta teve. `null` limpa (logout). No-op se o SDK
+ *  ainda não carregou — o init roda no idle e não temos replay de eventos
+ *  anteriores, o que é aceitável aqui. */
+export function setSentryUser(user: { id: string; email?: string } | null): void {
+  client?.setUser(user ? { id: user.id, email: user.email } : null);
+}

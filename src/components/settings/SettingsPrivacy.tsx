@@ -24,7 +24,7 @@ export const SettingsPrivacy = React.memo(function SettingsPrivacy() {
 
   const toggleAnalytics = () => {
     const novo = !categorias.analiticos;
-    setConsent({ preferencias: categorias.preferencias, analiticos: novo });
+    setConsent({ preferencias: categorias.preferencias, analiticos: novo }, 'settings_change');
     toast.success(
       novo
         ? 'Análise de uso ativada. Obrigado por ajudar a melhorar o app!'

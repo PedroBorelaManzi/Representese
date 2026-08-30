@@ -39,5 +39,11 @@
       "source": "/(.*)",
       "destination": "/index.html"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/sync-analytics",
+      "schedule": "0 6 * * *"
+    }
   ]
 }

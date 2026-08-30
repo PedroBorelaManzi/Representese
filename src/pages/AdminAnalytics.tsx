@@ -13,6 +13,7 @@ import { cn } from '../lib/utils';
 import { exportRawLeadsAsExcel, exportSubscriptionLeadsAsExcel } from '../lib/rawLeadsExport';
 import { toast } from 'sonner';
 import { useConfirm } from '../components/ui';
+import UserDossier from '../components/admin/UserDossier';
 
 const COLORS = [
   '#10b981', '#6366f1', '#f59e0b', '#ef4444', 
@@ -60,7 +61,7 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
   const [deletingUser, setDeletingUser] = useState(false);
   const queryClient = useQueryClient();
   const confirm = useConfirm();
-  const [activeTab, setActiveTab] = useState<'sistema' | 'landing' | 'leads' | 'usuarios'>('sistema');
+  const [activeTab, setActiveTab] = useState<'sistema' | 'landing' | 'leads' | 'usuarios' | 'ficha'>('sistema');
 
   // --- QUERY 1: Sistema (Usuários Logados) ---
   const { data, isLoading } = useQuery({
@@ -502,7 +503,22 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
           </div>
           {activeTab === 'usuarios' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />}
         </button>
+        <button
+          onClick={() => setActiveTab('ficha')}
+          className={cn(
+            "px-6 py-3 font-semibold text-sm transition-all relative",
+            activeTab === 'ficha' ? "text-fuchsia-600" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+          )}
+        >
+          <div className="flex items-center gap-2">
+            <User className="w-4 h-4" />
+            Ficha Completa
+          </div>
+          {activeTab === 'ficha' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-fuchsia-600" />}
+        </button>
       </div>
+
+      {activeTab === 'ficha' && <UserDossier />}
 
       {activeTab === 'sistema' && (
         isLoading ? (

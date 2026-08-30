@@ -26,6 +26,8 @@ export type ConsentCategories = {
   analiticos: boolean;
 };
 
+export type ConsentAction = 'accept_all' | 'reject' | 'custom' | 'settings_change' | 'login_sync';
+
 type StoredConsent = {
   v: number;
   ts: string;
@@ -80,7 +82,7 @@ export function hasAnalyticsConsent(): boolean {
   return getConsent().analiticos === true;
 }
 
-export function setConsent(categorias: ConsentCategories): void {
+export function setConsent(categorias: ConsentCategories, action: ConsentAction = 'custom'): void {
   const registro: StoredConsent = {
     v: CONSENT_VERSION,
     ts: new Date().toISOString(),
@@ -93,14 +95,19 @@ export function setConsent(categorias: ConsentCategories): void {
   }
   cache = registro;
   for (const fn of listeners) fn();
+
+  // Registro no banco (LGPD) — fire-and-forget, não bloqueia a UI.
+  import('./consentLog')
+    .then((m) => m.registrarConsentimento(registro.categorias, CONSENT_VERSION, action))
+    .catch(() => {});
 }
 
 export function aceitarTudo(): void {
-  setConsent({ preferencias: true, analiticos: true });
+  setConsent({ preferencias: true, analiticos: true }, 'accept_all');
 }
 
 export function recusarNaoEssenciais(): void {
-  setConsent({ preferencias: false, analiticos: false });
+  setConsent({ preferencias: false, analiticos: false }, 'reject');
 }
 
 /** Notifica quando a decisão muda (banner some, configurações atualizam, main.tsx
