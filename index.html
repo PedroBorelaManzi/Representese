@@ -30,6 +30,11 @@
     
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json" />
+
+    <!-- A primeira coisa que o app faz é supabase.auth.getSession() — abrir a
+         conexão com o Supabase já aqui economiza o TLS handshake (~100-300ms
+         no mobile) do caminho crítico do login/landing. -->
+    <link rel="preconnect" href="https://wdtftftwdqtihupbtlxk.supabase.co" crossorigin />
     
     <!-- Fonte Inter self-hosted (era Google Fonts + reescrita do Cloudflare Fonts).
          Antes o .woff2 só era descoberto depois de parsear ~63 @font-face inline
