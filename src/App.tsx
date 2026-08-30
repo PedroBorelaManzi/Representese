@@ -20,6 +20,7 @@ function PageviewTracker() {
 }
 
 import PageTracker from "./components/PageTracker";
+import CookieBanner from "./components/CookieBanner";
 import NativeAuthListener from "./components/NativeAuthListener";
 import BackButtonHandler from "./components/BackButtonHandler";
 
@@ -61,6 +62,7 @@ const GoogleCallback = lazyWithRetry(() => import("./pages/GoogleCallback"));
 const PrivacyPolicy = lazyWithRetry(() => import("./pages/PrivacyPolicy"));
 const TermsOfService = lazyWithRetry(() => import("./pages/TermsOfService"));
 const DataDeletion = lazyWithRetry(() => import("./pages/DataDeletion"));
+const CookiePolicy = lazyWithRetry(() => import("./pages/CookiePolicy"));
 const AdminAnalytics = lazyWithRetry(() => import("./pages/AdminAnalytics"));
 
 const LoadingSpinner = () => (
@@ -163,7 +165,8 @@ export default function App() {
                   <Route path="/privacy" element={<PrivacyPolicy />} />
                   <Route path="/terms" element={<TermsOfService />} />
                   <Route path="/exclusao-de-dados" element={<DataDeletion />} />
-                  
+                  <Route path="/cookies" element={<CookiePolicy />} />
+
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </Suspense>
@@ -172,6 +175,7 @@ export default function App() {
           </SettingsProvider>
         </SyncProvider>
         <SpeedInsights />
+        <CookieBanner />
       </BrowserRouter>
       </SessionGateProvider>
     </AuthProvider>

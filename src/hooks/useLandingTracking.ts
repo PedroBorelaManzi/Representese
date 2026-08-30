@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useSettings } from '../contexts/SettingsContext';
 import { isTrackingDisabled } from '../lib/trackingOptOut';
+import { hasAnalyticsConsent } from '../lib/cookieConsent';
 
 function getSessionId() {
   let sid = localStorage.getItem('landing_session_id');
@@ -17,7 +18,8 @@ export function useLandingTracking(activeSection: string) {
   const startTimeRef = useRef<number>(Date.now());
   const currentSectionRef = useRef<string>(activeSection || 'hero');
   // Mesma lógica do usePageTracking: is_admin só é confiável depois que settings carrega.
-  const canTrack = () => !settingsLoading && !settings?.is_admin && !isTrackingDisabled();
+  const canTrack = () =>
+    !settingsLoading && !settings?.is_admin && !isTrackingDisabled() && hasAnalyticsConsent();
 
   // Triggered when the section changes
   useEffect(() => {

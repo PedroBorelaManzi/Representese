@@ -1,5 +1,5 @@
 import React from "react";
-import { ShieldCheck, Lock, Eye, Scale, ArrowLeft } from "lucide-react";
+import { ShieldCheck, Lock, Eye, Scale, ArrowLeft, Cookie } from "lucide-react";
 import { Link } from "react-router-dom";
 import { usePageMeta } from "../hooks/usePageMeta";
 
@@ -22,7 +22,7 @@ export default function PrivacyPolicy() {
           </div>
 
           <h1 className="text-4xl font-black text-slate-900 dark:text-zinc-100 mb-8 uppercase tracking-tighter">Política de Privacidade</h1>
-          <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-12">Atualizada em 14 de Julho de 2026</p>
+          <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-12">Atualizada em 30 de Agosto de 2026</p>
 
           <div className="space-y-10 text-slate-600 dark:text-zinc-400 leading-relaxed font-medium">
             <section className="space-y-4">
@@ -73,8 +73,23 @@ export default function PrivacyPolicy() {
 
             <section className="space-y-4">
               <h2 className="text-xl font-bold text-slate-800 dark:text-zinc-200 flex items-center gap-3">
+                <div className="w-8 h-8 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center text-amber-600"><Cookie className="w-4 h-4" /></div>
+                5. Cookies e Rastreamento
+              </h2>
+              <p>
+                Usamos cookies e armazenamento local essenciais (login, segurança, uso offline) e, mediante o seu aceite,
+                ferramentas de análise de uso (PostHog e métricas próprias) para melhorar o app. O monitoramento de erros
+                (Sentry) e a medição de velocidade (Vercel) rodam sob legítimo interesse, sem perfilamento nem
+                publicidade. Você escolhe no banner da primeira visita e pode mudar quando quiser em Configurações ›
+                Privacidade. Detalhe de cada item em{' '}
+                <Link to="/cookies" className="text-emerald-600 underline">Política de Cookies</Link>.
+              </p>
+            </section>
+
+            <section className="space-y-4">
+              <h2 className="text-xl font-bold text-slate-800 dark:text-zinc-200 flex items-center gap-3">
                 <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center text-orange-600"><Scale className="w-4 h-4" /></div>
-                5. Seus Direitos
+                6. Seus Direitos
               </h2>
               <p>
                 Você tem o direito de acessar, corrigir ou excluir seus dados pessoais a qualquer momento. Para excluir

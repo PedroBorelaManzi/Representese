@@ -100,6 +100,7 @@ export function LandingFooter() {
             <ul className="space-y-2.5 text-[13px] font-medium">
               <li><Link to="/privacy" className="hover:text-emerald-600 transition-colors">Privacidade</Link></li>
               <li><Link to="/terms" className="hover:text-emerald-600 transition-colors">Termos</Link></li>
+              <li><Link to="/cookies" className="hover:text-emerald-600 transition-colors">Cookies</Link></li>
               <li><Link to="/exclusao-de-dados" className="hover:text-emerald-600 transition-colors">Exclusão de dados</Link></li>
             </ul>
           </div>

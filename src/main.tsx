@@ -15,9 +15,21 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 // pintura. Adiado pro primeiro idle — tira ~100-150ms de main thread do boot
 // (ajuda TBT/INP). Erros muito precoces ainda caem nos listeners globais
 // abaixo (que gravam em audit_logs).
+//
+// Sentry entra como legítimo interesse (estabilidade/segurança, first-party) —
+// carrega sempre. PostHog é "análise": só depois do aceite no banner de cookies.
+// Se o usuário aceitar mais tarde, o subscribe abaixo dispara o init na hora.
 const initTelemetry = () => {
   import('./lib/sentry').then((m) => m.initSentry());
   import('./lib/posthog').then((m) => m.initPostHog());
+  import('./lib/cookieConsent').then((m) => {
+    const unsub = m.subscribeConsent(() => {
+      if (m.hasAnalyticsConsent()) {
+        unsub();
+        import('./lib/posthog').then((p) => p.initPostHog());
+      }
+    });
+  });
 };
 if (typeof window !== 'undefined') {
   if ('requestIdleCallback' in window) {

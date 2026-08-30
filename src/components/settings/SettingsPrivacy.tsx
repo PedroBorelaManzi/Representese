@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { EyeOff, Lock, Check } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { EyeOff, Lock, Check, BarChart3 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { hashCommissionPassword } from '../../lib/commissionPrivacy';
 import { toast } from 'sonner';
 import { cn } from '../../lib/utils';
+import { useConsent } from '../../hooks/useConsent';
+import { setConsent } from '../../lib/cookieConsent';
 
 export const SettingsPrivacy = React.memo(function SettingsPrivacy() {
   const { user } = useAuth();
@@ -16,6 +19,18 @@ export const SettingsPrivacy = React.memo(function SettingsPrivacy() {
 
   const hasPassword = !!settings.commission_password_hash;
   const isHiding = !!settings.hide_commissions;
+
+  const { categorias, decididoEm } = useConsent();
+
+  const toggleAnalytics = () => {
+    const novo = !categorias.analiticos;
+    setConsent({ preferencias: categorias.preferencias, analiticos: novo });
+    toast.success(
+      novo
+        ? 'Análise de uso ativada. Obrigado por ajudar a melhorar o app!'
+        : 'Análise de uso desativada. Nenhum dado de navegação será coletado.'
+    );
+  };
 
   const savePassword = async () => {
     if (!user) return;
@@ -144,6 +159,40 @@ export const SettingsPrivacy = React.memo(function SettingsPrivacy() {
             </div>
           </div>
         )}
+      </div>
+
+      <div className="p-4 md:p-6 rounded-2xl md:rounded-[32px] bg-slate-50 dark:bg-zinc-950 border border-slate-100 dark:border-zinc-800 space-y-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-6">
+            <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 shadow-sm text-sky-500">
+              <BarChart3 className="w-6 h-6" />
+            </div>
+            <div className="text-left">
+              <p className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Análise de Uso</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
+                Métricas de navegação (PostHog) para melhorar o app
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={toggleAnalytics}
+            className={cn(
+              "px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0",
+              categorias.analiticos
+                ? "bg-red-50 dark:bg-red-900/20 text-red-500"
+                : "bg-emerald-600 text-white shadow-lg shadow-emerald-500/20"
+            )}
+          >
+            {categorias.analiticos ? "Desativar" : "Ativar"}
+          </button>
+        </div>
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight leading-relaxed">
+          O monitoramento de erros (Sentry) roda sob legítimo interesse e não coleta perfil.{' '}
+          <Link to="/cookies" className="text-emerald-600 underline">Política de Cookies</Link>
+          {decididoEm && (
+            <> · escolha registrada em {new Date(decididoEm).toLocaleDateString('pt-BR')}</>
+          )}
+        </p>
       </div>
     </div>
   );

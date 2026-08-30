@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
 import { isTrackingDisabled } from '../lib/trackingOptOut';
+import { hasAnalyticsConsent } from '../lib/cookieConsent';
 
 export function usePageTracking() {
   const location = useLocation();
@@ -17,7 +18,8 @@ export function usePageTracking() {
   // Enquanto as settings ainda não carregaram, is_admin fica no valor padrão (false) —
   // por isso não dá pra confiar nesse campo até settingsLoading terminar, senão a
   // primeira navegação de um admin (antes do fetch resolver) entra como visitante comum.
-  const canTrack = () => !settingsLoading && !settings.is_admin && !isTrackingDisabled();
+  const canTrack = () =>
+    !settingsLoading && !settings.is_admin && !isTrackingDisabled() && hasAnalyticsConsent();
 
   useEffect(() => {
     let active = true;
