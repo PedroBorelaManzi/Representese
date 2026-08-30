@@ -20,6 +20,9 @@
     <meta property="og:description" content="Centralize clientes, pedidos, agenda e faturamento. A revolução tecnológica para representantes comerciais brasileiros." />
     <meta property="og:url" content="https://www.representese.com/" />
     <meta property="og:image" content="https://www.representese.com/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Represente-Se! — CRM para representantes comerciais" />
     <meta property="og:locale" content="pt_BR" />
 
     <!-- Twitter Card -->
@@ -53,6 +56,96 @@
       }
     </style>
     <!-- Leaflet CSS vem do bundle (import em src/components/Map.tsx) — o link externo do unpkg era bloqueado pelo CSP -->
+
+    <!-- Dados estruturados (JSON-LD). O app renderiza no cliente; isto vive no
+         HTML estático pra o Google ler sem depender do React montar. Organização,
+         o produto com os 3 planos, e a FAQ (mesmas perguntas da seção "Dúvidas"
+         da landing — mantenha em sincronia com src/components/landing/data.ts).
+         Validar em search.google.com/test/rich-results após mudar. -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://www.representese.com/#organization",
+          "name": "Represente-Se!",
+          "url": "https://www.representese.com/",
+          "logo": "https://www.representese.com/icon-512.png",
+          "email": "contato@representese.com",
+          "description": "Plataforma brasileira para representantes comerciais: CRM, pedidos, agenda, faturamento por representada e comunicação num só lugar.",
+          "contactPoint": {
+            "@type": "ContactPoint",
+            "contactType": "customer support",
+            "email": "contato@representese.com",
+            "url": "https://wa.me/5515997472785",
+            "availableLanguage": "Portuguese"
+          }
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://www.representese.com/#website",
+          "url": "https://www.representese.com/",
+          "name": "Represente-Se!",
+          "inLanguage": "pt-BR",
+          "publisher": { "@id": "https://www.representese.com/#organization" }
+        },
+        {
+          "@type": "SoftwareApplication",
+          "name": "Represente-Se!",
+          "operatingSystem": "Web, iOS, Android",
+          "applicationCategory": "BusinessApplication",
+          "url": "https://www.representese.com/",
+          "screenshot": "https://www.representese.com/og-image.png",
+          "inLanguage": "pt-BR",
+          "description": "CRM e gestão para representantes comerciais: carteira de clientes, pedidos por foto, agenda, roteiro de visitas no mapa, faturamento e comissão por representada, e um assistente de IA.",
+          "publisher": { "@id": "https://www.representese.com/#organization" },
+          "offers": [
+            {
+              "@type": "Offer",
+              "name": "Acesso Exclusivo",
+              "price": "97.00",
+              "priceCurrency": "BRL",
+              "description": "1 representada. Para quem representa uma marca.",
+              "url": "https://www.representese.com/planos"
+            },
+            {
+              "@type": "Offer",
+              "name": "Acesso Profissional",
+              "price": "147.00",
+              "priceCurrency": "BRL",
+              "description": "Até 5 representadas.",
+              "url": "https://www.representese.com/planos"
+            },
+            {
+              "@type": "Offer",
+              "name": "Acesso Master",
+              "price": "197.00",
+              "priceCurrency": "BRL",
+              "description": "Representadas ilimitadas.",
+              "url": "https://www.representese.com/planos"
+            }
+          ]
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://www.representese.com/#faq",
+          "mainEntity": [
+            { "@type": "Question", "name": "Como funciona a garantia de 7 dias?", "acceptedAnswer": { "@type": "Answer", "text": "Comece sem compromisso. Não se adaptou nos primeiros 7 dias? Reembolsamos 100% do valor." } },
+            { "@type": "Question", "name": "Quanto tempo leva para começar?", "acceptedAnswer": { "@type": "Answer", "text": "Minutos. Cadastre suas representadas, importe a carteira e o painel já está rodando — sem implantação nem consultoria." } },
+            { "@type": "Question", "name": "Posso importar meus dados antigos?", "acceptedAnswer": { "@type": "Answer", "text": "Sim. Suba sua carteira por planilha e a IA organiza os dados por você." } },
+            { "@type": "Question", "name": "Posso mudar de plano a qualquer momento?", "acceptedAnswer": { "@type": "Answer", "text": "Sim, direto nas configurações da conta — sem burocracia e com efeito imediato." } },
+            { "@type": "Question", "name": "Posso cancelar quando quiser?", "acceptedAnswer": { "@type": "Answer", "text": "Sim. Sem fidelidade e sem multa — você cancela direto na conta, quando quiser." } },
+            { "@type": "Question", "name": "O sistema funciona em dispositivos móveis?", "acceptedAnswer": { "@type": "Answer", "text": "Sim. App nativo para iOS e Android, além da versão web — gerencie sua carteira de qualquer lugar, até offline." } },
+            { "@type": "Question", "name": "Preciso instalar alguma coisa?", "acceptedAnswer": { "@type": "Answer", "text": "Não. Roda no navegador e como app no celular, com sincronização automática entre dispositivos." } },
+            { "@type": "Question", "name": "O sistema integra com meu ERP?", "acceptedAnswer": { "@type": "Answer", "text": "Ainda não há integração direta com ERPs — a importação é feita por planilha, e novas integrações estão no roadmap." } },
+            { "@type": "Question", "name": "Como funciona o suporte?", "acceptedAnswer": { "@type": "Answer", "text": "Via e-mail e WhatsApp, conforme o plano — com resposta rápida de verdade." } },
+            { "@type": "Question", "name": "Meus dados estão seguros?", "acceptedAnswer": { "@type": "Answer", "text": "Sim. Criptografia de ponta e infraestrutura Supabase — seus dados protegidos e sob seu controle." } }
+          ]
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>
