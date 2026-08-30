@@ -37,40 +37,10 @@ function devApiPlugin(env: Record<string, string>): Plugin {
   };
 }
 
-/**
- * Inlina o CSS principal (~27 KB gzip) direto no <head> como <style>, em vez de
- * um <link rel="stylesheet"> externo. O PageSpeed marcava a folha de estilo
- * como "render-blocking resource": o navegador não pinta nada até baixá-la.
- * Inline, o CSS já chega junto do HTML (mesma resposta, gzipada pela Vercel) —
- * some da lista de recursos que bloqueiam a primeira pintura, sem risco de FOUC
- * de um carregamento assíncrono. Só o CSS de rotas lazy (ex.: Map/Leaflet)
- * continua em arquivo separado, carregado sob demanda.
- */
-function inlineCssPlugin(): Plugin {
-  return {
-    name: 'inline-critical-css',
-    apply: 'build',
-    enforce: 'post',
-    transformIndexHtml(html, ctx) {
-      const linkRe = /<link[^>]+rel="stylesheet"[^>]+href="\/([^"]+\.css)"[^>]*>/;
-      const m = html.match(linkRe);
-      if (!m || !ctx.bundle) return html;
-      const asset = ctx.bundle[m[1]];
-      if (!asset || asset.type !== 'asset') return html;
-      const css = String(asset.source);
-      // Só inlina se for pequeno o suficiente pra valer a pena (guarda-chuva
-      // caso o CSS cresça muito no futuro — aí volta a compensar o arquivo).
-      if (css.length > 300_000) return html;
-      delete ctx.bundle[m[1]];
-      return html.replace(linkRe, `<style>${css}</style>`);
-    },
-  };
-}
-
 export default defineConfig(({mode}) => {
   const env = loadEnv(mode, '.', '');
   return {
-    plugins: [react(), tailwindcss(), devApiPlugin(env), inlineCssPlugin()],
+    plugins: [react(), tailwindcss(), devApiPlugin(env)],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
