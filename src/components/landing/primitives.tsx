@@ -68,30 +68,6 @@ export function Kicker({
   );
 }
 
-/* destaca o item de menu da seção que o usuário está vendo.
-   abordagem por posição de scroll = determinística (sem flicker em saltos) */
-export function useActiveSection(ids: string[]) {
-  const [active, setActive] = useState<string>("");
-  useEffect(() => {
-    const onScroll = () => {
-      const line = window.innerHeight * 0.35;
-      let current = "";
-      for (const id of ids) {
-        const el = document.getElementById(id);
-        if (el && el.getBoundingClientRect().top <= line) current = id;
-      }
-      setActive(current);
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-    };
-  }, [ids]);
-  return active;
-}
 
 /* contador animado que dispara ao entrar na viewport */
 export function Counter({

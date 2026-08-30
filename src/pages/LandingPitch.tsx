@@ -1,60 +1,72 @@
-import React, { useState, useRef } from "react";
-import {
-  motion,
-  useScroll,
-  useMotionValueEvent,
-  useSpring,
-  useTransform,
-} from "framer-motion";
+import React, { useState, useRef, useEffect, lazy, Suspense } from "react";
 import { Play, ArrowRight, Brain, TrendingUp } from "lucide-react";
 import { Logo } from "../components/Logo";
 import { BrowserDashboard } from "../components/LandingMockups";
 import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { cn } from "../lib/utils";
-import { NAV, NAV_IDS, sectionBridges } from "../components/landing/data";
-import { useActiveSection, SectionBridge } from "../components/landing/primitives";
-import { IntegrationsMarquee, DiferencialSection } from "../components/landing/Diferencial";
-import { RecursosBentoSection, GestaoInteligenteSection } from "../components/landing/Recursos";
-import { SetoresSection } from "../components/landing/Setores";
-import { MultiplataformaSection, ComoFuncionaSection } from "../components/landing/Plataforma";
-import { TrustSection } from "../components/landing/Trust";
-import { FaqSection } from "../components/landing/Faq";
-import { CtaFinalSection, LandingFooter } from "../components/landing/CtaFooter";
-import { DemoModal } from "../components/landing/DemoModal";
+import { NAV, NAV_IDS } from "../components/landing/data";
+import { useActiveSection } from "../hooks/useActiveSection";
 import { useLandingTracking } from "../hooks/useLandingTracking";
+
+// Tudo abaixo do hero (com framer-motion) vem num chunk lazy — o hero, que é o
+// elemento de LCP, pinta sem esperar o framer.
+const LandingBelowFold = lazy(() => import("../components/landing/LandingBelowFold"));
 
 /* Página composta por seções em src/components/landing/ (auditoria 3.1).
    Aqui ficam só a nav e o hero, que dependem do estado de scroll da página. */
 export default function LandingPitch() {
-  const { scrollY, scrollYProgress } = useScroll();
-  const progressX = useSpring(scrollYProgress, { stiffness: 120, damping: 30, restDelta: 0.001 });
   const [scrolled, setScrolled] = useState(false);
   const [demoOpen, setDemoOpen] = useState(false);
   const { user } = useAuth();
   const active = useActiveSection(NAV_IDS);
-  
+
   // Track anonymous landing page usage
   useLandingTracking(active);
 
-  useMotionValueEvent(scrollY, "change", (v) => setScrolled(v > 40));
+  // Barra de progresso do scroll + encolhimento da nav — em JS puro (era
+  // useScroll/useSpring/useMotionValueEvent do framer-motion). rAF pra não
+  // fazer layout a cada evento de scroll.
+  const progressRef = useRef<HTMLDivElement>(null);
+  const mockupInnerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    let raf = 0;
+    const update = () => {
+      raf = 0;
+      const y = window.scrollY;
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      const p = max > 0 ? Math.min(1, y / max) : 0;
+      if (progressRef.current) progressRef.current.style.transform = `scaleX(${p})`;
+      setScrolled(y > 40);
 
-  // Mockup do hero: entra inclinado em 3D e endireita conforme o scroll
-  const mockupRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress: mockupProgress } = useScroll({
-    target: mockupRef,
-    offset: ["start end", "start 0.35"],
-  });
-  const mockupRotateX = useTransform(mockupProgress, [0, 1], [24, 0]);
-  const mockupScale = useTransform(mockupProgress, [0, 1], [0.94, 1]);
+      // Mockup: entra inclinado 24° e endireita conforme sobe na viewport
+      // (equivale ao offset ["start end", "start 0.35"] do framer).
+      const inner = mockupInnerRef.current;
+      if (inner) {
+        const r = inner.getBoundingClientRect();
+        const vh = window.innerHeight || 1;
+        const mp = Math.min(1, Math.max(0, (vh - r.top) / (vh - vh * 0.35)));
+        inner.style.transform = `rotateX(${24 * (1 - mp)}deg) scale(${0.94 + 0.06 * mp})`;
+      }
+    };
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(update); };
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-white text-slate-900 overflow-x-hidden font-sans selection:bg-emerald-100 selection:text-emerald-900">
 
       {/* ── SCROLL PROGRESS ─────────────────────────────────── */}
-      <motion.div
-        style={{ scaleX: progressX }}
-        className="fixed top-0 left-0 right-0 h-[3px] origin-left bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500 z-[60]"
+      <div
+        ref={progressRef}
+        className="fixed top-0 left-0 right-0 h-[3px] origin-left scale-x-0 bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500 z-[60] transition-transform duration-100 ease-linear"
       />
 
       {/* ── NAV: pílula flutuante ───────────────────────────── */}
@@ -235,28 +247,23 @@ export default function LandingPitch() {
 
         {/* dashboard mockup (codado, janela de navegador) — entra inclinado
             em 3D e endireita conforme o usuário rola (padrão Linear/Mobbin) */}
-        <motion.div
-          ref={mockupRef}
-          initial={{ opacity: 0, y: 60 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          className="relative z-10 mt-16 max-w-4xl xl:max-w-5xl mx-auto w-full px-4"
-          style={{ perspective: 1400 }}
+        <div
+          className="hero-anim relative z-10 mt-16 max-w-4xl xl:max-w-5xl mx-auto w-full px-4"
+          style={{ perspective: 1400, animationDelay: "0.4s" }}
         >
-          <motion.div
+          <div
+            ref={mockupInnerRef}
             className="relative"
-            style={{ rotateX: mockupRotateX, scale: mockupScale, transformOrigin: "50% 0%" }}
+            style={{ transform: "rotateX(24deg) scale(0.94)", transformOrigin: "50% 0%" }}
           >
             <div className="absolute -inset-4 bg-gradient-to-b from-emerald-200/50 to-transparent blur-3xl rounded-3xl -z-10" />
             <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-[0_30px_90px_rgba(0,0,0,0.14),0_6px_20px_rgba(0,0,0,0.06)] ring-1 ring-slate-900/5">
               <BrowserDashboard />
             </div>
 
-            {/* floating cards */}
-            <motion.div
-              animate={{ y: [-6, 6, -6] }}
-              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-              className="hidden md:flex absolute -top-5 -left-6 bg-white rounded-2xl shadow-xl border border-slate-100 p-3.5 items-center gap-3"
+            {/* floating cards — flutuação em CSS (era framer-motion) */}
+            <div
+              className="hero-float hero-float-a hidden md:flex absolute -top-5 -left-6 bg-white rounded-2xl shadow-xl border border-slate-100 p-3.5 items-center gap-3"
             >
               <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center">
                 <TrendingUp className="w-4 h-4 text-emerald-600" />
@@ -265,12 +272,10 @@ export default function LandingPitch() {
                 <p className="text-[11px] font-black text-slate-900 leading-none">+32% pedidos</p>
                 <p className="text-[10px] text-slate-500 font-medium mt-0.5">este mês</p>
               </div>
-            </motion.div>
+            </div>
 
-            <motion.div
-              animate={{ y: [6, -6, 6] }}
-              transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }}
-              className="hidden md:flex absolute -bottom-5 -right-6 bg-white rounded-2xl shadow-xl border border-slate-100 p-3.5 items-center gap-3"
+            <div
+              className="hero-float hero-float-b hidden md:flex absolute -bottom-5 -right-6 bg-white rounded-2xl shadow-xl border border-slate-100 p-3.5 items-center gap-3"
             >
               <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center">
                 <Brain className="w-4 h-4 text-emerald-600" />
@@ -279,25 +284,14 @@ export default function LandingPitch() {
                 <p className="text-[11px] font-black text-slate-900 leading-none">Resumo pronto</p>
                 <p className="text-[10px] text-slate-500 font-medium mt-0.5">gerado por IA</p>
               </div>
-            </motion.div>
-          </motion.div>
-        </motion.div>
+            </div>
+          </div>
+        </div>
       </section>
 
-      <IntegrationsMarquee />
-      <DiferencialSection />
-      <SectionBridge text={sectionBridges.paraSetores} />
-      <SetoresSection />
-      <SectionBridge text={sectionBridges.paraRecursos} />
-      <RecursosBentoSection />
-      <SectionBridge text={sectionBridges.paraTecnologia} />
-      <GestaoInteligenteSection />
-      <MultiplataformaSection />
-      <ComoFuncionaSection />
-      <TrustSection />
-      <FaqSection />
-      <CtaFinalSection />
-      <LandingFooter />
+      <Suspense fallback={<div className="min-h-screen" aria-hidden />}>
+        <LandingBelowFold demoOpen={demoOpen} onDemoClose={() => setDemoOpen(false)} />
+      </Suspense>
 
       {/* CTA fixo no mobile: aparece depois do hero, some perto dos planos
           (lá o CTA já está na tela). Padrão de conversão mobile-first. */}
@@ -315,8 +309,6 @@ export default function LandingPitch() {
           </Link>
         </div>
       )}
-
-      <DemoModal isOpen={demoOpen} onClose={() => setDemoOpen(false)} />
     </div>
   );
 }

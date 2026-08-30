@@ -187,10 +187,22 @@ h1, h2, h3, h4 {
 .hero-halo-a { animation: hero-halo-a 18s ease-in-out infinite; }
 .hero-halo-b { animation: hero-halo-b 20s ease-in-out infinite; }
 
+/* Cards que flutuam ao lado do mockup do hero (era framer-motion). */
+@keyframes hero-float-a {
+  0%, 100% { transform: translateY(-6px); }
+  50%      { transform: translateY(6px); }
+}
+@keyframes hero-float-b {
+  0%, 100% { transform: translateY(6px); }
+  50%      { transform: translateY(-6px); }
+}
+.hero-float-a { animation: hero-float-a 4s ease-in-out infinite; }
+.hero-float-b { animation: hero-float-b 4.5s ease-in-out infinite; }
+
 @media (prefers-reduced-motion: reduce) {
   .hero-anim { opacity: 1; animation: none; }
   .hero-underline { stroke-dashoffset: 0; animation: none; }
-  .hero-halo { animation: none; }
+  .hero-halo, .hero-float-a, .hero-float-b { animation: none; }
 }
 
 /* Faixas que rolam na horizontal (abas do CRM, meses dos relatórios, filtros
