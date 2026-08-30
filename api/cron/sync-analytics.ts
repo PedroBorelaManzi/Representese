@@ -39,7 +39,7 @@ async function syncPostHog(db: SupabaseClient): Promise<string> {
     SELECT distinct_id,
            count() AS total,
            countIf(event = '$pageview') AS pageviews,
-           countIf(timestamp > now() - INTERVAL 30 DAY) AS sessions_30d,
+           count(DISTINCT if(timestamp > now() - INTERVAL 30 DAY, properties.$session_id, NULL)) AS sessions_30d,
            min(timestamp) AS first_seen,
            max(timestamp) AS last_seen,
            argMax(properties.$browser, timestamp) AS browser,
@@ -78,7 +78,7 @@ async function syncPostHog(db: SupabaseClient): Promise<string> {
       first_seen: r[4] ? new Date(String(r[4])).toISOString() : null,
       last_seen: r[5] ? new Date(String(r[5])).toISOString() : null,
       properties: { $browser: r[6] ?? null, $os: r[7] ?? null, $geoip_city_name: r[8] ?? null, $geoip_country_name: r[9] ?? null },
-      top_events: Array.isArray(r[10]) ? (r[10] as string[]).map((event) => ({ event, count: 0 })) : null,
+      top_events: Array.isArray(r[10]) ? (r[10] as string[]) : null,
       synced_at: new Date().toISOString(),
     }));
 

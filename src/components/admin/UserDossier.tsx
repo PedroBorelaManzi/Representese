@@ -54,7 +54,7 @@ type Overview = {
   ph_pageviews: number;
   ph_sessions_30d: number;
   ph_properties: Record<string, unknown> | null;
-  ph_top_events: { event: string; count: number }[] | null;
+  ph_top_events: string[] | null;
   st_errors_30d: number;
   st_total_errors: number;
   st_last_error_at: string | null;
@@ -310,9 +310,7 @@ export default function UserDossier() {
                     <Linha label="Navegador">{String(sel.ph_properties['$browser'])} / {String(sel.ph_properties['$os'] ?? '')}</Linha>
                   )}
                   {Array.isArray(sel.ph_top_events) && sel.ph_top_events.length > 0 && (
-                    <Linha label="Eventos mais comuns">
-                      {sel.ph_top_events.slice(0, 3).map((e) => `${e.event} (${e.count})`).join(', ')}
-                    </Linha>
+                    <Linha label="Eventos mais comuns">{sel.ph_top_events.slice(0, 5).join(', ')}</Linha>
                   )}
                 </>
               ) : (
