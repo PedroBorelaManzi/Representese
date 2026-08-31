@@ -44,36 +44,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       import('../lib/consentLog').then((m) => m.sincronizarConsentimentoNoLogin()).catch(() => {});
     };
 
-    supabase.auth.getSession()
-      .then(({ data: { session } }) => {
-        if (session?.user) {
-          saveOfflineUser(session.user);
-          posthog.identify(session.user.id, { email: session.user.email });
-          setSentryUser({ id: session.user.id, email: session.user.email });
-          trackSessionOpen();
-          sincronizarConsentimento();
-        }
-        setUser(session?.user ?? null);
+    // Mantém a MESMA referência de `user` quando o id não muda. O Supabase
+    // dispara onAuthStateChange a cada refresh de token e ao focar a aba —
+    // sem isso, cada um desses eventos gerava um objeto novo, os efeitos que
+    // dependem de [user] recarregavam (SettingsContext, etc.) e a tela piscava.
+    let idAtual: string | null = null;
+    const aplicarSessao = (session: import('@supabase/supabase-js').Session | null) => {
+      const novo = session?.user ?? null;
+      if (novo?.id === idAtual) {
         setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Erro ao carregar sessão:", err);
-        setLoading(false); // Destrava o loading
-      });
+        return; // mesma conta (ou continua deslogado) — nada muda
+      }
+      idAtual = novo?.id ?? null;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        saveOfflineUser(session.user);
-        posthog.identify(session.user.id, { email: session.user.email });
-        setSentryUser({ id: session.user.id, email: session.user.email });
+      if (novo) {
+        saveOfflineUser(novo);
+        posthog.identify(novo.id, { email: novo.email });
+        setSentryUser({ id: novo.id, email: novo.email });
         trackSessionOpen();
         sincronizarConsentimento();
       } else {
         posthog.reset();
         setSentryUser(null);
       }
-      setUser(session?.user ?? null);
+      setUser(novo);
       setLoading(false);
+    };
+
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => aplicarSessao(session))
+      .catch((err) => {
+        console.error("Erro ao carregar sessão:", err);
+        setLoading(false); // Destrava o loading
+      });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      aplicarSessao(session);
     });
 
     return () => {

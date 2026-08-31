@@ -113,12 +113,23 @@ export const useSettings = () => {
 export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const [settings, setSettings] = useState<Settings>(() => {
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
+    // Hidrata já no 1º render com o que estiver em cache — sem isso, campos como
+    // is_admin nascem no default (false) e só corrigem depois do fetch, o que
+    // fazia a tela de admin quicar pra /dashboard e voltar a cada abertura.
+    let cached: Partial<Settings> | null = null;
+    try { cached = (offlineCache.get(CacheKeys.USER_SETTINGS) as Partial<Settings>) || null; } catch { /* ignora */ }
     return {
       ...defaultSettings,
-      theme: savedTheme || defaultSettings.theme,
+      ...(cached || {}),
+      theme: savedTheme || cached?.theme || defaultSettings.theme,
     };
   });
-  const [loading, setLoading] = useState(true);
+  // "loading" só é verdade quando NÃO há nada em cache — um refetch em segundo
+  // plano (troca de aba, refresh de token) não pode voltar a tela pro estado
+  // de carregamento.
+  const [loading, setLoading] = useState(() => {
+    try { return !offlineCache.get(CacheKeys.USER_SETTINGS); } catch { return true; }
+  });
   const { user } = useAuth();
   const location = useLocation();
 
@@ -152,9 +163,11 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
       
-      setLoading(true);
-      
       const cached = offlineCache.get(CacheKeys.USER_SETTINGS) as any;
+      // Sem cache = primeira vez nesse aparelho: aí sim mostra "carregando".
+      // Com cache, o fetch abaixo roda em segundo plano sem travar a UI.
+      if (!cached) setLoading(true);
+
       if (cached) {
         setSettings({
           alerta_days: cached.alerta_days ?? defaultSettings.alerta_days,

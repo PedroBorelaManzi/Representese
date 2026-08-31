@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { useSettings } from '../contexts/SettingsContext';
 import { Navigate } from 'react-router-dom';
-import { BarChart3, Clock, LayoutDashboard, MousePointerClick, Search, ChevronDown, ChevronUp, User, Users, LineChart, Download, Building2, Phone, UserCog, Settings as SettingsIcon, X, Trash2, Mail, Loader2, ShieldAlert } from 'lucide-react';
+import { BarChart3, Clock, LayoutDashboard, MousePointerClick, Search, ChevronDown, ChevronUp, User, Users, LineChart, Download, Building2, Phone, UserCog, Settings as SettingsIcon, X, Trash2, Mail, Loader2, ShieldAlert, Map as MapIcon } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell
@@ -14,6 +14,9 @@ import { exportRawLeadsAsExcel, exportSubscriptionLeadsAsExcel } from '../lib/ra
 import { toast } from 'sonner';
 import { useConfirm } from '../components/ui';
 import UserDossier from '../components/admin/UserDossier';
+
+// Leaflet só carrega quando a aba Cobertura é aberta.
+const CoverageMap = lazy(() => import('../components/admin/CoverageMap'));
 
 const COLORS = [
   '#10b981', '#6366f1', '#f59e0b', '#ef4444', 
@@ -32,8 +35,20 @@ const formatRouteName = (route: string) => {
 };
 
 export default function AdminAnalytics() {
-  const { settings } = useSettings();
-  
+  const { settings, loading } = useSettings();
+
+  // Enquanto as settings ainda não carregaram (primeira vez nesse aparelho),
+  // não decide nada — sem isso a tela quicava pra /dashboard e só voltava
+  // quando o fetch terminava. Com cache, `loading` já vem false e is_admin
+  // vem certo no 1º render.
+  if (loading && !settings.is_admin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-zinc-950">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600" />
+      </div>
+    );
+  }
+
   if (!settings.is_admin) {
     return <Navigate to="/dashboard" replace />;
   }
@@ -61,7 +76,7 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
   const [deletingUser, setDeletingUser] = useState(false);
   const queryClient = useQueryClient();
   const confirm = useConfirm();
-  const [activeTab, setActiveTab] = useState<'sistema' | 'landing' | 'leads' | 'usuarios' | 'ficha'>('sistema');
+  const [activeTab, setActiveTab] = useState<'sistema' | 'landing' | 'leads' | 'usuarios' | 'ficha' | 'cobertura'>('sistema');
 
   // --- QUERY 1: Sistema (Usuários Logados) ---
   const { data, isLoading } = useQuery({
@@ -516,9 +531,27 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
           </div>
           {activeTab === 'ficha' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-fuchsia-600" />}
         </button>
+        <button
+          onClick={() => setActiveTab('cobertura')}
+          className={cn(
+            "px-6 py-3 font-semibold text-sm transition-all relative",
+            activeTab === 'cobertura' ? "text-rose-600" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+          )}
+        >
+          <div className="flex items-center gap-2">
+            <MapIcon className="w-4 h-4" />
+            Cobertura
+          </div>
+          {activeTab === 'cobertura' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-rose-600" />}
+        </button>
       </div>
 
       {activeTab === 'ficha' && <UserDossier />}
+      {activeTab === 'cobertura' && (
+        <Suspense fallback={<div className="py-20 text-center text-slate-400">Carregando mapa…</div>}>
+          <CoverageMap />
+        </Suspense>
+      )}
 
       {activeTab === 'sistema' && (
         isLoading ? (
