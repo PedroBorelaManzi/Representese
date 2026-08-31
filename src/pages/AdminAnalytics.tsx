@@ -37,11 +37,10 @@ const formatRouteName = (route: string) => {
 export default function AdminAnalytics() {
   const { settings, loading } = useSettings();
 
-  // Enquanto as settings ainda não carregaram (primeira vez nesse aparelho),
-  // não decide nada — sem isso a tela quicava pra /dashboard e só voltava
-  // quando o fetch terminava. Com cache, `loading` já vem false e is_admin
-  // vem certo no 1º render.
-  if (loading && !settings.is_admin) {
+  // Só decide is_admin DEPOIS que as settings carregaram (do cache é instantâneo
+  // pra quem já é admin; sem cache mostra o spinner até o fetch). Sem esta
+  // espera a tela quicava pra /dashboard toda vez que abria.
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-zinc-950">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600" />

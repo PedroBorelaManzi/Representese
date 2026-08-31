@@ -124,13 +124,8 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       theme: savedTheme || cached?.theme || defaultSettings.theme,
     };
   });
-  // "loading" só é verdade quando NÃO há nada em cache — um refetch em segundo
-  // plano (troca de aba, refresh de token) não pode voltar a tela pro estado
-  // de carregamento.
-  const [loading, setLoading] = useState(() => {
-    try { return !offlineCache.get(CacheKeys.USER_SETTINGS); } catch { return true; }
-  });
-  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const { user, loading: authLoading } = useAuth();
   const location = useLocation();
 
   // Aplica o tema no <html> (classe .dark) sempre que mudar. Sem isso o toggle
@@ -152,6 +147,12 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   }, [settings.theme]);
 
   useEffect(() => {
+    // Espera a autenticação resolver antes de decidir qualquer coisa. Sem isso,
+    // no primeiro render `user` é null por um instante, caíamos no ramo "sem
+    // usuário" e marcávamos loading=false — a tela de admin via is_admin=false
+    // com loading=false e jogava pra /dashboard antes do fetch corrigir.
+    if (authLoading) return;
+
     async function loadSettings() {
       if (!user) {
         const savedTheme = localStorage.getItem('theme') || 'light';
@@ -162,11 +163,9 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         setLoading(false);
         return;
       }
-      
+
       const cached = offlineCache.get(CacheKeys.USER_SETTINGS) as any;
-      // Sem cache = primeira vez nesse aparelho: aí sim mostra "carregando".
-      // Com cache, o fetch abaixo roda em segundo plano sem travar a UI.
-      if (!cached) setLoading(true);
+      setLoading(true);
 
       if (cached) {
         setSettings({
@@ -198,6 +197,10 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           weather_lat: cached.weather_lat,
           weather_lng: cached.weather_lng,
         });
+        // Já temos dados válidos do cache — libera a UI enquanto o fetch abaixo
+        // roda em segundo plano. (is_admin no cache só fica true depois de um
+        // fetch real bem-sucedido, então é seguro confiar nele aqui.)
+        setLoading(false);
       }
 
       // 1. Fetch Entitlements (Secure)
@@ -291,8 +294,8 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
     }
 
-    loadSettings();
-  }, [user]);
+    loadSettings().catch(() => setLoading(false));
+  }, [user, authLoading]);
 
   const updateSettings = useCallback(async (newSettings: Partial<Settings>) => {
     if (!user) return;
