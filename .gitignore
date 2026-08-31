@@ -15,3 +15,7 @@ test-results/
 *.keystore
 *.jks
 keystore.properties
+
+# Credenciais de release iOS — nunca versionar
+scripts/release.env
+*.p8
