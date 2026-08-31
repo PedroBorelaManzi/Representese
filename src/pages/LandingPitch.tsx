@@ -31,6 +31,10 @@ export default function LandingPitch() {
   const mockupInnerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let raf = 0;
+    // O efeito de "endireitar o mockup" lê getBoundingClientRect a cada frame
+    // (força layout). No mobile isso trava o scroll no iOS Safari e o ganho
+    // visual é pequeno — só roda em telas grandes.
+    const comTilt = window.matchMedia('(min-width: 768px)');
     const update = () => {
       raf = 0;
       const y = window.scrollY;
@@ -39,14 +43,14 @@ export default function LandingPitch() {
       if (progressRef.current) progressRef.current.style.transform = `scaleX(${p})`;
       setScrolled(y > 40);
 
-      // Mockup: entra inclinado 24° e endireita conforme sobe na viewport
-      // (equivale ao offset ["start end", "start 0.35"] do framer).
       const inner = mockupInnerRef.current;
-      if (inner) {
+      if (inner && comTilt.matches) {
         const r = inner.getBoundingClientRect();
         const vh = window.innerHeight || 1;
         const mp = Math.min(1, Math.max(0, (vh - r.top) / (vh - vh * 0.35)));
         inner.style.transform = `rotateX(${24 * (1 - mp)}deg) scale(${0.94 + 0.06 * mp})`;
+      } else if (inner) {
+        inner.style.transform = 'none';
       }
     };
     const onScroll = () => { if (!raf) raf = requestAnimationFrame(update); };
@@ -75,8 +79,8 @@ export default function LandingPitch() {
           className={cn(
             "pointer-events-auto flex items-center gap-1 sm:gap-2 rounded-full border pl-3 pr-1.5 py-1.5 transition-all duration-300 max-w-full",
             scrolled
-              ? "bg-white/90 backdrop-blur-xl border-slate-200/80 shadow-[0_8px_32px_rgba(15,23,42,0.10)]"
-              : "bg-white/70 backdrop-blur-lg border-slate-200/50 shadow-[0_4px_20px_rgba(15,23,42,0.06)]"
+              ? "bg-white md:bg-white/90 md:backdrop-blur-xl border-slate-200/80 shadow-[0_8px_32px_rgba(15,23,42,0.10)]"
+              : "bg-white md:bg-white/70 md:backdrop-blur-lg border-slate-200/50 shadow-[0_4px_20px_rgba(15,23,42,0.06)]"
           )}
         >
           <Link to={user ? "/dashboard" : "/"} className="flex items-center pr-1 sm:pr-2">
@@ -151,9 +155,12 @@ export default function LandingPitch() {
             className="absolute inset-0"
             style={{ background: "radial-gradient(ellipse 65% 55% at 50% -8%, rgba(16,185,129,0.12) 0%, transparent 60%)" }}
           />
-          {/* halos discretos — flutuação em CSS (era framer-motion) */}
-          <div className="hero-halo hero-halo-a absolute top-[20%] left-[10%] w-80 h-80 bg-emerald-300/25 blur-[120px] rounded-full" />
-          <div className="hero-halo hero-halo-b absolute top-[16%] right-[10%] w-72 h-72 bg-teal-300/25 blur-[120px] rounded-full" />
+          {/* halos discretos — flutuação em CSS (era framer-motion).
+              Escondidos no mobile: blur de 120px animado infinito é caro demais
+              pro GPU do celular (trava o scroll no iOS Safari) e ali quase não
+              aparecem. */}
+          <div className="hidden md:block hero-halo hero-halo-a absolute top-[20%] left-[10%] w-80 h-80 bg-emerald-300/25 blur-[120px] rounded-full" />
+          <div className="hidden md:block hero-halo hero-halo-b absolute top-[16%] right-[10%] w-72 h-72 bg-teal-300/25 blur-[120px] rounded-full" />
           {/* fade para branco embaixo */}
           <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-white via-white to-transparent" />
         </div>
@@ -161,7 +168,7 @@ export default function LandingPitch() {
         <div className="relative z-10 max-w-5xl mx-auto text-center">
           {/* badge */}
           <div
-            className="hero-anim inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-emerald-200 bg-emerald-50/80 backdrop-blur text-emerald-700 text-[11px] font-black uppercase tracking-widest mb-8 shadow-sm"
+            className="hero-anim inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 text-[11px] font-black uppercase tracking-widest mb-8 shadow-sm"
           >
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
@@ -227,7 +234,7 @@ export default function LandingPitch() {
             <button
               type="button"
               onClick={() => setDemoOpen(true)}
-              className="flex items-center gap-2 px-8 py-4 rounded-2xl border border-slate-200 bg-white/70 backdrop-blur hover:bg-white hover:border-slate-300 text-slate-700 font-semibold text-sm transition-all shadow-sm"
+              className="flex items-center gap-2 px-8 py-4 rounded-2xl border border-slate-200 bg-white md:bg-white/70 md:backdrop-blur hover:bg-white hover:border-slate-300 text-slate-700 font-semibold text-sm transition-all shadow-sm"
             >
               <span className="w-7 h-7 rounded-full bg-emerald-50 flex items-center justify-center">
                 <Play className="w-3 h-3 text-emerald-600 fill-emerald-600" />
@@ -256,7 +263,7 @@ export default function LandingPitch() {
             className="relative"
             style={{ transform: "rotateX(24deg) scale(0.94)", transformOrigin: "50% 0%" }}
           >
-            <div className="absolute -inset-4 bg-gradient-to-b from-emerald-200/50 to-transparent blur-3xl rounded-3xl -z-10" />
+            <div className="hidden md:block absolute -inset-4 bg-gradient-to-b from-emerald-200/50 to-transparent blur-3xl rounded-3xl -z-10" />
             <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-[0_30px_90px_rgba(0,0,0,0.14),0_6px_20px_rgba(0,0,0,0.06)] ring-1 ring-slate-900/5">
               <BrowserDashboard />
             </div>
@@ -297,7 +304,7 @@ export default function LandingPitch() {
           (lá o CTA já está na tela). Padrão de conversão mobile-first. */}
       {scrolled && (
         <div
-          className="lg:hidden fixed inset-x-0 bottom-0 z-50 px-4 pt-3 bg-white/90 backdrop-blur-xl border-t border-slate-200 shadow-[0_-8px_30px_rgba(0,0,0,0.08)]"
+          className="lg:hidden fixed inset-x-0 bottom-0 z-50 px-4 pt-3 bg-white border-t border-slate-200 shadow-[0_-8px_30px_rgba(0,0,0,0.08)]"
           style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)" }}
         >
           <Link

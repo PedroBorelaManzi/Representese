@@ -1,6 +1,5 @@
 /* CTA final + footer da landing. */
 import React from "react";
-import { motion } from "framer-motion";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Logo } from "../Logo";
@@ -25,11 +24,10 @@ export function CtaFinalSection() {
                 backgroundSize: "44px 44px",
               }}
             />
-            <motion.div
-              animate={{ opacity: [0.35, 0.6, 0.35] }}
-              transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute -top-24 left-1/2 -translate-x-1/2 w-[480px] h-[280px] bg-emerald-500/25 blur-[110px] rounded-full pointer-events-none"
-            />
+            {/* glow estático — antes pulsava em loop (opacity infinita); no
+                mobile o blur de 110px sendo recomposto a cada frame travava
+                o scroll no iOS Safari. */}
+            <div className="hidden md:block absolute -top-24 left-1/2 -translate-x-1/2 w-[480px] h-[280px] bg-emerald-500/20 blur-[110px] rounded-full pointer-events-none" />
 
             <div className="relative z-10">
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-emerald-400/30 bg-emerald-400/10 backdrop-blur text-emerald-300 text-[10px] font-black uppercase tracking-widest mb-7">

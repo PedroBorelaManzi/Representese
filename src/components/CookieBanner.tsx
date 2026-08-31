@@ -4,7 +4,14 @@ import { aceitarTudo, recusarNaoEssenciais, precisaDecidir } from '../lib/cookie
 
 /* Barra de consentimento (LGPD). Enxuta: um texto com link pra Política de
  * Cookies + "Aceitar" e "Rejeitar" com o mesmo peso (exigência da ANPD).
- * Ajuste fino por categoria fica em Configurações › Privacidade. */
+ * Ajuste fino por categoria fica em Configurações › Privacidade.
+ *
+ * Notas de mobile (iOS Safari):
+ *  - respeita safe-area-inset-bottom, senão os botões ficam atrás da barra do
+ *    Safari / do home indicator e não dá pra tocar;
+ *  - alvos de toque ≥ 44px;
+ *  - sem backdrop-blur (trava a composição durante o scroll no Safari);
+ *  - touch-action: manipulation pra tirar o atraso de 300ms. */
 
 export default function CookieBanner() {
   const [visivel, setVisivel] = useState(() => {
@@ -22,10 +29,11 @@ export default function CookieBanner() {
       role="dialog"
       aria-label="Aviso de cookies"
       aria-live="polite"
-      className="fixed inset-x-0 bottom-0 z-[9999] p-2 sm:p-3"
+      className="fixed inset-x-0 bottom-0 z-[9999] p-3"
+      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.75rem)', touchAction: 'manipulation' }}
     >
-      <div className="mx-auto max-w-2xl flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-900/95 backdrop-blur px-4 py-2.5 shadow-lg">
-        <p className="flex-1 text-[12px] leading-snug font-medium text-slate-500 dark:text-zinc-400">
+      <div className="mx-auto max-w-2xl flex flex-col sm:flex-row sm:items-center gap-3 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 py-3 shadow-2xl shadow-slate-900/15">
+        <p className="flex-1 text-[13px] leading-snug font-medium text-slate-600 dark:text-zinc-300">
           Usamos cookies para o funcionamento do app e, com seu aceite, para análise de uso.{' '}
           <Link
             to="/cookies"
@@ -42,7 +50,7 @@ export default function CookieBanner() {
               recusarNaoEssenciais();
               setVisivel(false);
             }}
-            className="px-4 py-1.5 rounded-lg bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
+            className="flex-1 sm:flex-none min-h-[44px] px-5 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 text-xs font-black uppercase tracking-widest active:bg-slate-200 dark:active:bg-zinc-700 transition-colors"
           >
             Rejeitar
           </button>
@@ -52,7 +60,7 @@ export default function CookieBanner() {
               aceitarTudo();
               setVisivel(false);
             }}
-            className="px-4 py-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-colors"
+            className="flex-1 sm:flex-none min-h-[44px] px-5 rounded-xl bg-emerald-600 text-white text-xs font-black uppercase tracking-widest active:bg-emerald-700 transition-colors"
           >
             Aceitar
           </button>
