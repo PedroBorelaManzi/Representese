@@ -42,6 +42,7 @@ import { compressImage } from "../lib/imageCompression";
 import { posthog } from "../lib/posthog";
 import { cn } from "../lib/utils";
 import { toast } from "sonner";
+import { isIOSApp } from "../lib/iapPolicy";
 import {
   type AIAction,
   type AIActionClient,
@@ -356,7 +357,11 @@ EMPRESAS REPRESENTADAS DO USUÁRIO (use exatamente estes nomes como "category" a
     }
 
     if (limitReached) {
-      toast.error(`Você atingiu o limite diário de ${DAILY_LIMIT} mensagens. Faça upgrade para o Master para uso ilimitado.`);
+      toast.error(
+        isIOSApp()
+          ? `Você atingiu o limite diário de ${DAILY_LIMIT} mensagens. Volte amanhã.`
+          : `Você atingiu o limite diário de ${DAILY_LIMIT} mensagens. Faça upgrade para o Master para uso ilimitado.`
+      );
       return;
     }
 
@@ -774,15 +779,19 @@ Responda APENAS com as 4 frases, uma por linha, sem numeração, sem aspas, sem 
                 Limite diário de {DAILY_LIMIT} mensagens atingido
               </p>
               <p className="text-[11px] text-red-500/80 dark:text-red-500 mt-0.5">
-                Faça upgrade para o Plano Master e use a IA sem limites.
+                {isIOSApp()
+                  ? 'O plano Master libera uso ilimitado. Volte amanhã ou fale com o suporte.'
+                  : 'Faça upgrade para o Plano Master e use a IA sem limites.'}
               </p>
             </div>
-            <Link
-              to="/planos"
-              className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-[12px] font-black uppercase tracking-wider transition-all flex-shrink-0"
-            >
-              Ver Planos
-            </Link>
+            {!isIOSApp() && (
+              <Link
+                to="/planos"
+                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-[12px] font-black uppercase tracking-wider transition-all flex-shrink-0"
+              >
+                Ver Planos
+              </Link>
+            )}
           </div>
         )}
 

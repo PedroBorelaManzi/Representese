@@ -4,6 +4,7 @@ import { useSettings } from '../contexts/SettingsContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
+import { isIOSApp, SITE_DOMAIN } from '../lib/iapPolicy';
 
 const WARNING_WINDOW_DAYS = 15;
 
@@ -99,21 +100,27 @@ export default function RenewalBanner() {
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <button
-          onClick={handleRenew}
-          disabled={isGeneratingLink}
-          className="flex items-center gap-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-black uppercase tracking-widest px-4 py-2.5 rounded-xl transition-all disabled:opacity-50"
-        >
-          {isGeneratingLink ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          ) : (
-            <>
-              <CreditCard className="w-3.5 h-3.5" />
-              Renovar agora
-              <ExternalLink className="w-3 h-3 opacity-60" />
-            </>
-          )}
-        </button>
+        {isIOSApp() ? (
+          <span className="text-xs font-bold text-amber-800/90 dark:text-amber-200/80">
+            Renove em {SITE_DOMAIN}
+          </span>
+        ) : (
+          <button
+            onClick={handleRenew}
+            disabled={isGeneratingLink}
+            className="flex items-center gap-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-black uppercase tracking-widest px-4 py-2.5 rounded-xl transition-all disabled:opacity-50"
+          >
+            {isGeneratingLink ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <>
+                <CreditCard className="w-3.5 h-3.5" />
+                Renovar agora
+                <ExternalLink className="w-3 h-3 opacity-60" />
+              </>
+            )}
+          </button>
+        )}
         <button
           onClick={handleDismiss}
           className="p-2 rounded-xl text-amber-700/60 hover:text-amber-900 hover:bg-amber-500/10 dark:text-amber-300/60 dark:hover:text-amber-200 transition-all"

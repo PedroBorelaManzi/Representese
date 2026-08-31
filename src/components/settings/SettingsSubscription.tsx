@@ -3,6 +3,7 @@ import { Trophy, Crown, Gem, CheckCircle2, Clock, TrendingUp, Building2, Map as 
 import { useSettings } from '../../contexts/SettingsContext';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../../lib/utils';
+import { isIOSApp, SITE_DOMAIN } from '../../lib/iapPolicy';
 
 interface SettingsSubscriptionProps {
   onClose: () => void;
@@ -49,6 +50,22 @@ export const SettingsSubscription = React.memo(function SettingsSubscription({ o
   const tierId = settings.plan_id ? (settings.plan_id === 'premium' ? 'profissional' : settings.plan_id) : 'exclusivo';
   const currentIndex = tierSequence.indexOf(tierId) !== -1 ? tierSequence.indexOf(tierId) : 0;
 
+  // iOS: nenhum CTA de compra/upgrade/cancelamento (App Store 3.1.1).
+  const iosApp = isIOSApp();
+
+  const manageOnWebNote = (
+    <div className="p-5 rounded-3xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900/50 text-left space-y-1.5">
+      <p className="text-xs font-black text-slate-700 dark:text-zinc-200 uppercase tracking-wider">
+        Gerenciar assinatura
+      </p>
+      <p className="text-xs font-medium text-slate-500 dark:text-zinc-400 leading-relaxed">
+        Para trocar de plano, cancelar ou ver faturas, acesse sua conta em{' '}
+        <span className="text-emerald-600 dark:text-emerald-400">{SITE_DOMAIN}</span> pelo navegador.
+        Você também pode excluir a conta inteira em <strong>Meu Perfil</strong> — isso já cancela a assinatura.
+      </p>
+    </div>
+  );
+
   return (
     <div className="space-y-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -71,7 +88,7 @@ export const SettingsSubscription = React.memo(function SettingsSubscription({ o
           <p className="text-[8px] font-bold text-slate-400 uppercase mt-2">Status da Assinatura: Ativo</p>
         </div>
 
-        {currentIndex < 2 ? (() => {
+        {!iosApp && currentIndex < 2 ? (() => {
           const supId = tierSequence[currentIndex + 1];
           const supPlan = planInfo[supId as keyof typeof planInfo];
           const priceDiff = 50; 
@@ -94,7 +111,7 @@ export const SettingsSubscription = React.memo(function SettingsSubscription({ o
               </p>
             </button>
           );
-        })() : (
+        })() : iosApp ? null : (
           <div className="p-6 rounded-3xl border border-dashed border-amber-200/40 dark:border-amber-900/20 flex flex-col justify-center items-center text-center bg-amber-50/5">
             <Crown className="w-5 h-5 text-amber-500 mb-2 animate-bounce" />
             <span className="text-[8px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">Nível Máximo Atingido</span>
@@ -184,7 +201,7 @@ export const SettingsSubscription = React.memo(function SettingsSubscription({ o
         </div>
       </div>
 
-      {currentIndex === 2 ? (
+      {iosApp ? manageOnWebNote : currentIndex === 2 ? (
         <div className="flex flex-col gap-4">
           <div className="p-8 rounded-[32px] bg-gradient-to-r from-amber-500/5 to-yellow-500/5 border border-amber-500/20 text-center space-y-3">
             <div className="w-16 h-16 rounded-3xl bg-amber-500/10 flex items-center justify-center mx-auto text-amber-500">

@@ -39,6 +39,7 @@ import { syncQueue } from "../lib/syncQueue";
 import { offlineCache, CacheKeys } from "../lib/offlineCache";
 import { ajustarFaturamento } from "../lib/faturamento";
 import { salvarItensDoPedido } from "../lib/orderItems";
+import { isIOSApp, SITE_DOMAIN } from "../lib/iapPolicy";
 import { EmptyState } from "../components/ui";
 import TourArrow from "../components/TourArrow";
 import { InlineEditField } from "../components/InlineEditField";
@@ -869,23 +870,29 @@ export default function EmpresasPage() {
                  </div>
                  <h3 className="text-xl md:text-2xl font-black uppercase text-slate-900 dark:text-zinc-100 tracking-tighter">Limite de Empresas</h3>
                  <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed font-bold uppercase tracking-wider">
-                    {currentPlan === 'exclusivo' 
-                      ? "Você já atingiu o limite de suas empresas com o seu plano Exclusivo (limite: 1 empresa). Para cadastrar mais empresas, você deve fazer o upgrade para o plano Profissional." 
-                      : "Você já atingiu o limite de suas empresas com o seu plano Profissional (limite: 5 empresas). Para cadastrar mais empresas, você deve fazer o upgrade para o plano Master."
+                    {isIOSApp()
+                      ? (currentPlan === 'exclusivo'
+                          ? `Seu plano Exclusivo permite 1 empresa. Planos maiores cabem mais — você pode trocar de plano em ${SITE_DOMAIN} pelo navegador.`
+                          : `Seu plano Profissional permite 5 empresas. O plano Master não tem limite — você pode trocar de plano em ${SITE_DOMAIN} pelo navegador.`)
+                      : (currentPlan === 'exclusivo'
+                          ? "Você já atingiu o limite de suas empresas com o seu plano Exclusivo (limite: 1 empresa). Para cadastrar mais empresas, você deve fazer o upgrade para o plano Profissional."
+                          : "Você já atingiu o limite de suas empresas com o seu plano Profissional (limite: 5 empresas). Para cadastrar mais empresas, você deve fazer o upgrade para o plano Master.")
                     }
                  </p>
                  <div className="space-y-3 pt-2">
-                    <button 
-                       onClick={() => { setShowUpsellModal(false); navigate('/dashboard/order-bump'); }} 
-                       className="w-full py-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-[24px] font-black uppercase tracking-widest text-[10px] md:text-xs shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2"
-                    >
-                       <Sparkles className="w-4 h-4" /> Dê um Upgrade no seu Plano
-                    </button>
-                    <button 
-                       onClick={() => setShowUpsellModal(false)} 
+                    {!isIOSApp() && (
+                      <button
+                         onClick={() => { setShowUpsellModal(false); navigate('/dashboard/order-bump'); }}
+                         className="w-full py-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-[24px] font-black uppercase tracking-widest text-[10px] md:text-xs shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2"
+                      >
+                         <Sparkles className="w-4 h-4" /> Dê um Upgrade no seu Plano
+                      </button>
+                    )}
+                    <button
+                       onClick={() => setShowUpsellModal(false)}
                        className="w-full py-4 bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-500 dark:text-zinc-400 rounded-[24px] font-black uppercase tracking-widest text-[9px] md:text-[10px] transition-all"
                     >
-                       Talvez mais tarde
+                       {isIOSApp() ? 'Entendi' : 'Talvez mais tarde'}
                     </button>
                  </div>
               </motion.div>

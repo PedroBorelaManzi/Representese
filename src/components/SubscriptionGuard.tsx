@@ -6,6 +6,7 @@ import { ShieldAlert, CreditCard, ExternalLink, MessageCircle, Loader2, Sparkles
 import { Logo } from './Logo';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
+import { isIOSApp, SITE_DOMAIN } from '../lib/iapPolicy';
 
 export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
   const { settings, loading: settingsLoading } = useSettings();
@@ -84,13 +85,20 @@ export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
               </div>
 
               <div className="pt-2">
-                <Link 
-                  to="/planos"
-                  className="w-full bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white py-5 rounded-2xl font-black uppercase text-[12px] tracking-widest flex items-center justify-center gap-3 transition-all shadow-xl shadow-emerald-600/20"
-                >
-                  Ver Planos Disponíveis
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
+                {isIOSApp() ? (
+                  <p className="text-sm font-bold text-slate-600 dark:text-zinc-300 leading-relaxed">
+                    Ative um plano acessando <span className="text-emerald-600 dark:text-emerald-400">{SITE_DOMAIN}</span> pelo
+                    navegador. Depois é só voltar aqui e entrar com o mesmo e-mail.
+                  </p>
+                ) : (
+                  <Link
+                    to="/planos"
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white py-5 rounded-2xl font-black uppercase text-[12px] tracking-widest flex items-center justify-center gap-3 transition-all shadow-xl shadow-emerald-600/20"
+                  >
+                    Ver Planos Disponíveis
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                )}
               </div>
             </div>
           </div>
@@ -124,31 +132,38 @@ export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
               </p>
             </div>
 
-            <div className="space-y-3">
-              <button 
-                onClick={handleRegularize}
-                disabled={isGeneratingLink}
-                className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-5 rounded-2xl font-black uppercase text-[11px] tracking-widest flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 transition-all shadow-xl disabled:opacity-50"
-              >
-                {isGeneratingLink ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <>
-                    <CreditCard className="w-4 h-4" />
-                    Regularizar Agora
-                    <ExternalLink className="w-3.5 h-3.5 opacity-50" />
-                  </>
-                )}
-              </button>
-              
-              <button 
-                className="w-full bg-emerald-500/10 text-emerald-600 py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-emerald-500/20 transition-all"
-                onClick={() => window.open(whatsappUrl, '_blank')}
-              >
-                <MessageCircle className="w-3.5 h-3.5" />
-                Falar com Suporte (WhatsApp)
-              </button>
-            </div>
+            {isIOSApp() ? (
+              <p className="text-sm font-bold text-slate-600 dark:text-zinc-300 leading-relaxed">
+                Regularize o pagamento em <span className="text-emerald-600 dark:text-emerald-400">{SITE_DOMAIN}</span> pelo
+                navegador. O acesso volta sozinho assim que a fatura for identificada.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                <button
+                  onClick={handleRegularize}
+                  disabled={isGeneratingLink}
+                  className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-5 rounded-2xl font-black uppercase text-[11px] tracking-widest flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 transition-all shadow-xl disabled:opacity-50"
+                >
+                  {isGeneratingLink ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      <CreditCard className="w-4 h-4" />
+                      Regularizar Agora
+                      <ExternalLink className="w-3.5 h-3.5 opacity-50" />
+                    </>
+                  )}
+                </button>
+
+                <button
+                  className="w-full bg-emerald-500/10 text-emerald-600 py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-emerald-500/20 transition-all"
+                  onClick={() => window.open(whatsappUrl, '_blank')}
+                >
+                  <MessageCircle className="w-3.5 h-3.5" />
+                  Falar com Suporte (WhatsApp)
+                </button>
+              </div>
+            )}
           </div>
 
           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">

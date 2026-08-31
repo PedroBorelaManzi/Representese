@@ -32,6 +32,7 @@ import { Logo } from "../components/Logo";
 import { Link, useNavigate, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { cn } from "../lib/utils";
+import { isIOSApp } from "../lib/iapPolicy";
 import { toast } from "sonner";
 import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 import { Fingerprint } from 'lucide-react';
@@ -358,10 +359,16 @@ export default function Login() {
 
           <div className="pt-12 text-center">
             <p className="text-[13px] font-medium text-slate-500 dark:text-zinc-400 mt-2">
-              Não tem uma conta ainda?{" "}
-              <Link to="/register" className="text-emerald-600 dark:text-emerald-400 font-bold hover:underline">
-                Crie sua conta
-              </Link>
+              {isIOSApp() ? (
+                <>Ainda não tem conta? Crie a sua em representese.com pelo navegador.</>
+              ) : (
+                <>
+                  Não tem uma conta ainda?{" "}
+                  <Link to="/register" className="text-emerald-600 dark:text-emerald-400 font-bold hover:underline">
+                    Crie sua conta
+                  </Link>
+                </>
+              )}
             </p>
           </div>
         </div>

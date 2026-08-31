@@ -13,6 +13,7 @@ import { SpeedInsights } from "@vercel/speed-insights/react";
 import { lazyWithRetry } from "./lib/lazyWithRetry";
 import { useTrackPageview } from "./hooks/useTrackPageview";
 import { applyTrackingOptOutFromUrl } from "./lib/trackingOptOut";
+import { isIOSApp } from "./lib/iapPolicy";
 
 function PageviewTracker() {
   useTrackPageview();
@@ -75,23 +76,20 @@ const LoadingSpinner = () => (
 function LandingOrRedirect() {
   const { user, loading } = useAuth();
   const hasLoggedInOnce = localStorage.getItem("rm_has_logged_in_once") === "true";
+  const isMobile = Capacitor.isNativePlatform();
+
+  // No app nativo a landing de marketing (com preços e CTA de assinatura)
+  // nunca aparece — vai direto pro painel ou pro login.
+  if (isMobile) {
+    if (loading) return <LoadingSpinner />;
+    return <Navigate to={user ? "/dashboard" : "/login"} replace />;
+  }
 
   if (loading && hasLoggedInOnce) {
     return <LoadingSpinner />;
   }
   if (loading && !hasLoggedInOnce) {
     return <Landing />;
-  }
-
-  
-  const isMobile = Capacitor.isNativePlatform();
-
-  if (isMobile && hasLoggedInOnce) {
-    if (user) {
-      return <Navigate to="/dashboard" replace />;
-    } else {
-      return <Navigate to="/login" replace />;
-    }
   }
 
   if (user) {
@@ -125,13 +123,14 @@ export default function App() {
               <Suspense fallback={<LoadingSpinner />}>
                 <Routes>
                   <Route path="/" element={<LandingOrRedirect />} />
-                  <Route path="/landing" element={<Landing />} />
+                  <Route path="/landing" element={isIOSApp() ? <Navigate to="/" replace /> : <Landing />} />
                   <Route path='/login' element={<Login />} />
-                  <Route path='/register' element={<Register />} />
+                  <Route path='/register' element={isIOSApp() ? <Navigate to="/login" replace /> : <Register />} />
                   <Route path='/recovery' element={<Recovery />} />
                   <Route path='/enviar/:token' element={<OrderIntake />} />
-                  <Route path='/checkout' element={<Checkout />} />
-                  <Route path='/planos' element={<PlanosPage />} />
+                  {/* iOS: sem checkout/planos no app (App Store 3.1.1) */}
+                  <Route path='/checkout' element={isIOSApp() ? <Navigate to="/dashboard" replace /> : <Checkout />} />
+                  <Route path='/planos' element={isIOSApp() ? <Navigate to="/dashboard" replace /> : <PlanosPage />} />
                   
                   {/* Protected Dashboard Routes */}
                   <Route path="/dashboard" element={<ProtectedRoute />}>
@@ -156,7 +155,7 @@ export default function App() {
                       <Route path="suporte-admin" element={<AdminSupportPage />} />
                       <Route path="admin/analytics" element={<AdminAnalytics />} />
                     </Route>
-                    <Route path="order-bump" element={<OrderBumpPage />} />
+                    <Route path="order-bump" element={isIOSApp() ? <Navigate to="/dashboard" replace /> : <OrderBumpPage />} />
                   </Route>
 
                   {/* Google OAuth Callback */}
