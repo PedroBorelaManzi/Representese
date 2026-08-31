@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
+import { DeleteAccountSection } from './DeleteAccountSection';
 
 export const SettingsAccount = React.memo(function SettingsAccount() {
   const { user } = useAuth();
@@ -144,14 +145,16 @@ export const SettingsAccount = React.memo(function SettingsAccount() {
         </div>
         <div className="space-y-2">
           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">E-mail</label>
-          <input 
-            type="email" 
+          <input
+            type="email"
             disabled
-            value={user?.email || ''} 
+            value={user?.email || ''}
             className="w-full bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl px-6 py-4 text-sm font-bold text-slate-400 cursor-not-allowed"
           />
         </div>
       </div>
+
+      <DeleteAccountSection />
     </div>
   );
 });
