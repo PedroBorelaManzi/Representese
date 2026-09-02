@@ -30,9 +30,14 @@ PBXPROJ="$PROJECT/project.pbxproj"
 KEY_ID="${ASC_KEY_ID:-}"
 ISSUER_ID="${ASC_ISSUER_ID:-}"
 KEY_PATH="$HOME/.private_keys/AuthKey_${KEY_ID}.p8"
-BUILD_DIR="$ROOT/build/ios"
+# FORA do repo de propósito: ~/Desktop está no iCloud Drive, que injeta xattrs
+# (com.apple.FinderInfo / fileprovider) nos arquivos gerados — e o `codesign`
+# recusa isso ("resource fork, Finder information, or similar detritus not
+# allowed"). Buildar num diretório fora do iCloud evita o problema.
+BUILD_DIR="${IOS_BUILD_DIR:-$HOME/RepresenteseBuild/ios}"
 ARCHIVE="$BUILD_DIR/App.xcarchive"
 IPA_DIR="$BUILD_DIR/ipa"
+DERIVED="$BUILD_DIR/DerivedData"
 
 BUMP=1
 [ "${1:-}" = "--no-bump" ] && BUMP=0
@@ -65,10 +70,15 @@ else
 fi
 
 echo "==> 4/6  archive"
-rm -rf "$ARCHIVE"
+mkdir -p "$BUILD_DIR"
+rm -rf "$ARCHIVE" "$DERIVED"
+# .DS_Store e xattrs do iCloud dentro de ios/ também quebram o codesign
+find "$ROOT/ios" -name ".DS_Store" -delete 2>/dev/null || true
+xattr -cr "$ROOT/ios/App/App/public" "$ROOT/dist" 2>/dev/null || true
 xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration Release \
   -destination 'generic/platform=iOS' \
   -archivePath "$ARCHIVE" \
+  -derivedDataPath "$DERIVED" \
   "${AUTH[@]}" \
   clean archive
 

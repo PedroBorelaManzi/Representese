@@ -41,6 +41,14 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg)$/i;
 
+// Referência estável para "sem itens": o default `data: items = []` do useQuery
+// criava um array novo a cada render enquanto a query carregava. Como esse array
+// entra na dependência do effect que calcula `cachedNames`, o effect rodava a
+// cada render, chamava setCachedNames(new Set()) (Set novo → re-render) e
+// entrava em loop infinito, travando a thread — e no iPad o WKWebView bloqueia
+// todos os toques quando a thread trava (app "congela").
+const EMPTY_ITEMS: StorageItem[] = [];
+
 // Acima disso o upload direto (PUT único) fica frágil em redes lentas/instáveis;
 // usamos upload retomável (TUS) em partes de 6MB, que retoma sozinho se cair a conexão.
 const RESUMABLE_THRESHOLD = 6 * 1024 * 1024;
@@ -109,12 +117,13 @@ export default function Arquivos() {
   // si. Por isso a query roda mesmo sem internet: listFolderCached devolve o
   // último retrato salvo da pasta em vez de tentar (e falhar) uma chamada de
   // rede.
-  const { data: items = [], isLoading: loading, refetch: loadItems } = useQuery({
+  const { data, isLoading: loading, refetch: loadItems } = useQuery({
     queryKey: ["storage-list", user?.id, prefix],
     queryFn: () => listFolderCached(prefix),
     enabled: !!user,
     staleTime: 60 * 1000,
   });
+  const items = data ?? EMPTY_ITEMS;
 
   // Igual ao selo de "disponível offline" do Spotify: mostra de cara quais
   // arquivos já estão salvos no aparelho, sem precisar tocar em cada um pra
@@ -128,7 +137,12 @@ export default function Arquivos() {
       const results = await Promise.all(
         files.map(async (i) => ((await getCachedUriSePresente(`${prefix}/${i.name}`)) ? i.name : null))
       );
-      if (!cancelled) setCachedNames(new Set(results.filter((n): n is string => !!n)));
+      if (!cancelled) {
+        const next = results.filter((n): n is string => !!n);
+        setCachedNames((prev) =>
+          prev.size === next.length && next.every((n) => prev.has(n)) ? prev : new Set(next)
+        );
+      }
     })();
     return () => {
       cancelled = true;
@@ -584,7 +598,7 @@ export default function Arquivos() {
                     </div>
                   </button>
 
-                  <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-1 hover-reveal">
                     {!item.isFolder && (
                       <>
                         <button

@@ -687,12 +687,12 @@ export default function Dashboard() {
         />
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 flex-1 min-h-0">
-        <div className="lg:col-span-3 flex flex-col gap-6 min-h-0">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-6 flex-1 min-h-0">
+        <div className="md:col-span-3 flex flex-col gap-6 min-h-0">
           {/* Previsão do tempo: hoje em destaque + faixa da mesma semana exibida na agenda abaixo */}
           <WeatherWidget days={weekDays} />
 
-          <div className="bg-white dark:bg-zinc-900 shadow-2xl border border-slate-200/80 dark:border-zinc-800/80 rounded-3xl overflow-hidden flex flex-col h-full min-h-[500px] lg:min-h-0">
+          <div className="bg-white dark:bg-zinc-900 shadow-2xl border border-slate-200/80 dark:border-zinc-800/80 rounded-3xl overflow-hidden flex flex-col h-full min-h-[500px] md:min-h-0">
           <div className="p-4 border-b border-slate-200 dark:border-zinc-800/80 flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50 dark:bg-zinc-950/40 z-40 gap-4">
             <div className="flex items-center gap-4">
               <h2 className="text-sm font-black text-slate-800 dark:text-zinc-100 uppercase tracking-widest leading-none">
@@ -742,8 +742,11 @@ export default function Dashboard() {
           </div>
 
           <div className="flex-1 flex flex-col overflow-hidden relative min-h-0">
-            <div ref={calendarBodyRef} className="hidden lg:flex flex-1 min-h-0 overflow-auto custom-scrollbar">
-              <div className="flex flex-col flex-1 min-w-[1000px] lg:min-w-0">
+            {/* Grade semanal (colunas por dia) precisa de ~1000px pra ser usável —
+                só a partir de `xl` (desktop de verdade). No iPad (retrato E paisagem)
+                usa a agenda compacta abaixo, senão viraria um grid rolando na horizontal. */}
+            <div ref={calendarBodyRef} className="hidden xl:flex flex-1 min-h-0 overflow-auto custom-scrollbar">
+              <div className="flex flex-col flex-1 min-w-[1000px] xl:min-w-0">
                 <div className="flex bg-slate-50/95 dark:bg-zinc-950/95 border-b border-slate-200 dark:border-zinc-800 sticky top-0 z-30 backdrop-blur-md">
                   <div className="w-14 flex-shrink-0 sticky left-0 bg-slate-50 dark:bg-zinc-900 z-40 border-r border-slate-200 dark:border-zinc-800" />
                   <div className="flex-1 grid grid-cols-7 divide-x divide-slate-300 dark:divide-zinc-800">
@@ -841,7 +844,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="lg:hidden flex-1 flex flex-col bg-white dark:bg-zinc-900 overflow-hidden">
+            <div className="xl:hidden flex-1 flex flex-col bg-white dark:bg-zinc-900 overflow-hidden">
                 <div className="flex items-center gap-3 p-4 border-b border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-x-auto no-scrollbar scroll-smooth">
                     {weekDays.map((date, i) => {
                         const isSelected = isSameDay(date, formatDateLocal(selectedNoteDate));
@@ -931,7 +934,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="lg:col-span-2 flex flex-col gap-6">
+        <div className="md:col-span-2 flex flex-col gap-6">
            <div className="h-[400px]">
               <RevenueChart data={revenueChartData} loading={loading} currentDate={currentDate} onPrevMonth={handlePrevMonth} onNextMonth={handleNextMonth} />
            </div>

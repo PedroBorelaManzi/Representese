@@ -655,7 +655,7 @@ export default function EmpresasPage() {
         )}
       </React.Suspense>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 lg:gap-6">
         <div className="bg-white dark:bg-zinc-900 p-5 sm:p-6 lg:p-8 rounded-[32px] md:rounded-[40px] border border-slate-200 dark:border-zinc-800 ring-1 ring-slate-200/80 shadow-none hover:ring-emerald-300 transition-all group">
           <div className="flex items-center gap-4 md:gap-5">
             <div className="p-2 sm:p-2.5 lg:p-3 bg-emerald-50 dark:bg-emerald-950/20 rounded-2xl md:rounded-3xl group-hover:scale-110 transition-transform flex-shrink-0">
@@ -693,23 +693,23 @@ export default function EmpresasPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-10">
-        <div className="lg:col-span-4 flex flex-col gap-3 sm:gap-4 w-full">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6 md:gap-10">
+        <div className="md:col-span-4 flex flex-col gap-3 sm:gap-4 w-full">
           <div className="flex items-center justify-between px-2 md:px-4">
              <h3 className="text-[9px] md:text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Suas empresas</h3>
           </div>
           
-          <div className="grid grid-cols-2 lg:flex lg:flex-col gap-3 w-full">
+          <div className="grid grid-cols-2 md:flex md:flex-col gap-3 w-full">
             {/* "Nova Empresa" é ação secundária: borda tracejada em vez de
                 competir em verde sólido com o filtro "Todas as Empresas" */}
-            <button onClick={() => isLimitExceeded ? setShowUpsellModal(true) : setIsAddModalOpen(true)} className="w-full text-left p-4 sm:p-5 rounded-3xl border-2 border-dashed border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/10 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:border-emerald-400 flex items-center justify-between group mb-2 md:mb-4 transition-all active:scale-95 col-span-2 lg:col-span-1">
+            <button onClick={() => isLimitExceeded ? setShowUpsellModal(true) : setIsAddModalOpen(true)} className="w-full text-left p-4 sm:p-5 rounded-3xl border-2 border-dashed border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/10 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:border-emerald-400 flex items-center justify-between group mb-2 md:mb-4 transition-all active:scale-95 col-span-2 md:col-span-1">
               <span className="text-[10px] sm:text-xs lg:text-[13px] font-black uppercase tracking-tight">Nova Empresa</span>
               <Plus className="w-4 h-4 sm:w-5 h-5 group-hover:rotate-90 transition-transform" />
             </button>
 
             <button 
               onClick={() => setSelectedCategory("all")}
-              className={cn("w-full text-left p-4 sm:p-5 lg:p-7 rounded-[30px] md:rounded-[35px] border transition-all relative group overflow-hidden active:scale-[0.98] col-span-2 lg:col-span-1",
+              className={cn("w-full text-left p-4 sm:p-5 lg:p-7 rounded-[30px] md:rounded-[35px] border transition-all relative group overflow-hidden active:scale-[0.98] col-span-2 md:col-span-1",
                 selectedCategory === "all" 
                   ? "bg-emerald-600 border-emerald-600 text-white shadow-[0_0_24px_rgba(16,185,129,0.35)] dark:border-emerald-500/50"
                   : "bg-white dark:bg-zinc-900 border-slate-100 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 hover:border-emerald-200 ring-1 ring-slate-200/80 shadow-none hover:ring-emerald-300 transition-all"
@@ -724,7 +724,7 @@ export default function EmpresasPage() {
               </div>
             </button>
 
-            <div className="grid grid-cols-2 lg:flex lg:flex-col gap-3 col-span-2 lg:col-span-1 lg:pt-6 lg:border-t border-slate-50 dark:border-zinc-800/50 w-full">
+            <div className="grid grid-cols-2 md:flex md:flex-col gap-3 col-span-2 md:col-span-1 md:pt-6 md:border-t border-slate-50 dark:border-zinc-800/50 w-full">
               {combinedCategories.map(cat => (
                 <div
                   key={cat}
@@ -758,8 +758,8 @@ export default function EmpresasPage() {
           </div>
         </div>
 
-        <div className="lg:col-span-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 pb-20">
+        <div className="md:col-span-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 pb-20">
               {loading ? (
                  <>
                    {Array.from({ length: 4 }).map((_, i) => (

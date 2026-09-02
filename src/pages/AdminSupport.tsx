@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Navigate } from "react-router-dom";
-import { HeadphonesIcon, Send, Loader2, User, Circle } from "lucide-react";
+import { HeadphonesIcon, Send, Loader2, User, Circle, ChevronLeft } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { useIsSupportAdmin } from "../hooks/useIsSupportAdmin";
@@ -135,8 +135,15 @@ export default function AdminSupport() {
     <div className="h-full flex flex-col gap-0 pb-0">
       <PageHeader icon={HeadphonesIcon} title="Suporte" subtitle="Conversas dos usuários" accent="violet" />
 
-      <div className="flex-1 flex gap-4 mt-4 min-h-0">
-        <div className="w-72 shrink-0 bg-white dark:bg-zinc-950 rounded-[24px] border border-slate-200/80 dark:border-zinc-800/80 shadow-sm overflow-y-auto custom-scrollbar">
+      {/* altura explícita: o `flex-1`/`h-full` não resolve dentro do <main> no
+          WebKit (cadeia de wrappers sem altura) e os painéis colapsavam. */}
+      <div className="flex-1 flex flex-col md:flex-row gap-4 mt-4 min-h-[calc(100svh-12rem)]">
+        {/* No celular é uma coisa de cada vez: lista OU conversa. No tablet/desktop,
+            lado a lado. */}
+        <div className={cn(
+          "w-full md:w-72 md:shrink-0 bg-white dark:bg-zinc-950 rounded-[24px] border border-slate-200/80 dark:border-zinc-800/80 shadow-sm overflow-y-auto custom-scrollbar",
+          selectedId && "hidden md:block"
+        )}>
           {loadingList ? (
             <div className="flex items-center justify-center py-10">
               <Loader2 className="w-5 h-5 text-slate-300 animate-spin" />
@@ -168,13 +175,22 @@ export default function AdminSupport() {
           )}
         </div>
 
-        <div className="flex-1 bg-white dark:bg-zinc-950 rounded-[24px] border border-slate-200/80 dark:border-zinc-800/80 shadow-sm flex flex-col min-h-0">
+        <div className={cn(
+          "flex-1 bg-white dark:bg-zinc-950 rounded-[24px] border border-slate-200/80 dark:border-zinc-800/80 shadow-sm flex-col min-h-0",
+          selectedId ? "flex" : "hidden md:flex"
+        )}>
           {!selectedId ? (
             <div className="flex-1 flex items-center justify-center text-sm text-slate-400 font-medium">
               Selecione uma conversa para responder.
             </div>
           ) : (
             <>
+              <button
+                onClick={() => setSelectedId(null)}
+                className="md:hidden flex items-center gap-2 px-5 py-3 border-b border-slate-100 dark:border-zinc-800 text-[11px] font-black text-slate-500 uppercase tracking-widest"
+              >
+                <ChevronLeft className="w-4 h-4" /> Conversas
+              </button>
               <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-3">
                 {messages.map((msg) => (
                   <div key={msg.id} className={cn("flex", msg.sender_role === "admin" ? "justify-end" : "justify-start")}>

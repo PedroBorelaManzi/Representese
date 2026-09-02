@@ -455,7 +455,7 @@ export default function CRMPage() {
                           <button
                             onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteClient(client.id); }}
                             aria-label={`Excluir ${client.name}`}
-                            className="p-2 md:opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-500 rounded-lg transition-all"
+                            className="p-2 hover-reveal hover:bg-red-50 dark:hover:bg-red-950/20 text-red-500 rounded-lg transition-all"
                           >
                              <Trash2 className="w-4 h-4" />
                           </button>

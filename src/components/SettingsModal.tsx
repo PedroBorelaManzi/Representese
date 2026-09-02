@@ -168,7 +168,9 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 p-5 md:p-12 overflow-y-auto custom-scrollbar">
+        {/* pr maior no desktop/tablet: o botão X flutua em `absolute top-8 right-8`
+            e sem essa folga o título de cada aba passava por baixo dele. */}
+        <div className="flex-1 p-5 md:p-12 md:pr-24 overflow-y-auto custom-scrollbar">
           <div className="max-w-2xl mx-auto space-y-12">
             <AnimatePresence mode="wait">
               <motion.div

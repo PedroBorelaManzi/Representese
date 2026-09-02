@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { apiUrl } from './apiBase';
 
 interface GeminiProxyRequest {
   contents: Array<{
@@ -20,7 +21,7 @@ export async function callGeminiProxy(request: GeminiProxyRequest, signal?: Abor
     throw new Error("Usuario nao autenticado.");
   }
 
-  const response = await fetch('/api/ai', {
+  const response = await fetch(apiUrl('/api/ai'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

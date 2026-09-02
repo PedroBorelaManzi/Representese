@@ -7,6 +7,7 @@
 //  - sessionToken        → o colaborador, já verificado com token+PIN, manda
 //    o token de sessão emitido por 'verify' — nunca tem sessão do Supabase.
 import { supabase } from './supabase';
+import { apiUrl } from './apiBase';
 import type { ItemExtraido } from './orderExtractionCore';
 
 async function callOrderIntakeApi<T>(
@@ -24,7 +25,7 @@ async function callOrderIntakeApi<T>(
     headers.Authorization = `Bearer ${opts.sessionToken}`;
   }
 
-  const response = await fetch('/api/order-intake', {
+  const response = await fetch(apiUrl('/api/order-intake'), {
     method: 'POST',
     headers,
     body: JSON.stringify({ action, payload }),

@@ -878,7 +878,7 @@ export default function ClientDetails() {
                            </div>
                         </div>
 
-                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-2 hover-reveal">
                            {isPdf && (
                              <button onClick={() => handleOpenPdf(file.file_name || "", file.file_path || "")} className="p-3 bg-white dark:bg-zinc-800 text-slate-400 hover:text-emerald-600 rounded-xl shadow-sm border border-slate-100 dark:border-zinc-800"><Eye className="w-4 h-4" /></button>
                            )}

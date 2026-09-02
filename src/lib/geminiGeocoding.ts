@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { apiUrl } from "./apiBase";
 
 type CacheEntry = {
   coords: { lat: number; lng: number } | null;
@@ -183,7 +184,7 @@ export async function getHighPrecisionCoordinates(
   // Usa o conhecimento de treinamento do Gemini sobre a empresa pelo nome/CNPJ
   if (token) {
     try {
-      const res = await fetch("/api/ai", {
+      const res = await fetch(apiUrl("/api/ai"), {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -230,7 +231,7 @@ export async function getHighPrecisionCoordinates(
         .filter(Boolean)
         .join(", ");
 
-      const res = await fetch("/api/ai", {
+      const res = await fetch(apiUrl("/api/ai"), {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({

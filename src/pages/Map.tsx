@@ -196,6 +196,17 @@ export default function Map() {
     if (!mapContainerRef.current) return;
 
     const element = mapContainerRef.current;
+
+    // No app nativo (iOS principalmente), o Fullscreen API do WebView deixa o
+    // usuário "puxar de cima pra baixo" e sair da tela cheia sem querer — e no
+    // meio do gesto o mapa escapa do enquadramento. Aqui usamos só a tela cheia
+    // simulada (overlay fixo por CSS), que não tem esse gesto e mantém o mapa
+    // firme. Botão de sair (canto) e tecla Esc continuam funcionando.
+    if (Capacitor.isNativePlatform()) {
+      setIsPseudoFullscreen((v) => !v);
+      return;
+    }
+
     const isNativeFullscreen = !!(
       document.fullscreenElement ||
       (document as any).webkitFullscreenElement ||
@@ -640,12 +651,15 @@ export default function Map() {
         }
       />
 
-      <div 
+      {/* `relative` fica SÓ no ramo não-fullscreen: o Tailwind emite `.fixed`
+          antes de `.relative` no CSS, então um `relative` sempre-presente vencia
+          o `fixed` por ordem de fonte e a tela cheia nunca posicionava. */}
+      <div
         ref={mapContainerRef}
-        className={`bg-white dark:bg-zinc-950 border border-slate-100 dark:border-zinc-850 shadow-sm overflow-hidden relative min-h-[500px] lg:min-h-[700px] ${
+        className={`bg-white dark:bg-zinc-950 border border-slate-100 dark:border-zinc-850 shadow-sm overflow-hidden min-h-[500px] md:min-h-[calc(100svh-14rem)] ${
           isCurrentlyFullscreen
-            ? "fixed inset-0 w-screen h-screen border-none rounded-none p-0 m-0 z-[9999] map-fullscreen-active"
-            : "flex-1 rounded-[48px] z-0"
+            ? "fixed inset-0 border-none rounded-none p-0 m-0 z-[9999] map-fullscreen-active"
+            : "relative flex-1 rounded-[48px] z-0"
         }`}
       >
         {/* Floating Mini Stats Overlay */}

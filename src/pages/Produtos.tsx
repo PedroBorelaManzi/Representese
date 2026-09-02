@@ -350,7 +350,7 @@ export default function ProdutosPage() {
 
       {isLoading ? (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-24 rounded-3xl" />)}
           </div>
           <Skeleton className="h-72 rounded-3xl" />
@@ -363,7 +363,7 @@ export default function ProdutosPage() {
         />
       ) : (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <KpiCard icon={Boxes} label="Unidades vendidas" value={numero(kpis.totalUnidades)} accent="emerald" />
             <KpiCard icon={DollarSign} label="Receita em produtos" value={brl(kpis.totalReceita)} accent="sky" />
             <KpiCard icon={ShoppingBag} label="Produtos distintos" value={String(kpis.produtosDistintos)} accent="violet" />

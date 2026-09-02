@@ -33,6 +33,7 @@ import { Link, useNavigate, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { cn } from "../lib/utils";
 import { isIOSApp } from "../lib/iapPolicy";
+import { Capacitor } from "@capacitor/core";
 import { toast } from "sonner";
 import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 import { Fingerprint } from 'lucide-react';
@@ -247,10 +248,19 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-stretch overflow-hidden font-sans [color-scheme:light]">
-      <div className="w-full lg:w-[45%] bg-white p-8 md:p-16 lg:p-24 flex flex-col justify-center relative z-10 shadow-2xl">
-        <Link to="/landing" className="absolute top-6 left-6 md:top-8 md:left-8 flex items-center justify-center p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-900 border border-slate-100/50 transition-all group z-50 hover:scale-105 active:scale-95 shadow-sm" title="Voltar para a página inicial"><ArrowLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" /></Link>
-        <div className="max-w-md mx-auto w-full space-y-12">
+    <div className="min-h-screen bg-slate-50 flex items-stretch overflow-x-hidden font-sans [color-scheme:light]">
+      {/* `overflow-y-auto` + `my-auto` no lugar de `justify-center`: quando o teclado
+          sobe (iPad principalmente) a viewport encolhe e o conteúdo passa a rolar
+          em vez de ficar preso no centro com o botão "Entrar" atrás do teclado.
+          O `padding-top` respeita a safe area pra a logo/seta não colarem na
+          status bar. */}
+      <div className="w-full md:w-[45%] bg-white px-6 py-12 sm:px-10 md:px-8 lg:p-24 flex flex-col relative z-10 shadow-2xl overflow-y-auto [padding-top:max(3rem,env(safe-area-inset-top))]">
+        {/* No app nativo a landing redireciona de volta pro login, então a seta
+            de "voltar" não leva a lugar nenhum — só aparece no site. */}
+        {!Capacitor.isNativePlatform() && (
+          <Link to="/landing" className="absolute left-6 md:left-8 [top:max(1.5rem,env(safe-area-inset-top))] flex items-center justify-center p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-900 border border-slate-100/50 transition-all group z-50 hover:scale-105 active:scale-95 shadow-sm" title="Voltar para a página inicial"><ArrowLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" /></Link>
+        )}
+        <div className="max-w-md mx-auto w-full space-y-10 sm:space-y-12 my-auto">
           <div className="flex justify-center">
             <Link to="/landing">
               <Logo size="lg" showText={true} variant="light" />
@@ -375,15 +385,15 @@ export default function Login() {
 
       </div>
 
-      <div className="hidden lg:flex lg:w-[55%] bg-slate-900 relative items-center justify-center p-24 overflow-hidden">
+      <div className="hidden md:flex md:w-[55%] bg-slate-900 relative items-center justify-center p-10 lg:p-24 overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(16,185,129,0.1),transparent)]" />
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-emerald-600/10 blur-[120px] rounded-full" />
         <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-emerald-600/10 blur-[120px] rounded-full" />
         
-        <div className="max-w-xl w-full relative z-10 space-y-16">
-          <div className="space-y-10">
-            <div className="space-y-6">
-              <h2 className="text-5xl lg:text-7xl font-black text-white uppercase tracking-tighter leading-none">
+        <div className="max-w-xl w-full relative z-10 space-y-10 lg:space-y-16">
+          <div className="space-y-8 lg:space-y-10">
+            <div className="space-y-5 lg:space-y-6">
+              <h2 className="text-4xl lg:text-7xl font-black text-white uppercase tracking-tighter leading-none">
                 O futuro da <br />
                 <span className="text-emerald-500">Representação</span>
               </h2>
@@ -399,9 +409,9 @@ export default function Login() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 * idx }}
-                  className="bg-white/5 p-8 rounded-[40px] border border-white/10 backdrop-blur-md group hover:bg-white/10 transition-all duration-500"
+                  className="bg-white/5 p-5 lg:p-8 rounded-[28px] lg:rounded-[40px] border border-white/10 backdrop-blur-md group hover:bg-white/10 transition-all duration-500"
                 >
-                  <div className="w-12 h-12 rounded-[20px] bg-emerald-500/10 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500">
+                  <div className="w-12 h-12 rounded-[20px] bg-emerald-500/10 flex items-center justify-center mb-4 lg:mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500">
                     <feature.icon className="w-6 h-6 text-emerald-500" />
                   </div>
                   <h3 className="text-sm font-black text-white uppercase tracking-tighter mb-1">{feature.title}</h3>
@@ -414,7 +424,7 @@ export default function Login() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white p-10 rounded-[48px] shadow-2xl relative overflow-hidden"
+            className="bg-white p-6 lg:p-10 rounded-[32px] lg:rounded-[48px] shadow-2xl relative overflow-hidden"
           >
             <div className="absolute inset-0 bg-emerald-500/5" />
             <div className="relative space-y-5">

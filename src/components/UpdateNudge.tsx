@@ -17,7 +17,12 @@ export function UpdateNudge() {
   const [newVersionName, setNewVersionName] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return;
+    // Só faz sentido no Android: o aviso aponta pra Play Store e compara com o
+    // versionCode do `app-version.json` (que o release do Android atualiza).
+    // No app iOS o `build` é o CURRENT_PROJECT_VERSION, que não tem relação com
+    // esse número — e o usuário via "atualize na Play Store" sem nunca poder.
+    // A atualização do app iOS é a própria App Store, sem aviso nosso.
+    if (Capacitor.getPlatform() !== "android") return;
 
     (async () => {
       try {

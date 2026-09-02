@@ -467,14 +467,14 @@ export default function Agenda() {
           </div>
 
           {/* Desktop View */}
-          <div className="hidden lg:flex flex-1 flex-col overflow-x-auto lg:overflow-x-visible custom-scrollbar">
-            <div className="grid grid-cols-7 border-b border-slate-300/60 dark:border-zinc-800 bg-white dark:bg-zinc-900 sticky top-0 z-20 min-w-[1000px] lg:min-w-0">
+          <div className="hidden md:flex flex-1 flex-col overflow-x-auto md:overflow-x-visible custom-scrollbar">
+            <div className="grid grid-cols-7 border-b border-slate-300/60 dark:border-zinc-800 bg-white dark:bg-zinc-900 sticky top-0 z-20 min-w-[1000px] md:min-w-0">
               {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
                 <div key={day} className="py-2.5 text-center text-[10px] font-black text-slate-500 dark:text-zinc-400 uppercase tracking-[0.2em]">{day}</div>
               ))}
             </div>
 
-            <div className="grid grid-cols-7 flex-1 min-w-[1000px] lg:min-w-0 divide-x divide-y divide-slate-300/70 dark:divide-zinc-800">
+            <div className="grid grid-cols-7 flex-1 min-w-[1000px] md:min-w-0 divide-x divide-y divide-slate-300/70 dark:divide-zinc-800">
               {daysArray.map((date, i) => {
                 const dateIso = date ? formatDateLocal(date) : null;
                 const isToday = dateIso === formatDateLocal(new Date());
@@ -486,7 +486,7 @@ export default function Agenda() {
                   <div 
                     key={i} 
                     className={cn(
-                      "p-4 flex flex-col h-44 lg:h-auto lg:min-h-[120px] overflow-hidden transition-all relative group h-full",
+                      "p-3 md:p-4 flex flex-col h-44 md:h-auto md:min-h-[104px] overflow-hidden transition-all relative group h-full",
                       date ? 'bg-white dark:bg-zinc-900' : 'bg-slate-100/60 dark:bg-zinc-950/40',
                       isToday && 'bg-emerald-50/20 dark:bg-emerald-500/5',
                       i % 7 === 0 || i % 7 === 6 ? 'bg-slate-50/40 dark:bg-zinc-950/20' : ''
@@ -574,7 +574,7 @@ export default function Agenda() {
           </div>
 
           {/* Mobile View */}
-          <div className="lg:hidden flex-1 flex flex-col overflow-hidden bg-slate-50 dark:bg-zinc-950">
+          <div className="md:hidden flex-1 flex flex-col overflow-hidden bg-slate-50 dark:bg-zinc-950">
               <div className="p-4 grid grid-cols-7 gap-2 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-x-auto custom-scrollbar min-h-[400px] content-start">
                   {daysArray.map((date, i) => {
                       if (!date) return <div key={i} className="aspect-square" />;

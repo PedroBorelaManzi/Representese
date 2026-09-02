@@ -3,7 +3,13 @@ import { Capacitor } from '@capacitor/core';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 
-export type NotificationType = 'appointment_reminder' | 'client_followup' | 'client_alert' | 'weekly_summary';
+export type NotificationType =
+  | 'appointment_reminder'
+  | 'client_followup'
+  | 'client_alert'
+  | 'weekly_summary'
+  | 'installment_due'
+  | 'subscription_renewal';
 
 interface NotificationPayload {
   type: NotificationType;
@@ -19,6 +25,8 @@ export class NotificationService {
     client_followup: 3000,
     client_alert: 4000,
     weekly_summary: 5000,
+    installment_due: 6000,
+    subscription_renewal: 7000,
   };
 
   static async initialize() {
@@ -40,6 +48,12 @@ export class NotificationService {
 
       // Schedule weekly summary notification
       this.scheduleWeeklySummary(user.id);
+
+      // Schedule commission installment due-date reminders
+      this.scheduleInstallmentReminders(user.id);
+
+      // Schedule subscription renewal reminder
+      this.scheduleSubscriptionRenewalReminder(user.id);
 
       // Handle notification taps when app is active
       await LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
@@ -176,6 +190,90 @@ export class NotificationService {
       });
     } catch (error) {
       console.error('Error scheduling weekly summary:', error);
+    }
+  }
+
+  // Parcelas de comissão (order_installments) vencendo nos próximos 14 dias —
+  // avisa no dia do vencimento, às 9h, pra lembrar de cobrar/conferir o
+  // recebimento daquela parcela. Limitado a 20 pra não estourar o limite de
+  // notificações pendentes do sistema operacional.
+  private static async scheduleInstallmentReminders(userId: string) {
+    try {
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
+      const limitDate = new Date(today);
+      limitDate.setDate(limitDate.getDate() + 14);
+      const limitStr = limitDate.toISOString().split('T')[0];
+
+      const { data: installments } = await supabase
+        .from('order_installments')
+        .select('id, due_date, value, order_id, orders!inner(client:clients(name))')
+        .eq('user_id', userId)
+        .gte('due_date', todayStr)
+        .lte('due_date', limitStr)
+        .order('due_date', { ascending: true })
+        .limit(20);
+
+      if (!installments || installments.length === 0) return;
+
+      installments.forEach((inst: any, index) => {
+        const [y, m, d] = inst.due_date.split('-').map(Number);
+        const scheduleDate = new Date(y, m - 1, d, 9, 0, 0);
+        // Vencimento já passou das 9h de hoje: avisa assim que possível.
+        const at = scheduleDate > new Date() ? scheduleDate : new Date(Date.now() + 5000);
+
+        const clientName = inst.orders?.client?.name || 'cliente sem nome';
+        const value = Number(inst.value || 0).toFixed(2);
+
+        this.sendNotification({
+          type: 'installment_due',
+          title: '💰 Parcela vencendo hoje',
+          body: `Parcela de R$ ${value} do pedido de ${clientName} vence hoje.`,
+          scheduleTime: at,
+          data: { orderId: inst.order_id },
+        });
+        void index; // usado só pra manter o índice legível na leitura acima
+      });
+    } catch (error) {
+      console.error('Error scheduling installment reminders:', error);
+    }
+  }
+
+  // Renovação/vencimento da assinatura (user_entitlements) — avisa uns dias
+  // antes pra não pegar o usuário de surpresa com o acesso suspenso.
+  private static async scheduleSubscriptionRenewalReminder(userId: string) {
+    try {
+      const { data: entitlement } = await supabase
+        .from('user_entitlements')
+        .select('current_period_end, subscription_status, cancel_at_period_end')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (!entitlement?.current_period_end) return;
+      if (!['active', 'trialing'].includes(entitlement.subscription_status)) return;
+
+      const periodEnd = new Date(entitlement.current_period_end);
+      const daysUntil = Math.ceil((periodEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+      if (daysUntil > 7 || daysUntil < 0) return;
+
+      const reminderDate = new Date(periodEnd);
+      reminderDate.setDate(reminderDate.getDate() - 3);
+      reminderDate.setHours(9, 0, 0, 0);
+      const at = reminderDate > new Date() ? reminderDate : new Date(Date.now() + 5000);
+
+      const dataFormatada = periodEnd.toLocaleDateString('pt-BR');
+      const isCanceling = !!entitlement.cancel_at_period_end;
+
+      await this.sendNotification({
+        type: 'subscription_renewal',
+        title: isCanceling ? '⚠️ Assinatura expira em breve' : '🔄 Assinatura renova em breve',
+        body: isCanceling
+          ? `Seu acesso ao Represente-Se encerra em ${dataFormatada}.`
+          : `Sua assinatura renova em ${dataFormatada}.`,
+        scheduleTime: at,
+      });
+    } catch (error) {
+      console.error('Error scheduling subscription renewal reminder:', error);
     }
   }
 

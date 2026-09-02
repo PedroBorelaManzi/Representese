@@ -422,7 +422,7 @@ export default function EmailClient() {
                   </div>
                   <div 
                     onClick={(e) => { e.stopPropagation(); deleteAccount(acc.id); }}
-                    className="absolute top-4 right-4 p-2.5 bg-red-50 text-red-600 rounded-full opacity-0 group-hover:opacity-100 transition-all hover:bg-red-600 hover:text-white shadow-sm z-10 scale-90 group-hover:scale-100"
+                    className="absolute top-4 right-4 p-2.5 bg-red-50 text-red-600 rounded-full hover-reveal transition-all hover:bg-red-600 hover:text-white shadow-sm z-10"
                     title="Remover conta"
                   >
                     <X className="w-4 h-4" />
@@ -781,7 +781,7 @@ export default function EmailClient() {
                                     </div>
                                   )}
                                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors flex items-center justify-center">
-                                    <Download className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md" />
+                                    <Download className="w-6 h-6 text-white hover-reveal drop-shadow-md" />
                                   </div>
                                </div>
                                <div className="p-3 bg-white dark:bg-zinc-950 border-t border-slate-100 dark:border-zinc-800">

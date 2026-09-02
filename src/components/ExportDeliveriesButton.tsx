@@ -1,5 +1,6 @@
 /* Botão para exportar o relatório de entregas do filtro atual (PDF impresso ou Excel). */
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { FileDown, Loader2, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { exportDeliveriesAsPDF, exportDeliveriesAsExcel, type DeliveryReportRow } from "../lib/deliveriesExport";
@@ -11,9 +12,52 @@ interface ExportDeliveriesButtonProps {
   filterLabel: string;
 }
 
+// O menu vivia com `position:absolute; right:0` dentro do cabeçalho. Como o
+// botão fica encostado na esquerda (e a página tem `overflow-x-hidden`), um
+// menu de 256px alinhado pela direita saía pela borda e ficava cortado — igual
+// ao ExportLeadsButton, que já foi consertado assim. Agora vai num portal com
+// posição fixa calculada a partir do botão e presa dentro da tela.
+const LARGURA_MENU = 256; // w-64
+const MARGEM = 12;
+
 export function ExportDeliveriesButton({ rows, filterLabel }: ExportDeliveriesButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const botaoRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+
+  const recalcularPosicao = useCallback(() => {
+    const r = botaoRef.current?.getBoundingClientRect();
+    if (!r) return;
+    const left = Math.max(
+      MARGEM,
+      Math.min(r.left, window.innerWidth - LARGURA_MENU - MARGEM)
+    );
+    setPos({ top: r.bottom + 8, left });
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    recalcularPosicao();
+    window.addEventListener("resize", recalcularPosicao);
+    window.addEventListener("scroll", recalcularPosicao, true);
+    return () => {
+      window.removeEventListener("resize", recalcularPosicao);
+      window.removeEventListener("scroll", recalcularPosicao, true);
+    };
+  }, [isOpen, recalcularPosicao]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const aoClicar = (e: MouseEvent) => {
+      const alvo = e.target as Node;
+      if (botaoRef.current?.contains(alvo) || menuRef.current?.contains(alvo)) return;
+      setIsOpen(false);
+    };
+    document.addEventListener("mousedown", aoClicar);
+    return () => document.removeEventListener("mousedown", aoClicar);
+  }, [isOpen]);
 
   const handleExportPdf = () => {
     setIsExporting(true);
@@ -45,6 +89,7 @@ export function ExportDeliveriesButton({ rows, filterLabel }: ExportDeliveriesBu
   return (
     <div className="relative">
       <button
+        ref={botaoRef}
         onClick={() => setIsOpen(!isOpen)}
         disabled={!hasData || isExporting}
         className={cn(
@@ -59,16 +104,17 @@ export function ExportDeliveriesButton({ rows, filterLabel }: ExportDeliveriesBu
         <ChevronDown className={cn("w-3 h-3 transition-transform", isOpen && "rotate-180")} />
       </button>
 
-      <AnimatePresence>
-        {isOpen && !isExporting && (
-          <>
-            <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+      {createPortal(
+        <AnimatePresence>
+          {isOpen && !isExporting && pos && (
             <motion.div
+              ref={menuRef}
               initial={{ opacity: 0, y: -8, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -8, scale: 0.95 }}
               transition={{ duration: 0.15 }}
-              className="absolute top-full right-0 mt-2 w-64 bg-white dark:bg-zinc-900 rounded-2xl shadow-xl border border-slate-100 dark:border-zinc-800 overflow-hidden z-50"
+              style={{ position: "fixed", top: pos.top, left: pos.left, width: LARGURA_MENU }}
+              className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl border border-slate-100 dark:border-zinc-800 overflow-hidden z-[9000]"
             >
               <div className="p-3 border-b border-slate-100 dark:border-zinc-800">
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-zinc-500">
@@ -114,9 +160,10 @@ export function ExportDeliveriesButton({ rows, filterLabel }: ExportDeliveriesBu
                 </div>
               </button>
             </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </div>
   );
 }

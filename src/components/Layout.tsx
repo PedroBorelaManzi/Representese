@@ -611,7 +611,12 @@ export default function Layout() {
           <main
             id="conteudo"
             className={cn(
-              "flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 xl:p-12 scroll-smooth custom-scrollbar transition-all duration-300",
+              // `min-h-0`: sem isso, o flex item não encolhe abaixo do conteúdo e
+              // o `height:100%` / `h-full` das páginas filhas (Mapa, Suporte…) não
+              // resolve no WebKit — a página colapsava pra altura do conteúdo e
+              // sobrava tela vazia. Com `min-h-0` o `<main>` fica com altura
+              // definida (flex) e o `h-full` dos filhos passa a valer.
+              "flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 lg:p-8 xl:p-12 scroll-smooth custom-scrollbar transition-all duration-300",
               !desktopSidebarOpen && "lg:pl-24"
             )}
             style={{
@@ -620,12 +625,16 @@ export default function Layout() {
           >
             <div className="mx-auto">
               <RenewalBanner />
+              {/* Só opacidade, sem `y`: o translate deixava um `transform`/
+                  `will-change` residual no wrapper, e isso faz `position:fixed`
+                  dos filhos (mapa em tela cheia) se ancorar NESTE div em vez da
+                  viewport — a tela cheia não preenchia o ecrã. */}
               <AnimatePresence mode="wait">
                 <motion.div
                   key={location.pathname}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -12 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
                   transition={{ duration: 0.15, ease: "easeInOut" }}
                 >
                   <ErrorBoundary resetKey={location.pathname}>

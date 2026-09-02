@@ -15,6 +15,8 @@
  * O registro guarda versão + timestamp: se a política de cookies mudar, suba
  * CONSENT_VERSION e o banner reaparece pedindo nova decisão. */
 
+import { Capacitor } from '@capacitor/core';
+
 export const CONSENT_VERSION = 1;
 
 const KEY = 'rm_cookie_consent';
@@ -35,6 +37,20 @@ type StoredConsent = {
 };
 
 const NEGADO: ConsentCategories = { preferencias: false, analiticos: false };
+const CONCEDIDO: ConsentCategories = { preferencias: true, analiticos: true };
+
+/* No app nativo (iOS/Android) não existe banner de cookies: o consentimento já
+ * entra como concedido ("vem com o ok"), e as finalidades estão descritas na
+ * Política de Privacidade e na ficha das lojas. O banner LGPD é exclusivo do
+ * site aberto no navegador. `isNativePlatform()` é false no Safari do iPhone,
+ * então o site não é afetado. */
+function appNativo(): boolean {
+  try {
+    return Capacitor.isNativePlatform();
+  } catch {
+    return false;
+  }
+}
 
 let cache: StoredConsent | null | undefined;
 const listeners = new Set<() => void>();
@@ -63,10 +79,12 @@ function notrackAtivo(): boolean {
 
 /** true enquanto não houver decisão válida para a versão atual → mostrar o banner. */
 export function precisaDecidir(): boolean {
+  if (appNativo()) return false;
   return ler() === null;
 }
 
 export function getConsent(): ConsentCategories {
+  if (appNativo()) return CONCEDIDO;
   const c = ler();
   return c ? c.categorias : NEGADO;
 }

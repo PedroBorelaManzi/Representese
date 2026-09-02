@@ -37,30 +37,6 @@ npm run test:e2e:ui  # testes Playwright (modo UI)
 
 ---
 
-## 🏗️ STACK TÉCNICA
-
-| Camada | Tecnologia |
-|---|---|
-| Frontend | React 19 + Vite 6 + TypeScript |
-| Estilo | Tailwind CSS v4 |
-| Animações | Framer Motion 12 |
-| Roteamento | React Router DOM 7 |
-| Backend/DB | Supabase (PostgreSQL) |
-| Auth | Supabase Auth |
-| Deploy | Vercel |
-| Mobile | Capacitor 8 (iOS + Android) |
-| IA | Google Gemini (`@google/generative-ai`) — modelo `gemini-2.5-flash` |
-| Ícones | Lucide React |
-| Toasts | Sonner |
-| Charts | Recharts |
-| Mapas | Leaflet + React Leaflet |
-| Cache offline | idb-keyval (IndexedDB) |
-| Queries | TanStack Query v5 |
-| API Server | Express 5 (Vercel Serverless — `api/ai.ts`) |
-| Rate Limiting | Upstash Redis (sliding window, 10 req/60s) |
-
----
-
 ## 🏛️ ARQUITETURA
 
 ### Frontend (SPA)

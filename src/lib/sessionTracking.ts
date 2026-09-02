@@ -1,5 +1,6 @@
 import { Capacitor } from "@capacitor/core";
 import { supabase } from "./supabase";
+import { apiUrl } from "./apiBase";
 
 /** Nome de dispositivo/navegador a partir do userAgent — só o essencial pra
  *  identificar "de onde" o usuário abriu o app, sem trazer uma lib de
@@ -57,7 +58,7 @@ export function trackSessionOpen(): void {
     supabase.auth.getSession().then(({ data }) => {
       const token = data.session?.access_token;
       if (!token) return;
-      fetch(`/api/ai`, {
+      fetch(apiUrl(`/api/ai`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

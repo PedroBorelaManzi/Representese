@@ -267,7 +267,7 @@ export default function DailyNotes({ selectedDate, className }: DailyNotesProps)
                       </span>
                       <button 
                         onClick={() => deleteTask(task.id)}
-                        className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all"
+                        className="hover-reveal p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

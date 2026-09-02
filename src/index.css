@@ -45,6 +45,16 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    /* Trava o arrasto horizontal da página: a sidebar off-canvas fica em
+       `translateX(-100%)` (x negativo) e no WebView do iOS dava pra "puxar" a
+       tela pro lado e revelar esse vazio. `clip` corta sem criar scroll. */
+    overflow-x: clip;
+  }
+
+  /* Sonner no mobile: garante que o container do toast nunca passe da tela
+     (senão o WebView do iOS encolhe a página toda — proporções erradas). */
+  [data-sonner-toaster] {
+    max-width: calc(100vw - 24px) !important;
   }
 
   /* Checkboxes/radios nativos na cor da marca (login, formulários, filtros) */
@@ -125,11 +135,11 @@ h1, h2, h3, h4 {
 /* Custom Scrollbar for Premium Feel */
 .custom-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: #10b981 transparent;
+  scrollbar-color: rgba(16, 185, 129, 0.35) transparent;
 }
 
 .dark .custom-scrollbar {
-  scrollbar-color: #059669 transparent;
+  scrollbar-color: rgba(5, 150, 105, 0.45) transparent;
 }
 
 .custom-scrollbar::-webkit-scrollbar {
@@ -138,19 +148,24 @@ h1, h2, h3, h4 {
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(16, 185, 129, 0.02);
-  border-radius: 10px;
+  background: transparent;
 }
 
+/* Antes o thumb era verde-limão sólido (#10b981) — no WebView do iPad virava uma
+   barra chamativa na direita de toda tela. Agora é discreto e escurece no hover. */
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: #10b981;
+  background-color: rgba(16, 185, 129, 0.3);
   border-radius: 10px;
   border: 2px solid transparent;
   background-clip: content-box;
 }
 
+.custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(16, 185, 129, 0.55);
+}
+
 .dark .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: #059669;
+  background-color: rgba(5, 150, 105, 0.4);
 }
 
 /* Barra de download quando o servidor não informa o tamanho do arquivo:
@@ -221,6 +236,23 @@ h1, h2, h3, h4 {
 
 .no-scrollbar::-webkit-scrollbar {
   display: none; /* Chrome/Safari/WebView do Android */
+}
+
+/* Ações que aparecem no hover no desktop (editar, excluir, baixar…). Em touch
+   (iPad e celular NÃO têm hover) o `opacity-0 group-hover:opacity-100` deixava
+   o botão invisível pra sempre. Aqui só escondemos onde existe mouse; no touch
+   fica sempre visível. Usar dentro de um `.group`. */
+.hover-reveal {
+  transition: opacity 0.2s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .hover-reveal {
+    opacity: 0;
+  }
+  .group:hover .hover-reveal,
+  .group:focus-within .hover-reveal {
+    opacity: 1;
+  }
 }
 
 /* Mapa em tela cheia: sem o cabeçalho do app acima, os controles ficariam a
