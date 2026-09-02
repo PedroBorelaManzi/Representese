@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 /**
- * Automatiza o processo de gerar uma nova versão do Android pra Play Store:
- * builda o site, sincroniza com o Capacitor, sobe o versionCode automaticamente
- * e gera o .aab assinado com gradlew bundleRelease.
+ * Gera o .aab assinado pra Play Store: builda o site, sincroniza o Capacitor
+ * e roda gradlew bundleRelease.
+ *
+ * NÃO sobe a versão sozinho — o número é PAREADO com o iOS (versionCode ==
+ * CURRENT_PROJECT_VERSION, versionName == MARKETING_VERSION). Edite
+ * android/app/build.gradle E ios/.../project.pbxproj juntos antes de rodar.
+ * Convenção: versionCode = versionName sem o ponto (1.76 -> 176).
  *
  * Uso: npm run android:release
  */
@@ -20,39 +24,42 @@ function run(cmd, opts = {}) {
 }
 
 /**
- * Sobe versionCode (obrigatório: a Play Console recusa um .aab cujo número não
- * tenha crescido) e, junto, o versionName — que é o texto que o usuário vê na
- * loja. Manter os dois em passo evita a situação de duas versões diferentes
- * aparecendo como "1.3" para quem baixou.
+ * NÃO sobe versão automaticamente. O número é PAREADO com o iOS: o
+ * `versionCode` (Android) tem que ser igual ao `CURRENT_PROJECT_VERSION` (iOS)
+ * e o `versionName` igual ao `MARKETING_VERSION`. Convenção: versionCode =
+ * versionName sem o ponto (1.76 -> 176). Edite os dois projetos à mão, junto,
+ * antes de rodar.
  */
-function bumpVersion() {
+function readVersion() {
   const content = fs.readFileSync(BUILD_GRADLE_PATH, "utf8");
-
   const codeMatch = content.match(/versionCode\s+(\d+)/);
-  if (!codeMatch) {
-    throw new Error("Não encontrei 'versionCode' em android/app/build.gradle");
+  const nameMatch = content.match(/versionName\s+"([^"]+)"/);
+  if (!codeMatch || !nameMatch) {
+    throw new Error("Não encontrei versionCode/versionName em android/app/build.gradle");
   }
-  const oldCode = parseInt(codeMatch[1], 10);
-  const newCode = oldCode + 1;
-  let updated = content.replace(/versionCode\s+\d+/, `versionCode ${newCode}`);
+  const code = parseInt(codeMatch[1], 10);
+  const name = nameMatch[1];
 
-  // Sobe o número menor: "1.4" → "1.5". Formatos fora do padrão maior.menor
-  // ficam como estão, para o script não inventar um nome esquisito.
-  const nameMatch = content.match(/versionName\s+"(\d+)\.(\d+)"/);
-  let novoNome = null;
-  if (nameMatch) {
-    const maior = parseInt(nameMatch[1], 10);
-    const menor = parseInt(nameMatch[2], 10) + 1;
-    novoNome = `${maior}.${menor}`;
-    updated = updated.replace(/versionName\s+"[^"]*"/, `versionName "${novoNome}"`);
-  }
+  // Confere o pareamento com o iOS.
+  try {
+    const pbx = fs.readFileSync(
+      path.join(ROOT, "ios", "App", "App.xcodeproj", "project.pbxproj"),
+      "utf8"
+    );
+    const iosCode = (pbx.match(/CURRENT_PROJECT_VERSION = (\d+);/) || [])[1];
+    const iosName = (pbx.match(/MARKETING_VERSION = ([0-9.]+);/) || [])[1];
+    if (String(code) !== iosCode || name !== iosName) {
+      console.log(
+        `\n⚠️  DESPAREADO com o iOS:\n` +
+        `    Android: versionCode ${code} / versionName ${name}\n` +
+        `    iOS:     build ${iosCode} / marketing ${iosName}\n` +
+        `    Ajuste os dois pro mesmo valor antes de enviar.\n`
+      );
+    }
+  } catch { /* iOS não checado */ }
 
-  fs.writeFileSync(BUILD_GRADLE_PATH, updated, "utf8");
-  console.log(`\nversionCode: ${oldCode} → ${newCode}`);
-  if (novoNome) console.log(`versionName: ${nameMatch[1]}.${nameMatch[2]} → ${novoNome}`);
-  else console.log("versionName mantido (formato fora do padrão maior.menor)");
-
-  return { newCode, novoNome };
+  console.log(`\nversionCode ${code} / versionName ${name} (deve bater com o iOS)`);
+  return { newCode: code, novoNome: name };
 }
 
 /**
@@ -113,7 +120,7 @@ function findJavaHome() {
 function main() {
   console.log("=== Gerando nova versão Android para a Play Store ===");
 
-  const { newCode: newVersionCode, novoNome } = bumpVersion();
+  const { newCode: newVersionCode, novoNome } = readVersion();
 
   // Sem isso, uma dependência nova que veio no git pull derruba o build com
   // "Rollup failed to resolve import" — o package.json lista a biblioteca, mas
