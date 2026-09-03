@@ -20,6 +20,7 @@ export default function ClientEdit() {
 
   const [formData, setFormData] = useState({
     name: '',
+    nome_fantasia: '',
     cnpj: '',
     address: '',
     phone: '',
@@ -55,6 +56,7 @@ export default function ClientEdit() {
         if (cached) {
           setFormData({
             name: cached.name || '',
+            nome_fantasia: cached.nome_fantasia || '',
             cnpj: cached.cnpj || '',
             address: cached.address || '',
             phone: cached.phone || '',
@@ -79,6 +81,7 @@ export default function ClientEdit() {
       if (data) {
         setFormData({
           name: data.name || '',
+          nome_fantasia: data.nome_fantasia || '',
           cnpj: data.cnpj || '',
           address: data.address || '',
           phone: data.phone || '',
@@ -168,7 +171,7 @@ export default function ClientEdit() {
       <div className="bg-white dark:bg-zinc-900 rounded-[32px] border border-slate-200 dark:border-zinc-800 shadow-sm p-8">
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
-            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Nome da Empresa</label>
+            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Razão Social</label>
             <div className="relative">
               <Building2 className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
               <input
@@ -176,7 +179,21 @@ export default function ClientEdit() {
                 value={formData.name}
                 onChange={e => setFormData({ ...formData, name: e.target.value })}
                 className="w-full pl-16 pr-6 py-5 bg-slate-50 dark:bg-zinc-950 border border-slate-100 dark:border-zinc-800 rounded-2xl text-sm font-bold outline-none focus:border-emerald-500 transition-colors text-slate-900 dark:text-zinc-100"
-                placeholder="Nome da empresa..."
+                placeholder="Razão social (nome legal)..."
+              />
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Nome Fantasia</label>
+            <div className="relative">
+              <Building2 className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
+              <input
+                type="text"
+                value={formData.nome_fantasia}
+                onChange={e => setFormData({ ...formData, nome_fantasia: e.target.value })}
+                className="w-full pl-16 pr-6 py-5 bg-slate-50 dark:bg-zinc-950 border border-slate-100 dark:border-zinc-800 rounded-2xl text-sm font-bold outline-none focus:border-emerald-500 transition-colors text-slate-900 dark:text-zinc-100"
+                placeholder="Apelido comercial (opcional)..."
               />
             </div>
           </div>

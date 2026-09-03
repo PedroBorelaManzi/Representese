@@ -11,6 +11,7 @@ import { offlineCache } from '../lib/offlineCache';
 
 interface ParsedClient {
   name: string;
+  nomeFantasia?: string;
   cnpj: string;
   address: string;
   city: string;
@@ -20,6 +21,8 @@ interface ParsedClient {
   lat?: number;
   lng?: number;
 }
+
+const fmtCnpj = (c: string) => c.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5");
 
 interface ImportStep {
   step: 1 | 2 | 3 | 4;
@@ -70,7 +73,8 @@ export default function ClientImportModal({ isOpen, onClose, onImportComplete }:
         skipEmptyLines: true,
         complete: (results: any) => {
           const clients = results.data.map((row: any) => ({
-            name: (row.name || row.Name || row.empresa || row.Empresa || '').trim(),
+            name: (row.name || row.Name || row.empresa || row.Empresa || row['razao social'] || row['Razão Social'] || '').trim(),
+            nomeFantasia: (row.fantasia || row.Fantasia || row['nome fantasia'] || row['Nome Fantasia'] || '').trim(),
             cnpj: (row.cnpj || row.CNPJ || '').trim(),
             address: (row.address || row.Address || row.endereco || row.Endereco || '').trim(),
             city: (row.city || row.City || row.cidade || row.Cidade || '').trim(),
@@ -78,7 +82,7 @@ export default function ClientImportModal({ isOpen, onClose, onImportComplete }:
             phone: (row.phone || row.Phone || row.telefone || row.Telefone || '').trim(),
             email: (row.email || row.Email || '').trim(),
           }));
-          resolve(clients.filter(c => c.name && c.cnpj));
+          resolve(clients.filter(c => c.cnpj));
         },
       });
     });
@@ -98,7 +102,8 @@ export default function ClientImportModal({ isOpen, onClose, onImportComplete }:
 
     worksheet.getRow(1).eachCell((cell, colNumber) => {
       const header = (cell.value || '').toString().toLowerCase();
-      if (header.includes('name') || header.includes('empresa')) headers.name = colNumber;
+      if (header.includes('name') || header.includes('empresa') || header.includes('razã') || header.includes('razao')) headers.name = colNumber;
+      if (header.includes('fantasia')) headers.fantasia = colNumber;
       if (header.includes('cnpj')) headers.cnpj = colNumber;
       if (header.includes('address') || header.includes('endereco')) headers.address = colNumber;
       if (header.includes('city') || header.includes('cidade')) headers.city = colNumber;
@@ -112,6 +117,7 @@ export default function ClientImportModal({ isOpen, onClose, onImportComplete }:
 
       const client: ParsedClient = {
         name: (row.getCell(headers.name)?.value || '').toString().trim(),
+        nomeFantasia: (row.getCell(headers.fantasia)?.value || '').toString().trim(),
         cnpj: (row.getCell(headers.cnpj)?.value || '').toString().trim(),
         address: (row.getCell(headers.address)?.value || '').toString().trim(),
         city: (row.getCell(headers.city)?.value || '').toString().trim(),
@@ -120,7 +126,7 @@ export default function ClientImportModal({ isOpen, onClose, onImportComplete }:
         email: (row.getCell(headers.email)?.value || '').toString().trim(),
       };
 
-      if (client.name && client.cnpj) {
+      if (client.cnpj) {
         clients.push(client);
       }
     });
@@ -132,29 +138,66 @@ export default function ClientImportModal({ isOpen, onClose, onImportComplete }:
     if (!file) return;
 
     setIsProcessing(true);
+    const toastId = toast.loading('Lendo o arquivo…');
     try {
       let clients: ParsedClient[] = [];
       const fileName = file.name.toLowerCase();
+      const isSheet = fileName.endsWith('.csv') || fileName.endsWith('.xlsx') || fileName.endsWith('.xls') || file.type.includes('spreadsheet');
 
-      if (fileName.endsWith('.csv')) {
-        clients = await parseCSV(file);
-      } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls') || file.type.includes('spreadsheet')) {
-        clients = await parseExcel(file);
+      // 1) Planilha com colunas reconhecíveis (nome/CNPJ) → usa direto.
+      if (isSheet) {
+        clients = fileName.endsWith('.csv') ? await parseCSV(file) : await parseExcel(file);
+      }
+      const temNome = clients.filter((c) => c.name?.trim());
+
+      // 2) PDF, imagem, .txt, ou planilha que era só uma lista de CNPJs →
+      //    extrai os CNPJs do arquivo e busca cada um na Receita.
+      if (temNome.length === 0) {
+        toast.loading('Procurando CNPJs no arquivo…', { id: toastId });
+        const { parseFileForCnpjs } = await import('../lib/clientImport');
+        const { lookupCnpj } = await import('../lib/cnpjLookup');
+        const cnpjs = Array.from(new Set(await parseFileForCnpjs(file)));
+
+        if (cnpjs.length === 0) {
+          toast.error('Não encontrei clientes nem CNPJs nesse arquivo.', { id: toastId });
+          return;
+        }
+
+        clients = [];
+        for (let i = 0; i < cnpjs.length; i += 4) {
+          toast.loading(`Buscando dados na Receita… (${Math.min(i, cnpjs.length)}/${cnpjs.length})`, { id: toastId });
+          const parte = await Promise.all(
+            cnpjs.slice(i, i + 4).map(async (cnpj) => {
+              const f = await lookupCnpj(cnpj).catch(() => null);
+              return {
+                name: f?.name || f?.nomeFantasia || `CNPJ ${fmtCnpj(cnpj)}`,
+                nomeFantasia: f?.nomeFantasia || '',
+                cnpj,
+                address: f?.address || '',
+                city: f?.city || '',
+                state: f?.state || '',
+                phone: '',
+                email: '',
+              } as ParsedClient;
+            })
+          );
+          clients.push(...parte);
+        }
       } else {
-        toast.error('Formato de arquivo não suportado. Use CSV ou Excel.');
-        return;
+        clients = temNome;
       }
 
       if (clients.length === 0) {
-        toast.error('Nenhum cliente válido encontrado no arquivo.');
+        toast.error('Nenhum cliente válido encontrado no arquivo.', { id: toastId });
         return;
       }
 
+      toast.dismiss(toastId);
       setParsedClients(clients);
       setCurrentStep(2);
     } catch (error) {
       console.error('Erro ao processar arquivo:', error);
-      toast.error('Erro ao processar arquivo.');
+      toast.error('Erro ao processar arquivo.', { id: toastId });
     } finally {
       setIsProcessing(false);
     }
@@ -224,6 +267,7 @@ export default function ClientImportModal({ isOpen, onClose, onImportComplete }:
         const { error } = await supabase.from('clients').insert({
           user_id: user.id,
           name: client.name,
+          nome_fantasia: client.nomeFantasia || null,
           cnpj: client.cnpj,
           address: client.address,
           city: client.city,
@@ -350,20 +394,21 @@ export default function ClientImportModal({ isOpen, onClose, onImportComplete }:
                   <Upload className="w-12 h-12 mx-auto mb-3 text-slate-400" />
                   <p className="font-black text-slate-900 dark:text-zinc-100 text-lg mb-1">Arraste seu arquivo aqui</p>
                   <p className="text-sm text-slate-500 mb-3">ou clique para selecionar</p>
-                  <p className="text-xs text-slate-400">Suporta CSV e Excel (.xlsx, .xls)</p>
+                  <p className="text-xs text-slate-400">CSV, Excel, PDF, foto ou lista de CNPJs (.csv, .xlsx, .xls, .pdf, .txt, .jpg, .png)</p>
                 </div>
 
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".csv,.xlsx,.xls"
+                  accept=".csv,.xlsx,.xls,.pdf,.txt,image/*"
                   onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
                   className="hidden"
                 />
 
                 <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 rounded-xl p-4">
                   <p className="text-xs text-blue-800 dark:text-blue-200 font-medium">
-                    <strong>Formato esperado:</strong> O arquivo deve conter as colunas: Name/Empresa, CNPJ, Address/Endereco, City/Cidade, State/Estado, Phone/Telefone (opcional), Email (opcional)
+                    <strong>Planilha:</strong> colunas Empresa/Razão Social, CNPJ, Endereço, Cidade, Estado, Telefone, Email, Nome Fantasia (as extras são opcionais).<br />
+                    <strong>PDF / foto / lista de CNPJs:</strong> o sistema lê os CNPJs do arquivo e busca a razão social e o nome fantasia na Receita automaticamente.
                   </p>
                 </div>
               </motion.div>

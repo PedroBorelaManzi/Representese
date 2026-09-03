@@ -1,18 +1,20 @@
 // src/lib/cnpjLookup.ts
 //
-// Busca de dados de empresa por CNPJ na BrasilAPI — antes copiado e colado em
-// 3 lugares (duas vezes no CRM, uma vez no Mapa), cada um montando o nome e o
-// endereço na mão do jeito próprio. Centralizado aqui: se a BrasilAPI mudar o
-// formato da resposta um dia, é um lugar só pra corrigir.
+// Busca de dados de empresa por CNPJ. Centralizado aqui (antes copiado em 3
+// lugares). Estratégia: BrasilAPI primeiro; se ela falhar/limitar (429/5xx),
+// tenta de novo e cai pra minhareceita.org — assim um cliente não é salvo
+// "sem nome" só porque uma API estava fora do ar no momento.
 
 export interface CnpjLookupResult {
   cnpj: string;
+  /** Razão social (nome legal — é o que casa com a NF). Pode vir vazio se a
+   *  Receita não devolver; quem chama decide o que fazer. */
   name: string;
+  /** Nome fantasia / apelido comercial. "" quando não há. */
+  nomeFantasia: string;
   city: string;
   state: string;
   address: string;
-  /** Dados crus da Receita Federal, pra quem precisar de mais campos (ex.:
-   *  CEP e logradouro separados, usados pela geocodificação de alta precisão). */
   raw: {
     razaoSocial?: string;
     nomeFantasia?: string;
@@ -23,37 +25,68 @@ export interface CnpjLookupResult {
   };
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Normaliza a resposta (BrasilAPI e minhareceita.org usam os mesmos nomes de
+ *  campo da Receita Federal). */
+function normalize(cleanCnpj: string, data: any): CnpjLookupResult {
+  const razao = (data.razao_social || "").trim();
+  const fantasia = (data.nome_fantasia || "").trim();
+  const city = data.municipio || "";
+  const state = data.uf || "";
+  const address = `${data.logradouro || ""}, ${data.numero || "S/N"} - ${data.bairro || ""}, ${city} - ${state}`.trim();
+  return {
+    cnpj: cleanCnpj,
+    name: razao,
+    nomeFantasia: fantasia,
+    city,
+    state,
+    address,
+    raw: {
+      razaoSocial: razao || undefined,
+      nomeFantasia: fantasia || undefined,
+      logradouro: data.logradouro || undefined,
+      numero: data.numero || undefined,
+      bairro: data.bairro || undefined,
+      cep: data.cep ? String(data.cep).replace(/\D/g, "") : undefined,
+    },
+  };
+}
+
+async function tryFetch(url: string): Promise<any | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    // BrasilAPI devolve 200 com `{ message, type }` em alguns erros
+    if (!data || (data.message && !data.razao_social)) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Busca um CNPJ na BrasilAPI. Devolve `null` se o CNPJ não tiver 14 dígitos
- * ou a API não encontrar nada — quem chama decide como tratar (usar nome
- * padrão, avisar o usuário, etc.), esta função não lança nem mostra toast.
+ * Busca um CNPJ. `null` só se: CNPJ inválido (≠ 14 dígitos) OU todas as fontes
+ * falharam. Um resultado com `name: ""` significa que a fonte respondeu mas não
+ * trouxe a razão social — quem chama deve pedir o nome ao usuário, não salvar
+ * "sem nome".
  */
 export async function lookupCnpj(rawCnpj: string): Promise<CnpjLookupResult | null> {
   const cleanCnpj = rawCnpj.replace(/\D/g, "");
   if (cleanCnpj.length !== 14) return null;
 
-  const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanCnpj}`);
-  if (!response.ok) return null;
+  const sources = [
+    `https://brasilapi.com.br/api/cnpj/v1/${cleanCnpj}`,
+    `https://brasilapi.com.br/api/cnpj/v1/${cleanCnpj}`, // 2ª tentativa (rate limit é frequente)
+    `https://minhareceita.org/${cleanCnpj}`,
+  ];
 
-  const data = await response.json();
-  const name = data.razao_social || data.nome_fantasia || "";
-  const city = data.municipio || "";
-  const state = data.uf || "";
-  const address = `${data.logradouro || ""}, ${data.numero || "S/N"} - ${data.bairro || ""}, ${city} - ${state}`.trim();
+  for (let i = 0; i < sources.length; i++) {
+    if (i > 0) await sleep(600);
+    const data = await tryFetch(sources[i]);
+    if (data) return normalize(cleanCnpj, data);
+  }
 
-  return {
-    cnpj: cleanCnpj,
-    name,
-    city,
-    state,
-    address,
-    raw: {
-      razaoSocial: data.razao_social,
-      nomeFantasia: data.nome_fantasia,
-      logradouro: data.logradouro,
-      numero: data.numero,
-      bairro: data.bairro,
-      cep: data.cep ? String(data.cep).replace(/\D/g, "") : undefined,
-    },
-  };
+  return null;
 }

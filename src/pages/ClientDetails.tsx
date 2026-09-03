@@ -582,6 +582,9 @@ export default function ClientDetails() {
             </div>
             <div>
               <h1 className="text-xl md:text-2xl font-black tracking-tight text-slate-900 dark:text-zinc-100">{toTitleCase(client.name || "")}</h1>
+              {client.nome_fantasia && client.nome_fantasia.toLowerCase() !== (client.name || "").toLowerCase() && (
+                <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">{toTitleCase(client.nome_fantasia)}</p>
+              )}
               <div className="flex items-center gap-4 mt-3">
                 {alertaAtual ? (
                   <span

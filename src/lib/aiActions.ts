@@ -327,32 +327,21 @@ export async function lookupCnpj(cnpj: string): Promise<{
   const clean = (cnpj || "").replace(/\D/g, "");
   if (clean.length !== 14) throw new Error("CNPJ inválido (precisa de 14 dígitos).");
 
-  const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${clean}`);
-  if (!res.ok) throw new Error("CNPJ não encontrado na Receita.");
-  const d = await res.json();
-
-  const streetType = d.tipo_logradouro ? `${d.tipo_logradouro} ` : "";
-  const street = `${streetType}${d.logradouro || ""}`.trim();
-  const number = d.numero || "S/N";
-  const neighborhood = d.bairro || "";
-  const city = d.municipio || "";
-  const state = d.uf || "";
-  const cep = (d.cep || "").replace(/\D/g, "");
-
-  const address = `${street}, ${number} - ${neighborhood}, ${city} - ${state}`
-    .replace(/\s+/g, " ")
-    .trim();
+  // Usa a busca compartilhada (BrasilAPI com retry + fallback pra minhareceita.org).
+  const { lookupCnpj: sharedLookup } = await import("./cnpjLookup");
+  const found = await sharedLookup(clean);
+  if (!found) throw new Error("Não consegui consultar o CNPJ agora (serviço fora do ar).");
 
   return {
-    name: d.razao_social || d.nome_fantasia || "",
-    fantasia: d.nome_fantasia || "",
-    address,
-    street,
-    number,
-    neighborhood,
-    city,
-    state,
-    cep,
+    name: found.name || found.nomeFantasia || "",
+    fantasia: found.nomeFantasia || "",
+    address: found.address,
+    street: found.raw.logradouro || "",
+    number: found.raw.numero || "S/N",
+    neighborhood: found.raw.bairro || "",
+    city: found.city,
+    state: found.state,
+    cep: found.raw.cep || "",
     cnpj: clean,
   };
 }
@@ -516,7 +505,7 @@ export async function commitCreateClient(
 
   const { data: inserted, error } = await supabase
     .from("clients")
-    .insert([{ user_id: userId, name, cnpj, address, city, state, lat, lng, status: "Ativo", last_contact: new Date().toISOString().slice(0, 10) }])
+    .insert([{ user_id: userId, name, nome_fantasia: fantasia || null, cnpj, address, city, state, lat, lng, status: "Ativo", last_contact: new Date().toISOString().slice(0, 10) }])
     .select("id, name")
     .single();
   if (error) throw error;

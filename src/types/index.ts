@@ -27,6 +27,8 @@ export interface Client {
   alerts?: Alert[];
   /** Nome da rede (matriz + filiais que compram por um lugar só) — cadastros com o mesmo nome de rede compartilham a atividade de compra nos alertas de inatividade. */
   network_name?: string | null;
+  /** Nome fantasia / apelido comercial (BrasilAPI). `name` é a razão social. */
+  nome_fantasia?: string | null;
 }
 
 export interface Order {

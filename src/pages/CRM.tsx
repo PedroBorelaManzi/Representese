@@ -166,18 +166,25 @@ export default function CRMPage() {
       const found = await lookupCnpj(cleanCnpj);
 
       if (!found) {
-        toast.error("CNPJ não encontrado ou erro na API.");
+        toast.error("Não consegui consultar o CNPJ agora (serviço fora do ar). Tente de novo em alguns segundos.");
         setIsSearchingCnpj(false);
         toast.dismiss(toastId);
         return;
       }
-      const clientData = { name: found.name || "Novo Cliente", city: found.city, address: found.address };
+
+      // Nunca salva "sem nome": razão social → nome fantasia → o próprio CNPJ.
+      const nomeCliente = found.name || found.nomeFantasia || `CNPJ ${cleanCnpj.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5")}`;
+      if (!found.name) {
+        toast.warning("O CNPJ foi encontrado, mas a Receita não devolveu a razão social. Confira o nome do cliente depois.");
+      }
+      const clientData = { name: nomeCliente, city: found.city, address: found.address };
 
       const coords = await getHighPrecisionCoordinates(clientData.address, clientData.name, cleanCnpj);
 
       const newClientData = {
         user_id: user.id,
         name: clientData.name,
+        nome_fantasia: found.nomeFantasia || null,
         cnpj: cleanCnpj,
         city: clientData.city,
         address: clientData.address,
@@ -265,20 +272,26 @@ export default function CRMPage() {
           try {
             const found = await lookupCnpj(cnpj);
             const clientData = found
-              ? { name: found.name || 'Cliente Importado', city: found.city, address: found.address }
-              : { name: `Cliente ${cnpj.substring(0, 4)}`, city: "", address: "" };
+              ? {
+                  name: found.name || found.nomeFantasia || `CNPJ ${cnpj.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5")}`,
+                  nome_fantasia: found.nomeFantasia || null,
+                  city: found.city,
+                  address: found.address,
+                }
+              : { name: `Cliente ${cnpj.substring(0, 4)}`, nome_fantasia: null, city: "", address: "" };
 
             const coords = await getHighPrecisionCoordinates(clientData.address, clientData.name, cnpj);
 
             let clientId = null;
             const existing = clients.find(c => c.cnpj === cnpj);
-            
+
             if (existing) {
               clientId = existing.id;
             } else {
               const { data, error: insertError } = await supabase.from('clients').insert([{
                 user_id: user.id,
                 name: clientData.name,
+                nome_fantasia: clientData.nome_fantasia,
                 cnpj: cnpj,
                 city: clientData.city,
                 address: clientData.address,
@@ -432,6 +445,11 @@ export default function CRMPage() {
                                </span>
                              )}
                           </div>
+                          {client.nome_fantasia && client.nome_fantasia.toLowerCase() !== (client.name || "").toLowerCase() && (
+                            <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 truncate mt-0.5" title="Nome fantasia">
+                              {toTitleCase(client.nome_fantasia)}
+                            </p>
+                          )}
                           <div className="flex items-center gap-2 mt-0.5">
                              <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-zinc-800 text-[8px] font-bold text-slate-500 dark:text-zinc-400 rounded-md uppercase whitespace-nowrap tracking-widest">
                                 {client.cnpj || 'Sem CNPJ'}
