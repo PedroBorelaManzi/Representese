@@ -51,6 +51,7 @@ export default function ClientImportModal({ isOpen, onClose, onImportComplete }:
   const [isProcessing, setIsProcessing] = useState(false);
   const [processedCount, setProcessedCount] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
+  const [parseProgress, setParseProgress] = useState<{ cur: number; total: number; label: string } | null>(null);
   const [importResults, setImportResults] = useState<{ success: number; failed: number; errors: string[] }>({
     success: 0,
     failed: 0,
@@ -138,68 +139,82 @@ export default function ClientImportModal({ isOpen, onClose, onImportComplete }:
     if (!file) return;
 
     setIsProcessing(true);
-    const toastId = toast.loading('Lendo o arquivo…');
+    setParseProgress({ cur: 0, total: 0, label: 'Lendo o arquivo…' });
     try {
       let clients: ParsedClient[] = [];
       const fileName = file.name.toLowerCase();
       const isSheet = fileName.endsWith('.csv') || fileName.endsWith('.xlsx') || fileName.endsWith('.xls') || file.type.includes('spreadsheet');
 
-      // 1) Planilha com colunas reconhecíveis (nome/CNPJ) → usa direto.
-      if (isSheet) {
-        clients = fileName.endsWith('.csv') ? await parseCSV(file) : await parseExcel(file);
-      }
-      const temNome = clients.filter((c) => c.name?.trim());
+      const { parseFileForCnpjs, parseFileForClients } = await import('../lib/clientImport');
+      const { lookupCnpj } = await import('../lib/cnpjLookup');
 
-      // 2) PDF, imagem, .txt, ou planilha que era só uma lista de CNPJs →
-      //    extrai os CNPJs do arquivo e busca cada um na Receita.
-      if (temNome.length === 0) {
-        toast.loading('Procurando CNPJs no arquivo…', { id: toastId });
-        const { parseFileForCnpjs } = await import('../lib/clientImport');
-        const { lookupCnpj } = await import('../lib/cnpjLookup');
-        const cnpjs = Array.from(new Set(await parseFileForCnpjs(file)));
-
-        if (cnpjs.length === 0) {
-          toast.error('Não encontrei clientes nem CNPJs nesse arquivo.', { id: toastId });
-          return;
-        }
-
-        clients = [];
-        for (let i = 0; i < cnpjs.length; i += 4) {
-          toast.loading(`Buscando dados na Receita… (${Math.min(i, cnpjs.length)}/${cnpjs.length})`, { id: toastId });
+      // Busca CNPJ na Receita em blocos de 4, alimentando a barra de progresso.
+      const enrichCnpjs = async (rows: { cnpj?: string; name?: string; city?: string; state?: string }[]): Promise<ParsedClient[]> => {
+        const out: ParsedClient[] = [];
+        setParseProgress({ cur: 0, total: rows.length, label: 'Buscando dados na Receita…' });
+        for (let i = 0; i < rows.length; i += 4) {
           const parte = await Promise.all(
-            cnpjs.slice(i, i + 4).map(async (cnpj) => {
-              const f = await lookupCnpj(cnpj).catch(() => null);
+            rows.slice(i, i + 4).map(async (r) => {
+              const f = r.cnpj && r.cnpj.length === 14 ? await lookupCnpj(r.cnpj).catch(() => null) : null;
+              const cnpj = r.cnpj && r.cnpj.length === 14 ? r.cnpj : '';
               return {
-                name: f?.name || f?.nomeFantasia || `CNPJ ${fmtCnpj(cnpj)}`,
+                name: f?.name || r.name?.trim() || f?.nomeFantasia || (cnpj ? `CNPJ ${fmtCnpj(cnpj)}` : 'Cliente'),
                 nomeFantasia: f?.nomeFantasia || '',
                 cnpj,
                 address: f?.address || '',
-                city: f?.city || '',
-                state: f?.state || '',
+                city: f?.city || r.city || '',
+                state: f?.state || r.state || '',
                 phone: '',
                 email: '',
               } as ParsedClient;
             })
           );
-          clients.push(...parte);
+          out.push(...parte);
+          setParseProgress({ cur: Math.min(i + 4, rows.length), total: rows.length, label: 'Buscando dados na Receita…' });
         }
-      } else {
+        return out;
+      };
+
+      // 1) Planilha com coluna de nome → usa direto (mas enriquece com a Receita se tiver CNPJ).
+      if (isSheet) {
+        clients = fileName.endsWith('.csv') ? await parseCSV(file) : await parseExcel(file);
+      }
+      const temNome = clients.filter((c) => c.name?.trim());
+
+      if (temNome.length > 0) {
         clients = temNome;
+      } else {
+        // 2) Qualquer arquivo → tenta achar CNPJs e buscar na Receita.
+        setParseProgress({ cur: 0, total: 0, label: 'Procurando CNPJs no arquivo…' });
+        const cnpjs = Array.from(new Set(await parseFileForCnpjs(file)));
+
+        if (cnpjs.length > 0) {
+          clients = await enrichCnpjs(cnpjs.map((cnpj) => ({ cnpj })));
+        } else {
+          // 3) Sem CNPJ → pede pro AI extrair a lista de clientes pelos nomes.
+          setParseProgress({ cur: 0, total: 0, label: 'Lendo a lista de clientes…' });
+          const rows = await parseFileForClients(file);
+          if (rows.length === 0) {
+            toast.error('Não consegui identificar clientes nem CNPJs nesse arquivo. Tente uma planilha com uma coluna "Empresa" ou "CNPJ".');
+            return;
+          }
+          clients = await enrichCnpjs(rows);
+        }
       }
 
       if (clients.length === 0) {
-        toast.error('Nenhum cliente válido encontrado no arquivo.', { id: toastId });
+        toast.error('Nenhum cliente válido encontrado no arquivo.');
         return;
       }
 
-      toast.dismiss(toastId);
       setParsedClients(clients);
       setCurrentStep(2);
     } catch (error) {
       console.error('Erro ao processar arquivo:', error);
-      toast.error('Erro ao processar arquivo.', { id: toastId });
+      toast.error('Erro ao processar arquivo.');
     } finally {
       setIsProcessing(false);
+      setParseProgress(null);
     }
   };
 
@@ -258,9 +273,12 @@ export default function ClientImportModal({ isOpen, onClose, onImportComplete }:
 
     setCurrentStep(4);
     setIsProcessing(true);
+    setTotalCount(clients.length);
+    setProcessedCount(0);
     let successCount = 0;
     let failCount = 0;
     const errors: string[] = [];
+    let done = 0;
 
     for (const client of clients) {
       try {
@@ -268,7 +286,7 @@ export default function ClientImportModal({ isOpen, onClose, onImportComplete }:
           user_id: user.id,
           name: client.name,
           nome_fantasia: client.nomeFantasia || null,
-          cnpj: client.cnpj,
+          cnpj: client.cnpj || null,
           address: client.address,
           city: client.city,
           state: client.state,
@@ -289,6 +307,7 @@ export default function ClientImportModal({ isOpen, onClose, onImportComplete }:
         failCount++;
         errors.push(`${client.name}: ${error.message}`);
       }
+      setProcessedCount(++done);
     }
 
     setImportResults({ success: successCount, failed: failCount, errors });
@@ -379,6 +398,29 @@ export default function ClientImportModal({ isOpen, onClose, onImportComplete }:
                 exit={{ opacity: 0, y: -20 }}
                 className="space-y-4"
               >
+                {isProcessing && parseProgress ? (
+                  <div className="border-2 border-dashed border-emerald-300 dark:border-emerald-800 rounded-2xl p-8 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin text-emerald-600" /> {parseProgress.label}
+                      </p>
+                      {parseProgress.total > 0 && (
+                        <p className="text-sm font-black text-emerald-600 tabular-nums">
+                          {parseProgress.cur}/{parseProgress.total}
+                        </p>
+                      )}
+                    </div>
+                    <div className="w-full bg-slate-200 dark:bg-zinc-800 rounded-full h-2 overflow-hidden">
+                      <div
+                        className={cn(
+                          'bg-emerald-500 h-2 rounded-full transition-all',
+                          parseProgress.total === 0 && 'animate-pulse w-1/3'
+                        )}
+                        style={parseProgress.total > 0 ? { width: `${(parseProgress.cur / parseProgress.total) * 100}%` } : undefined}
+                      />
+                    </div>
+                  </div>
+                ) : (
                 <div
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
@@ -396,6 +438,7 @@ export default function ClientImportModal({ isOpen, onClose, onImportComplete }:
                   <p className="text-sm text-slate-500 mb-3">ou clique para selecionar</p>
                   <p className="text-xs text-slate-400">CSV, Excel, PDF, foto ou lista de CNPJs (.csv, .xlsx, .xls, .pdf, .txt, .jpg, .png)</p>
                 </div>
+                )}
 
                 <input
                   ref={fileInputRef}
@@ -516,8 +559,21 @@ export default function ClientImportModal({ isOpen, onClose, onImportComplete }:
               </motion.div>
             )}
 
-            {/* Step 4: Complete */}
-            {currentStep === 4 && (
+            {/* Step 4: Complete (ou salvando) */}
+            {currentStep === 4 && isProcessing && (
+              <motion.div key="step4-saving" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-emerald-600" /> Salvando clientes…
+                  </p>
+                  <p className="text-sm font-black text-emerald-600 tabular-nums">{processedCount}/{totalCount}</p>
+                </div>
+                <div className="w-full bg-slate-200 dark:bg-zinc-800 rounded-full h-2 overflow-hidden">
+                  <div className="bg-emerald-500 h-2 rounded-full transition-all" style={{ width: `${totalCount ? (processedCount / totalCount) * 100 : 0}%` }} />
+                </div>
+              </motion.div>
+            )}
+            {currentStep === 4 && !isProcessing && (
               <motion.div
                 key="step4"
                 initial={{ opacity: 0, y: 20 }}

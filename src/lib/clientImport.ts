@@ -46,55 +46,102 @@ function fileToBase64(file: File): Promise<string> {
 
 
 
-async function processWithGemini(file: File): Promise<string[]> {
-  const prompt = "ATENÇÃO: Extraia os números de CNPJ (14 dígitos) apenas dos CLIENTES/COMPRADORES contidos neste documento. Ignore o CNPJ da Fábrica/Emissor.\n  Retorne APENAS um Array JSON puro: [\"12345678000199\", \"98765432000111\"]";
-
+/** Conteúdo do arquivo pronto pro Gemini: texto (planilha/pdf/txt) OU imagem. */
+async function fileContentForAI(
+  file: File
+): Promise<{ text?: string; imageData?: string; imageMimeType?: string; detected: Awaited<ReturnType<typeof detectFileType>> }> {
   const detected = await detectFileType(file);
-
-  try {
-    let imageData: string | undefined;
-    let imageMimeType: string | undefined;
-    let fullPrompt = prompt;
-
-    if (detected.type === 'image') {
-      imageData = await fileToBase64(file);
-      imageMimeType = detected.mimeType || 'image/jpeg';
-    } else {
-      let text = "";
-      if (detected.type === 'excel') {
-        const buffer = await file.arrayBuffer();
-        const { default: ExcelJS } = await import('exceljs'); // ~940 kB: só carrega quando o usuário importa/exporta planilha
-        const workbook = new ExcelJS.Workbook();
-        await workbook.xlsx.load(buffer);
-        workbook.worksheets.forEach(worksheet => {
-          worksheet.eachRow(row => {
-             const rowValues = Array.isArray(row.values) ? row.values.slice(1).join(',') : '';
-             text += rowValues + '\n';
-          });
-        });
-      } else if (detected.type === 'pdf') {
-        const pages = await extractTextFromPDF(file);
-        text = pages.join('\n');
-      } else {
-        text = await file.text();
-      }
-      fullPrompt = prompt + "\n\nConteúdo:\n" + text.substring(0, 30000);
-    }
-
-    const parts: Array<{ text?: string; inlineData?: { data: string; mimeType: string } }> = [{ text: fullPrompt }];
-    if (imageData && imageMimeType) {
-      parts.push({ inlineData: { data: imageData, mimeType: imageMimeType } });
-    }
-
-    const resText = await callGeminiProxy({
-      contents: [{ role: "user", parts }],
-      model: "gemini-2.5-flash",
+  if (detected.type === 'image') {
+    return { imageData: await fileToBase64(file), imageMimeType: detected.mimeType || 'image/jpeg', detected };
+  }
+  let text = "";
+  if (detected.type === 'excel') {
+    const buffer = await file.arrayBuffer();
+    const { default: ExcelJS } = await import('exceljs');
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
+    workbook.worksheets.forEach((worksheet) => {
+      worksheet.eachRow((row) => {
+        text += (Array.isArray(row.values) ? row.values.slice(1).join(',') : '') + '\n';
+      });
     });
-    const cleaned = resText.replace(/```json/g, "").replace(/```/g, "").trim();
-    const cnpjs = JSON.parse(cleaned);
-    return Array.isArray(cnpjs) ? cnpjs.map(String).map(s => s.replace(/\D/g, '')).filter(s => s.length === 14) : [];
-  } catch (error) {
+  } else if (detected.type === 'pdf') {
+    text = (await extractTextFromPDF(file)).join('\n');
+  } else {
+    text = await file.text();
+  }
+  return { text: text.substring(0, 30000), detected };
+}
+
+async function askGemini(parts: Array<{ text?: string; inlineData?: { data: string; mimeType: string } }>): Promise<any> {
+  const resText = await callGeminiProxy({ contents: [{ role: "user", parts }], model: "gemini-2.5-flash" });
+  return JSON.parse(resText.replace(/```json/g, "").replace(/```/g, "").trim());
+}
+
+async function processWithGemini(file: File): Promise<string[]> {
+  const prompt =
+    "ATENÇÃO: Extraia os números de CNPJ (14 dígitos) apenas dos CLIENTES/COMPRADORES contidos neste documento. Ignore o CNPJ da Fábrica/Emissor.\n" +
+    'Retorne APENAS um Array JSON puro: ["12345678000199", "98765432000111"]';
+  const { text, imageData, imageMimeType, detected } = await fileContentForAI(file);
+  try {
+    const parts: Array<{ text?: string; inlineData?: { data: string; mimeType: string } }> = [
+      { text: imageData ? prompt : `${prompt}\n\nConteúdo:\n${text}` },
+    ];
+    if (imageData && imageMimeType) parts.push({ inlineData: { data: imageData, mimeType: imageMimeType } });
+    const cnpjs = await askGemini(parts);
+    return Array.isArray(cnpjs) ? cnpjs.map(String).map((s) => s.replace(/\D/g, '')).filter((s) => s.length === 14) : [];
+  } catch {
     if (detected.type === 'pdf') return extractCnpjsFallbackFromPDF(file);
+    return [];
+  }
+}
+
+export interface ImportedClientRow {
+  name: string;
+  cnpj?: string;
+  city?: string;
+  state?: string;
+}
+
+/**
+ * Extrai uma LISTA DE CLIENTES de qualquer arquivo (planilha, PDF, foto, txt) —
+ * pra quando o documento tem os nomes dos clientes mas nenhum CNPJ (ex.: um
+ * relatório de entregas ou uma lista de lojas). Devolve nome + cidade/UF +
+ * CNPJ quando aparecer. Deduplica por nome.
+ */
+export async function parseFileForClients(file: File): Promise<ImportedClientRow[]> {
+  const prompt =
+    "Este documento contém uma lista de CLIENTES/COMPRADORES (lojas, empresas, redes) de um representante comercial. " +
+    "Extraia CADA cliente distinto. Para cada um devolva: name (o nome mais específico do cliente/loja, sem o nome da fábrica/emissor), " +
+    "cnpj (só se aparecer no documento, 14 dígitos, senão omita), city e state (UF de 2 letras) se der pra inferir do texto. " +
+    "Ignore linhas de cabeçalho, totais e o emissor. Deduplique. " +
+    'Retorne APENAS um Array JSON: [{"name":"...","cnpj":"...","city":"...","state":"SP"}]';
+  try {
+    const { text, imageData, imageMimeType } = await fileContentForAI(file);
+    const parts: Array<{ text?: string; inlineData?: { data: string; mimeType: string } }> = [
+      { text: imageData ? prompt : `${prompt}\n\nConteúdo:\n${text}` },
+    ];
+    if (imageData && imageMimeType) parts.push({ inlineData: { data: imageData, mimeType: imageMimeType } });
+    const rows = await askGemini(parts);
+    if (!Array.isArray(rows)) return [];
+    const seen = new Set<string>();
+    const out: ImportedClientRow[] = [];
+    for (const r of rows) {
+      const name = String(r?.name || "").trim();
+      if (!name) continue;
+      const key = name.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const cnpj = String(r?.cnpj || "").replace(/\D/g, "");
+      out.push({
+        name,
+        cnpj: cnpj.length === 14 ? cnpj : undefined,
+        city: (r?.city && String(r.city).trim()) || undefined,
+        state: (r?.state && String(r.state).trim().toUpperCase().slice(0, 2)) || undefined,
+      });
+    }
+    return out;
+  } catch {
     return [];
   }
 }
