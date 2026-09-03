@@ -7,14 +7,16 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
 import { PageHeader } from "../components/ui";
-import { InlineEditField } from "../components/InlineEditField";
 import { OrderDetailModal } from "../components/OrderDetailModal";
-import { NfCommissionStatusDot, type NfCommissionStatus } from "../components/NfCommissionStatusDot";
+import type { NfCommissionStatus } from "../components/NfCommissionStatusDot";
 import { ExportDeliveriesButton } from "../components/ExportDeliveriesButton";
+import { OrdersTable } from "../components/OrdersTable";
+import { OrderCard } from "../components/OrderCard";
+import { OrdersViewToggle } from "../components/OrdersViewToggle";
+import { useOrdersView } from "../hooks/useOrdersView";
 import type { DeliveryReportRow } from "../lib/deliveriesExport";
 import type { Order } from "../types";
 
-const formatBRL = (n: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0);
 
 /** Área "Entregas" — mesma lista de pedidos de Pedidos.tsx/Empresas.tsx, só
  *  que com foco no acompanhamento pós-venda: entrega, NF e faturamento,
@@ -29,6 +31,7 @@ export default function EntregasPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [deliveryFilter, setDeliveryFilter] = useState<"all" | "delivered" | "pending" | "no_date">("all");
+  const [ordersView, setOrdersView] = useOrdersView();
 
   const companies = useMemo(() => (settings?.categories || []).filter((c) => c && c.trim()), [settings?.categories]);
   const [configOpen, setConfigOpen] = useState(false);
@@ -172,6 +175,7 @@ export default function EntregasPage() {
         subtitle="Entrega, NF e faturamento de cada pedido"
         actions={
           <div className="flex items-center gap-2 flex-wrap">
+            <OrdersViewToggle value={ordersView} onChange={setOrdersView} />
             <ExportDeliveriesButton rows={reportRows} filterLabel={filterLabel} />
             <button
               onClick={() => setConfigOpen(true)}
@@ -228,115 +232,31 @@ export default function EntregasPage() {
 
         {loading ? (
           <div className="py-20 flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-slate-300" /></div>
+        ) : ordersView === "list" ? (
+          <div className="flex-1 overflow-y-auto custom-scrollbar">
+            <OrdersTable
+              flush
+              orders={filteredOrders}
+              onSelectOrder={setSelectedOrder}
+              saveField={saveOrderField as any}
+              onNfStatusChange={saveNfStatus}
+            />
+          </div>
         ) : (
-          <>
-            <div className="hidden md:block flex-1 overflow-x-auto custom-scrollbar">
-              <div className="min-w-[1150px]">
-                <div className="grid grid-cols-12 px-8 py-6 border-b border-slate-50 dark:border-zinc-850 bg-slate-50/10 dark:bg-zinc-900 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  <div className="col-span-3">Pedido</div>
-                  <div className="col-span-1">Data</div>
-                  <div className="col-span-2">Data de entrega</div>
-                  <div className="col-span-2">Agenda da entrega</div>
-                  <div className="col-span-2 text-right">Valor</div>
-                  <div className="col-span-1">Nº NF</div>
-                  <div className="col-span-1">Faturamento</div>
-                </div>
-                <div className="divide-y divide-slate-50 dark:divide-zinc-850">
-                  {filteredOrders.length === 0 ? (
-                    <div className="py-20 text-center flex flex-col items-center justify-center gap-4 opacity-50">
-                      <Truck className="w-12 h-12 text-slate-200" />
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">Nenhum pedido encontrado</p>
-                    </div>
-                  ) : (
-                    filteredOrders.map((order, i) => (
-                      <motion.div
-                        key={order.id}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: Math.min(i * 0.03, 0.6) }}
-                        className="grid grid-cols-12 px-8 py-5 hover:bg-slate-50 dark:hover:bg-zinc-900/40 transition-all items-center"
-                      >
-                        <button onClick={() => setSelectedOrder(order)} className="col-span-3 text-left min-w-0 pr-2 group">
-                          <p className="text-xs font-black text-slate-900 dark:text-zinc-100 uppercase tracking-tight truncate group-hover:text-emerald-600 transition-colors">
-                            {order.client?.name || "Cliente desconhecido"}
-                          </p>
-                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest truncate mt-0.5">{order.category}</p>
-                        </button>
-                        <div className="col-span-1 text-xs">
-                          <InlineEditField type="date" value={order.created_at} onSave={saveOrderField(order, "created_at")} label="Data do pedido" />
-                        </div>
-                        <div className="col-span-2 text-xs">
-                          <InlineEditField type="date" value={order.delivery_date} onSave={saveOrderField(order, "delivery_date")} label="Data de entrega" />
-                        </div>
-                        <div className="col-span-2 text-xs">
-                          <InlineEditField type="text" value={order.delivery_schedule} onSave={saveOrderField(order, "delivery_schedule")} label="Agenda da entrega" placeholder="Ex.: manhã, 14h..." />
-                        </div>
-                        <div className="col-span-2 text-xs text-right">
-                          <InlineEditField type="currency" value={order.value} onSave={saveOrderField(order, "value")} label="Valor do pedido" className="justify-end" />
-                        </div>
-                        <div className="col-span-1 text-xs flex items-center gap-1.5">
-                          <NfCommissionStatusDot status={order.nf_commission_status} onChange={(s) => saveNfStatus(order, s)} />
-                          <InlineEditField type="text" value={order.nf_number} onSave={saveOrderField(order, "nf_number")} label="Número da NF" placeholder="NF" />
-                        </div>
-                        <div className="col-span-1 text-xs">
-                          <InlineEditField type="date" value={order.invoice_date} onSave={saveOrderField(order, "invoice_date")} label="Data de faturamento" />
-                        </div>
-                      </motion.div>
-                    ))
-                  )}
-                </div>
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 pb-12">
+            {filteredOrders.length === 0 ? (
+              <div className="py-16 text-center flex flex-col items-center justify-center gap-4 opacity-50">
+                <Truck className="w-12 h-12 text-slate-200" />
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">Nenhum pedido encontrado</p>
               </div>
-            </div>
-
-            <div className="md:hidden flex-1 overflow-y-auto p-4 space-y-4 pb-12">
-              {filteredOrders.length === 0 ? (
-                <div className="py-16 text-center flex flex-col items-center justify-center gap-4 opacity-50">
-                  <Truck className="w-12 h-12 text-slate-200" />
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">Nenhum pedido encontrado</p>
-                </div>
-              ) : (
-                filteredOrders.map((order, i) => (
-                  <motion.div
-                    key={order.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: Math.min(i * 0.03, 0.6) }}
-                    className="bg-white dark:bg-zinc-900 p-5 rounded-[28px] border border-slate-100 dark:border-zinc-800 shadow-sm flex flex-col gap-3"
-                  >
-                    <button onClick={() => setSelectedOrder(order)} className="text-left">
-                      <p className="text-xs font-black text-slate-900 dark:text-zinc-100 uppercase truncate">{order.client?.name || "Cliente desconhecido"}</p>
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{order.category} · {formatBRL(order.value)}</p>
-                    </button>
-                    <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-50 dark:border-zinc-800">
-                      <div>
-                        <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1">Data</p>
-                        <InlineEditField type="date" value={order.created_at} onSave={saveOrderField(order, "created_at")} label="Data do pedido" />
-                      </div>
-                      <div>
-                        <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1">Entrega</p>
-                        <InlineEditField type="date" value={order.delivery_date} onSave={saveOrderField(order, "delivery_date")} label="Data de entrega" />
-                      </div>
-                      <div className="col-span-2">
-                        <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1">Agenda da entrega</p>
-                        <InlineEditField type="text" value={order.delivery_schedule} onSave={saveOrderField(order, "delivery_schedule")} label="Agenda da entrega" placeholder="Ex.: manhã, 14h..." />
-                      </div>
-                      <div>
-                        <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1">Nº NF</p>
-                        <div className="flex items-center gap-1.5">
-                          <NfCommissionStatusDot status={order.nf_commission_status} onChange={(s) => saveNfStatus(order, s)} />
-                          <InlineEditField type="text" value={order.nf_number} onSave={saveOrderField(order, "nf_number")} label="Número da NF" placeholder="NF" />
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1">Faturamento</p>
-                        <InlineEditField type="date" value={order.invoice_date} onSave={saveOrderField(order, "invoice_date")} label="Data de faturamento" />
-                      </div>
-                    </div>
-                  </motion.div>
-                ))
-              )}
-            </div>
-          </>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
+                {filteredOrders.map((order) => (
+                  <OrderCard key={order.id} order={order} onSelectOrder={setSelectedOrder} saveField={saveOrderField as any} />
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
 
