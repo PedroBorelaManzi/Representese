@@ -166,7 +166,10 @@ export default function EmpresasPage() {
   };
 
   const saveOrderField = (order: any, field: keyof OrderType) => async (rawValue: string) => {
-    const value = field === "value" ? (parseFloat(rawValue) || 0) : (rawValue || null);
+    let value: string | number | null;
+    if (field === "value") value = parseFloat(rawValue) || 0;
+    else if (field === "delivery_pct") value = Math.min(100, Math.max(0, Math.round(parseFloat(rawValue) || 0)));
+    else value = rawValue || null;
     const { error } = await supabase.from("orders").update({ [field]: value }).eq("id", order.id);
     if (error) throw error;
     patchOrder(order.id, { [field]: value } as Partial<OrderType>);

@@ -47,6 +47,8 @@ export interface Order {
   delivery_date?: string | null;
   /** Texto livre sobre como/quando a entrega foi combinada — complementa delivery_date. */
   delivery_schedule?: string | null;
+  /** % do pedido que foi de fato entregue (0-100). Default 100. */
+  delivery_pct?: number | null;
   nf_number?: string | null;
   /** Controle de baixa da comissão dessa NF — null = ainda não definido. */
   nf_commission_status?: "atrasado" | "pendente" | "confirmado" | null;

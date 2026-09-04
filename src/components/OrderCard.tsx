@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { UserCog, Truck, ArrowUpRight } from "lucide-react";
 import { InlineEditField } from "./InlineEditField";
 import { brl } from "../lib/format";
+import { cn } from "../lib/utils";
 
 type SaveField = (order: any, field: string) => (value: string) => Promise<void> | void;
 
@@ -66,6 +67,10 @@ export function OrderCard({
         <div className="flex items-center gap-1.5">
           <span>NF:</span>
           <InlineEditField type="text" value={order.nf_number} onSave={saveField(order, "nf_number")} label="Número da NF" placeholder="NF" />
+        </div>
+        <div className={cn("flex items-center gap-1.5", (order.delivery_pct ?? 100) < 100 && "text-amber-600 dark:text-amber-400")}>
+          <span>Entregue:</span>
+          <InlineEditField type="percent" value={order.delivery_pct ?? 100} onSave={saveField(order, "delivery_pct")} label="Percentual entregue" />
         </div>
       </div>
       <div className="mt-2 flex items-start gap-1.5 relative z-10 text-[8px] md:text-[9px] font-black text-slate-400 uppercase tracking-widest">

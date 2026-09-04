@@ -3,7 +3,7 @@ import { Pencil, Loader2 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { toast } from "sonner";
 
-type FieldType = "date" | "text" | "currency" | "textarea";
+type FieldType = "date" | "text" | "currency" | "textarea" | "percent";
 
 interface InlineEditFieldProps {
   /** ISO date ("2026-08-26"/timestamp), texto puro, ou número — conforme `type`. */
@@ -39,6 +39,10 @@ const displayValue = (value: InlineEditFieldProps["value"], type: FieldType): st
   if (type === "currency") {
     const n = typeof value === "number" ? value : parseFloat(String(value));
     return isFinite(n) ? formatBRL(n) : "—";
+  }
+  if (type === "percent") {
+    const n = typeof value === "number" ? value : parseFloat(String(value));
+    return isFinite(n) ? `${Math.round(n)}%` : "—";
   }
   return String(value);
 };
@@ -103,8 +107,10 @@ export function InlineEditField({ value, type, onSave, placeholder, className, l
     return (
       <input
         ref={inputRef}
-        type={type === "date" ? "date" : type === "currency" ? "number" : "text"}
-        step={type === "currency" ? "0.01" : undefined}
+        type={type === "date" ? "date" : (type === "currency" || type === "percent") ? "number" : "text"}
+        step={type === "currency" ? "0.01" : type === "percent" ? "1" : undefined}
+        min={type === "percent" ? 0 : undefined}
+        max={type === "percent" ? 100 : undefined}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}

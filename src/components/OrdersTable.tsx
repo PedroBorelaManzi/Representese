@@ -42,7 +42,7 @@ export function OrdersTable({ orders, onSelectOrder, saveField, emptyLabel = "Ne
       className
     )}>
       <div className="overflow-x-auto custom-scrollbar">
-        <table className="w-full min-w-[1360px] border-collapse">
+        <table className="w-full min-w-[1480px] border-collapse">
           <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-zinc-950/80 backdrop-blur border-b border-slate-200 dark:border-zinc-800">
             <tr>
               <th className={TH}>Representada</th>
@@ -52,6 +52,7 @@ export function OrdersTable({ orders, onSelectOrder, saveField, emptyLabel = "Ne
               <th className={TH}>Agenda de entrega</th>
               <th className={TH}>Data da entrega</th>
               <th className={cn(TH, "min-w-[220px]")}>Observação</th>
+              <th className={TH}>% entrega</th>
               <th className={cn(TH, "text-right")}>Valor</th>
               <th className={TH}>Digitado por</th>
               <th className={TH}>Nº da NF</th>
@@ -60,7 +61,7 @@ export function OrdersTable({ orders, onSelectOrder, saveField, emptyLabel = "Ne
           <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/70">
             {orders.length === 0 ? (
               <tr>
-                <td colSpan={10} className="px-4 py-16 text-center text-[11px] font-black text-slate-400 uppercase tracking-widest">
+                <td colSpan={11} className="px-4 py-16 text-center text-[11px] font-black text-slate-400 uppercase tracking-widest">
                   {emptyLabel}
                 </td>
               </tr>
@@ -99,6 +100,11 @@ export function OrdersTable({ orders, onSelectOrder, saveField, emptyLabel = "Ne
                     </td>
                     <td className={cn(TD, "min-w-[220px] max-w-[320px]")}>
                       <InlineEditField type="textarea" value={order.notes} onSave={saveField(order, "notes")} label="Observação" placeholder="Sem observação" className="font-medium" />
+                    </td>
+                    <td className={cn(TD, "font-bold whitespace-nowrap")}>
+                      <span className={cn((order.delivery_pct ?? 100) < 100 && "text-amber-600 dark:text-amber-400")}>
+                        <InlineEditField type="percent" value={order.delivery_pct ?? 100} onSave={saveField(order, "delivery_pct")} label="Percentual entregue" />
+                      </span>
                     </td>
                     <td className={cn(TD, "text-right font-black tabular-nums whitespace-nowrap")}>
                       <InlineEditField type="currency" value={order.value} onSave={saveField(order, "value")} label="Valor do pedido" className="justify-end" />
