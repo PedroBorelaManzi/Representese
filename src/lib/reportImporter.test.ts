@@ -7,6 +7,8 @@ import {
   normalizeName,
   orderDateToTimestamp,
   isMatrizCnpj,
+  agruparPorPedido,
+  type ParsedReportRow,
 } from "./reportImporter";
 
 /**
@@ -174,5 +176,93 @@ describe("orderDateToTimestamp", () => {
     expect(d.getDate()).toBe(1);
     expect(d.getMonth()).toBe(6); // julho
     expect(d.getHours()).toBe(12);
+  });
+});
+
+describe("agruparPorPedido", () => {
+  /** Linha mínima de teste — cada teste sobrescreve só o que importa. */
+  function linha(overrides: Partial<ParsedReportRow>): ParsedReportRow {
+    return {
+      orderNumber: "111",
+      date: "2026-08-14",
+      rawDate: "14/08/2026",
+      clientName: "Atacadão SP - 183",
+      values: [100],
+      ...overrides,
+    };
+  }
+
+  it("junta linhas do mesmo cliente (por CNPJ) com o mesmo nº de pedido, somando o valor", () => {
+    const grupos = agruparPorPedido([
+      linha({ cnpj: "75315333018318", orderNumber: "11906705", values: [33359.04], notes: "Trio Avelã" }),
+      linha({ cnpj: "75315333018318", orderNumber: "11906705", values: [33359.04], notes: "Trio Banana" }),
+      linha({ cnpj: "75315333018318", orderNumber: "11906705", values: [33359.04], notes: "Trio Brigadeiro" }),
+    ]);
+
+    expect(grupos).toHaveLength(1);
+    expect(grupos[0].values).toEqual([100077.12]);
+    expect(grupos[0].lineCount).toBe(3);
+    expect(grupos[0].notes).toBe("Trio Avelã; Trio Banana; Trio Brigadeiro");
+    // Com CNPJ, o nº do pedido fica limpo (sem sufixo) como order_number.
+    expect(grupos[0].dbOrderNumber).toBe("11906705");
+  });
+
+  it("NÃO junta pedidos diferentes do mesmo cliente (nºs de pedido diferentes)", () => {
+    const grupos = agruparPorPedido([
+      linha({ cnpj: "75315333018318", orderNumber: "11906705", values: [100], rawDate: "13/08/2026" }),
+      linha({ cnpj: "75315333018318", orderNumber: "11968460", values: [200], rawDate: "20/08/2026" }),
+    ]);
+
+    expect(grupos).toHaveLength(2);
+    expect(grupos.map((g) => g.values[0])).toEqual([100, 200]);
+  });
+
+  it("NÃO junta clientes diferentes que por acaso têm o mesmo nº de pedido", () => {
+    const grupos = agruparPorPedido([
+      linha({ cnpj: "75315333018318", orderNumber: "27870-205", clientName: "Cliente A", values: [100] }),
+      linha({ cnpj: "05800256005670", orderNumber: "27870-205", clientName: "Cliente B", values: [200] }),
+    ]);
+
+    expect(grupos).toHaveLength(2);
+  });
+
+  it("sem CNPJ, agrupa por nome normalizado + nº do pedido e desambigua o order_number", () => {
+    const grupos = agruparPorPedido([
+      linha({ cnpj: undefined, orderNumber: "27870-205", clientName: "Roldão SP", values: [50] }),
+      linha({ cnpj: undefined, orderNumber: "27870-205", clientName: "ROLDÃO SP", values: [60] }),
+    ]);
+
+    expect(grupos).toHaveLength(1);
+    expect(grupos[0].values).toEqual([110]);
+    // Sem CNPJ, o order_number ganha sufixo do nome — evita colidir com outro
+    // cliente que por coincidência tenha o mesmo "número" (ex.: parece CEP).
+    expect(grupos[0].dbOrderNumber).toContain("27870-205-");
+  });
+
+  it("soma cada coluna de valor separadamente (relatório em PDF com mais de uma coluna de dinheiro)", () => {
+    const grupos = agruparPorPedido([
+      linha({ cnpj: "1", orderNumber: "1", values: [10, 1, 11] }),
+      linha({ cnpj: "1", orderNumber: "1", values: [20, 2, 22] }),
+    ]);
+
+    expect(grupos[0].values).toEqual([30, 3, 33]);
+  });
+
+  it("relatório em PDF (já uma linha por pedido) não agrupa nada — cada linha vira um grupo", () => {
+    const grupos = agruparPorPedido([
+      linha({ cnpj: undefined, orderNumber: "1177699", clientName: "Wogel" }),
+      linha({ cnpj: undefined, orderNumber: "1179281", clientName: "Grantel" }),
+    ]);
+
+    expect(grupos).toHaveLength(2);
+  });
+
+  it("linha sem observação/nota não gera '; ' sobrando ao juntar com uma que tem", () => {
+    const grupos = agruparPorPedido([
+      linha({ cnpj: "1", orderNumber: "1", notes: undefined }),
+      linha({ cnpj: "1", orderNumber: "1", notes: "Produto X" }),
+    ]);
+
+    expect(grupos[0].notes).toBe("Produto X");
   });
 });

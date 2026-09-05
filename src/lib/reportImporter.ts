@@ -18,12 +18,11 @@ export interface ParsedReportRow {
   /** CNPJ do cliente (só dígitos), quando o relatório traz — permite casar com mais precisão que o nome. */
   cnpj?: string;
   /**
-   * Chave usada como `order_number` no banco (dedupe/upsert). Nos relatórios em
-   * Excel um mesmo "pedido da fábrica" vem em várias linhas (uma por produto);
-   * como cada linha vira um pedido separado no sistema, essa chave é composta
-   * (nº do pedido + código do produto) pra não colidir entre linhas irmãs.
-   * Nos relatórios em PDF (uma linha = um pedido) ela não existe e o
-   * `orderNumber` já serve como chave.
+   * Chave usada como `order_number` no banco (dedupe/upsert), só quando
+   * precisa diferir do `orderNumber` visível — ver `agruparPorPedido`, que a
+   * define pra desambiguar o raro caso de "PEDIDO CLIENTE" sem CNPJ (pode
+   * coincidir entre clientes diferentes, ex.: parece CEP). Ausente = usa
+   * `orderNumber` mesmo.
    */
   dbOrderNumber?: string;
   /** Nome do produto + observação do relatório, já combinados — vira `orders.notes`. */
@@ -34,6 +33,8 @@ export interface ParsedReportRow {
   deliverySchedule?: string;
   /** Data de entrega já realizada, formato ISO (yyyy-mm-dd). */
   deliveryDateIso?: string;
+  /** Quantas linhas do relatório foram juntadas neste pedido (ver `agruparPorPedido`). 1 = não agrupou. */
+  lineCount?: number;
 }
 
 export interface ParsedReport {
@@ -373,6 +374,50 @@ export async function parseOrderReportAny(file: File): Promise<ParsedReport> {
     return parseOrderReportExcel(file);
   }
   return parseOrderReport(file);
+}
+
+/**
+ * Junta linhas do mesmo pedido de fábrica (mesmo cliente + mesmo nº de
+ * pedido) num só registro — soma os valores e concatena produto/observação
+ * nas notas. Um relatório em Excel costuma ter uma linha por PRODUTO; sem
+ * isso, um único pedido de 4 itens virava 4 pedidos separados no sistema.
+ *
+ * Chave de agrupamento: CNPJ (mais confiável) quando o relatório traz, senão
+ * o nome normalizado do cliente — sempre junto com o nº do pedido, porque o
+ * MESMO cliente pode ter pedidos de fábrica diferentes no mesmo relatório
+ * (datas/números diferentes: continuam virando pedidos separados).
+ *
+ * Relatórios em PDF já vêm uma linha por pedido — pra eles isso não muda
+ * nada na prática (cada grupo tem 1 linha só).
+ */
+export function agruparPorPedido(rows: ParsedReportRow[]): ParsedReportRow[] {
+  const groups = new Map<string, ParsedReportRow>();
+  const ordemDasChaves: string[] = [];
+
+  for (const row of rows) {
+    const chave = `${row.cnpj || normalizeName(row.clientName)}::${row.orderNumber}`;
+    const existente = groups.get(chave);
+
+    if (!existente) {
+      groups.set(chave, {
+        ...row,
+        // Sem CNPJ o número pode coincidir por acaso entre clientes
+        // diferentes (ex.: relatório usa um CEP como "pedido" na falta de
+        // um número de verdade) — desambigua só nesse caso; com CNPJ, o
+        // próprio nº do pedido da fábrica já é a chave certa e fica limpo.
+        dbOrderNumber: row.cnpj ? row.orderNumber : `${row.orderNumber}-${normalizeName(row.clientName).slice(0, 24)}`,
+        lineCount: 1,
+      });
+      ordemDasChaves.push(chave);
+      continue;
+    }
+
+    existente.values = existente.values.map((v, i) => v + (row.values[i] || 0));
+    existente.notes = [existente.notes, row.notes].filter(Boolean).join("; ") || undefined;
+    existente.lineCount = (existente.lineCount || 1) + 1;
+  }
+
+  return ordemDasChaves.map((chave) => groups.get(chave)!);
 }
 
 /**

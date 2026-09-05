@@ -10,6 +10,7 @@ import { useModalEsc } from "../hooks/useModalEsc";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 import {
   parseOrderReportAny,
+  agruparPorPedido,
   pickValue,
   matchClientByCnpjOrName,
   normalizeName,
@@ -55,6 +56,10 @@ export default function ImportReportModal({ open, onClose, userId, clients, cate
   const [isParsing, setIsParsing] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [parsed, setParsed] = useState<ParsedReport | null>(null);
+  /** Pedidos já agrupados (mesmo cliente + nº de pedido viram 1 só) — o que
+   *  a tela de conferência e o import de fato usam. `parsed.rows` continua
+   *  cru, só pra conferir a soma total do arquivo (ver texto "linhas"). */
+  const [groupedRows, setGroupedRows] = useState<ParsedReportRow[]>([]);
   const [rowStates, setRowStates] = useState<RowState[]>([]);
   /** 0 = última coluna de dinheiro da linha (normalmente o valor total do pedido). */
   const [valueIndex, setValueIndex] = useState(0);
@@ -64,6 +69,7 @@ export default function ImportReportModal({ open, onClose, userId, clients, cate
     setCategory("");
     setFileName("");
     setParsed(null);
+    setGroupedRows([]);
     setRowStates([]);
     setValueIndex(0);
     setIsParsing(false);
@@ -105,8 +111,15 @@ export default function ImportReportModal({ open, onClose, userId, clients, cate
         return;
       }
 
+      // Um pedido de fábrica costuma vir em várias linhas (uma por produto,
+      // nos relatórios em Excel) — junta as do mesmo cliente+nº de pedido
+      // antes de qualquer outra coisa, pra tudo daqui pra baixo (conferência
+      // de duplicado, casamento de cliente, import) já trabalhar 1:1 com o
+      // pedido de verdade, não com cada linha de produto dele.
+      const grouped = agruparPorPedido(result.rows);
+
       // Pedidos desta representada que já foram importados antes — não repetir
-      const numbers = Array.from(new Set(result.rows.map(r => r.dbOrderNumber || r.orderNumber)));
+      const numbers = Array.from(new Set(grouped.map(r => r.dbOrderNumber || r.orderNumber)));
       const already = new Set<string>();
       for (let i = 0; i < numbers.length; i += 200) {
         const { data } = await supabase
@@ -119,8 +132,9 @@ export default function ImportReportModal({ open, onClose, userId, clients, cate
       }
 
       setParsed(result);
+      setGroupedRows(grouped);
       setRowStates(
-        result.rows.map(row => {
+        grouped.map(row => {
           const m = matchClientByCnpjOrName(row.clientName, clients, row.cnpj);
           const duplicate = already.has(row.dbOrderNumber || row.orderNumber);
           return {
@@ -144,7 +158,10 @@ export default function ImportReportModal({ open, onClose, userId, clients, cate
     }
   };
 
-  const rows = parsed?.rows || [];
+  const rows = groupedRows;
+  /** Linhas cruas do arquivo (antes de agrupar) — só pra conferir a soma
+   *  total contra o relatório original ("Soma de todas as N linhas"). */
+  const rawRows = parsed?.rows || [];
 
   /** Linhas prontas para importar: incluídas e com destino definido. */
   const readyIdxs = useMemo(
@@ -165,10 +182,11 @@ export default function ImportReportModal({ open, onClose, userId, clients, cate
     };
   }, [readyIdxs, rowStates, rows, valueIndex]);
 
-  /** Soma de todas as linhas do relatório — serve para o usuário conferir com o PDF. */
+  /** Soma de todas as linhas CRUAS do relatório (antes de agrupar) — serve
+   *  para o usuário conferir com o total do arquivo original. */
   const grandTotal = useMemo(
-    () => rows.reduce((sum, r) => sum + pickValue(r, valueIndex), 0),
-    [rows, valueIndex]
+    () => rawRows.reduce((sum, r) => sum + pickValue(r, valueIndex), 0),
+    [rawRows, valueIndex]
   );
 
   const setRow = (idx: number, patch: Partial<RowState>) =>
@@ -422,7 +440,7 @@ export default function ImportReportModal({ open, onClose, userId, clients, cate
                   ))}
                 </div>
                 <span className="text-[10px] font-bold text-slate-500 ml-auto tabular-nums">
-                  Soma de todas as {rows.length} linhas: <span className="text-slate-900 dark:text-zinc-100">{brl(grandTotal)}</span>
+                  Soma de todas as {rawRows.length} linhas: <span className="text-slate-900 dark:text-zinc-100">{brl(grandTotal)}</span>
                   <span className="text-slate-400 font-medium"> — confira com o total do PDF</span>
                 </span>
               </div>
@@ -464,6 +482,14 @@ export default function ImportReportModal({ open, onClose, userId, clients, cate
                         </td>
                         <td className="px-3 py-2 text-[11px] font-bold text-slate-500 tabular-nums whitespace-nowrap">
                           {row.orderNumber}
+                          {(row.lineCount || 1) > 1 && (
+                            <span
+                              className="ml-2 px-1.5 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 text-[8px] font-black uppercase"
+                              title={row.notes || undefined}
+                            >
+                              {row.lineCount} itens juntados
+                            </span>
+                          )}
                           {st.duplicate && (
                             <span className="ml-2 px-1.5 py-0.5 rounded-md bg-slate-200 dark:bg-zinc-800 text-slate-500 text-[8px] font-black uppercase">
                               já importado
