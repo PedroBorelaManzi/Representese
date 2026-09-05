@@ -323,9 +323,12 @@ export default function ClientImportModal({ isOpen, onClose, onImportComplete }:
           name: client.name,
           nome_fantasia: client.nomeFantasia || null,
           cnpj: client.cnpj || null,
-          address: client.address,
-          city: client.city,
-          state: client.state,
+          address: client.address || null,
+          city: client.city || null,
+          // "clients_state_check" exige exatamente 2 caracteres — string vazia
+          // (cliente sem UF resolvida, ex.: busca de CNPJ na Receita falhou por
+          // rate limit) violava a constraint e derrubava o insert inteiro.
+          state: client.state || null,
           phone: client.phone || null,
           email: client.email || null,
           lat: client.lat || null,
