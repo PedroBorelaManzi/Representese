@@ -45,6 +45,11 @@ interface ClientImportModalProps {
 export default function ClientImportModal({ isOpen, onClose, onImportComplete }: ClientImportModalProps) {
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Guarda síncrona: setIsProcessing(true) só vale a partir do próximo render,
+  // então um duplo-clique/duplo-toque rápido no botão chamava handleGeocoding
+  // duas vezes antes do React re-renderizar — importando (e inserindo) cada
+  // cliente 2x. O ref é lido/escrito na hora, sem esperar re-render.
+  const runningRef = useRef(false);
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
   const [isDragging, setIsDragging] = useState(false);
   const [parsedClients, setParsedClients] = useState<ParsedClient[]>([]);
@@ -236,6 +241,8 @@ export default function ClientImportModal({ isOpen, onClose, onImportComplete }:
       toast.error('Importação de clientes precisa de internet.');
       return;
     }
+    if (runningRef.current) return;
+    runningRef.current = true;
 
     setCurrentStep(3);
     setIsProcessing(true);
@@ -323,6 +330,7 @@ export default function ClientImportModal({ isOpen, onClose, onImportComplete }:
   };
 
   const handleReset = () => {
+    runningRef.current = false;
     setCurrentStep(1);
     setParsedClients([]);
     setImportResults({ success: 0, failed: 0, errors: [] });

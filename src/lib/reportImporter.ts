@@ -15,6 +15,25 @@ export interface ParsedReportRow {
   values: number[];
   city?: string;
   state?: string;
+  /** CNPJ do cliente (só dígitos), quando o relatório traz — permite casar com mais precisão que o nome. */
+  cnpj?: string;
+  /**
+   * Chave usada como `order_number` no banco (dedupe/upsert). Nos relatórios em
+   * Excel um mesmo "pedido da fábrica" vem em várias linhas (uma por produto);
+   * como cada linha vira um pedido separado no sistema, essa chave é composta
+   * (nº do pedido + código do produto) pra não colidir entre linhas irmãs.
+   * Nos relatórios em PDF (uma linha = um pedido) ela não existe e o
+   * `orderNumber` já serve como chave.
+   */
+  dbOrderNumber?: string;
+  /** Nome do produto + observação do relatório, já combinados — vira `orders.notes`. */
+  notes?: string;
+  paymentTerms?: string;
+  nfNumber?: string;
+  /** Data agendada de entrega (dd/mm/aaaa), quando o relatório traz. */
+  deliverySchedule?: string;
+  /** Data de entrega já realizada, formato ISO (yyyy-mm-dd). */
+  deliveryDateIso?: string;
 }
 
 export interface ParsedReport {
@@ -206,6 +225,156 @@ export async function parseOrderReport(file: File): Promise<ParsedReport> {
   return parseReportLines(lines, warnings);
 }
 
+/** Mapeamento de cabeçalho (normalizado) → campo, pro relatório em planilha. */
+const EXCEL_HEADER_MAP: Record<string, keyof ExcelRow> = {
+  "DATA": "date",
+  "CNPJ": "cnpj",
+  "CLIENTE": "clientName",
+  "PRODUTO": "productName",
+  "PEDIDO CLIENTE": "orderNumberClient",
+  "PEDIDO EMPRESA": "orderNumberEmpresa",
+  "CÓDIGO EMPRESA": "productCode",
+  "CODIGO EMPRESA": "productCode",
+  "VALOR TOTAL PEDIDO": "value",
+  "COND PAG.": "paymentTerms",
+  "COND PAG": "paymentTerms",
+  "NFE": "nfNumber",
+  "AGENDA": "deliverySchedule",
+  "ENTREGA": "deliveryDate",
+  "OBSERVAÇÃO": "observacao",
+  "OBSERVACAO": "observacao",
+};
+
+interface ExcelRow {
+  date?: string;
+  cnpj?: string;
+  clientName?: string;
+  productName?: string;
+  orderNumberClient?: string;
+  orderNumberEmpresa?: string;
+  productCode?: string;
+  value?: string;
+  paymentTerms?: string;
+  nfNumber?: string;
+  deliverySchedule?: string;
+  deliveryDate?: string;
+  observacao?: string;
+}
+
+/** Converte o valor de uma célula do ExcelJS pra texto simples (datas incluídas). */
+function cellToText(value: unknown): string {
+  if (value == null) return "";
+  if (value instanceof Date) {
+    const dd = String(value.getDate()).padStart(2, "0");
+    const mm = String(value.getMonth() + 1).padStart(2, "0");
+    return `${dd}/${mm}/${value.getFullYear()}`;
+  }
+  if (typeof value === "object" && "text" in (value as any)) return String((value as any).text ?? "");
+  if (typeof value === "object" && "result" in (value as any)) return String((value as any).result ?? "");
+  return String(value).trim();
+}
+
+function ddmmyyyyToIso(raw: string): { iso: string; raw: string } | null {
+  const m = raw.match(DATE_RE);
+  if (!m) return null;
+  const [, dd, mm, yyyy] = m;
+  return { iso: `${yyyy}-${mm}-${dd}`, raw };
+}
+
+/**
+ * Lê um relatório de pedidos em planilha (Excel/CSV) com cabeçalho nomeado —
+ * diferente do PDF (posicional/heurístico), aqui cada coluna é identificada
+ * pelo nome. Uma linha = um produto de um pedido; cada linha vira um pedido
+ * separado no sistema (não agrupa por "PEDIDO EMPRESA").
+ */
+export async function parseOrderReportExcel(file: File): Promise<ParsedReport> {
+  const warnings: string[] = [];
+  const { default: ExcelJS } = await import("exceljs");
+  const buffer = await file.arrayBuffer();
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer);
+  const worksheet = workbook.worksheets[0];
+  if (!worksheet) {
+    warnings.push("Não encontrei nenhuma planilha dentro do arquivo.");
+    return { rows: [], valueColumnCount: 1, warnings };
+  }
+
+  const colByField = new Map<keyof ExcelRow, number>();
+  worksheet.getRow(1).eachCell((cell, colNumber) => {
+    const header = cellToText(cell.value).toUpperCase().trim();
+    const field = EXCEL_HEADER_MAP[header];
+    if (field) colByField.set(field, colNumber);
+  });
+
+  if (!colByField.has("clientName") || !colByField.has("value")) {
+    warnings.push('Não reconheci as colunas "CLIENTE" e "VALOR TOTAL PEDIDO" nesta planilha.');
+    return { rows: [], valueColumnCount: 1, warnings };
+  }
+
+  const get = (row: import("exceljs").Row, field: keyof ExcelRow): string => {
+    const col = colByField.get(field);
+    if (!col) return "";
+    return cellToText(row.getCell(col).value);
+  };
+
+  const rows: ParsedReportRow[] = [];
+  let headerHint: string | undefined;
+  worksheet.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) return;
+
+    const clientName = get(row, "clientName").trim();
+    const valueRaw = get(row, "value").trim();
+    if (!clientName || !valueRaw) return; // linha em branco no fim da planilha
+
+    const value = parseMoney(valueRaw);
+
+    const orderNumber = (get(row, "orderNumberEmpresa") || get(row, "orderNumberClient") || `L${rowNumber}`).trim();
+    const productCode = get(row, "productCode").trim();
+    const cnpj = get(row, "cnpj").replace(/\D/g, "");
+    const productName = get(row, "productName").trim();
+
+    const dateRaw = get(row, "date").trim();
+    const parsedDate = ddmmyyyyToIso(dateRaw);
+    if (!headerHint) headerHint = "Relatório de pedidos (planilha)";
+
+    const deliveryRaw = get(row, "deliveryDate").trim();
+    const deliveryDate = ddmmyyyyToIso(deliveryRaw);
+
+    const observacao = get(row, "observacao").trim();
+    const notes = [productName, observacao].filter(Boolean).join(" — ") || undefined;
+
+    rows.push({
+      orderNumber,
+      dbOrderNumber: `${orderNumber}-${productCode || rowNumber}`,
+      date: parsedDate?.iso || new Date().toISOString().slice(0, 10),
+      rawDate: parsedDate?.raw || dateRaw,
+      clientName,
+      cnpj: cnpj || undefined,
+      notes,
+      values: [value],
+      paymentTerms: get(row, "paymentTerms").trim() || undefined,
+      nfNumber: get(row, "nfNumber").trim() || undefined,
+      deliverySchedule: get(row, "deliverySchedule").trim() || undefined,
+      deliveryDateIso: deliveryDate?.iso,
+    });
+  });
+
+  if (!rows.length) {
+    warnings.push("Nenhum pedido foi reconhecido nesta planilha. Confira se as colunas CLIENTE e VALOR TOTAL PEDIDO estão preenchidas.");
+  }
+
+  return { rows, headerHint, valueColumnCount: 1, warnings };
+}
+
+/** Lê um relatório de pedidos (PDF ou planilha) e devolve os pedidos reconhecidos. */
+export async function parseOrderReportAny(file: File): Promise<ParsedReport> {
+  const name = file.name.toLowerCase();
+  if (name.endsWith(".xlsx") || name.endsWith(".xls") || file.type.includes("spreadsheet")) {
+    return parseOrderReportExcel(file);
+  }
+  return parseOrderReport(file);
+}
+
 /**
  * Escolhe o valor de uma linha contando a partir da direita: 0 = última coluna
  * de dinheiro (normalmente o valor total do pedido), 1 = a anterior, e assim por diante.
@@ -284,6 +453,21 @@ function resolveCandidates(candidates: ClientLike[]): ClientMatch {
  * filiais), já deixamos um escolhido — a matriz na frente — e sinalizamos na
  * tela de conferência para o usuário poder trocar se quiser.
  */
+/**
+ * Casa o pedido do relatório com a carteira do usuário. Quando o relatório
+ * traz CNPJ (planilhas), tenta o CNPJ exato primeiro — muito mais confiável
+ * que o nome, que vem sem padrão nenhum de fábrica pra fábrica. Só cai pro
+ * casamento por nome quando não há CNPJ ou ele não bate com nenhum cadastro.
+ */
+export function matchClientByCnpjOrName(reportName: string, clients: ClientLike[], cnpj?: string): ClientMatch {
+  const digits = (cnpj || "").replace(/\D/g, "");
+  if (digits.length === 14) {
+    const byCnpj = clients.filter(c => (c.cnpj || "").replace(/\D/g, "") === digits);
+    if (byCnpj.length) return resolveCandidates(byCnpj);
+  }
+  return matchClient(reportName, clients);
+}
+
 export function matchClient(reportName: string, clients: ClientLike[]): ClientMatch {
   const target = normalizeName(reportName);
   if (!target) return { status: "unmatched", candidates: [] };

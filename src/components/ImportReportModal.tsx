@@ -9,9 +9,9 @@ import { offlineCache } from "../lib/offlineCache";
 import { useModalEsc } from "../hooks/useModalEsc";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 import {
-  parseOrderReport,
+  parseOrderReportAny,
   pickValue,
-  matchClient,
+  matchClientByCnpjOrName,
   normalizeName,
   orderDateToTimestamp,
   type ParsedReport,
@@ -97,7 +97,7 @@ export default function ImportReportModal({ open, onClose, userId, clients, cate
     setIsParsing(true);
     setFileName(file.name);
     try {
-      const result = await parseOrderReport(file);
+      const result = await parseOrderReportAny(file);
       if (!result.rows.length) {
         toast.error(result.warnings[0] || "Nenhum pedido foi reconhecido neste arquivo.");
         setIsParsing(false);
@@ -106,7 +106,7 @@ export default function ImportReportModal({ open, onClose, userId, clients, cate
       }
 
       // Pedidos desta representada que já foram importados antes — não repetir
-      const numbers = Array.from(new Set(result.rows.map(r => r.orderNumber)));
+      const numbers = Array.from(new Set(result.rows.map(r => r.dbOrderNumber || r.orderNumber)));
       const already = new Set<string>();
       for (let i = 0; i < numbers.length; i += 200) {
         const { data } = await supabase
@@ -121,8 +121,8 @@ export default function ImportReportModal({ open, onClose, userId, clients, cate
       setParsed(result);
       setRowStates(
         result.rows.map(row => {
-          const m = matchClient(row.clientName, clients);
-          const duplicate = already.has(row.orderNumber);
+          const m = matchClientByCnpjOrName(row.clientName, clients, row.cnpj);
+          const duplicate = already.has(row.dbOrderNumber || row.orderNumber);
           return {
             include: !duplicate,
             clientId: m.clientId,
@@ -137,7 +137,7 @@ export default function ImportReportModal({ open, onClose, userId, clients, cate
       setStep("review");
       if (result.warnings.length) result.warnings.forEach(w => toast.warning(w));
     } catch (err: any) {
-      toast.error("Não consegui ler este PDF: " + (err?.message || "erro desconhecido"));
+      toast.error("Não consegui ler este arquivo: " + (err?.message || "erro desconhecido"));
     } finally {
       setIsParsing(false);
       e.target.value = "";
@@ -225,10 +225,15 @@ export default function ImportReportModal({ open, onClose, userId, clients, cate
             client_id: clientId,
             category,
             value: pickValue(row, valueIndex),
-            order_number: row.orderNumber,
+            order_number: row.dbOrderNumber || row.orderNumber,
             source: "report_import",
             file_name: fileName,
             created_at: orderDateToTimestamp(row.date),
+            ...(row.notes ? { notes: row.notes } : {}),
+            ...(row.paymentTerms ? { payment_terms: row.paymentTerms } : {}),
+            ...(row.nfNumber ? { nf_number: row.nfNumber } : {}),
+            ...(row.deliverySchedule ? { delivery_schedule: row.deliverySchedule } : {}),
+            ...(row.deliveryDateIso ? { delivery_date: row.deliveryDateIso } : {}),
           };
         })
         .filter(Boolean) as any[];
@@ -304,7 +309,7 @@ export default function ImportReportModal({ open, onClose, userId, clients, cate
             </h3>
             <p className="text-slate-400 text-xs md:text-sm font-medium mt-1">
               {step === "upload"
-                ? "Envie o relatório de pedidos da fábrica em PDF."
+                ? "Envie o relatório de pedidos da fábrica em PDF ou planilha (Excel)."
                 : `${rows.length} pedidos lidos de ${fileName}`}
             </p>
           </div>
@@ -350,7 +355,7 @@ export default function ImportReportModal({ open, onClose, userId, clients, cate
             >
               <input
                 type="file"
-                accept=".pdf"
+                accept=".pdf,.xlsx,.xls"
                 disabled={!category || isParsing}
                 onChange={handleFile}
                 className="absolute inset-0 opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
@@ -359,7 +364,7 @@ export default function ImportReportModal({ open, onClose, userId, clients, cate
                 {isParsing ? <Loader2 className="w-12 h-12 md:w-16 md:h-16 animate-spin" /> : <Upload className="w-12 h-12 md:w-16 md:h-16" />}
               </div>
               <h4 className="text-lg md:text-xl font-black uppercase text-slate-900 dark:text-zinc-100 mb-2 tracking-tight">
-                {isParsing ? "Lendo o relatório..." : "Selecione o PDF do relatório"}
+                {isParsing ? "Lendo o relatório..." : "Selecione o PDF ou a planilha do relatório"}
               </h4>
               <p className="text-slate-400 text-xs md:text-sm max-w-md font-medium leading-relaxed">
                 O sistema lê cliente, data e valor de cada pedido. Você confere tudo na tela seguinte antes de gravar.
