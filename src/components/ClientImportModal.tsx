@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 import { getHighPrecisionCoordinates } from '../lib/geminiGeocoding';
 import { offlineCache } from '../lib/offlineCache';
+import { headerMatchesField, cellText, findCsvValue } from '../lib/clientImportParsing';
 
 interface ParsedClient {
   name: string;
@@ -79,16 +80,16 @@ export default function ClientImportModal({ isOpen, onClose, onImportComplete }:
         skipEmptyLines: true,
         complete: (results: any) => {
           const clients = results.data.map((row: any) => ({
-            name: (row.name || row.Name || row.empresa || row.Empresa || row['razao social'] || row['Razão Social'] || '').trim(),
-            nomeFantasia: (row.fantasia || row.Fantasia || row['nome fantasia'] || row['Nome Fantasia'] || '').trim(),
-            cnpj: (row.cnpj || row.CNPJ || '').trim(),
-            address: (row.address || row.Address || row.endereco || row.Endereco || '').trim(),
-            city: (row.city || row.City || row.cidade || row.Cidade || '').trim(),
-            state: (row.state || row.State || row.estado || row.Estado || '').trim(),
-            phone: (row.phone || row.Phone || row.telefone || row.Telefone || '').trim(),
-            email: (row.email || row.Email || '').trim(),
+            name: findCsvValue(row, 'name'),
+            nomeFantasia: findCsvValue(row, 'fantasia'),
+            cnpj: findCsvValue(row, 'cnpj'),
+            address: findCsvValue(row, 'address'),
+            city: findCsvValue(row, 'city'),
+            state: findCsvValue(row, 'state'),
+            phone: findCsvValue(row, 'phone'),
+            email: findCsvValue(row, 'email'),
           }));
-          resolve(clients.filter(c => c.cnpj));
+          resolve(clients.filter((c: ParsedClient) => c.cnpj));
         },
       });
     });
@@ -108,28 +109,30 @@ export default function ClientImportModal({ isOpen, onClose, onImportComplete }:
 
     worksheet.getRow(1).eachCell((cell, colNumber) => {
       const header = (cell.value || '').toString().toLowerCase();
-      if (header.includes('name') || header.includes('empresa') || header.includes('razã') || header.includes('razao')) headers.name = colNumber;
-      if (header.includes('fantasia')) headers.fantasia = colNumber;
-      if (header.includes('cnpj')) headers.cnpj = colNumber;
-      if (header.includes('address') || header.includes('endereco')) headers.address = colNumber;
-      if (header.includes('city') || header.includes('cidade')) headers.city = colNumber;
-      if (header.includes('state') || header.includes('estado')) headers.state = colNumber;
-      if (header.includes('phone') || header.includes('telefone')) headers.phone = colNumber;
-      if (header.includes('email')) headers.email = colNumber;
+      // "cliente"/"nome"/"razão social" são tão comuns em planilha de
+      // representante comercial quanto "name"/"empresa" — só esses dois
+      // faziam a coluna de nome nunca ser encontrada em arquivos reais
+      // (era isso que quebrava com "A Cell needs a Row" no ExcelJS).
+      // "fantasia" checado antes de "name": "Nome Fantasia" contém "nome"
+      // e não pode roubar a coluna do nome principal.
+      (['fantasia', 'name', 'cnpj', 'address', 'city', 'state', 'phone', 'email'] as const).forEach((field) => {
+        if (field === 'name' && headers.fantasia === colNumber) return;
+        if (headerMatchesField(header, field)) headers[field] = colNumber;
+      });
     });
 
     worksheet.eachRow((row, rowNumber) => {
       if (rowNumber === 1) return;
 
       const client: ParsedClient = {
-        name: (row.getCell(headers.name)?.value || '').toString().trim(),
-        nomeFantasia: (row.getCell(headers.fantasia)?.value || '').toString().trim(),
-        cnpj: (row.getCell(headers.cnpj)?.value || '').toString().trim(),
-        address: (row.getCell(headers.address)?.value || '').toString().trim(),
-        city: (row.getCell(headers.city)?.value || '').toString().trim(),
-        state: (row.getCell(headers.state)?.value || '').toString().trim(),
-        phone: (row.getCell(headers.phone)?.value || '').toString().trim(),
-        email: (row.getCell(headers.email)?.value || '').toString().trim(),
+        name: cellText(row, headers.name),
+        nomeFantasia: cellText(row, headers.fantasia),
+        cnpj: cellText(row, headers.cnpj),
+        address: cellText(row, headers.address),
+        city: cellText(row, headers.city),
+        state: cellText(row, headers.state),
+        phone: cellText(row, headers.phone),
+        email: cellText(row, headers.email),
       };
 
       if (client.cnpj) {
@@ -249,24 +252,50 @@ export default function ClientImportModal({ isOpen, onClose, onImportComplete }:
     setTotalCount(parsedClients.length);
     let completed = 0;
 
-    const geocodedClients = await Promise.all(
-      parsedClients.map(async (client) => {
-        try {
-          const fullAddress = `${client.address}, ${client.city}, ${client.state}`;
-          const coords = await getHighPrecisionCoordinates(fullAddress, client.name);
-          setProcessedCount(++completed);
+    const { lookupCnpj } = await import('../lib/cnpjLookup');
 
-          return {
-            ...client,
-            lat: coords.lat,
-            lng: coords.lng,
-          };
-        } catch (error) {
-          setProcessedCount(++completed);
-          return client;
-        }
-      })
-    );
+    // Lotes pequenos em vez de Promise.all com a lista inteira: uma planilha
+    // de 200+ clientes de uma vez estourava o rate limit de /api/ai (10
+    // req/60s) quase na hora — a maioria das geocodificações falhava calada
+    // (429 engolido pelo catch) e o cliente entrava sem posição no mapa.
+    const CHUNK_SIZE = 5;
+    const geocodedClients: ParsedClient[] = [];
+
+    for (let i = 0; i < parsedClients.length; i += CHUNK_SIZE) {
+      const chunk = parsedClients.slice(i, i + CHUNK_SIZE);
+      const results = await Promise.all(
+        chunk.map(async (client) => {
+          try {
+            let { address, city, state } = client;
+
+            // Planilha com nome + CNPJ mas sem endereço (ex.: lista de lojas
+            // de uma rede) — busca o endereço oficial na Receita antes de
+            // tentar geocodificar uma string vazia. Mantém o nome do arquivo
+            // (mais específico por filial do que a razão social da Receita).
+            if (!address && client.cnpj) {
+              const found = await lookupCnpj(client.cnpj).catch(() => null);
+              if (found) {
+                address = found.address;
+                city = city || found.city;
+                state = state || found.state;
+              }
+            }
+
+            const fullAddress = [address, city, state].filter(Boolean).join(', ');
+            const coords = fullAddress
+              ? await getHighPrecisionCoordinates(fullAddress, client.name, client.cnpj, { city, state })
+              : null;
+            setProcessedCount(++completed);
+
+            return { ...client, address, city, state, lat: coords?.lat, lng: coords?.lng };
+          } catch (error) {
+            setProcessedCount(++completed);
+            return client;
+          }
+        })
+      );
+      geocodedClients.push(...results);
+    }
 
     setParsedClients(geocodedClients);
     await handleImport(geocodedClients);
