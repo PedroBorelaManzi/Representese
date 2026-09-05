@@ -1,12 +1,13 @@
 import React, { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Upload, Loader2, Trash2, Package, Hash, Percent, Tag } from "lucide-react";
+import { Upload, Loader2, Trash2, Package, Hash, Percent, Tag, Users } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
 import { parseCatalogFile } from "../lib/catalogImport";
 import { HideableCommissionField } from "./HideableCommissionField";
+import { ClientProductOverridesModal } from "./ClientProductOverridesModal";
 import { chaveDoProduto } from "../lib/orderItems";
 import { EmptyState } from "./ui";
 import type { CatalogItem } from "../types";
@@ -35,6 +36,7 @@ export function CatalogoProdutos({ categoriaFiltro, categoriasDisponiveis }: Cat
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [overridesModal, setOverridesModal] = useState<{ productKey: string; productName: string } | null>(null);
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ["product_catalog", user?.id],
@@ -54,6 +56,28 @@ export function CatalogoProdutos({ categoriaFiltro, categoriasDisponiveis }: Cat
     () => (categoriaFiltro ? items.filter((i) => i.category === categoriaFiltro) : items),
     [items, categoriaFiltro]
   );
+
+  // Uma query só pra representada inteira (não uma por linha) — conta quantas
+  // exceções por cliente cada produto já tem, pro selo no botão de cada linha.
+  const { data: overridesCountList = [] } = useQuery({
+    queryKey: ["client_product_settings_counts", user?.id, categoriaFiltro],
+    queryFn: async (): Promise<string[]> => {
+      const { data, error } = await supabase
+        .from("client_product_settings")
+        .select("product_key")
+        .eq("user_id", user!.id)
+        .eq("category", categoriaFiltro);
+      if (error) throw error;
+      return (data || []).map((r: any) => r.product_key as string);
+    },
+    enabled: !!user && !!categoriaFiltro,
+  });
+
+  const overridesCount = useMemo(() => {
+    const map = new Map<string, number>();
+    overridesCountList.forEach((key) => map.set(key, (map.get(key) || 0) + 1));
+    return map;
+  }, [overridesCountList]);
 
   const invalidar = () => queryClient.invalidateQueries({ queryKey: ["product_catalog", user?.id] });
 
@@ -187,7 +211,7 @@ export function CatalogoProdutos({ categoriaFiltro, categoriasDisponiveis }: Cat
       ) : (
         <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl overflow-hidden">
           <div className="overflow-x-auto custom-scrollbar">
-            <div className="min-w-[880px]">
+            <div className="min-w-[940px]">
               <div className="grid grid-cols-12 px-5 py-4 border-b border-slate-100 dark:border-zinc-800 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                 <div className="col-span-4">Produto</div>
                 <div className="col-span-2">Código</div>
@@ -264,7 +288,19 @@ export function CatalogoProdutos({ categoriaFiltro, categoriasDisponiveis }: Cat
                         )}
                       </HideableCommissionField>
                     </div>
-                    <div className="col-span-1 text-right">
+                    <div className="col-span-1 flex items-center justify-end gap-1">
+                      <button
+                        onClick={() => setOverridesModal({ productKey: chaveDoProduto(item.name), productName: item.name })}
+                        className="relative p-1.5 text-slate-300 hover:text-emerald-600 transition-colors"
+                        title="Comissão/código por cliente"
+                      >
+                        <Users className="w-3.5 h-3.5" />
+                        {(overridesCount.get(chaveDoProduto(item.name)) ?? 0) > 0 && (
+                          <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] px-[3px] rounded-full bg-emerald-600 text-white text-[8px] font-black flex items-center justify-center">
+                            {overridesCount.get(chaveDoProduto(item.name))}
+                          </span>
+                        )}
+                      </button>
                       <button onClick={() => deleteItem(item)} className="p-1.5 text-slate-300 hover:text-red-500 transition-colors">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -275,6 +311,17 @@ export function CatalogoProdutos({ categoriaFiltro, categoriasDisponiveis }: Cat
             </div>
           </div>
         </div>
+      )}
+
+      {overridesModal && user && (
+        <ClientProductOverridesModal
+          isOpen
+          onClose={() => setOverridesModal(null)}
+          userId={user.id}
+          category={categoriaFiltro}
+          productKey={overridesModal.productKey}
+          productName={overridesModal.productName}
+        />
       )}
     </div>
   );

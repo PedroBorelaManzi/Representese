@@ -109,6 +109,22 @@ export interface CatalogItem {
   updated_at?: string;
 }
 
+/** Config por cliente de um produto: código que ESSE cliente usa pra pedir
+ *  este produto e/ou comissão % que só vale pra ESSE cliente. Sobrepõe
+ *  settings.product_commissions linha a linha (ver src/lib/orderItems.ts e
+ *  src/pages/Comissoes.tsx). */
+export interface ClientProductSetting {
+  id: string;
+  user_id: string;
+  client_id: string;
+  category: string;
+  product_key: string;
+  client_code?: string | null;
+  commission_pct?: number | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface UserSettings {
   id: string;
   user_id: string;

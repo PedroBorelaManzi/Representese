@@ -128,31 +128,46 @@ export default function Comissoes() {
       // blend dos % de produto do pedido inteiro (não só o valor da parcela),
       // então busca os itens dos pedidos envolvidos — só desses pedidos, não
       // de todos, pra não puxar order_items à toa quando ninguém usa isso.
-      const orderIdsPorProduto = Array.from(
-        new Set(
-          allRows
-            .filter((r: any) => commissionMode[r.orders?.category] === "per_product")
-            .map((r: any) => r.order_id)
-        )
-      );
+      const rowsPorProduto = allRows.filter((r: any) => commissionMode[r.orders?.category] === "per_product");
+      const orderIdsPorProduto = Array.from(new Set(rowsPorProduto.map((r: any) => r.order_id)));
+      const categoriasPorProduto = Array.from(new Set(rowsPorProduto.map((r: any) => r.orders?.category)));
 
       const blendPctPorPedido = new Map<string, number>();
       if (orderIdsPorProduto.length > 0) {
-        const { data: itemsData } = await supabase
-          .from("order_items")
-          .select("order_id, category, product_key, total_value")
-          .in("order_id", orderIdsPorProduto);
+        const [{ data: itemsData }, { data: overridesData }] = await Promise.all([
+          supabase
+            .from("order_items")
+            .select("order_id, category, product_key, total_value, client_id")
+            .in("order_id", orderIdsPorProduto),
+          // Comissão por cliente+produto: sobrepõe o % do produto (nunca o
+          // % fixo da empresa, que já não entra em jogo no modo "por
+          // produto") só pra quem realmente configurou uma exceção — ver
+          // ClientProductOverridesModal / aba Produtos.
+          supabase
+            .from("client_product_settings")
+            .select("client_id, category, product_key, commission_pct")
+            .eq("user_id", user!.id)
+            .in("category", categoriasPorProduto)
+            .not("commission_pct", "is", null),
+        ]);
+
+        const overrideMap = new Map<string, number>();
+        (overridesData || []).forEach((o: any) => {
+          overrideMap.set(`${o.client_id}::${o.category}::${o.product_key}`, Number(o.commission_pct));
+        });
 
         const porPedido = new Map<string, { totalValue: number; totalComissao: number }>();
         (itemsData || []).forEach((item: any) => {
           const valor = Number(item.total_value) || 0;
           if (valor <= 0) return;
           const groupKey = `${item.category}::${item.product_key}`;
-          // Empresa em "por produto" nunca tem valor fixo (ver saveConfig) —
-          // produto ainda sem % próprio conta 0% mesmo, até ser configurado
-          // na aba Produtos. Nada de cair de volta pro % da empresa: os dois
-          // juntos conflitam de propósito.
-          const pctProduto = Number(productCommissions[groupKey] ?? 0);
+          const clientKey = `${item.client_id}::${item.category}::${item.product_key}`;
+          // Prioridade: override do cliente > % do produto > 0. Empresa em
+          // "por produto" nunca tem valor fixo (ver saveConfig) — produto
+          // ainda sem % próprio (e sem override do cliente) conta 0% mesmo,
+          // até ser configurado na aba Produtos. Nada de cair de volta pro
+          // % da empresa: os dois juntos conflitam de propósito.
+          const pctProduto = Number(overrideMap.get(clientKey) ?? productCommissions[groupKey] ?? 0);
           const acc = porPedido.get(item.order_id) || { totalValue: 0, totalComissao: 0 };
           acc.totalValue += valor;
           acc.totalComissao += valor * (pctProduto / 100);
