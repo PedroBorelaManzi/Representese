@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { UserCog } from "lucide-react";
+import { UserCog, Eye } from "lucide-react";
 import { InlineEditField } from "./InlineEditField";
 import { NfCommissionStatusDot, type NfCommissionStatus } from "./NfCommissionStatusDot";
 import { cn } from "../lib/utils";
@@ -85,8 +85,13 @@ export function OrdersTable({ orders, onSelectOrder, saveField, emptyLabel = "Ne
                       )}
                     </td>
                     <td className={TD}>
-                      <button onClick={() => onSelectOrder(order)} className="font-black text-slate-900 dark:text-zinc-100 hover:text-emerald-600 transition-colors">
-                        {order.order_number || "ver"}
+                      <button
+                        onClick={() => onSelectOrder(order)}
+                        title="Ver detalhes do pedido"
+                        className="flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-lg font-black text-slate-900 dark:text-zinc-100 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
+                      >
+                        <Eye className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        {order.order_number || "Ver pedido"}
                       </button>
                     </td>
                     <td className={TD}>

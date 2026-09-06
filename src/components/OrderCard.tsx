@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { UserCog, Truck, ArrowUpRight } from "lucide-react";
+import { UserCog, Eye, ArrowUpRight } from "lucide-react";
 import { InlineEditField } from "./InlineEditField";
 import { brl } from "../lib/format";
 import { cn } from "../lib/utils";
@@ -51,7 +51,7 @@ export function OrderCard({
         </span>
         <div className="flex items-center gap-2">
           <button onClick={() => onSelectOrder(order)} className="p-2 md:p-3 bg-slate-50 dark:bg-zinc-800 rounded-xl md:rounded-2xl hover:bg-emerald-50 transition-colors" title="Ver detalhes do pedido">
-            <Truck className="w-4 h-4 md:w-5 md:h-5 text-slate-400 hover:text-emerald-600 transition-colors" />
+            <Eye className="w-4 h-4 md:w-5 md:h-5 text-slate-400 hover:text-emerald-600 transition-colors" />
           </button>
           <Link to={"/dashboard/clientes/" + order.client_id} className="p-2 md:p-3 bg-slate-50 dark:bg-zinc-800 rounded-xl md:rounded-2xl hover:bg-emerald-50 transition-colors group/arrow">
             <ArrowUpRight className="w-4 h-4 md:w-5 md:h-5 text-slate-400 group-hover/arrow:text-emerald-600 transition-colors" />
