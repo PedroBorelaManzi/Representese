@@ -25,7 +25,7 @@ interface SelectionState {
 
 /** Valor proporcional de `qty` unidades de um item: usa o valor unitário
  *  quando existe (mais preciso); sem ele, rateia o total pela quantidade. */
-function valorDeQtd(item: OrderItem, qty: number): number {
+export function valorDeQtd(item: OrderItem, qty: number): number {
   if (item.unit_value != null) return item.unit_value * qty;
   const total = item.total_value || 0;
   return item.quantity > 0 ? total * (qty / item.quantity) : 0;

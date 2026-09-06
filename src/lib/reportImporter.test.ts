@@ -266,6 +266,16 @@ describe("agruparPorPedido", () => {
     expect(grupos[0].notes).toBe("Produto X");
   });
 
+  it("mesma observação repetida em todas as linhas do pedido não duplica ao juntar", () => {
+    const grupos = agruparPorPedido([
+      linha({ cnpj: "1", orderNumber: "1", notes: "17/08 pedido dig plan, enviado kobber" }),
+      linha({ cnpj: "1", orderNumber: "1", notes: "17/08 pedido dig plan, enviado kobber" }),
+      linha({ cnpj: "1", orderNumber: "1", notes: "17/08 pedido dig plan, enviado kobber" }),
+    ]);
+
+    expect(grupos[0].notes).toBe("17/08 pedido dig plan, enviado kobber");
+  });
+
   it("junta lineItems das linhas do mesmo pedido — vira a lista de produtos do pedido", () => {
     const grupos = agruparPorPedido([
       linha({

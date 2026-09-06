@@ -363,8 +363,11 @@ export async function parseOrderReportExcel(file: File): Promise<ParsedReport> {
     const deliveryRaw = get(row, "deliveryDate").trim();
     const deliveryDate = ddmmyyyyToIso(deliveryRaw);
 
+    // Nome do produto NÃO entra em `notes` — ele já vira `order_items.product_name`
+    // (linha própria, visível/editável no detalhe do pedido). Duplicar aqui
+    // só empilhava o mesmo texto na observação do pedido, sem dar pra editar.
     const observacao = get(row, "observacao").trim();
-    const notes = [productName, observacao].filter(Boolean).join(" — ") || undefined;
+    const notes = observacao || undefined;
 
     const quantityRaw = get(row, "quantity").trim();
     const unitValueRaw = get(row, "unitValue").trim();
@@ -450,7 +453,10 @@ export function agruparPorPedido(rows: ParsedReportRow[]): ParsedReportRow[] {
     }
 
     existente.values = existente.values.map((v, i) => v + (row.values[i] || 0));
-    existente.notes = [existente.notes, row.notes].filter(Boolean).join("; ") || undefined;
+    // dedup: a mesma observação costuma se repetir em toda linha do pedido
+    // (é a nota do pedido inteiro, não do produto) — sem isso, um pedido de
+    // 4 produtos com a mesma observação juntava o texto 4 vezes seguidas.
+    existente.notes = Array.from(new Set([existente.notes, row.notes].filter(Boolean))).join("; ") || undefined;
     existente.lineCount = (existente.lineCount || 1) + 1;
     if (row.lineItems?.length) existente.lineItems = [...(existente.lineItems || []), ...row.lineItems];
   }

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, FileText, Loader2, Truck, Hash, Receipt, CreditCard, CalendarDays, CalendarClock, StickyNote, Package, Scissors } from "lucide-react";
+import { X, FileText, Loader2, Truck, Hash, Receipt, CreditCard, CalendarDays, CalendarClock, StickyNote, Package, Scissors, Trash2 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
@@ -8,7 +8,7 @@ import { InlineEditField } from "./InlineEditField";
 import { CommissionValue } from "./CommissionValue";
 import { PdfViewerModal } from "./PdfViewerModal";
 import { NfCommissionStatusDot, type NfCommissionStatus } from "./NfCommissionStatusDot";
-import { OrderSplitPanel } from "./OrderSplitPanel";
+import { OrderSplitPanel, valorDeQtd } from "./OrderSplitPanel";
 import type { Order, OrderInstallment, OrderItem } from "../types";
 
 interface OrderDetailModalProps {
@@ -95,6 +95,34 @@ export function OrderDetailModal({ order, isOpen, onClose, onUpdated, commission
     await Promise.all([reloadItems(), reloadInstallments()]);
     onOrderCreated?.();
     setSplitting(false);
+  };
+
+  /** Soma real dos itens que sobraram e grava em `orders.value` — o UPDATE
+   *  na coluna já dispara sozinho o trigger que recalcula as parcelas. */
+  const recalcOrderValue = async () => {
+    const { data } = await supabase.from("order_items").select("total_value").eq("order_id", order.id);
+    const novoValor = (data || []).reduce((sum, r: any) => sum + (Number(r.total_value) || 0), 0);
+    const { error } = await supabase.from("orders").update({ value: novoValor }).eq("id", order.id);
+    if (error) { toast.error("Erro ao recalcular o valor do pedido."); return; }
+    onUpdated(order.id, { value: novoValor });
+    await reloadInstallments();
+  };
+
+  const saveItemQuantity = async (item: OrderItem, rawQty: string) => {
+    const qty = Math.max(1, Math.round(parseFloat(rawQty)) || 1);
+    if (qty === item.quantity) return;
+    const novoTotal = item.unit_value != null ? item.unit_value * qty : valorDeQtd(item, qty);
+    const { error } = await supabase.from("order_items").update({ quantity: qty, total_value: novoTotal }).eq("id", item.id);
+    if (error) { toast.error("Erro ao salvar a quantidade."); return; }
+    setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, quantity: qty, total_value: novoTotal } : i)));
+    await recalcOrderValue();
+  };
+
+  const deleteItem = async (item: OrderItem) => {
+    const { error } = await supabase.from("order_items").delete().eq("id", item.id);
+    if (error) { toast.error("Erro ao remover o item."); return; }
+    setItems((prev) => prev.filter((i) => i.id !== item.id));
+    await recalcOrderValue();
   };
 
   /** Campos que alimentam o trigger de regeneração de parcelas — depois de
@@ -241,14 +269,28 @@ export function OrderDetailModal({ order, isOpen, onClose, onUpdated, commission
                             <th className="text-left font-black uppercase tracking-widest px-4 py-2.5">Produto</th>
                             <th className="text-right font-black uppercase tracking-widest px-4 py-2.5">Qtd.</th>
                             <th className="text-right font-black uppercase tracking-widest px-4 py-2.5">Total</th>
+                            <th className="px-2 py-2.5 w-8" />
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-zinc-800">
                           {items.map((item) => (
                             <tr key={item.id} className="text-slate-700 dark:text-zinc-300">
                               <td className="px-4 py-2 font-bold max-w-[220px] truncate" title={item.product_name}>{item.product_name}</td>
-                              <td className="px-4 py-2 text-right tabular-nums">{item.quantity}</td>
+                              <td className="px-4 py-2 text-right">
+                                <input
+                                  type="number"
+                                  min={1}
+                                  defaultValue={item.quantity}
+                                  onBlur={(e) => saveItemQuantity(item, e.target.value)}
+                                  className="w-16 text-right bg-transparent border border-transparent hover:border-slate-200 dark:hover:border-zinc-700 focus:border-emerald-400 focus:bg-white dark:focus:bg-zinc-900 rounded-lg px-2 py-1 tabular-nums outline-none transition-colors"
+                                />
+                              </td>
                               <td className="px-4 py-2 text-right font-black tabular-nums">{formatBRL(Number(item.total_value) || 0)}</td>
+                              <td className="px-2 py-2 text-right">
+                                <button onClick={() => deleteItem(item)} className="p-1 text-slate-300 hover:text-red-500 transition-colors" title="Remover item">
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </td>
                             </tr>
                           ))}
                         </tbody>
