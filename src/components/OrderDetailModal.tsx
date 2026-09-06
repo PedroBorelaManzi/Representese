@@ -239,7 +239,7 @@ export function OrderDetailModal({ order, isOpen, onClose, onUpdated, commission
 
               {!loadingItems && items.length > 0 && (
                 <div>
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between mb-1">
                     <p className="flex items-center gap-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest">
                       <Package className="w-3 h-3" /> Itens do pedido
                     </p>
@@ -252,6 +252,11 @@ export function OrderDetailModal({ order, isOpen, onClose, onUpdated, commission
                       </button>
                     )}
                   </div>
+                  {!order.file_path && (
+                    <p className="text-[10px] font-medium text-slate-400 dark:text-zinc-500 mb-2">
+                      Cópia gerada pelo sistema com os produtos deste pedido — não é o arquivo original enviado.
+                    </p>
+                  )}
 
                   {splitting ? (
                     <OrderSplitPanel
