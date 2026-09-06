@@ -1137,6 +1137,7 @@ export default function EmpresasPage() {
         onClose={() => setSelectedOrder(null)}
         onUpdated={patchOrder}
         commissions={settings?.commissions || {}}
+        onOrderCreated={loadOrders}
       />
 
       <AnimatePresence>

@@ -35,6 +35,23 @@ export interface ParsedReportRow {
   deliveryDateIso?: string;
   /** Quantas linhas do relatório foram juntadas neste pedido (ver `agruparPorPedido`). 1 = não agrupou. */
   lineCount?: number;
+  /**
+   * Produtos desta linha (relatório em Excel: 1 item por linha; ao agrupar
+   * por pedido, vira a lista de todos os produtos do pedido). Ausente nos
+   * relatórios em PDF (parser posicional não separa produto/qtd/valor
+   * unitário por linha) — pedidos vindos de PDF não geram `order_items`.
+   */
+  lineItems?: ParsedReportLineItem[];
+}
+
+/** Um produto de uma linha do relatório em planilha — vira uma linha de
+ *  `order_items` quando o pedido é gravado (ver ImportReportModal). */
+export interface ParsedReportLineItem {
+  productName: string;
+  productCode?: string;
+  quantity: number;
+  unitValue?: number;
+  totalValue: number;
 }
 
 export interface ParsedReport {
@@ -237,6 +254,9 @@ const EXCEL_HEADER_MAP: Record<string, keyof ExcelRow> = {
   "CÓDIGO EMPRESA": "productCode",
   "CODIGO EMPRESA": "productCode",
   "VALOR TOTAL PEDIDO": "value",
+  "VALOR CX": "unitValue",
+  "QUANT. CX/FARDO VENDA": "quantity",
+  "QUANT CX/FARDO VENDA": "quantity",
   "COND PAG.": "paymentTerms",
   "COND PAG": "paymentTerms",
   "NFE": "nfNumber",
@@ -255,6 +275,8 @@ interface ExcelRow {
   orderNumberEmpresa?: string;
   productCode?: string;
   value?: string;
+  unitValue?: string;
+  quantity?: string;
   paymentTerms?: string;
   nfNumber?: string;
   deliverySchedule?: string;
@@ -344,6 +366,20 @@ export async function parseOrderReportExcel(file: File): Promise<ParsedReport> {
     const observacao = get(row, "observacao").trim();
     const notes = [productName, observacao].filter(Boolean).join(" — ") || undefined;
 
+    const quantityRaw = get(row, "quantity").trim();
+    const unitValueRaw = get(row, "unitValue").trim();
+    const lineItems: ParsedReportLineItem[] | undefined = productName
+      ? [
+          {
+            productName,
+            productCode: productCode || undefined,
+            quantity: quantityRaw ? parseMoney(quantityRaw) || 1 : 1,
+            unitValue: unitValueRaw ? parseMoney(unitValueRaw) : undefined,
+            totalValue: value,
+          },
+        ]
+      : undefined;
+
     rows.push({
       orderNumber,
       dbOrderNumber: `${orderNumber}-${productCode || rowNumber}`,
@@ -357,6 +393,7 @@ export async function parseOrderReportExcel(file: File): Promise<ParsedReport> {
       nfNumber: get(row, "nfNumber").trim() || undefined,
       deliverySchedule: get(row, "deliverySchedule").trim() || undefined,
       deliveryDateIso: deliveryDate?.iso,
+      lineItems,
     });
   });
 
@@ -415,6 +452,7 @@ export function agruparPorPedido(rows: ParsedReportRow[]): ParsedReportRow[] {
     existente.values = existente.values.map((v, i) => v + (row.values[i] || 0));
     existente.notes = [existente.notes, row.notes].filter(Boolean).join("; ") || undefined;
     existente.lineCount = (existente.lineCount || 1) + 1;
+    if (row.lineItems?.length) existente.lineItems = [...(existente.lineItems || []), ...row.lineItems];
   }
 
   return ordemDasChaves.map((chave) => groups.get(chave)!);

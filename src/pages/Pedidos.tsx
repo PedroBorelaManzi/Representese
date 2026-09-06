@@ -578,6 +578,7 @@ export default function PedidosPage() {
         onClose={() => setSelectedOrder(null)}
         onUpdated={patchOrder}
         commissions={settings?.commissions || {}}
+        onOrderCreated={loadData}
       />
 
       <AnimatePresence>

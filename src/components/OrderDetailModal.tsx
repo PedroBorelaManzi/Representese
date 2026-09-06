@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, FileText, Loader2, Truck, Hash, Receipt, CreditCard, CalendarDays, CalendarClock, StickyNote } from "lucide-react";
+import { X, FileText, Loader2, Truck, Hash, Receipt, CreditCard, CalendarDays, CalendarClock, StickyNote, Package, Scissors } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
@@ -8,7 +8,8 @@ import { InlineEditField } from "./InlineEditField";
 import { CommissionValue } from "./CommissionValue";
 import { PdfViewerModal } from "./PdfViewerModal";
 import { NfCommissionStatusDot, type NfCommissionStatus } from "./NfCommissionStatusDot";
-import type { Order, OrderInstallment } from "../types";
+import { OrderSplitPanel } from "./OrderSplitPanel";
+import type { Order, OrderInstallment, OrderItem } from "../types";
 
 interface OrderDetailModalProps {
   order: Order | null;
@@ -22,15 +23,23 @@ interface OrderDetailModalProps {
    *  mesmo usado na tela de Comissões, só pra mostrar quanto cada parcela
    *  vale de comissão (informativo, não grava nada). */
   commissions: Record<string, number>;
+  /** Chamado depois de um desmembramento confirmado — o pedido novo não dá
+   *  pra "patchear" na lista existente (onUpdated só edita uma linha), então
+   *  quem abriu o modal recarrega tudo (mesma função já usada depois de
+   *  outras mutações na página, ex. `onImported` do ImportReportModal). */
+  onOrderCreated?: () => void;
 }
 
 const formatBRL = (n: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n);
 const toDateInputValue = (v: string | null | undefined) => (v ? String(v).match(/^\d{4}-\d{2}-\d{2}/)?.[0] || "" : "");
 
-export function OrderDetailModal({ order, isOpen, onClose, onUpdated, commissions }: OrderDetailModalProps) {
+export function OrderDetailModal({ order, isOpen, onClose, onUpdated, commissions, onOrderCreated }: OrderDetailModalProps) {
   const [installments, setInstallments] = useState<OrderInstallment[]>([]);
   const [loadingInstallments, setLoadingInstallments] = useState(false);
   const [pdfPreview, setPdfPreview] = useState<{ url: string; name: string } | null>(null);
+  const [items, setItems] = useState<OrderItem[]>([]);
+  const [loadingItems, setLoadingItems] = useState(false);
+  const [splitting, setSplitting] = useState(false);
 
   useEffect(() => {
     if (!isOpen || !order) { setInstallments([]); return; }
@@ -52,11 +61,40 @@ export function OrderDetailModal({ order, isOpen, onClose, onUpdated, commission
     // parcelas no banco (ver reloadInstallments abaixo).
   }, [isOpen, order?.id]);
 
+  useEffect(() => {
+    if (!isOpen || !order) { setItems([]); setSplitting(false); return; }
+    let cancelled = false;
+    setLoadingItems(true);
+    (async () => {
+      const { data } = await supabase
+        .from("order_items")
+        .select("*")
+        .eq("order_id", order.id)
+        .order("product_name");
+      if (cancelled) return;
+      setItems((data as OrderItem[]) || []);
+      setLoadingItems(false);
+    })();
+    return () => { cancelled = true; };
+  }, [isOpen, order?.id]);
+
   if (!order) return null;
 
   const reloadInstallments = async () => {
     const { data } = await supabase.from("order_installments").select("*").eq("order_id", order.id).order("installment_number");
     setInstallments((data as OrderInstallment[]) || []);
+  };
+
+  const reloadItems = async () => {
+    const { data } = await supabase.from("order_items").select("*").eq("order_id", order.id).order("product_name");
+    setItems((data as OrderItem[]) || []);
+  };
+
+  const handleSplitDone = async (novoValor: number) => {
+    onUpdated(order.id, { value: novoValor });
+    await Promise.all([reloadItems(), reloadInstallments()]);
+    onOrderCreated?.();
+    setSplitting(false);
   };
 
   /** Campos que alimentam o trigger de regeneração de parcelas — depois de
@@ -170,6 +208,55 @@ export function OrderDetailModal({ order, isOpen, onClose, onUpdated, commission
                   />
                 </div>
               </div>
+
+              {!loadingItems && items.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="flex items-center gap-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                      <Package className="w-3 h-3" /> Itens do pedido
+                    </p>
+                    {!splitting && (
+                      <button
+                        onClick={() => setSplitting(true)}
+                        className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-emerald-600 hover:text-emerald-700"
+                      >
+                        <Scissors className="w-3 h-3" /> Desmembrar pedido
+                      </button>
+                    )}
+                  </div>
+
+                  {splitting ? (
+                    <OrderSplitPanel
+                      order={order}
+                      items={items}
+                      userId={order.user_id}
+                      onCancel={() => setSplitting(false)}
+                      onDone={handleSplitDone}
+                    />
+                  ) : (
+                    <div className="rounded-2xl border border-slate-100 dark:border-zinc-800 overflow-hidden">
+                      <table className="w-full text-xs">
+                        <thead className="bg-slate-50 dark:bg-zinc-800/50 text-slate-400">
+                          <tr>
+                            <th className="text-left font-black uppercase tracking-widest px-4 py-2.5">Produto</th>
+                            <th className="text-right font-black uppercase tracking-widest px-4 py-2.5">Qtd.</th>
+                            <th className="text-right font-black uppercase tracking-widest px-4 py-2.5">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-zinc-800">
+                          {items.map((item) => (
+                            <tr key={item.id} className="text-slate-700 dark:text-zinc-300">
+                              <td className="px-4 py-2 font-bold max-w-[220px] truncate" title={item.product_name}>{item.product_name}</td>
+                              <td className="px-4 py-2 text-right tabular-nums">{item.quantity}</td>
+                              <td className="px-4 py-2 text-right font-black tabular-nums">{formatBRL(Number(item.total_value) || 0)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div>
                 <div className="flex items-center justify-between mb-2">

@@ -265,4 +265,34 @@ describe("agruparPorPedido", () => {
 
     expect(grupos[0].notes).toBe("Produto X");
   });
+
+  it("junta lineItems das linhas do mesmo pedido — vira a lista de produtos do pedido", () => {
+    const grupos = agruparPorPedido([
+      linha({
+        cnpj: "1",
+        orderNumber: "1",
+        lineItems: [{ productName: "Produto A", productCode: "A1", quantity: 10, unitValue: 5, totalValue: 50 }],
+      }),
+      linha({
+        cnpj: "1",
+        orderNumber: "1",
+        lineItems: [{ productName: "Produto B", productCode: "B1", quantity: 2, unitValue: 20, totalValue: 40 }],
+      }),
+    ]);
+
+    expect(grupos).toHaveLength(1);
+    expect(grupos[0].lineItems).toEqual([
+      { productName: "Produto A", productCode: "A1", quantity: 10, unitValue: 5, totalValue: 50 },
+      { productName: "Produto B", productCode: "B1", quantity: 2, unitValue: 20, totalValue: 40 },
+    ]);
+  });
+
+  it("sem lineItems (relatório em PDF) continua sem lineItems depois de agrupar", () => {
+    const grupos = agruparPorPedido([
+      linha({ cnpj: "1", orderNumber: "1", lineItems: undefined }),
+      linha({ cnpj: "1", orderNumber: "1", lineItems: undefined }),
+    ]);
+
+    expect(grupos[0].lineItems).toBeUndefined();
+  });
 });

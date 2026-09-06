@@ -37,6 +37,7 @@ export interface Order {
   client_id: string;
   category: string;
   value: number;
+  order_number?: string | null;
   file_name?: string;
   file_path?: string;
   description?: string;
@@ -79,6 +80,27 @@ export interface OrderInstallment {
   value: number;
   created_at?: string;
   updated_at?: string;
+}
+
+/** Um produto de um pedido, gravado por `salvarItensDoPedido`
+ *  (src/lib/orderItems.ts) — só existe pra pedidos lançados por foto/PDF ou
+ *  importados de planilha com produto discriminado linha a linha (relatórios
+ *  em PDF não geram isso). Base do desmembramento de pedido (OrderSplitPanel)
+ *  e do ranking de produtos (Produtos.tsx). */
+export interface OrderItem {
+  id: string;
+  order_id: string;
+  user_id: string;
+  client_id: string | null;
+  category: string;
+  product_name: string;
+  product_key: string;
+  product_code?: string | null;
+  quantity: number;
+  unit_value?: number | null;
+  total_value?: number | null;
+  order_date?: string;
+  created_at?: string;
 }
 
 export interface Appointment {

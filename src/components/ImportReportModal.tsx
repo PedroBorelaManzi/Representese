@@ -6,6 +6,7 @@ import { supabase } from "../lib/supabase";
 import { cn } from "../lib/utils";
 import { SearchableClientPicker } from "./SearchableClientPicker";
 import { offlineCache } from "../lib/offlineCache";
+import { salvarItensDoPedido } from "../lib/orderItems";
 import { useModalEsc } from "../hooks/useModalEsc";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 import {
@@ -230,7 +231,11 @@ export default function ImportReportModal({ open, onClose, userId, clients, cate
         (created || []).forEach(c => createdByName.set(normalizeName(c.name), c.id));
       }
 
-      // 2. Monta os pedidos
+      // 2. Monta os pedidos — guarda cliente/itens de cada um à parte (fora
+      // do payload do insert) pra gravar os order_items depois, já que o
+      // upsert com ignoreDuplicates não devolve posição confiável (linhas
+      // puladas por já existir somem do retorno, desalinhando um índice).
+      const metaPorNumero = new Map<string, { clientId: string; row: ParsedReportRow }>();
       const orders = readyIdxs
         .map(i => {
           const row = rows[i];
@@ -238,12 +243,14 @@ export default function ImportReportModal({ open, onClose, userId, clients, cate
             ? createdByName.get(normalizeName(row.clientName))
             : rowStates[i].clientId;
           if (!clientId) return null;
+          const orderNumber = row.dbOrderNumber || row.orderNumber;
+          metaPorNumero.set(orderNumber, { clientId, row });
           return {
             user_id: userId,
             client_id: clientId,
             category,
             value: pickValue(row, valueIndex),
-            order_number: row.dbOrderNumber || row.orderNumber,
+            order_number: orderNumber,
             source: "report_import",
             file_name: fileName,
             created_at: orderDateToTimestamp(row.date),
@@ -268,6 +275,47 @@ export default function ImportReportModal({ open, onClose, userId, clients, cate
           .select("id");
         if (error) throw new Error("Erro ao gravar os pedidos: " + error.message);
         inserted += (data || []).length;
+      }
+
+      // 3b. Busca de novo pelo order_number (não pela posição do upsert) —
+      // única forma confiável de saber o id de cada pedido, já que o insert
+      // acima não garante correspondência posicional com o que foi pulado
+      // por já existir. Grava os itens (order_items) de quem tem lineItems
+      // (relatório em Excel), pra dar pra desmembrar depois (ver Produtos/
+      // OrderDetailModal). Pedidos vindos de PDF não têm lineItems — ficam
+      // sem itens, igual sempre foi.
+      const numerosComItens = Array.from(metaPorNumero.entries())
+        .filter(([, m]) => m.row.lineItems?.length)
+        .map(([numero]) => numero);
+      if (numerosComItens.length) {
+        for (let i = 0; i < numerosComItens.length; i += 200) {
+          const lote = numerosComItens.slice(i, i + 200);
+          const { data: ordersComId } = await supabase
+            .from("orders")
+            .select("id, order_number")
+            .eq("user_id", userId)
+            .eq("category", category)
+            .in("order_number", lote);
+
+          for (const o of ordersComId || []) {
+            const meta = metaPorNumero.get(String(o.order_number));
+            if (!meta?.row.lineItems?.length) continue;
+            await salvarItensDoPedido(supabase, {
+              userId: userId!,
+              orderId: o.id,
+              clientId: meta.clientId,
+              category,
+              orderDate: orderDateToTimestamp(meta.row.date),
+              items: meta.row.lineItems.map(li => ({
+                description: li.productName,
+                code: li.productCode,
+                quantity: li.quantity,
+                unitValue: li.unitValue,
+                totalValue: li.totalValue,
+              })),
+            });
+          }
+        }
       }
 
       // 4. Atualiza o faturamento acumulado de cada cliente na representada

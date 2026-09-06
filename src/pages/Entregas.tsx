@@ -269,6 +269,7 @@ export default function EntregasPage() {
         onClose={() => setSelectedOrder(null)}
         onUpdated={patchOrder}
         commissions={settings?.commissions || {}}
+        onOrderCreated={loadData}
       />
 
       {/* Painel de configuração: prazo de entrega padrão por empresa */}
