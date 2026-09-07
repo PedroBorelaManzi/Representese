@@ -701,72 +701,71 @@ export default function EmpresasPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6 md:gap-10">
-        <div className="md:col-span-4 flex flex-col gap-3 sm:gap-4 w-full">
-          <div className="flex items-center justify-between px-2 md:px-4">
-             <h3 className="text-[9px] md:text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Suas empresas</h3>
-          </div>
-          
-          <div className="grid grid-cols-2 md:flex md:flex-col gap-3 w-full">
-            {/* "Nova Empresa" é ação secundária: borda tracejada em vez de
-                competir em verde sólido com o filtro "Todas as Empresas" */}
-            <button onClick={() => isLimitExceeded ? setShowUpsellModal(true) : setIsAddModalOpen(true)} className="w-full text-left p-4 sm:p-5 rounded-3xl border-2 border-dashed border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/10 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:border-emerald-400 flex items-center justify-between group mb-2 md:mb-4 transition-all active:scale-95 col-span-2 md:col-span-1">
-              <span className="text-[10px] sm:text-xs lg:text-[13px] font-black uppercase tracking-tight">Nova Empresa</span>
-              <Plus className="w-4 h-4 sm:w-5 h-5 group-hover:rotate-90 transition-transform" />
-            </button>
+      {/* Suas empresas — faixa horizontal compacta, logo abaixo dos indicadores.
+          Antes era uma coluna lateral que comia 1/3 da largura; agora rola na
+          horizontal e a lista de pedidos ocupa a página inteira. */}
+      <div className="flex flex-col gap-3">
+        <h3 className="text-[9px] md:text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] px-1">Suas empresas</h3>
 
-            <button 
-              onClick={() => setSelectedCategory("all")}
-              className={cn("w-full text-left p-4 sm:p-5 lg:p-7 rounded-[30px] md:rounded-[35px] border transition-all relative group overflow-hidden active:scale-[0.98] col-span-2 md:col-span-1",
-                selectedCategory === "all" 
-                  ? "bg-emerald-600 border-emerald-600 text-white shadow-[0_0_24px_rgba(16,185,129,0.35)] dark:border-emerald-500/50"
-                  : "bg-white dark:bg-zinc-900 border-slate-100 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 hover:border-emerald-200 ring-1 ring-slate-200/80 shadow-none hover:ring-emerald-300 transition-all"
+        <div className="flex gap-2.5 overflow-x-auto pb-2 custom-scrollbar snap-x">
+          <button
+            onClick={() => setSelectedCategory("all")}
+            className={cn("shrink-0 snap-start text-left flex flex-col justify-between gap-1.5 min-w-[150px] px-4 py-3 rounded-2xl border transition-all active:scale-[0.98] group",
+              selectedCategory === "all"
+                ? "bg-emerald-600 border-emerald-600 text-white shadow-[0_0_20px_rgba(16,185,129,0.30)] dark:border-emerald-500/50"
+                : "bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 ring-1 ring-slate-200/70 hover:ring-emerald-300"
+            )}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className={cn("text-[9px] font-black uppercase tracking-widest", selectedCategory === "all" ? "text-emerald-100" : "text-emerald-500")}>Todas</span>
+              <LayoutGrid className="w-3.5 h-3.5 opacity-40 group-hover:scale-110 transition-transform" />
+            </div>
+            <span className="text-sm font-black tracking-tight whitespace-nowrap">Todas as Empresas</span>
+          </button>
+
+          {combinedCategories.map(cat => (
+            <div
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={cn("shrink-0 snap-start cursor-pointer flex flex-col justify-between gap-1.5 min-w-[150px] max-w-[240px] px-4 py-3 rounded-2xl border transition-all relative group active:scale-[0.98]",
+                selectedCategory === cat
+                  ? "bg-slate-900 dark:bg-zinc-900 border-slate-900 text-white shadow-lg dark:border-emerald-500/50 dark:shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+                  : "bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 ring-1 ring-slate-200/70 hover:ring-emerald-300"
               )}
             >
-              <div className="flex items-center justify-between mb-2">
-                <h4 className={cn("text-[9px] sm:text-[11px] lg:text-[12px] font-black uppercase tracking-widest", selectedCategory === "all" ? "text-emerald-100" : "text-emerald-500")}>Todas</h4>
-                <LayoutGrid className="w-4 h-4 md:w-5 md:h-5 opacity-40 group-hover:scale-110 transition-transform" />
-              </div>
-              <div className="flex items-end justify-between">
-                <p className="text-lg sm:text-xl lg:text-2xl font-black tracking-tighter">Todas as Empresas</p>
-              </div>
-            </button>
-
-            <div className="grid grid-cols-2 md:flex md:flex-col gap-3 col-span-2 md:col-span-1 md:pt-6 md:border-t border-slate-50 dark:border-zinc-800/50 w-full">
-              {combinedCategories.map(cat => (
-                <div
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={cn("cursor-pointer w-full text-left p-4 sm:p-5 lg:p-6 rounded-[28px] md:rounded-[32px] border transition-all relative group overflow-hidden active:scale-[0.98]",
-                    selectedCategory === cat
-                      ? "bg-slate-900 dark:bg-zinc-900 border-slate-900 text-white shadow-xl scale-[1.02] dark:border-emerald-500/50 dark:shadow-[0_0_15px_rgba(16,185,129,0.3)]" 
-                      : "bg-white dark:bg-zinc-900 border-slate-100 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 hover:border-emerald-200"
-                  )}
+              <div className="flex items-center justify-between gap-2">
+                <h4 className="text-[10px] font-black uppercase tracking-tight truncate">{cat}</h4>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setManagingCompany(cat);
+                    setEditName(cat);
+                    setEditDeliveryDays(String(settings?.delivery_lead_days?.[cat] ?? ""));
+                    setEditCommissionPct(String(settings?.commissions?.[cat] ?? ""));
+                    setEditCommissionMode(settings?.commission_mode?.[cat] === 'per_product' ? 'per_product' : 'fixed');
+                  }}
+                  className="p-1 -mr-1 hover:bg-white/20 rounded-full transition-all relative z-20 shrink-0"
+                  aria-label={`Gerenciar ${cat}`}
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="text-[10px] sm:text-[12px] lg:text-[13px] font-black uppercase tracking-tight truncate max-w-[120px] md:max-w-none">{cat}</h4>
-                    <button 
-                      onClick={(e) => { 
-                        e.stopPropagation(); 
-                        setManagingCompany(cat);
-                        setEditName(cat);
-                        setEditDeliveryDays(String(settings?.delivery_lead_days?.[cat] ?? ""));
-                        setEditCommissionPct(String(settings?.commissions?.[cat] ?? ""));
-                        setEditCommissionMode(settings?.commission_mode?.[cat] === 'per_product' ? 'per_product' : 'fixed');
-                      }} 
-                      className="p-1.5 md:p-2 hover:bg-white/20 rounded-full transition-all relative z-20"
-                    >
-                      <Settings className="w-3.5 h-3.5 md:w-4 md:h-4 opacity-30 group-hover:rotate-45 transition-transform" />
-                    </button>
-                  </div>
-                  <p className="text-sm sm:text-base lg:text-lg font-black tracking-tighter">{(catTotals[cat] || 0) === 0 ? <span className="text-slate-400 font-medium text-sm">Sem vendas</span> : formatCurrency(catTotals[cat] || 0)}</p>
-                </div>
-              ))}
+                  <Settings className="w-3.5 h-3.5 opacity-30 group-hover:rotate-45 transition-transform" />
+                </button>
+              </div>
+              <p className="text-xs font-black tracking-tight whitespace-nowrap">{(catTotals[cat] || 0) === 0 ? <span className="text-slate-400 font-medium">Sem vendas</span> : formatCurrency(catTotals[cat] || 0)}</p>
             </div>
-          </div>
-        </div>
+          ))}
 
-        <div className="md:col-span-8">
+          {/* "Nova Empresa" no fim da faixa: ação secundária, borda tracejada */}
+          <button
+            onClick={() => isLimitExceeded ? setShowUpsellModal(true) : setIsAddModalOpen(true)}
+            className="shrink-0 snap-start flex items-center justify-center gap-2 min-w-[132px] px-4 py-3 rounded-2xl border-2 border-dashed border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/10 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:border-emerald-400 transition-all active:scale-95 group"
+          >
+            <span className="text-[10px] font-black uppercase tracking-tight">Nova Empresa</span>
+            <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
+          </button>
+        </div>
+      </div>
+
+      <div>
           <div className="flex items-center justify-between gap-3 mb-4 px-1">
             <h3 className="text-[9px] md:text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Pedidos do período</h3>
             <OrdersViewToggle value={ordersView} onChange={setOrdersView} />
@@ -782,7 +781,7 @@ export default function EmpresasPage() {
               />
             </div>
           ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 pb-20">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6 pb-20">
               {loading ? (
                  <>
                    {Array.from({ length: 4 }).map((_, i) => (
@@ -823,7 +822,6 @@ export default function EmpresasPage() {
               )}
           </div>
           )}
-        </div>
       </div>
 
       <AnimatePresence>
