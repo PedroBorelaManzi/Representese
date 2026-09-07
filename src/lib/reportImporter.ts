@@ -25,7 +25,9 @@ export interface ParsedReportRow {
    * `orderNumber` mesmo.
    */
   dbOrderNumber?: string;
-  /** Nome do produto + observação do relatório, já combinados — vira `orders.notes`. */
+  /** Só a observação do relatório — vira `orders.notes`. O nome do produto NÃO
+   *  entra aqui: vai pra `order_items` (via `lineItems`), linha própria e
+   *  editável no detalhe do pedido. */
   notes?: string;
   paymentTerms?: string;
   nfNumber?: string;
