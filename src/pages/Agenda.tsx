@@ -383,14 +383,6 @@ export default function Agenda() {
     return events.filter(e => e.date === dateIso && (e.title.toLowerCase().includes(searchFilter.toLowerCase()) || clients.find(c => c.id === e.client_id)?.name.toLowerCase().includes(searchFilter.toLowerCase()))).sort((a,b) => a.time.localeCompare(b.time));
   }, [events, selectedMobileDate, searchFilter, clients]);
 
-  // Feriado de hoje na cidade de algum cliente — antes só aparecia como uma
-  // etiquetinha de 6px dentro do quadradinho do calendário, fácil de passar
-  // batido antes de sair pra visita.
-  const todayHolidaysByCity = useMemo(() => {
-    const todayIso = formatDateLocal(new Date());
-    return holidays.filter(h => h.date === todayIso && h.city);
-  }, [holidays]);
-
   return (
     <div className="h-full flex flex-col gap-0 pb-0">
       {/* Header padrão */}
@@ -452,24 +444,6 @@ export default function Agenda() {
           </>
         }
       />
-
-      {todayHolidaysByCity.length > 0 && (
-        <div className="rounded-3xl border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/20 px-5 py-4 flex items-start gap-3 mb-4">
-          <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-          <div className="min-w-0">
-            <p className="text-sm font-black text-amber-900 dark:text-amber-200 uppercase tracking-wide">
-              {todayHolidaysByCity.length === 1 ? "Feriado hoje" : "Feriados hoje"}
-            </p>
-            <div className="mt-1 space-y-0.5">
-              {todayHolidaysByCity.map((h, idx) => (
-                <p key={idx} className="text-xs font-medium text-amber-800 dark:text-amber-300/90">
-                  <strong>{h.city}{h.state ? `/${h.state}` : ""}</strong>: {h.name} — o comércio pode estar fechado, confira antes de sair.
-                </p>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="flex-1 flex flex-col gap-6 mt-4 min-h-0">
         <div className="flex-1 bg-white dark:bg-zinc-950 rounded-[32px] border border-slate-200/80 dark:border-zinc-800/80 shadow-2xl flex flex-col min-h-[600px] relative overflow-hidden">
