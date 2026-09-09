@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Plus, ChevronLeft, ChevronRight, Clock, Home, Loader2, Globe, RefreshCw, Calendar, LayoutDashboard } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, Clock, Home, Loader2, Globe, RefreshCw, Calendar, LayoutDashboard, AlertTriangle } from "lucide-react";
 import { supabase, logAudit } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { cn } from "../lib/utils";
@@ -660,6 +660,16 @@ export default function Dashboard() {
     });
   }, [events, selectedNoteDate]);
 
+  // Feriado de hoje na cidade de algum cliente: antes só aparecia como uma
+  // etiquetinha de 6px dentro da célula do calendário — fácil de nunca notar
+  // antes de sair de casa pra visitar cliente. Isso já causou representante
+  // chegar num cliente e achar a loja fechada por feriado municipal (do
+  // padroeiro, por exemplo) que o sistema "sabia" mas não avisava de verdade.
+  const todayHolidaysByCity = useMemo(() => {
+    const todayIso = formatDateLocal(new Date());
+    return holidays.filter(h => h.date === todayIso && h.city);
+  }, [holidays]);
+
   return (
     <div className="space-y-6 h-full flex flex-col">
       <PageHeader
@@ -674,6 +684,27 @@ export default function Dashboard() {
           </span>
         ) : undefined}
       />
+
+      {/* Feriado hoje na cidade de algum cliente — aviso destacado, não uma
+          etiquetinha escondida no calendário, pra ninguém sair de casa e
+          chegar num cliente com a loja fechada sem saber por quê. */}
+      {todayHolidaysByCity.length > 0 && (
+        <div className="rounded-3xl border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/20 px-5 py-4 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+          <div className="min-w-0">
+            <p className="text-sm font-black text-amber-900 dark:text-amber-200 uppercase tracking-wide">
+              {todayHolidaysByCity.length === 1 ? "Feriado hoje" : "Feriados hoje"}
+            </p>
+            <div className="mt-1 space-y-0.5">
+              {todayHolidaysByCity.map((h, idx) => (
+                <p key={idx} className="text-xs font-medium text-amber-800 dark:text-amber-300/90">
+                  <strong>{h.city}{h.state ? `/${h.state}` : ""}</strong>: {h.name} — o comércio pode estar fechado, confira antes de sair.
+                </p>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Jornada inicial: só renderiza com dados frescos (online) para não marcar
           passos errados a partir de cache parcial. */}

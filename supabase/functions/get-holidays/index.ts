@@ -33,6 +33,14 @@ const ANIVERSARIO_KEYWORDS = [
 
 const PADROEIRO_KEYWORDS = ["padroeiro", "padroeira"];
 
+// Nomes genéricos que não dizem nada por si só ("Feriado", "Feriado
+// Municipal", "Ponto Facultativo" etc.) — bem comuns na base de dados de
+// origem quando o motivo específico não foi catalogado. Módulo-scoped
+// porque é usado tanto na extração do nome do padroeiro (não deixa um nome
+// genérico virar "Padroeiro: Feriado Municipal") quanto no pega-tudo mais
+// abaixo.
+const GENERIC_NAMES = ["feriado municipal", "feriado", "ponto facultativo", "feriado local"];
+
 // Explica o motivo de cada feriado nacional. Casa por palavra-chave (em vez
 // de nome exato) porque a fonte externa (BrasilAPI) inclui datas móveis
 // (Carnaval, Sexta-feira Santa, Corpus Christi) cuja grafia varia de ano
@@ -88,24 +96,50 @@ function classifyMunicipalHoliday(rawName: string, rawDescription: string, cityN
   }
 
   if (mentionsPadroeiro) {
-    // Tenta extrair o nome do santo/santa a partir do pr\u00f3prio nome bruto,
-    // removendo termos gen\u00e9ricos tipo "Padroeiro do Munic\u00edpio".
-    let saint = name
-      .replace(/,?\s*padroeir[ao]\s*(d[oa]\s*(munic[\u00edi]pio|cidade))?/gi, "")
-      .replace(/^dia\s+de\s+/i, "")
-      .replace(/,\s*$/, "")
-      .trim();
+    // Remove a men\u00e7\u00e3o a "padroeiro(a) [do munic\u00edpio/da cidade]" de um texto,
+    // sobrando (quando existir) o nome do santo. Usado tanto no nome quanto
+    // na descri\u00e7\u00e3o \u2014 por isso \u00e9 uma fun\u00e7\u00e3o \u00e0 parte em vez de inline.
+    const stripPadroeiroPhrase = (text: string) =>
+      text
+        .replace(/,?\s*(d[oa]\s+)?padroeir[ao]\s*(d[oa]\s*(munic[\u00edi]pio|cidade))?/gi, " ")
+        .replace(/^\s*dia(\s+(de|do|da))?\s*/i, "")
+        .replace(/,\s*$/, "")
+        .replace(/\s+/g, " ")
+        .trim();
 
-    // Nome bruto n\u00e3o trouxe o santo (ex.: era s\u00f3 "Padroeiro") \u2014 tenta achar
-    // na descri\u00e7\u00e3o, formato comum: "Dia de X, padroeiro(a) do Munic\u00edpio".
+    const nameHasPadroeiro = PADROEIRO_KEYWORDS.some((k) => normName.includes(k));
+
+    // Nomes gen\u00e9ricos (mesma lista usada mais abaixo para o pega-tudo) n\u00e3o
+    // servem de santo mesmo sem mencionar "padroeiro" \u2014 ex.: "Feriado
+    // Municipal" com o santo s\u00f3 na descri\u00e7\u00e3o. Sem essa checagem, esse nome
+    // gen\u00e9rico virava literalmente "Padroeiro: Feriado Municipal".
+    const nameIsGeneric = GENERIC_NAMES.includes(normName);
+
+    // Tenta extrair o nome do santo/santa a partir do pr\u00f3prio nome bruto.
+    // S\u00f3 tenta a extra\u00e7\u00e3o (removendo "padroeiro...") quando o NOME de fato
+    // menciona "padroeiro" \u2014 formatos como "Dia da Padroeira" (sem dizer
+    // qual santo) sobravam como "Dia da" depois de remover s\u00f3 a palavra
+    // "Padroeira", e isso virava "Padroeiro: Dia da" em vez de cair no
+    // fallback com o nome da cidade. Quando o nome N\u00c3O menciona padroeiro
+    // mas tamb\u00e9m n\u00e3o \u00e9 gen\u00e9rico (ex.: "S\u00e3o Pedro", com "padroeiro" s\u00f3 na
+    // descri\u00e7\u00e3o confirmando o papel), o pr\u00f3prio nome j\u00e1 \u00e9 o santo.
+    let saint = "";
+    if (nameHasPadroeiro) {
+      saint = stripPadroeiroPhrase(name);
+    } else if (!nameIsGeneric) {
+      saint = name;
+    }
+
+    // Nome n\u00e3o trouxe o santo \u2014 tenta achar na descri\u00e7\u00e3o, formato comum:
+    // "Dia de X, padroeiro(a) do Munic\u00edpio".
     if (!saint || saint.length < 3) {
       const match =
         description.match(/dia\s+de\s+([^,]+),?\s*padroeir/i) ||
         description.match(/^([^,]+),?\s*padroeir/i);
-      saint = match ? match[1].trim() : "";
+      saint = match ? stripPadroeiroPhrase(match[1]) : "";
     }
 
-    const finalName = saint ? `Padroeiro: ${saint}` : `Padroeiro de ${cityName}`;
+    const finalName = saint && saint.length >= 3 ? `Padroeiro: ${saint}` : `Padroeiro de ${cityName}`;
     return {
       name: finalName,
       description: description || `Feriado em homenagem ao(\u00e0) padroeiro(a) de ${cityName}.`,
@@ -117,7 +151,6 @@ function classifyMunicipalHoliday(rawName: string, rawDescription: string, cityN
   // dados de origem quando o motivo específico não foi catalogado. Sem essa
   // checagem, o card mostrava literalmente só "Feriado" sem nem dizer qual
   // cidade, muito menos o motivo.
-  const GENERIC_NAMES = ["feriado municipal", "feriado", "ponto facultativo", "feriado local"];
   if (GENERIC_NAMES.includes(normName)) {
     return {
       name: `Feriado - ${cityName}`,
