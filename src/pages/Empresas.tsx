@@ -39,6 +39,8 @@ import { syncQueue } from "../lib/syncQueue";
 import { offlineCache, CacheKeys } from "../lib/offlineCache";
 import { ajustarFaturamento } from "../lib/faturamento";
 import { salvarItensDoPedido } from "../lib/orderItems";
+import { lookupCnpj } from "../lib/cnpjLookup";
+import { findRepresentedCompany, createRepresentedCompany, linkRepToCompany } from "../lib/representedCompanies";
 import { isIOSApp, SITE_DOMAIN } from "../lib/iapPolicy";
 import { EmptyState } from "../components/ui";
 import TourArrow from "../components/TourArrow";
@@ -86,6 +88,12 @@ export default function EmpresasPage() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isImportReportOpen, setIsImportReportOpen] = useState(false);
   const [newCat, setNewCat] = useState("");
+  // CNPJ é opcional aqui: só quem preenche entra no registro global de
+  // empresas representadas (represented_companies) e passa a poder receber
+  // pedido automático por e-mail/Drive. Sem CNPJ, continua sendo só uma
+  // categoria de texto livre, como sempre foi.
+  const [newCompanyCnpj, setNewCompanyCnpj] = useState("");
+  const [isSavingCompany, setIsSavingCompany] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [viewDate, setViewDate] = useState(new Date());
   const [managingCompany, setManagingCompany] = useState<string | null>(null);
@@ -595,19 +603,66 @@ export default function EmpresasPage() {
       toast.error("Por favor, digite o nome da empresa.");
       return;
     }
+    const currentCategories = settings.categories || [];
+    if (currentCategories.some((c: string) => c.toLowerCase() === trimmedCat.toLowerCase())) {
+      toast.error("Empresa \"" + trimmedCat + "\" já está cadastrada.");
+      return;
+    }
+
+    setIsSavingCompany(true);
     try {
-      const currentCategories = settings.categories || [];
-      if (currentCategories.some((c: string) => c.toLowerCase() === trimmedCat.toLowerCase())) {
-        toast.error("Empresa \"" + trimmedCat + "\" já está cadastrada.");
-        return;
+      // CNPJ é opcional — quem preenche entra no registro global (por CNPJ)
+      // de empresas representadas, o que liga a captura automática de
+      // pedido por e-mail (e Drive, mais pra frente) pra essa empresa.
+      const cleanCnpj = newCompanyCnpj.replace(/\D/g, "");
+      if (cleanCnpj) {
+        if (cleanCnpj.length !== 14) {
+          toast.error("CNPJ inválido — confira os 14 dígitos.");
+          setIsSavingCompany(false);
+          return;
+        }
+
+        const existing = await findRepresentedCompany(cleanCnpj);
+        if (existing) {
+          const mesmaEmpresa = await confirm({
+            title: "Empresa já cadastrada",
+            message: `Já existe uma empresa com este CNPJ no sistema: ${existing.name}${existing.city ? ` (${existing.city}${existing.state ? "/" + existing.state : ""})` : ""}. É a mesma empresa que você está cadastrando?`,
+          });
+          if (mesmaEmpresa) {
+            await linkRepToCompany(existing.id, trimmedCat);
+            toast.success("Vinculado à empresa já cadastrada — pedidos automáticos habilitados.");
+          } else {
+            toast.warning("Cadastro seguiu sem captura automática — confira o CNPJ e tente vincular depois.");
+          }
+        } else {
+          // Busca os dados oficiais na Receita pra não depender do que o
+          // vendedor digitou no nome — mesma fonte usada no cadastro de
+          // cliente (lib/cnpjLookup.ts). Se a consulta falhar, cadastra
+          // mesmo assim com o nome digitado (nunca bloqueia por causa disso).
+          const found = await lookupCnpj(cleanCnpj);
+          await createRepresentedCompany({
+            cnpj: cleanCnpj,
+            name: found?.name || trimmedCat,
+            nomeFantasia: found?.nomeFantasia || null,
+            city: found?.city || null,
+            state: found?.state || null,
+            categoryName: trimmedCat,
+          });
+          toast.success("Empresa cadastrada — pedidos automáticos habilitados.");
+        }
       }
+
       await updateSettings({ categories: [...currentCategories, trimmedCat] });
-      toast.success("Empresa \"" + trimmedCat + "\" cadastrada com sucesso!");
+      if (!cleanCnpj) toast.success("Empresa \"" + trimmedCat + "\" cadastrada com sucesso!");
       setIsAddModalOpen(false);
       setNewCat("");
+      setNewCompanyCnpj("");
       loadOrders();
     } catch (err) {
-      toast.error("Erro ao cadastrar.");
+      console.error("Erro ao cadastrar empresa representada:", err);
+      toast.error(err instanceof Error ? err.message : "Erro ao cadastrar.");
+    } finally {
+      setIsSavingCompany(false);
     }
   };
 
@@ -875,7 +930,15 @@ export default function EmpresasPage() {
                      <label className="text-[8px] md:text-[9px] font-black uppercase text-slate-400 tracking-widest mb-2 block">Razão Social / Fantasia</label>
                      <input placeholder="EX: COZIMAX" value={newCat} onChange={e => setNewCat(e.target.value)} className="w-full p-5 md:p-6 bg-slate-50 dark:bg-zinc-850 rounded-[24px] md:rounded-[28px] font-black uppercase text-sm outline-none border border-slate-100 dark:border-zinc-800 focus:border-emerald-500 transition-all shadow-inner" />
                    </div>
-                   <button data-tour="cadastro-empresa" onClick={addCategory} className="w-full py-5 md:py-6 bg-emerald-600 text-white rounded-[24px] md:rounded-[32px] font-black uppercase tracking-widest text-[10px] md:text-xs shadow-xl hover:bg-emerald-700 transition-all active:scale-95">Efetivar Cadastro</button>
+                   <div>
+                     <label className="text-[8px] md:text-[9px] font-black uppercase text-slate-400 tracking-widest mb-2 block">CNPJ (opcional)</label>
+                     <input placeholder="00.000.000/0000-00" value={newCompanyCnpj} onChange={e => setNewCompanyCnpj(e.target.value)} className="w-full p-5 md:p-6 bg-slate-50 dark:bg-zinc-850 rounded-[24px] md:rounded-[28px] font-black text-sm outline-none border border-slate-100 dark:border-zinc-800 focus:border-emerald-500 transition-all shadow-inner" />
+                     <p className="text-[9px] md:text-[10px] text-slate-400 mt-2 leading-relaxed">Informando o CNPJ, essa empresa passa a poder mandar pedido direto pro sistema (por e-mail) — sem precisar digitar cada um na mão.</p>
+                   </div>
+                   <button data-tour="cadastro-empresa" onClick={addCategory} disabled={isSavingCompany} className="w-full py-5 md:py-6 bg-emerald-600 text-white rounded-[24px] md:rounded-[32px] font-black uppercase tracking-widest text-[10px] md:text-xs shadow-xl hover:bg-emerald-700 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2">
+                     {isSavingCompany && <Loader2 className="w-4 h-4 animate-spin" />}
+                     Efetivar Cadastro
+                   </button>
                 </div>
              </motion.div>
           </div>

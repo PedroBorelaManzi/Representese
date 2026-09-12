@@ -66,6 +66,7 @@ const TermsOfService = lazyWithRetry(() => import("./pages/TermsOfService"));
 const DataDeletion = lazyWithRetry(() => import("./pages/DataDeletion"));
 const CookiePolicy = lazyWithRetry(() => import("./pages/CookiePolicy"));
 const AdminAnalytics = lazyWithRetry(() => import("./pages/AdminAnalytics"));
+const AdminCompanies = lazyWithRetry(() => import("./pages/AdminCompanies"));
 
 const LoadingSpinner = () => (
   <div className="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-zinc-950">
@@ -157,6 +158,7 @@ export default function App() {
                       <Route path="relatorios" element={<ReportsPage />} />
                       <Route path="suporte-admin" element={<AdminSupportPage />} />
                       <Route path="admin/analytics" element={<AdminAnalytics />} />
+                      <Route path="admin/empresas" element={<AdminCompanies />} />
                     </Route>
                     <Route path="order-bump" element={isIOSApp() ? <Navigate to="/dashboard" replace /> : <OrderBumpPage />} />
                   </Route>

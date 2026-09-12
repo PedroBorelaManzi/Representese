@@ -233,6 +233,7 @@ export default function Layout() {
           items: [
             ...(isSupportAdmin ? [{ icon: Headphones, label: 'Suporte', path: '/dashboard/suporte-admin' }] : []),
             ...(settings.is_admin ? [{ icon: BarChart3, label: 'Analytics', path: '/dashboard/admin/analytics' }] : []),
+            ...(settings.is_admin ? [{ icon: Building2, label: 'Empresas Representadas', path: '/dashboard/admin/empresas' }] : []),
           ],
         }]
       : []),
