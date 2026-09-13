@@ -7,6 +7,7 @@ import { Logo } from './Logo';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { isIOSApp, SITE_DOMAIN } from '../lib/iapPolicy';
+import { openManageSubscriptions } from '../lib/iap';
 
 export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
   const { settings, loading: settingsLoading } = useSettings();
@@ -85,20 +86,15 @@ export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
               </div>
 
               <div className="pt-2">
-                {isIOSApp() ? (
-                  <p className="text-sm font-bold text-slate-600 dark:text-zinc-300 leading-relaxed">
-                    Ative um plano acessando <span className="text-emerald-600 dark:text-emerald-400">{SITE_DOMAIN}</span> pelo
-                    navegador. Depois é só voltar aqui e entrar com o mesmo e-mail.
-                  </p>
-                ) : (
-                  <Link
-                    to="/planos"
-                    className="w-full bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white py-5 rounded-2xl font-black uppercase text-[12px] tracking-widest flex items-center justify-center gap-3 transition-all shadow-xl shadow-emerald-600/20"
-                  >
-                    Ver Planos Disponíveis
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
-                )}
+                {/* /planos agora compra de verdade no iOS via In-App
+                    Purchase — não tem mais motivo pra mandar pro site. */}
+                <Link
+                  to="/planos"
+                  className="w-full bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white py-5 rounded-2xl font-black uppercase text-[12px] tracking-widest flex items-center justify-center gap-3 transition-all shadow-xl shadow-emerald-600/20"
+                >
+                  Ver Planos Disponíveis
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
               </div>
             </div>
           </div>
@@ -132,7 +128,20 @@ export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
               </p>
             </div>
 
-            {isIOSApp() ? (
+            {isIOSApp() && settings.subscription_provider === 'ios_iap' ? (
+              // Assinatura comprada por IAP: quem resolve pendência de
+              // pagamento é a Apple, não a gente — o caminho é abrir o
+              // gerenciamento nativo de assinaturas (App Store/Ajustes).
+              <button
+                onClick={() => openManageSubscriptions()}
+                className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-5 rounded-2xl font-black uppercase text-[11px] tracking-widest flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 transition-all shadow-xl"
+              >
+                <CreditCard className="w-4 h-4" />
+                Gerenciar Assinatura
+              </button>
+            ) : isIOSApp() ? (
+              // Assinatura Asaas (site/Android) sendo usada no app iOS — só
+              // dá pra regularizar por lá mesmo, não tem IAP pra isso.
               <p className="text-sm font-bold text-slate-600 dark:text-zinc-300 leading-relaxed">
                 Regularize o pagamento em <span className="text-emerald-600 dark:text-emerald-400">{SITE_DOMAIN}</span> pelo
                 navegador. O acesso volta sozinho assim que a fatura for identificada.

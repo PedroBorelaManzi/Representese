@@ -29,8 +29,12 @@ export default function RenewalBanner() {
   }, [settings.current_period_end]);
 
   const isAnnualLike = settings.billing_cycle === 'ANNUAL' || settings.billing_cycle === 'SEMIANNUAL';
+  // Assinatura via IAP renova sozinha no cartão vinculado à Apple ID — não
+  // existe o cenário "cobrança única que precisa de ação manual" que esse
+  // aviso existe pra cobrir (isso só acontece no Asaas).
   const shouldShow =
     !dismissed &&
+    settings.subscription_provider !== 'ios_iap' &&
     settings.subscription_status === 'active' &&
     isAnnualLike &&
     daysLeft !== null &&

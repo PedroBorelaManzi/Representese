@@ -105,7 +105,13 @@ Declarar o que coleta e para quê:
 
 1. **Exclusão de conta (Guideline 5.1.1v)** — app com criação de conta PRECISA ter caminho claro para o usuário **excluir a conta** de dentro do app (ou link direto). Verificar se existe em Configurações. Se não, é rejeição garantida.
 2. **Login com Apple (Guideline 4.8)** — só é obrigatório se o único login social for Google. Como há e-mail/senha (`/register`), **não é exigido**. OK.
-3. **Pagamento externo (Guideline 3.1.1)** — o app **não pode** ter botão/link levando o usuário a assinar fora da App Store. Se a tela de Planos dentro do app tiver "Assine no site" ou checkout web, isso é rejeição. Opções: (a) remover a menção a compra no app iOS, ou (b) implementar In-App Purchase (Apple fica com 15–30%). **Decidir isso.**
+3. ~~**Pagamento externo (Guideline 3.1.1)**~~ — **RESOLVIDO EM CÓDIGO (2026-09-13)**, decisão (b): In-App Purchase real via RevenueCat (`src/lib/iap.ts`), webhook `handle-revenuecat-webhook` já deployado, migration `20260913120000_add_ios_iap_support` já aplicada. Pendências antes de rebuildar/reenviar:
+   - Paid Applications Agreement + banco/fiscal no App Store Connect (bloqueante — sem isso não dá pra criar os produtos de assinatura)
+   - Criar os 6 produtos de IAP no App Store Connect (3 planos × mensal/anual) + grupo de assinatura
+   - Criar conta RevenueCat, conectar o app, criar as Offerings (`exclusivo`/`profissional`/`master`, cada uma com pacote `monthly`/`annual`), configurar o webhook apontando pra `handle-revenuecat-webhook` com o mesmo valor de `REVENUECAT_WEBHOOK_TOKEN`
+   - Setar `VITE_REVENUECAT_IOS_API_KEY` (build) e o secret `REVENUECAT_WEBHOOK_TOKEN` na Edge Function
+   - Testar em Sandbox antes de reenviar — ver seção "Verificação" do plano de IAP
+   - Atualizar a declaração de "In-App Purchases" e o preço no App Store Connect (ficha já ajustada em `app-store-ficha.md`)
 4. **Conta de teste** — sempre fornecer, senão rejeita por "não conseguimos avaliar".
 
 ---

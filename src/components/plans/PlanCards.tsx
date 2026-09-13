@@ -1,14 +1,24 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, Check, Building2 } from 'lucide-react';
+import { ArrowRight, Check, Building2, Loader2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { plans } from '../../lib/plansData';
+import type { IosPlanPrices } from '../../lib/iap';
 
 interface PlanCardsProps {
   billingCycle: 'MONTHLY' | 'ANNUAL';
   currentSubscriptionPlan?: string;
   onSubscribe: (plan: typeof plans[0]) => void;
   buttonLabel?: string;
+  /** Preços reais da App Store (via RevenueCat), keyed por plan.id — quando
+   *  presente, o card mostra ESSE valor (já formatado/localizado pelo
+   *  StoreKit) em vez do preço do site, e esconde o comparativo de desconto
+   *  (que só faz sentido pro preço do Asaas). undefined = fluxo normal
+   *  (site/Android). */
+  nativePrices?: IosPlanPrices;
+  /** plan.id em processamento de compra via IAP — desabilita o botão desse
+   *  card e mostra um spinner nele. */
+  purchasingPlanId?: string | null;
 }
 
 const repLabels: Record<string, string> = {
@@ -17,17 +27,20 @@ const repLabels: Record<string, string> = {
   master: 'Representadas ilimitadas',
 };
 
-export function PlanCards({ billingCycle, currentSubscriptionPlan, onSubscribe, buttonLabel }: PlanCardsProps) {
+export function PlanCards({ billingCycle, currentSubscriptionPlan, onSubscribe, buttonLabel, nativePrices, purchasingPlanId }: PlanCardsProps) {
   const annual = billingCycle === 'ANNUAL';
+  const useNativePricing = !!nativePrices;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 items-stretch mb-14">
       {plans.map((plan, idx) => {
         const price = annual ? plan.annualPrice : plan.price;
         const discount = Math.round((1 - Number(price) / Number(plan.originalPrice)) * 100);
+        const nativePriceString = nativePrices?.[plan.id as keyof IosPlanPrices]?.[annual ? 'annual' : 'monthly'];
         const isCurrent = currentSubscriptionPlan?.toLowerCase().includes(plan.id.toLowerCase());
         const isUserMaster = currentSubscriptionPlan?.toLowerCase().includes('master');
         const showAlreadyBestPlan = isUserMaster && plan.id === 'master';
+        const isPurchasing = purchasingPlanId === plan.id;
         const popular = plan.popular;
 
         return (
@@ -75,40 +88,59 @@ export function PlanCards({ billingCycle, currentSubscriptionPlan, onSubscribe, 
               {plan.description}
             </p>
 
-            {/* preço */}
-            <div className="mb-1 flex items-center gap-2">
-              <span className={cn("text-[15px] font-bold line-through", popular ? "text-slate-500" : "text-slate-400")}>
-                R${plan.originalPrice}
-              </span>
-              {discount > 0 && (
-                <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700 text-[10px] font-black">
-                  {discount}% OFF
-                </span>
-              )}
-            </div>
-            <div className="flex items-end gap-1 mb-1">
-              <span className={cn("text-2xl font-black mb-1", popular ? "text-white" : "text-slate-900 dark:text-zinc-100")}>R$</span>
-              <span className={cn("text-5xl font-black tracking-tight", popular ? "text-white" : "text-slate-900 dark:text-zinc-100")}>{price}</span>
-              <span className={cn("text-[14px] font-bold mb-2", popular ? "text-slate-400" : "text-slate-500 dark:text-zinc-400")}>/mês</span>
-            </div>
-            <p className={cn("text-[11px] font-medium mb-6 h-4", popular ? "text-slate-500" : "text-slate-400")}>
-              {annual ? "cobrado anualmente" : "no plano mensal"}
-            </p>
+            {/* preço — no iOS vem pronto (já localizado) do StoreKit via
+                RevenueCat, sem o comparativo de desconto (que é sobre o
+                preço do site, não faz sentido aqui). */}
+            {useNativePricing ? (
+              <>
+                <div className="flex items-end gap-1 mb-1 mt-[27px]">
+                  <span className={cn("text-4xl font-black tracking-tight", popular ? "text-white" : "text-slate-900 dark:text-zinc-100")}>
+                    {nativePriceString || "···"}
+                  </span>
+                </div>
+                <p className={cn("text-[11px] font-medium mb-6 h-4", popular ? "text-slate-500" : "text-slate-400")}>
+                  {annual ? "cobrado anualmente pela App Store" : "por mês, via App Store"}
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="mb-1 flex items-center gap-2">
+                  <span className={cn("text-[15px] font-bold line-through", popular ? "text-slate-500" : "text-slate-400")}>
+                    R${plan.originalPrice}
+                  </span>
+                  {discount > 0 && (
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700 text-[10px] font-black">
+                      {discount}% OFF
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-end gap-1 mb-1">
+                  <span className={cn("text-2xl font-black mb-1", popular ? "text-white" : "text-slate-900 dark:text-zinc-100")}>R$</span>
+                  <span className={cn("text-5xl font-black tracking-tight", popular ? "text-white" : "text-slate-900 dark:text-zinc-100")}>{price}</span>
+                  <span className={cn("text-[14px] font-bold mb-2", popular ? "text-slate-400" : "text-slate-500 dark:text-zinc-400")}>/mês</span>
+                </div>
+                <p className={cn("text-[11px] font-medium mb-6 h-4", popular ? "text-slate-500" : "text-slate-400")}>
+                  {annual ? "cobrado anualmente" : "no plano mensal"}
+                </p>
+              </>
+            )}
 
             {/* CTA */}
             <button
               onClick={() => onSubscribe(plan)}
-              disabled={isCurrent}
+              disabled={isCurrent || isPurchasing || (useNativePricing && !nativePriceString)}
               className={cn(
                 "group/btn flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl text-[13px] font-black transition-all mb-7",
-                isCurrent
+                isCurrent || (useNativePricing && !nativePriceString)
                   ? "bg-slate-100 dark:bg-zinc-800 text-slate-400 cursor-not-allowed"
                   : popular
                     ? "bg-emerald-500 hover:bg-emerald-400 text-white shadow-lg shadow-emerald-500/30"
                     : "bg-slate-900 dark:bg-slate-50 text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-200"
               )}
             >
-              {isCurrent
+              {isPurchasing ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : isCurrent
                 ? (showAlreadyBestPlan ? "Você já está no melhor plano" : "Plano atual")
                 : (
                   <>

@@ -75,7 +75,12 @@ com login por Face ID e funcionamento offline.
 4+ (sem conteúdo censurável). Responder "Nenhum/Nunca" em todo o questionário.
 
 ## Preço
-**Grátis**. Sem compras no app (a assinatura é cobrada no site).
+**Grátis**, com In-App Purchase (assinaturas Exclusivo/Profissional/Master,
+mensal e anual). Preço no app é maior que no site (cobre a comissão da
+Apple) — ver `src/lib/iap.ts` e `src/lib/iosPlansData.ts`. **Atualizar a
+declaração de compras no App Store Connect (In-App Purchases) antes de
+reenviar pra revisão** — o texto antigo dizia "sem compras", o que agora
+seria inconsistente com o binário.
 
 ## Copyright
 `2026 Pedro Borela Manzi`
@@ -84,10 +89,10 @@ com login por Face ID e funcionamento offline.
 
 ## Notas para o revisor (App Review Information → Notes)
 ```
-App B2B para representantes comerciais no Brasil. O acesso exige uma assinatura
-contratada no nosso site (representese.com). O app NÃO vende assinaturas e não
-contém compras — quem já é assinante entra com e-mail e senha e usa o app
-(modelo semelhante a apps do tipo "leitor").
+App B2B para representantes comerciais no Brasil. Assinaturas individuais
+(Exclusivo/Profissional/Master) são vendidas dentro do app via In-App
+Purchase. Quem já assinou pelo nosso site (representese.com) continua
+entrando com o mesmo e-mail e senha normalmente.
 
 Conta de demonstração (plano Master ativo, com dados de exemplo):
   E-mail: <PREENCHER>
@@ -97,9 +102,10 @@ Exclusão de conta: dentro do app, em Configurações › Meu Perfil ›
 "Quero excluir minha conta".
 
 --- EN ---
-B2B app for sales representatives in Brazil. Access requires a subscription
-purchased on our website (representese.com). The app contains no purchases and
-does not sell subscriptions; existing subscribers sign in with email/password.
+B2B app for sales representatives in Brazil. Individual subscriptions
+(Exclusivo/Profissional/Master) are sold in-app via In-App Purchase.
+Existing subscribers who signed up on our website (representese.com) sign in
+with the same email/password as usual.
 A demo account with an active plan and sample data is provided above.
 In-app account deletion: Settings › My Profile › "Delete my account".
 ```
