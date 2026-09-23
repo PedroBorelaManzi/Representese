@@ -109,6 +109,17 @@ Migrations ficam em `supabase/migrations/`. RLS habilitado em todas as tabelas.
 | `profissional` | Acesso Profissional | R$ 147 | 5 |
 | `master` | Acesso Master | R$ 197 | Ilimitado |
 
+Cobrança no site/Android é via **Asaas** (`process-checkout` + webhook
+`handle-asaas-webhook`). No **iOS**, os mesmos 3 planos são vendidos por
+**In-App Purchase** via RevenueCat (`src/lib/iap.ts`,
+`src/lib/iosPlansData.ts`, webhook `handle-revenuecat-webhook`) — preço no
+app é maior que no site (cobre a comissão da Apple), nunca hardcoded (vem do
+StoreKit em tempo real). `user_entitlements.subscription_provider`
+(`'asaas'` | `'ios_iap'`) diz qual dos dois processou a assinatura ativa de
+cada usuário — é o que decide, tela a tela, se "gerenciar assinatura" abre o
+site ou o gerenciamento nativo da Apple. `src/lib/iapPolicy.ts` (`isIOSApp()`)
+continua sendo o jeito de checar a plataforma.
+
 ---
 
 ## 🔧 PADRÕES DE CÓDIGO

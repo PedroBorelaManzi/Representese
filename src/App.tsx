@@ -129,12 +129,15 @@ export default function App() {
                   <Route path="/" element={<LandingOrRedirect />} />
                   <Route path="/landing" element={isIOSApp() ? <Navigate to="/" replace /> : <Landing />} />
                   <Route path='/login' element={<Login />} />
-                  <Route path='/register' element={isIOSApp() ? <Navigate to="/login" replace /> : <Register />} />
+                  <Route path='/register' element={<Register />} />
                   <Route path='/recovery' element={<Recovery />} />
                   <Route path='/enviar/:token' element={<OrderIntake />} />
-                  {/* iOS: sem checkout/planos no app (App Store 3.1.1) */}
-                  <Route path='/checkout' element={isIOSApp() ? <Navigate to="/dashboard" replace /> : <Checkout />} />
-                  <Route path='/planos' element={isIOSApp() ? <Navigate to="/dashboard" replace /> : <PlanosPage />} />
+                  {/* iOS: /checkout é só o formulário do Asaas (CPF/CNPJ,
+                      endereço, cartão) — não existe no fluxo de IAP, então
+                      continua fora do ar lá. /planos passou a vender de
+                      verdade via In-App Purchase (App Store 3.1.1). */}
+                  <Route path='/checkout' element={isIOSApp() ? <Navigate to="/planos" replace /> : <Checkout />} />
+                  <Route path='/planos' element={<PlanosPage />} />
                   
                   {/* Protected Dashboard Routes */}
                   <Route path="/dashboard" element={<ProtectedRoute />}>

@@ -45,6 +45,10 @@ interface Settings {
   commission_password_hash?: string;
   subscription_status: SubscriptionStatus;
   plan_id: string;
+  /** 'asaas' (site/Android, padrão) ou 'ios_iap' (comprado via App Store) —
+   *  decide se a UI de gerenciar/renovar assinatura manda pro site (Asaas
+   *  não tem outro jeito) ou abre o gerenciamento nativo de assinaturas. */
+  subscription_provider?: 'asaas' | 'ios_iap';
   avatar_url?: string;
   trial_ends_at?: string;
   current_period_end?: string;
@@ -84,6 +88,7 @@ const defaultSettings: Settings = {
   commission_password_hash: undefined,
   subscription_status: 'inactive', // Default para leads novos sem plano
   plan_id: 'exclusivo',
+  subscription_provider: 'asaas',
   avatar_url: undefined,
   is_admin: false,
   phone: undefined,
@@ -98,6 +103,12 @@ interface SettingsContextType {
   settings: Settings;
   loading: boolean;
   updateSettings: (newSettings: Partial<Settings>) => Promise<void>;
+  /** Força um novo fetch de settings/entitlements sem esperar o próximo
+   *  login. Usado depois de uma compra IAP no iOS: diferente do Pix/boleto
+   *  do Asaas (onde a demora já é esperada, e o próximo login resolve),
+   *  uma compra via App Store é instantânea aos olhos do usuário — sem
+   *  isso, o painel continuava preso na tela "Quase lá!" até reabrir o app. */
+  refetchSettings: () => void;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -127,6 +138,10 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const { user, loading: authLoading } = useAuth();
   const location = useLocation();
+  // Incrementar isto força o efeito de load abaixo a rodar de novo mesmo
+  // sem `user`/`authLoading` mudarem — ver refetchSettings().
+  const [reloadToken, setReloadToken] = useState(0);
+  const refetchSettings = useCallback(() => setReloadToken((t) => t + 1), []);
 
   // Aplica o tema no <html> (classe .dark) sempre que mudar. Sem isso o toggle
   // salvava a preferência mas não alterava nada na tela.
@@ -186,6 +201,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           commission_password_hash: cached.commission_password_hash,
           subscription_status: (cached.subscription_status as SubscriptionStatus) || 'active',
           plan_id: cached.plan_id || 'exclusivo',
+          subscription_provider: cached.subscription_provider || 'asaas',
           avatar_url: cached.avatar_url,
           trial_ends_at: cached.trial_ends_at,
           current_period_end: cached.current_period_end,
@@ -205,7 +221,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
 
       // 1. Fetch Entitlements (Secure)
       const { data: entData, error: entError } = await supabase.from('user_entitlements')
-         .select('plan_id, subscription_status, trial_ends_at, current_period_end, billing_cycle')
+         .select('plan_id, subscription_status, trial_ends_at, current_period_end, billing_cycle, subscription_provider')
          .eq('user_id', user.id)
          .maybeSingle();
       
@@ -235,15 +251,18 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
 
         let effectiveStatus: SubscriptionStatus = 'inactive';
         let planId = 'exclusivo';
+        let subscriptionProvider: 'asaas' | 'ios_iap' = 'asaas';
 
         if (entError) {
           // Fallback to cache if network fails (Grace period)
           effectiveStatus = (cached?.subscription_status as SubscriptionStatus) || 'active';
           planId = cached?.plan_id || 'exclusivo';
+          subscriptionProvider = cached?.subscription_provider || 'asaas';
         } else if (entData) {
           effectiveStatus = entData.subscription_status as SubscriptionStatus;
           planId = entData.plan_id || 'exclusivo';
-          
+          subscriptionProvider = (entData as any).subscription_provider || 'asaas';
+
           const now = new Date();
           if (effectiveStatus === 'trialing' && entData.trial_ends_at) {
              if (new Date(entData.trial_ends_at) < now) {
@@ -274,6 +293,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           commission_password_hash: data.commission_password_hash,
           subscription_status: effectiveStatus,
           plan_id: planId,
+          subscription_provider: subscriptionProvider,
           avatar_url: finalAvatar,
           trial_ends_at: entData?.trial_ends_at,
           current_period_end: entData?.current_period_end,
@@ -295,7 +315,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     }
 
     loadSettings().catch(() => setLoading(false));
-  }, [user, authLoading]);
+  }, [user, authLoading, reloadToken]);
 
   const updateSettings = useCallback(async (newSettings: Partial<Settings>) => {
     if (!user) return;
@@ -353,7 +373,10 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     await supabase.from("user_settings").upsert(payload);
   }, [user, settings]);
 
-  const contextValue = useMemo(() => ({ settings, loading, updateSettings }), [settings, loading, updateSettings]);
+  const contextValue = useMemo(
+    () => ({ settings, loading, updateSettings, refetchSettings }),
+    [settings, loading, updateSettings, refetchSettings]
+  );
 
   return (
     <SettingsContext.Provider value={contextValue}>

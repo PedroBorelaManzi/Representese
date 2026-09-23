@@ -6,6 +6,7 @@ import { setSentryUser } from "../lib/sentry";
 import { offlineCache } from "../lib/offlineCache";
 import { trackSessionOpen } from "../lib/sessionTracking";
 import { releaseSessionSlot } from "../lib/sessionGate";
+import { iapLogIn, iapLogOut } from "../lib/iap";
 
 type AuthContextType = {
   user: User | null;
@@ -63,9 +64,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSentryUser({ id: novo.id, email: novo.email });
         trackSessionOpen();
         sincronizarConsentimento();
+        // No-op fora do app nativo iOS — ver isIOSApp() em src/lib/iapPolicy.ts.
+        void iapLogIn(novo.id);
       } else {
         posthog.reset();
         setSentryUser(null);
+        void iapLogOut();
       }
       setUser(novo);
       setLoading(false);

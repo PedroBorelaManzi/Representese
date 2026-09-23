@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, Link } from "react-router-dom";
+import { toast } from "sonner";
 import { Logo } from "../components/Logo";
 import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
@@ -18,6 +19,8 @@ import { cn } from "../lib/utils";
 import { plans } from "../lib/plansData";
 import { PlanCards } from "../components/plans/PlanCards";
 import { usePageMeta } from "../hooks/usePageMeta";
+import { isIOSApp } from "../lib/iapPolicy";
+import { getIosPlanPrices, purchasePlan, IosPlanPrices } from "../lib/iap";
 
 const faqItems = [
   {
@@ -57,14 +60,60 @@ export default function Planos() {
   const [billingCycle, setBillingCycle] = useState<'MONTHLY' | 'ANNUAL'>('MONTHLY');
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const { user } = useAuth();
-  const { settings } = useSettings();
+  const { settings, refetchSettings } = useSettings();
   const navigate = useNavigate();
+  const iosApp = isIOSApp();
+  const [iosPrices, setIosPrices] = useState<IosPlanPrices>({});
+  const [purchasingPlanId, setPurchasingPlanId] = useState<string | null>(null);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, []);
 
-  const handleSubscribe = (plan: typeof plans[0]) => {
+  useEffect(() => {
+    if (!iosApp) return;
+    getIosPlanPrices().then(setIosPrices);
+  }, [iosApp]);
+
+  // Comprado via App Store, quem cuida de reembolso é a própria Apple (não
+  // temos como devolver o valor de uma compra IAP), e não existe o teste de
+  // 7 dias sem cobrança que o Asaas oferece — por isso essas duas seções
+  // trocam de texto no iOS, pra não prometer algo que o app não cumpre ali.
+  const displayFaqItems = iosApp
+    ? faqItems.map((item) =>
+        item.q === "Como funciona o teste de 7 dias?"
+          ? { q: "Tem período de teste no app?", a: "A compra pela App Store é cobrada na hora, sem período de teste gratuito. Reembolsos seguem a política da Apple, solicitados diretamente com ela." }
+          : item
+      )
+    : faqItems;
+  const displayTrustItems = iosApp
+    ? [
+        { icon: ShieldCheck, title: "Compra segura", desc: "Processada e protegida pela própria App Store." },
+        { icon: RefreshCw, title: "Sem fidelidade", desc: "Cancele quando quiser, sem multa." },
+        { icon: CalendarClock, title: "Renovação automática", desc: "Cobrança recorrente conforme o plano, até você cancelar." },
+      ]
+    : trustItems;
+
+  const handleSubscribe = async (plan: typeof plans[0]) => {
+    if (iosApp) {
+      // Sem conta ainda: precisa criá-la antes de comprar via IAP (o
+      // formulário de checkout do Asaas não existe no app).
+      if (!user) {
+        navigate('/register');
+        return;
+      }
+      setPurchasingPlanId(plan.id);
+      const result = await purchasePlan(plan.id, billingCycle);
+      setPurchasingPlanId(null);
+      if (result.success) {
+        toast.success('Compra confirmada! Liberando seu acesso...');
+        refetchSettings();
+        navigate('/dashboard');
+      } else if (!result.userCancelled) {
+        toast.error(result.message || 'Erro ao processar a compra.');
+      }
+      return;
+    }
     // Checkout público: cria a conta (passo 1) e processa o pagamento (passo 2).
     // Não exige login prévio — a pessoa escolhe o plano, se cadastra e paga.
     navigate(`/checkout?plan=${plan.id}&period=${billingCycle}`);
@@ -191,11 +240,13 @@ export default function Planos() {
           billingCycle={billingCycle}
           currentSubscriptionPlan={currentPlanId}
           onSubscribe={handleSubscribe}
+          nativePrices={iosApp ? iosPrices : undefined}
+          purchasingPlanId={purchasingPlanId}
         />
 
         {/* Selos de confiança */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-4xl mx-auto mb-16">
-          {trustItems.map((item) => (
+          {displayTrustItems.map((item) => (
             <div
               key={item.title}
               className="flex items-start gap-3 p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800"
@@ -217,7 +268,7 @@ export default function Planos() {
             Perguntas frequentes
           </h3>
           <div className="space-y-3">
-            {faqItems.map((item, idx) => {
+            {displayFaqItems.map((item, idx) => {
               const isOpen = openFaq === idx;
               return (
                 <div

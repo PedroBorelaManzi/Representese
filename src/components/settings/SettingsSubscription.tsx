@@ -4,6 +4,7 @@ import { useSettings } from '../../contexts/SettingsContext';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../../lib/utils';
 import { isIOSApp, SITE_DOMAIN } from '../../lib/iapPolicy';
+import { openManageSubscriptions } from '../../lib/iap';
 
 interface SettingsSubscriptionProps {
   onClose: () => void;
@@ -50,8 +51,22 @@ export const SettingsSubscription = React.memo(function SettingsSubscription({ o
   const tierId = settings.plan_id ? (settings.plan_id === 'premium' ? 'profissional' : settings.plan_id) : 'exclusivo';
   const currentIndex = tierSequence.indexOf(tierId) !== -1 ? tierSequence.indexOf(tierId) : 0;
 
-  // iOS: nenhum CTA de compra/upgrade/cancelamento (App Store 3.1.1).
   const iosApp = isIOSApp();
+  // No iOS, só dá pra gerenciar/trocar de plano por aqui quando a
+  // assinatura foi comprada via IAP — uma assinatura Asaas (feita pelo
+  // site/Android) sendo usada dentro do app iOS só pode ser mexida no site,
+  // não tem IAP pra ela. Fora do iOS, sempre dá pra gerenciar por aqui.
+  const canManageInApp = !iosApp || settings.subscription_provider === 'ios_iap';
+  // order-bump continua fora do ar no iOS (é a tela de upsell ligada ao
+  // Asaas) — upgrade ali vira compra em /planos via IAP.
+  const upgradeRoute = iosApp ? '/planos' : '/dashboard/order-bump';
+  const handleManageOrCancel = () => {
+    if (iosApp) {
+      openManageSubscriptions();
+      return;
+    }
+    window.open('https://wa.me/5515997472785?text=Ol%C3%A1%2C%20gostaria%20de%20conversar%20sobre%20o%20cancelamento%20do%20meu%20plano...', '_blank');
+  };
 
   const manageOnWebNote = (
     <div className="p-5 rounded-3xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900/50 text-left space-y-1.5">
@@ -88,14 +103,14 @@ export const SettingsSubscription = React.memo(function SettingsSubscription({ o
           <p className="text-[8px] font-bold text-slate-400 uppercase mt-2">Status da Assinatura: Ativo</p>
         </div>
 
-        {!iosApp && currentIndex < 2 ? (() => {
+        {canManageInApp && currentIndex < 2 ? (() => {
           const supId = tierSequence[currentIndex + 1];
           const supPlan = planInfo[supId as keyof typeof planInfo];
-          const priceDiff = 50; 
+          const priceDiff = 50;
           return (
-            <button 
+            <button
               type="button"
-              onClick={() => { onClose(); navigate('/dashboard/order-bump'); }}
+              onClick={() => { onClose(); navigate(upgradeRoute); }}
               className="p-6 rounded-3xl border border-amber-200/50 dark:border-amber-900/30 bg-amber-50/10 dark:bg-amber-950/5 relative overflow-hidden text-left shadow-[0_0_20px_rgba(245,158,11,0.08)] ring-2 ring-amber-500/10 hover:scale-[1.03] active:scale-98 transition-all group"
             >
               <div className="absolute top-3 right-3 px-2 py-0.5 bg-amber-500 text-white text-[7px] rounded-full font-black uppercase tracking-wider animate-bounce">
@@ -111,7 +126,7 @@ export const SettingsSubscription = React.memo(function SettingsSubscription({ o
               </p>
             </button>
           );
-        })() : iosApp ? null : (
+        })() : !canManageInApp ? null : (
           <div className="p-6 rounded-3xl border border-dashed border-amber-200/40 dark:border-amber-900/20 flex flex-col justify-center items-center text-center bg-amber-50/5">
             <Crown className="w-5 h-5 text-amber-500 mb-2 animate-bounce" />
             <span className="text-[8px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">Nível Máximo Atingido</span>
@@ -201,7 +216,7 @@ export const SettingsSubscription = React.memo(function SettingsSubscription({ o
         </div>
       </div>
 
-      {iosApp ? manageOnWebNote : currentIndex === 2 ? (
+      {!canManageInApp ? manageOnWebNote : currentIndex === 2 ? (
         <div className="flex flex-col gap-4">
           <div className="p-8 rounded-[32px] bg-gradient-to-r from-amber-500/5 to-yellow-500/5 border border-amber-500/20 text-center space-y-3">
             <div className="w-16 h-16 rounded-3xl bg-amber-500/10 flex items-center justify-center mx-auto text-amber-500">
@@ -223,8 +238,8 @@ export const SettingsSubscription = React.memo(function SettingsSubscription({ o
               <Sparkles className="w-4 h-4" />
               Ver Todos os Planos
             </button>
-            <button 
-              onClick={() => window.open('https://wa.me/5515997472785?text=Ol%C3%A1%2C%20gostaria%20de%20conversar%20sobre%20o%20cancelamento%20do%20meu%20plano...', '_blank')}
+            <button
+              onClick={handleManageOrCancel}
                 className="flex-1 py-4 rounded-[20px] bg-red-50 dark:bg-zinc-800 border border-red-100 dark:border-zinc-700 text-red-600 dark:text-red-400 font-black uppercase text-[10px] tracking-widest hover:bg-red-100 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2"
             >
               <MessageCircle className="w-4 h-4" />
@@ -234,10 +249,10 @@ export const SettingsSubscription = React.memo(function SettingsSubscription({ o
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          <button 
+          <button
             onClick={() => {
               onClose();
-              setTimeout(() => navigate('/dashboard/order-bump'), 100);
+              setTimeout(() => navigate(upgradeRoute), 100);
             }}
             className="w-full py-5 rounded-[24px] bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-4 group shadow-xl shadow-emerald-500/20 active:scale-98 transition-all relative overflow-hidden"
           >
@@ -258,8 +273,8 @@ export const SettingsSubscription = React.memo(function SettingsSubscription({ o
               <Sparkles className="w-4 h-4" />
               Ver Todos os Planos
             </button>
-            <button 
-              onClick={() => window.open('https://wa.me/5515997472785?text=Ol%C3%A1%2C%20gostaria%20de%20conversar%20sobre%20o%20cancelamento%20do%20meu%20plano...', '_blank')}
+            <button
+              onClick={handleManageOrCancel}
                 className="flex-1 py-4 rounded-[20px] bg-red-50 dark:bg-zinc-800 border border-red-100 dark:border-zinc-700 text-red-600 dark:text-red-400 font-black uppercase text-[10px] tracking-widest hover:bg-red-100 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2"
             >
               <MessageCircle className="w-4 h-4" />
