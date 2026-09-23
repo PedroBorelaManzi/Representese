@@ -24,6 +24,7 @@
 // Inbound Parse, por exemplo) que deixe você escolher a URL de destino.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { timingSafeEqual } from "https://deno.land/std@0.168.0/crypto/timing_safe_equal.ts";
 import {
   ORDER_EXTRACTION_SYSTEM_INSTRUCTION,
   buildOrderExtractionPrompt,
@@ -56,6 +57,13 @@ async function hmacSha256Hex(key: string, message: string): Promise<string> {
   return Array.from(new Uint8Array(sig)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+function constantTimeEquals(a: string, b: string): boolean {
+  const encoder = new TextEncoder();
+  const aBytes = encoder.encode(a);
+  const bBytes = encoder.encode(b);
+  return aBytes.length === bBytes.length && timingSafeEqual(aBytes, bBytes);
+}
+
 /** true = requisição aceita. Nunca revela QUAL verificação falhou (só existe
  *  um "não autorizado" genérico), pra não virar oráculo de tentativa. */
 async function isAuthorizedWebhook(req: Request, form: FormData): Promise<boolean> {
@@ -70,7 +78,7 @@ async function isAuthorizedWebhook(req: Request, form: FormData): Promise<boolea
     // capturado antes.
     if (isFinite(ageMs) && ageMs >= 0 && ageMs < 15 * 60 * 1000) {
       const expected = await hmacSha256Hex(MAILGUN_SIGNING_KEY, `${timestamp}${token}`);
-      if (expected === signature) return true;
+      if (constantTimeEquals(expected, signature)) return true;
     }
   }
 
@@ -79,7 +87,8 @@ async function isAuthorizedWebhook(req: Request, form: FormData): Promise<boolea
   // Parse), sem depender de um esquema de assinatura específico.
   if (INBOUND_EMAIL_WEBHOOK_SECRET) {
     const url = new URL(req.url);
-    if (url.searchParams.get("key") === INBOUND_EMAIL_WEBHOOK_SECRET) return true;
+    const providedKey = url.searchParams.get("key");
+    if (providedKey && constantTimeEquals(providedKey, INBOUND_EMAIL_WEBHOOK_SECRET)) return true;
   }
 
   return false;

@@ -1,5 +1,6 @@
 import express from 'express';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { timingSafeEqual } from 'node:crypto';
 
 /* Sincroniza dados de analytics externos (PostHog, Sentry) para o Postgres do
  * Supabase, para aparecerem na "Ficha Completa" do painel admin sem depender
@@ -163,10 +164,17 @@ async function syncSentry(db: SupabaseClient): Promise<string> {
 
 // ---------------------------------------------------------------- handler
 app.all('/api/cron/sync-analytics', async (req, res) => {
+  // Falha FECHADA se CRON_SECRET não estiver configurado — antes, sem a
+  // variável de ambiente, o `if` inteiro era pulado e o endpoint rodava sem
+  // NENHUMA autenticação (qualquer um podia acionar chamadas pagas ao
+  // PostHog/Sentry e escrita com a service role key). Mesmo padrão de
+  // handle-asaas-webhook, que já falha fechado por padrão.
   const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = req.headers.authorization || '';
-    if (auth !== `Bearer ${secret}`) return res.status(401).json({ error: 'não autorizado' });
+  if (!secret) return res.status(500).json({ error: 'CRON_SECRET não configurado no servidor' });
+  const auth = Buffer.from(req.headers.authorization || '');
+  const expected = Buffer.from(`Bearer ${secret}`);
+  if (auth.length !== expected.length || !timingSafeEqual(auth, expected)) {
+    return res.status(401).json({ error: 'não autorizado' });
   }
 
   const db = service();

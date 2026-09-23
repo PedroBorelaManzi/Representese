@@ -307,6 +307,27 @@ serve(async (req) => {
   }
 
   try {
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
+
+    // Função pública (sem JWT — verify_jwt = false no config.toml), sem
+    // rate limit até agora: qualquer um podia martelar isso, forçando
+    // chamadas repetidas à BrasilAPI/GitHub e escrita em city_holidays com a
+    // service role key. Mesmo mecanismo (hit_rate_limit / edge_rate_limits)
+    // já usado em send-recovery e process-checkout.
+    const clientIp = (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || 'unknown'
+    const { data: withinLimit } = await supabaseClient.rpc('hit_rate_limit', {
+      p_key: `get-holidays-ip:${clientIp}`, p_max: 30, p_window_seconds: 3600,
+    })
+    if (withinLimit === false) {
+      return new Response(JSON.stringify({ error: 'Muitas requisições. Tente novamente mais tarde.' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 429,
+      })
+    }
+
     const { year, locations } = await req.json();
 
     if (!year || !Array.isArray(locations)) {
@@ -315,11 +336,15 @@ serve(async (req) => {
         status: 400,
       })
     }
-
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    // Limite razoável de cidades por chamada — nenhum uso legítimo do app
+    // pede centenas de municípios de uma vez (a carteira de um representante
+    // não chega perto disso).
+    if (locations.length > 50) {
+      return new Response(JSON.stringify({ error: 'Muitas localizações em uma única chamada.' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      })
+    }
 
     // 1. Fetch National Holidays
     let nationalData: any[] = [];

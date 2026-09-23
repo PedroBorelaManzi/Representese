@@ -1,5 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { timingSafeEqual } from "https://deno.land/std@0.168.0/crypto/timing_safe_equal.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+function constantTimeEquals(a: string, b: string): boolean {
+  const encoder = new TextEncoder()
+  const aBytes = encoder.encode(a)
+  const bBytes = encoder.encode(b)
+  return aBytes.length === bBytes.length && timingSafeEqual(aBytes, bBytes)
+}
 
 /* Monitoramento (auditoria 4.5): chamada de hora em hora pelo pg_cron.
    Conta os `error_occurred` da última hora em audit_logs e, se passar do
@@ -25,7 +33,7 @@ serve(async (req) => {
       .select('value')
       .eq('key', 'cron_token')
       .single()
-    if (!cfg?.value || token !== cfg.value) {
+    if (!cfg?.value || !token || !constantTimeEquals(token, cfg.value)) {
       return new Response(JSON.stringify({ success: false, message: 'Não autorizado.' }), { status: 401 })
     }
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()

@@ -1,13 +1,45 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+// verify_jwt = true no projeto (exige sessão Supabase válida pra sequer
+// chamar) — CORS restrito por cima, auditoria 2026-09-23: antes era
+// Access-Control-Allow-Origin: '*', permissivo à toa numa function que já
+// exige login.
+const allowedOrigins = [
+  "https://www.representese.com",
+  "https://representese.com",
+  "http://localhost:3000",
+  "http://localhost",
+  "https://localhost",
+  "capacitor://localhost",
+  "app://localhost",
+];
+
+function isOriginAllowed(origin: string | null): boolean {
+  if (!origin) return false;
+  if (allowedOrigins.includes(origin)) return true;
+  if (/\.representese\.com$/.test(origin)) return true;
+  if (/^https:\/\/representese[a-z0-9-]*\.vercel\.app$/.test(origin)) return true;
+  return false;
 }
 
 serve(async (req) => {
+  const origin = req.headers.get('origin');
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': origin && isOriginAllowed(origin) ? origin : 'null',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  }
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
+  }
+
+  if (!isOriginAllowed(origin)) {
+    console.warn(`Origin blocked: ${origin}`);
+    return new Response(JSON.stringify({ error: 'Forbidden origin' }), {
+      status: 403,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
   }
 
   try {
@@ -24,11 +56,11 @@ serve(async (req) => {
     const GOOGLE_CALENDAR_API_URL = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
 
     let googleRes;
-    
+
     if (action === 'GET') {
       const url = `${GOOGLE_CALENDAR_API_URL}?timeMin=${encodeURIComponent(timeMin)}&maxResults=250&singleEvents=true&orderBy=startTime`;
       googleRes = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
-    } 
+    }
     else if (action === 'POST') {
       if (eventId) {
         googleRes = await fetch(`${GOOGLE_CALENDAR_API_URL}/${eventId}`, {

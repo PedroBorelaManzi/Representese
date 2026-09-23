@@ -3,17 +3,24 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const allowedOrigins = [
+  "https://www.representese.com",
+  "https://representese.com",
   "http://localhost:3000",
   "http://localhost",
+  "https://localhost",
   "capacitor://localhost",
   "app://localhost",
-  "https://represente-me.vercel.app"
 ];
 
+// Mesma regra de api/_lib/cors.ts (ancorada, sem `.includes()` solto) — a
+// versão antiga (`endsWith(".vercel.app") && includes("represente-me")`)
+// deixava passar qualquer domínio tipo "evil-represente-me.vercel.app", e
+// nem sequer reconhecia o domínio de produção representese.com.
 function isOriginAllowed(origin: string | null): boolean {
   if (!origin) return false;
   if (allowedOrigins.includes(origin)) return true;
-  if (origin.endsWith(".vercel.app") && origin.includes("represente-me")) return true;
+  if (/\.representese\.com$/.test(origin)) return true;
+  if (/^https:\/\/representese[a-z0-9-]*\.vercel\.app$/.test(origin)) return true;
   return false;
 }
 

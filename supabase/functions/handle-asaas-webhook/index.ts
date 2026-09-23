@@ -1,5 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { timingSafeEqual } from "https://deno.land/std@0.168.0/crypto/timing_safe_equal.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+function constantTimeEquals(a: string, b: string): boolean {
+  const encoder = new TextEncoder()
+  const aBytes = encoder.encode(a)
+  const bBytes = encoder.encode(b)
+  return aBytes.length === bBytes.length && timingSafeEqual(aBytes, bBytes)
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -48,7 +56,7 @@ serve(async (req) => {
     const receivedToken = req.headers.get('asaas-access-token')
     const expectedToken = Deno.env.get('ASAAS_WEBHOOK_TOKEN')
 
-    if (!expectedToken || receivedToken !== expectedToken) {
+    if (!expectedToken || !receivedToken || !constantTimeEquals(receivedToken, expectedToken)) {
       console.error('Tentativa de acesso bloqueada: Token Inválido ou Ausente')
       return new Response(JSON.stringify({ message: 'Acesso não autorizado' }), { status: 401 })
     }

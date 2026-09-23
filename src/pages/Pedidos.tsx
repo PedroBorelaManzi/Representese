@@ -167,7 +167,12 @@ export default function PedidosPage() {
           if (catMatch) setSelectedCategory(catMatch);
         }
       }
-    } catch (err) {} finally { setIsAnalyzingManual(false); }
+    } catch (err) {
+      // Sem isso, uma falha na leitura (IA fora do ar, rede) deixava o
+      // formulário parado com o arquivo escolhido e nenhum aviso — parecia
+      // travado. Os campos continuam editáveis na mão depois disso.
+      toast.error("Não consegui ler este arquivo automaticamente. Preencha os dados manualmente.");
+    } finally { setIsAnalyzingManual(false); }
   };
 
   const handleManualSubmit = async (e: React.FormEvent) => {
@@ -195,11 +200,15 @@ export default function PedidosPage() {
       const formattedName = `${selectedCategory}___VALOR_${orderValue}___${cleanName}`;
       const path = `${user.id}/${cid}/${formattedName}`;
       await supabase.storage.from("client_vault").upload(path, selectedFile, { upsert: true });
-      const { data: orderRow } = await supabase.from("orders").upsert([{
+      const { data: orderRow, error: orderError } = await supabase.from("orders").upsert([{
         user_id: user.id, client_id: cid, category: selectedCategory, value: parseFloat(orderValue),
         file_name: formattedName, file_path: path,
         payment_terms: manualPaymentTerms.trim() || null,
       }], { onConflict: "client_id,file_path" }).select("id, created_at").single();
+      // Sem isso, uma falha aqui (RLS, conflito, rede) ainda somava o valor no
+      // faturamento do cliente como se o pedido tivesse sido gravado — o
+      // faturamento passava a não bater com a lista real de pedidos.
+      if (orderError) throw orderError;
       const { data: clientData } = await supabase.from("clients").select("faturamento").eq("id", cid).single();
       if (clientData) {
         const updatedFat = ajustarFaturamento(clientData.faturamento, selectedCategory, parseFloat(orderValue));
@@ -222,6 +231,7 @@ export default function PedidosPage() {
 
   const handleBatchUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []); setIsProcessingBatch(true);
+    let failCount = 0;
     for (const file of files) {
       try {
         const res = await processOrderFile(file, clients.map(c => c.name), settings.categories || []);
@@ -233,7 +243,14 @@ export default function PedidosPage() {
           return (cleanResCnpj && clientCnpj === cleanResCnpj) || (clientName && clientName === cleanResName);
         });
         setBatchResults(prev => [...prev, { file, client: res.client, category: res.category || "Outros", value: res.value || 0, needsNewClient: !match, clientId: match?.id, address: res.address, cnpj: res.cnpj, items: res.items, paymentTerms: res.paymentTerms }]);
-      } catch (err) {} 
+      } catch (err) {
+        // Antes o arquivo simplesmente desaparecia da lista sem explicação —
+        // ninguém percebia que um dos pedidos do lote não tinha sido lido.
+        failCount++;
+      }
+    }
+    if (failCount > 0) {
+      toast.error(`${failCount} de ${files.length} arquivo(s) não puderam ser lidos automaticamente. Lance-os um a um pelo formulário manual.`);
     }
     setIsProcessingBatch(false);
   };
@@ -246,11 +263,12 @@ export default function PedidosPage() {
       const formattedName = `${res.category}___VALOR_${res.value}___${cleanName}`;
       const path = `${user?.id}/${cid}/${formattedName}`;
       await supabase.storage.from("client_vault").upload(path, res.file, { upsert: true });
-      const { data: orderRow } = await supabase.from("orders").upsert([{
+      const { data: orderRow, error: orderError } = await supabase.from("orders").upsert([{
         user_id: user?.id, client_id: cid, category: res.category, value: res.value,
         file_name: formattedName, file_path: path,
         payment_terms: res.paymentTerms || null,
       }], { onConflict: "client_id,file_path" }).select("id, created_at").single();
+      if (orderError) throw orderError;
       const { data: clientData } = await supabase.from("clients").select("faturamento").eq("id", cid).single();
       if (clientData) {
         const updatedFat = ajustarFaturamento(clientData.faturamento, res.category, res.value);
@@ -277,7 +295,15 @@ export default function PedidosPage() {
         const { data: clientData } = await supabase.from("clients").select("faturamento").eq("id", order.client_id).single();
         if (clientData) {
           const updatedFat = ajustarFaturamento(clientData.faturamento, order.category, -(order.value || 0));
-          await supabase.from("clients").update({ faturamento: updatedFat }).eq("id", order.client_id).eq("user_id", user?.id);
+          const { error: fatError } = await supabase.from("clients").update({ faturamento: updatedFat }).eq("id", order.client_id).eq("user_id", user?.id);
+          // O pedido já foi excluído com sucesso (não desfaz por causa disso),
+          // mas antes essa falha ficava muda — o faturamento do cliente
+          // continuava contando um pedido que não existe mais.
+          if (fatError) {
+            toast.warning("Pedido excluído, mas não consegui atualizar o faturamento do cliente. Confira o total dele.");
+            loadData();
+            return;
+          }
         }
       }
       toast.success("Pedido excluído!");
