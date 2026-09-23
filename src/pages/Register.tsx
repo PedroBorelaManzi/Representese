@@ -220,24 +220,31 @@ export default function Register() {
               )}
             </div>
 
-            <div className="space-y-1.5">
-              <label htmlFor="register-company" className="text-[13px] font-bold text-slate-700 dark:text-zinc-300 ml-1">
-                Empresas que você trabalha (Opcional)
-              </label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-emerald-500 transition-colors">
-                  <Building2 className="w-5 h-5" />
+            {/* Apple rejeitou a v1.78 (guideline 3.1.1) por este campo aparecer
+                na tela de criação de conta como se fosse um cadastro de conta
+                para empresas/organizações. Ele nunca foi um tipo de conta —
+                só metadado de lead pro CRM — mas some no app iOS (App Store
+                review) e continua no site/Android, onde não é revisado. */}
+            {!iosApp && (
+              <div className="space-y-1.5">
+                <label htmlFor="register-company" className="text-[13px] font-bold text-slate-700 dark:text-zinc-300 ml-1">
+                  Empresas que você trabalha (Opcional)
+                </label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-emerald-500 transition-colors">
+                    <Building2 className="w-5 h-5" />
+                  </div>
+                  <input
+                    id="register-company"
+                    type="text"
+                    value={company}
+                    onChange={(e) => setCompany(e.target.value)}
+                    className="w-full pl-11 pr-4 py-3.5 bg-slate-50 dark:bg-zinc-950/50 border border-slate-200 dark:border-zinc-800 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-600"
+                    placeholder="Ex: Empresa A, Empresa B..."
+                  />
                 </div>
-                <input
-                  id="register-company"
-                  type="text"
-                  value={company}
-                  onChange={(e) => setCompany(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3.5 bg-slate-50 dark:bg-zinc-950/50 border border-slate-200 dark:border-zinc-800 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-600"
-                  placeholder="Ex: Empresa A, Empresa B..."
-                />
               </div>
-            </div>
+            )}
 
             <div className="space-y-1.5">
               <label htmlFor="register-email" className="text-[13px] font-bold text-slate-700 dark:text-zinc-300 ml-1">
