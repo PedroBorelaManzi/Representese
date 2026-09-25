@@ -22,7 +22,7 @@ import { toast } from "sonner";
 import { Building2, Mail, Users, Loader2, AlertTriangle, HelpCircle, CheckCircle2, Copy } from "lucide-react";
 import { PageHeader } from "../components/ui";
 
-const INTAKE_DOMAIN = "representese.com";
+const INTAKE_DOMAIN = "pedidos.representese.com";
 
 export default function AdminCompanies() {
   const { settings, loading } = useSettings();
