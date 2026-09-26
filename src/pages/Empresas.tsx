@@ -197,17 +197,6 @@ export default function EmpresasPage() {
     patchOrder(order.id, { [field]: value } as Partial<OrderType>);
   };
 
-  useEffect(() => {
-    if (showGoalsConfig) {
-      const draft: Record<string, string> = {};
-      (settings.categories || []).forEach((c: string) => {
-        const goal = settings.monthly_goals?.[c];
-        draft[c] = goal ? String(goal) : "";
-      });
-      setDraftGoals(draft);
-    }
-  }, [showGoalsConfig, settings.categories, settings.monthly_goals]);
-
   const handleSaveGoals = async () => {
     setSavingGoals(true);
     try {
@@ -513,6 +502,19 @@ export default function EmpresasPage() {
     }
     return Array.from(catsMap.values());
   }, [allOrders, settings?.categories]);
+
+  // Mesma lista da faixa/gráfico: empresa que ainda aparece lá (mesmo só por
+  // ter pedidos) precisa poder receber meta.
+  useEffect(() => {
+    if (showGoalsConfig) {
+      const draft: Record<string, string> = {};
+      combinedCategories.forEach((c: string) => {
+        const goal = settings.monthly_goals?.[c];
+        draft[c] = goal ? String(goal) : "";
+      });
+      setDraftGoals(draft);
+    }
+  }, [showGoalsConfig, combinedCategories, settings.monthly_goals]);
 
   const catTotals = useMemo(() => {
     // Garantir que estamos calculando APENAS sobre pedidos que realmente existem no banco
@@ -1270,13 +1272,13 @@ export default function EmpresasPage() {
                 </button>
               </div>
               <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4">
-                {(settings.categories || []).length === 0 ? (
+                {combinedCategories.length === 0 ? (
                   <div className="text-center py-8 text-sm font-bold text-slate-400 dark:text-zinc-500">
                     Nenhuma empresa representada cadastrada ainda.
                   </div>
                 ) : (
                   <div className="flex flex-col gap-2.5">
-                    {(settings.categories || []).map((c: string) => (
+                    {combinedCategories.map((c: string) => (
                       <div key={c} className="flex items-center gap-3">
                         <span className="flex-1 text-sm font-bold text-slate-700 dark:text-zinc-200 truncate">{c}</span>
                         <input
@@ -1293,7 +1295,7 @@ export default function EmpresasPage() {
                 )}
               </div>
               <div className="px-6 py-4 border-t border-slate-100 dark:border-zinc-800">
-                <button onClick={handleSaveGoals} disabled={savingGoals || (settings.categories || []).length === 0} className="w-full py-3 rounded-2xl text-xs font-black uppercase tracking-widest bg-emerald-600 text-white hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
+                <button onClick={handleSaveGoals} disabled={savingGoals || combinedCategories.length === 0} className="w-full py-3 rounded-2xl text-xs font-black uppercase tracking-widest bg-emerald-600 text-white hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
                   {savingGoals ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                   Salvar metas
                 </button>
