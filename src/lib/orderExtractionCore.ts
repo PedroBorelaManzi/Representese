@@ -32,6 +32,8 @@ export interface OrderExtractionResult {
    *  ex.: "30/60/90" — vira parcelas automaticamente (ver Order.payment_terms).
    *  "" quando o documento não menciona ou é à vista. */
   paymentTerms?: string;
+  /** Número do pedido de venda impresso no documento (ex.: "PEDIDO Nº 12345"). */
+  orderNumber?: string;
   status: "ready" | "error";
   error?: string;
   method?: "local" | "ai";
@@ -62,7 +64,7 @@ export function normalizar(texto: string): string {
 export const ORDER_EXTRACTION_SYSTEM_INSTRUCTION = `Você lê pedidos de venda e notas fiscais brasileiras (impressas, digitalizadas ou escritas à mão) e extrai os dados para lançamento.
 
 Devolva SOMENTE um objeto JSON com este formato exato:
-{ "client": string, "cnpj": string, "category": string, "value": number, "address": string, "paymentTerms": string, "confidence": { "client": "alta"|"media"|"baixa", "category": "alta"|"media"|"baixa", "value": "alta"|"media"|"baixa" }, "items": [{ "description": string, "code": string, "quantity": number, "unitValue": number, "totalValue": number }] }
+{ "client": string, "cnpj": string, "category": string, "value": number, "address": string, "paymentTerms": string, "orderNumber": string, "confidence": { "client": "alta"|"media"|"baixa", "category": "alta"|"media"|"baixa", "value": "alta"|"media"|"baixa" }, "items": [{ "description": string, "code": string, "quantity": number, "unitValue": number, "totalValue": number }] }
 
 === A DISTINÇÃO MAIS IMPORTANTE ===
 Todo pedido tem DUAS empresas. Não as confunda:
@@ -97,6 +99,13 @@ Em nota fiscal o emitente costuma vir no TOPO (com logo e inscrição estadual) 
 
 === confidence ===
 Diga honestamente o quanto tem certeza de cada campo. Use "baixa" quando estiver chutando — é melhor o usuário conferir do que gravar errado.
+
+=== orderNumber (número do pedido) ===
+- É o número do PEDIDO DE VENDA / ordem de compra, normalmente impresso nas primeiras linhas do documento, perto de rótulos como "Pedido", "Pedido nº", "Nº do pedido", "Pedido de venda", "Ordem de compra", "OC", "Nº pedido".
+- Devolva só o identificador (dígitos, letras, hífen ou barra), sem o rótulo. Ex.: "PEDIDO Nº 348291" → "348291".
+- NÃO confunda com: CNPJ, inscrição estadual, código do cliente/loja, número da nota fiscal, série, telefone, CEP, data, número de página, código de produto.
+- Se houver mais de um número que pareça de pedido (ex.: pedido da fábrica e pedido do cliente), prefira o do pedido de venda impresso mais ao topo.
+- Se não achar com segurança, devolva "". Nunca invente.
 
 === address ===
 Endereço de entrega/faturamento do COMPRADOR. Se não houver, "".
@@ -472,6 +481,9 @@ export function reconcileExtractionResult(
   const paymentTermsBruto = typeof data.paymentTerms === "string" ? data.paymentTerms.trim() : "";
   const paymentTerms = /^[0-9]+(\/[0-9]+)*$/.test(paymentTermsBruto) ? paymentTermsBruto : "";
 
+  const orderNumberBruto = typeof data.orderNumber === "string" || typeof data.orderNumber === "number" ? String(data.orderNumber).trim() : "";
+  const orderNumber = /[A-Za-z0-9]/.test(orderNumberBruto) && orderNumberBruto.length <= 40 ? orderNumberBruto : "";
+
   const valorIa = typeof data.value === "number" ? data.value : parseFloat(data.value);
   const confidence = data.confidence && typeof data.confidence === "object" ? data.confidence : undefined;
 
@@ -490,6 +502,7 @@ export function reconcileExtractionResult(
     value: finalValue,
     address: data.address || "",
     paymentTerms,
+    orderNumber,
     status: "ready",
     method: "ai",
     confidence,

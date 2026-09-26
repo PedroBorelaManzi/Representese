@@ -324,7 +324,7 @@ async function handler(req: Request): Promise<Response> {
     console.error("[handle-inbound-order-email] IA falhou:", e.message);
     extraction = {
       client: "Desconhecido", cnpj: localCnpj, category: companyLabel, value: localValue,
-      address: "", paymentTerms: "", status: "ready" as const, method: "local" as const, items: [],
+      address: "", paymentTerms: "", orderNumber: "", status: "ready" as const, method: "local" as const, items: [],
     };
   }
   // category é sempre a empresa deste endereço — nunca o que a IA "achou".
@@ -396,6 +396,26 @@ async function handler(req: Request): Promise<Response> {
   const repInfo = reps.find((r) => r.user_id === assignedUserId);
   const categoryForRep = repInfo?.category_name || companyLabel;
 
+  // Número do pedido (impresso no documento). A trava única (user_id, category,
+  // order_number) impede lançar o mesmo pedido duas vezes — checamos antes pra
+  // guardar um aviso claro na fila em vez do erro cru do banco.
+  const orderNumber = (extraction.orderNumber || "").trim() || null;
+  if (orderNumber) {
+    const { data: dupOrder } = await supabase
+      .from("orders").select("id")
+      .eq("user_id", assignedUserId).eq("category", categoryForRep).eq("order_number", orderNumber)
+      .maybeSingle();
+    if (dupOrder) {
+      await supabase.from("incoming_orders").insert({
+        company_id: company.id, source: "email", source_ref: sourceRef,
+        raw_file_name: attachmentFileName || null, extracted: extraction,
+        matched_client_cnpj: cleanCnpj || null, status: "error", order_id: dupOrder.id,
+        error_message: `Pedido nº ${orderNumber} já foi lançado antes — este e-mail foi ignorado para não duplicar.`,
+      });
+      return new Response(JSON.stringify({ ok: true, duplicate_order: orderNumber }), { status: 200 });
+    }
+  }
+
   let filePath: string | null = null;
   if (attachment && attachmentBytes) {
     const formattedName = `${categoryForRep}___VALOR_${extraction.value}___email_${timestamp}_${safeFileName}`;
@@ -414,6 +434,7 @@ async function handler(req: Request): Promise<Response> {
       file_path: filePath,
       source: "company_email_intake",
       payment_terms: extraction.paymentTerms || null,
+      order_number: orderNumber,
     })
     .select("id")
     .single();

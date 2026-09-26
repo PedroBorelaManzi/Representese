@@ -111,6 +111,40 @@ function AdminCompaniesContent() {
     refetchOnMount: "always",
   });
 
+  // Quantos e-mails cada empresa recebeu neste mês pela captura automática
+  // (qualquer status) e quantos deles viraram pedido lançado. Início do mês no
+  // fuso do navegador (o admin está no Brasil).
+  const monthStart = useMemo(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  }, []);
+  const monthLabel = useMemo(
+    () => new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" }),
+    []
+  );
+
+  const { data: monthCounts } = useQuery({
+    queryKey: ["admin-incoming-orders-month", monthStart],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("incoming_orders")
+        .select("company_id, status")
+        .eq("source", "email")
+        .gte("created_at", monthStart)
+        .limit(10000);
+      if (error) throw error;
+      const map: Record<string, { total: number; imported: number }> = {};
+      (data || []).forEach((r: { company_id: string; status: string }) => {
+        const entry = (map[r.company_id] ||= { total: 0, imported: 0 });
+        entry.total += 1;
+        if (r.status === "imported") entry.imported += 1;
+      });
+      return map;
+    },
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+
   const allRepIds = useMemo(
     () => Array.from(new Set((companies || []).flatMap((c) => c.company_reps.map((r) => r.user_id)))),
     [companies]
@@ -157,6 +191,7 @@ function AdminCompaniesContent() {
       if (data?.error) throw new Error(data.error);
       toast.success("Pedido lançado na conta do vendedor.");
       queryClient.invalidateQueries({ queryKey: ["admin-incoming-orders-pending"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-incoming-orders-month"] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao resolver.");
     } finally {
@@ -186,6 +221,7 @@ function AdminCompaniesContent() {
                   <th className="pb-3 pr-4">CNPJ</th>
                   <th className="pb-3 pr-4">Vendedores</th>
                   <th className="pb-3 pr-4">E-mail de captura</th>
+                  <th className="pb-3 pr-4">Pedidos no mês (e-mail)</th>
                   <th className="pb-3 pr-4">Drive</th>
                 </tr>
               </thead>
@@ -212,6 +248,14 @@ function AdminCompaniesContent() {
                       <button onClick={() => copyEmail(c.intake_email_slug)} className="flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400 hover:underline">
                         <Mail className="w-3.5 h-3.5" /> contato+{c.intake_email_slug}@{INTAKE_DOMAIN} <Copy className="w-3 h-3" />
                       </button>
+                    </td>
+                    <td className="py-4 pr-4">
+                      <div className="text-lg font-black text-slate-800 dark:text-zinc-100 leading-none">{monthCounts?.[c.id]?.total ?? 0}</div>
+                      <div className="text-[10px] text-slate-400 mt-1">
+                        {(monthCounts?.[c.id]?.total ?? 0) === 0
+                          ? `nenhum em ${monthLabel}`
+                          : `${monthCounts?.[c.id]?.imported ?? 0} lançado(s) · ${monthLabel}`}
+                      </div>
                     </td>
                     <td className="py-4 pr-4">
                       <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full ${c.drive_status === "active" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400"}`}>
