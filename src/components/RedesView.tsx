@@ -68,11 +68,17 @@ export default function RedesView({ clients }: { clients: RedeClient[] }) {
     setMonth(d.getMonth());
   };
 
-  const applySuggestion = async (key: string, list: RedeClient[], fallback: string) => {
+  // Quem ficou desmarcado NÃO some: continua sem rede, então a sugestão volta
+  // (agora só com eles) pra você criar a outra rede — mesmo prefixo de nome,
+  // redes diferentes. Só "ignorar" (X) esconde a sugestão.
+  const applySuggestion = async (key: string, list: RedeClient[], name: string) => {
     const ids = list.filter((c) => !skip.has(`${key}:${c.id}`)).map((c) => c.id);
-    const name = (names[key] ?? fallback).trim();
-    if (!name || ids.length === 0) return;
-    if (await assign(ids, name)) setDismissed((p) => new Set(p).add(key));
+    const clean = name.trim();
+    if (!clean || ids.length === 0) return;
+    if (await assign(ids, clean)) {
+      setNames((p) => { const n = { ...p }; delete n[key]; return n; });
+      setSkip((p) => new Set([...p].filter((k) => !k.startsWith(`${key}:`))));
+    }
   };
 
   return (
@@ -124,19 +130,28 @@ export default function RedesView({ clients }: { clients: RedeClient[] }) {
             <div key={s.key} className="bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 p-3">
               <div className="flex items-center gap-2 flex-wrap">
                 <input
-                  value={names[s.key] ?? s.name}
+                  value={names[s.key] ?? (s.existing ? "" : s.name)}
                   onChange={(e) => setNames((p) => ({ ...p, [s.key]: e.target.value }))}
+                  placeholder={s.existing ? "Nome de uma nova rede" : "Nome da rede"}
                   aria-label="Nome da rede"
                   className="flex-1 min-w-[140px] px-3 py-2 bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-800 rounded-xl text-sm font-black outline-none focus:ring-2 focus:ring-emerald-500"
                 />
-                {s.existing && <span className="text-[10px] font-bold text-slate-400">rede já existente</span>}
                 <button
-                  onClick={() => applySuggestion(s.key, s.clients, s.name)}
-                  disabled={saving}
+                  onClick={() => applySuggestion(s.key, s.clients, names[s.key] ?? s.name)}
+                  disabled={saving || !(names[s.key] ?? (s.existing ? "" : s.name)).trim()}
                   className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 disabled:opacity-50"
                 >
                   Criar rede
                 </button>
+                {s.existing && (
+                  <button
+                    onClick={() => applySuggestion(s.key, s.clients, s.existing!)}
+                    disabled={saving}
+                    className="px-4 py-2 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    Adicionar a “{s.existing}”
+                  </button>
+                )}
                 <button onClick={() => setDismissed((p) => new Set(p).add(s.key))} aria-label="Ignorar sugestão" className="p-2 rounded-lg text-slate-300 hover:text-slate-500">
                   <X className="w-4 h-4" />
                 </button>
