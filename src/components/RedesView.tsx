@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, ChevronLeft, ChevronRight, Loader2, Network, Pencil, Sparkles, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Loader2, Network, Pencil, Sparkles, UserPlus, X } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
@@ -10,6 +10,7 @@ import { aggregateNetworks, suggestNetworks, existingNetworks, type RedeClient, 
 import { brl, dateBR } from "../lib/format";
 import { cn } from "../lib/utils";
 import NetworkAssignModal from "./NetworkAssignModal";
+import ManageNetworkModal from "./ManageNetworkModal";
 
 type Mode = "mes" | "ano" | "tudo";
 const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
@@ -27,6 +28,7 @@ export default function RedesView({ clients }: { clients: RedeClient[] }) {
   const [company, setCompany] = useState("");
   const [open, setOpen] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<{ name: string; ids: string[] } | null>(null);
+  const [managing, setManaging] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   // sugestão: nome editável + CDs desmarcados, por chave
   const [names, setNames] = useState<Record<string, string>>({});
@@ -255,12 +257,20 @@ export default function RedesView({ clients }: { clients: RedeClient[] }) {
                         </li>
                       ))}
                     </ul>
-                    <button
-                      onClick={() => setRenaming({ name: r.name, ids: r.cds.map((c) => c.id) })}
-                      className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-emerald-600"
-                    >
-                      <Pencil className="w-3 h-3" /> Renomear rede
-                    </button>
+                    <div className="flex items-center gap-4">
+                      <button
+                        onClick={() => setManaging(r.name)}
+                        className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-600 hover:text-emerald-700"
+                      >
+                        <UserPlus className="w-3 h-3" /> Adicionar / remover clientes
+                      </button>
+                      <button
+                        onClick={() => setRenaming({ name: r.name, ids: r.cds.map((c) => c.id) })}
+                        className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-emerald-600"
+                      >
+                        <Pencil className="w-3 h-3" /> Renomear rede
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -268,6 +278,20 @@ export default function RedesView({ clients }: { clients: RedeClient[] }) {
           })}
         </div>
       )}
+
+      <ManageNetworkModal
+        networkName={managing}
+        clients={clients}
+        saving={saving}
+        onClose={() => setManaging(null)}
+        onSave={async (add, remove) => {
+          if (!managing) return;
+          // remove primeiro: quem sai fica sem rede; depois quem entra recebe o nome
+          const okRemove = remove.length === 0 || (await assign(remove, ""));
+          const okAdd = okRemove && (add.length === 0 || (await assign(add, managing)));
+          if (okRemove && okAdd) setManaging(null);
+        }}
+      />
 
       <NetworkAssignModal
         isOpen={!!renaming}
