@@ -627,7 +627,7 @@ export default function ClientDetails() {
         </div>
 
         <div className="flex gap-3">
-          <button onClick={() => navigate(`/dashboard/clientes/${id}/editar`)} className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-xs font-black text-slate-600 hover:border-slate-300 hover:bg-slate-50 transition-all">
+          <button onClick={() => navigate(`/dashboard/clientes/${id}/editar`, { state: { fromClient: true } })} className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-xs font-black text-slate-600 hover:border-slate-300 hover:bg-slate-50 transition-all">
             <Pencil className="w-3 h-3" /> Editar
           </button>
         </div>
