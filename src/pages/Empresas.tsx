@@ -22,7 +22,8 @@ import {
   FileSpreadsheet,
   UserCog,
   Truck,
-  Target
+  Target,
+  Mail
 } from "lucide-react";
 import { supabase, logError } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
@@ -95,7 +96,20 @@ export default function EmpresasPage() {
   const [newCompanyCnpj, setNewCompanyCnpj] = useState("");
   const [isSavingCompany, setIsSavingCompany] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("all");
+  // Empresas (pelo nome que o usuário usa) já ligadas ao cadastro global por CNPJ,
+  // ou seja, com captura automática de pedido por e-mail ativa. company_reps só
+  // devolve as linhas do próprio usuário (RLS), então isso nunca vaza nada de outros.
+  const [emailActiveCats, setEmailActiveCats] = useState<Set<string>>(new Set());
   const [viewDate, setViewDate] = useState(new Date());
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    supabase.from("company_reps").select("category_name").eq("user_id", user.id).then(({ data, error }) => {
+      if (cancelled || error || !data) return;
+      setEmailActiveCats(new Set(data.map((r: { category_name: string }) => (r.category_name || "").trim().toUpperCase())));
+    });
+    return () => { cancelled = true; };
+  }, [user?.id, settings.categories]);
   const [managingCompany, setManagingCompany] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editDeliveryDays, setEditDeliveryDays] = useState("");
@@ -843,7 +857,17 @@ export default function EmpresasPage() {
                   <Settings className="w-3.5 h-3.5 opacity-30 group-hover:rotate-45 transition-transform" />
                 </button>
               </div>
-              <p className="text-xs font-black tracking-tight whitespace-nowrap">{(catTotals[cat] || 0) === 0 ? <span className="text-slate-400 font-medium">Sem vendas</span> : formatCurrency(catTotals[cat] || 0)}</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-black tracking-tight whitespace-nowrap">{(catTotals[cat] || 0) === 0 ? <span className="text-slate-400 font-medium">Sem vendas</span> : formatCurrency(catTotals[cat] || 0)}</p>
+                {emailActiveCats.has(cat.trim().toUpperCase()) && (
+                  <span
+                    title="Cadastrada com CNPJ — pedidos por e-mail ativos"
+                    className="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded-full shrink-0"
+                  >
+                    <Mail className="w-2.5 h-2.5" /> E-mail ativo
+                  </span>
+                )}
+              </div>
             </div>
           ))}
 
