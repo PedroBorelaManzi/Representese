@@ -601,6 +601,37 @@ export default function EmpresasPage() {
     }
   };
 
+  const handleDeleteOrder = async (order: any) => {
+    if (!(await confirm({ title: 'Excluir pedido', message: 'Deseja realmente excluir este pedido? Isso é definitivo e apaga também os itens e parcelas dele.' }))) return;
+    if (!offlineCache.isOnline()) {
+      toast.error("Sem internet: não dá para excluir o pedido agora. Tente de novo online.");
+      return;
+    }
+    try {
+      if (order.file_path) await supabase.storage.from("client_vault").remove([order.file_path]);
+      const { error } = await supabase.from("orders").delete().eq("id", order.id).eq("user_id", user?.id);
+      if (error) throw error;
+      const remaining = (allOrders || []).filter(o => o.id !== order.id);
+      offlineCache.set(CacheKeys.ORDERS, remaining);
+      setAllOrders(remaining);
+      if (selectedOrder?.id === order.id) setSelectedOrder(null);
+      if (order.client_id) {
+        const { data: clientData } = await supabase.from("clients").select("faturamento").eq("id", order.client_id).single();
+        if (clientData) {
+          const updatedFat = ajustarFaturamento(clientData.faturamento, order.category, -(order.value || 0));
+          const { error: fatError } = await supabase.from("clients").update({ faturamento: updatedFat }).eq("id", order.client_id).eq("user_id", user?.id);
+          if (fatError) {
+            toast.warning("Pedido excluído, mas não consegui atualizar o faturamento do cliente. Confira o total dele.");
+            return;
+          }
+        }
+      }
+      toast.success("Pedido excluído!");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao excluir o pedido.");
+    }
+  };
+
   const handleDeleteCompany = async (name: string) => {
     if (!(await confirm({ title: 'Excluir empresa', message: `Deseja realmente excluir a empresa ${name}?` }))) return;
     try {
@@ -895,6 +926,7 @@ export default function EmpresasPage() {
                 orders={filteredOrders}
                 onSelectOrder={setSelectedOrder}
                 saveField={saveOrderField as any}
+                onDelete={handleDeleteOrder}
                 emptyLabel="Nenhum pedido identificado neste período."
               />
             </div>
@@ -935,7 +967,7 @@ export default function EmpresasPage() {
                 )
               ) : (
                 filteredOrders.map(order => (
-                  <OrderCard key={order.id} order={order} onSelectOrder={setSelectedOrder} saveField={saveOrderField as any} />
+                  <OrderCard key={order.id} order={order} onSelectOrder={setSelectedOrder} saveField={saveOrderField as any} onDelete={handleDeleteOrder} />
                 ))
               )}
           </div>
