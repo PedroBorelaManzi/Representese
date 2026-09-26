@@ -7,7 +7,7 @@ import { useSettings } from '../contexts/SettingsContext';
 import { useSync } from '../contexts/SyncContext';
 import { useClients } from '../hooks/useClients';
 import { syncQueue } from '../lib/syncQueue';
-import { cn, useDebounce, toTitleCase } from '../lib/utils';
+import { cn, useDebounce, toTitleCase, localISODate } from '../lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { parseFileForCnpjs } from '../lib/clientImport';
@@ -207,7 +207,7 @@ export default function CRMPage() {
         lat: coords?.lat || null,
         lng: coords?.lng || null,
         status: "Ativo",
-        last_contact: new Date().toISOString().split("T")[0]
+        last_contact: localISODate()
       };
 
       if (!isOnline) {
@@ -314,7 +314,7 @@ export default function CRMPage() {
                 lat: coords?.lat || null,
                 lng: coords?.lng || null,
                 status: 'Ativo',
-                last_contact: new Date().toISOString().split('T')[0]
+                last_contact: localISODate()
               }]).select('id').single();
               
               if (!insertError && data) {

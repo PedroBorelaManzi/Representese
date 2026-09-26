@@ -540,7 +540,7 @@ export default function EmpresasPage() {
 
   const ordersToday = useMemo(() => {
     const today = new Date().toLocaleDateString("en-CA");
-    return (allOrders || []).filter(o => o && o.created_at && o.created_at.startsWith(today)).length;
+    return (allOrders || []).filter(o => o && o.created_at && new Date(o.created_at).toLocaleDateString("en-CA") === today).length;
   }, [allOrders]);
 
   const handleUpdateCompany = async () => {
