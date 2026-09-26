@@ -89,6 +89,11 @@ function AdminCompaniesContent() {
       if (error) throw error;
       return (data || []) as unknown as CompanyRow[];
     },
+    // O QueryClient global usa staleTime: Infinity (sync manual) e persiste o
+    // cache por 7 dias — pra uma tela de admin isso fazia a lista "vazia" de
+    // antes do cadastro ficar congelada. Aqui o dado tem que ser sempre ao vivo.
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const { data: pending, isLoading: loadingPending } = useQuery({
@@ -102,6 +107,8 @@ function AdminCompaniesContent() {
       if (error) throw error;
       return (data || []) as PendingRow[];
     },
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const allRepIds = useMemo(
@@ -119,6 +126,8 @@ function AdminCompaniesContent() {
       return map;
     },
     enabled: allRepIds.length > 0,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const companyById = useMemo(() => {
