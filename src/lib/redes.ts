@@ -134,6 +134,18 @@ const GENERIC = new Set([
   "INDUSTRIA", "INDUSTRIAL", "EMPRESA", "GRUPO", "REDE", "CENTRO", "CENTER", "PADARIA", "RESTAURANTE", "BAR", "HOTEL",
   "FARMACIA", "DROGARIA", "AUTO", "POSTO", "MATERIAIS", "CONSTRUCAO", "MAGAZINE", "EMPORIO", "ARMAZEM", "SUPER", "HIPER",
   "HIPERMERCADO", "MINI", "MINIMERCADO", "ME", "EPP", "LTDA", "EIREL", "EIRELI", "SA", "S", "A", "MEI", "FILIAL", "MATRIZ",
+  // ramo de materiais de construção / varejo em geral
+  "PARA", "DEPOSITO", "DEPOSITOS", "MADEIREIRA", "MADEIREIRAS", "MATERIAL", "MAT", "BASICO", "BASICOS", "CONSTRUCAO", "CONSTRUCOES",
+  "ACABAMENTO", "ACABAMENTOS", "REVESTIMENTO", "REVESTIMENTOS", "PISOS", "PORCELANATOS", "LAR", "UTILIDADES", "DOMESTICAS",
+  "TRANSPORTES", "REPRESENTACOES", "SERVICOS", "PRODUTOS", "TIJOLOS", "BLOCOS", "LAJES", "FERRAGENS", "TINTAS", "SHOPPING",
+  "SOCIEDADE", "UNIPESSOAL", "SAO", "SANTA", "SANTO", "NOSSA", "SENHORA", "IRMAOS", "JARDIM", "VILA", "PARQUE", "NOVA", "NOVO",
+  "DOS", "DAS", "COMERCIAL", "INDUSTRIA", "COMERCIO",
+  // primeiros nomes comuns: "Antonio X" e "Antonio Y" são pessoas diferentes, não uma rede
+  "ANTONIO", "JOSE", "JOAO", "MARIA", "ANA", "PAULO", "CARLOS", "LUIZ", "LUIS", "LUCAS", "PEDRO", "FRANCISCO", "MARCOS", "MARCO",
+  "ROBERTO", "ANGELO", "ELIANA", "ADRIANA", "ALEXANDRE", "ANDRE", "FERNANDO", "FABIO", "FLAVIO", "RICARDO", "RODRIGO", "SERGIO",
+  "MARCIA", "MARCELO", "CLAUDIO", "CLAUDIA", "LUCIANA", "SANDRA", "VANDERLEIA", "LIDIA", "LEONARDO", "DANIEL", "EDUARDO",
+  "GABRIEL", "GUSTAVO", "JULIO", "JOSIEL", "JOSETY", "NILTON", "OCIMAR", "AGNALDO", "IRENE", "CELIA", "CLEUZA", "LETICIA",
+  "DONIZETE", "VANDERLEI", "APARECIDA", "APARECIDO", "SEBASTIAO", "BENEDITO", "MANOEL", "MANUEL", "OSVALDO", "ANTONIA",
 ]);
 
 function tokens(name: string): string[] {
@@ -143,11 +155,21 @@ function tokens(name: string): string[] {
     .filter(Boolean);
 }
 
-/** Prefixo identificador do nome: primeira palavra que não é genérica (ex.: "SUPERMERCADO CARREFOUR CD 2" → "CARREFOUR"). */
+/**
+ * Marca do nome = a PRIMEIRA palavra (ex.: "Caetano De Boituva …" → CAETANO).
+ * Só ela: pular palavras genéricas fazia sobrenomes do meio do nome casarem
+ * ("Rodrigo Aparecido de Assis" com "Assis Materiais"). Exceções: "Casa do X"
+ * / "Loja da X" (marca = X) e "Rede X" / "Grupo X" (marca = X).
+ * Primeira palavra genérica, primeiro nome comum, número ou < 4 letras → sem marca.
+ */
 export function networkPrefix(name?: string | null): string | null {
   const t = tokens(name || "");
-  const first = t.find((w) => !GENERIC.has(w) && !/^\d+$/.test(w));
-  return first && first.length >= 4 ? first : null;
+  let i = 0;
+  if (["REDE", "GRUPO"].includes(t[0])) i = 1;
+  else if (["CASA", "CASAS", "LOJA", "LOJAS"].includes(t[0]) && ["DO", "DA", "DE", "DOS", "DAS"].includes(t[1])) i = 2;
+  const w = t[i];
+  if (!w || w.length < 4 || /^\d+$/.test(w) || GENERIC.has(w)) return null;
+  return w;
 }
 
 export interface NetworkSuggestion {

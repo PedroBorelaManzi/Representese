@@ -37,14 +37,27 @@ describe("aggregateNetworks", () => {
 });
 
 describe("suggestNetworks", () => {
-  it("prefixo ignora palavras genéricas", () => {
-    expect(networkPrefix("Supermercado Carrefour CD 2")).toBe("CARREFOUR");
+  it("marca = primeira palavra; genérica, primeiro nome ou número não valem", () => {
+    expect(networkPrefix("Carrefour CD 2")).toBe("CARREFOUR");
+    expect(networkPrefix("Rede Carrefour")).toBe("CARREFOUR");
+    expect(networkPrefix("Casa do Construtor Salto")).toBe("CONSTRUTOR");
     expect(networkPrefix("Supermercado Ltda")).toBeNull();
+    expect(networkPrefix("Depósito Central Casa")).toBeNull();
+    expect(networkPrefix("Antonio Gomes Fogaca")).toBeNull();
+    expect(networkPrefix("5 Irmaos Matieli")).toBeNull();
+  });
+
+  it("não casa sobrenome do meio do nome", () => {
+    const s = suggestNetworks([
+      { id: "1", name: "Assis Materiais De Construcao" },
+      { id: "2", name: "Rodrigo Aparecido De Assis Ltda" },
+    ]);
+    expect(s).toHaveLength(0);
   });
 
   it("sugere grupos de 2+ sem rede e ignora avulsos", () => {
     const s = suggestNetworks([
-      { id: "1", name: "Atacadão Carrefour SP" },
+      { id: "1", name: "Carrefour SP" },
       { id: "2", name: "Carrefour Comercio RJ" },
       { id: "3", name: "Padaria do Zé" },
       { id: "4", name: "Mercado Bahamas" },
