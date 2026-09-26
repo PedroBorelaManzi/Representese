@@ -588,9 +588,47 @@ export default function EmpresasPage() {
   const handleDeleteCompany = async (name: string) => {
     if (!(await confirm({ title: 'Excluir empresa', message: `Deseja realmente excluir a empresa ${name}?` }))) return;
     try {
+      // A faixa de empresas (combinedCategories) também lista qualquer categoria
+      // que apareça em pedidos — então tirar o nome de settings.categories não
+      // basta: enquanto houver pedido nela, a empresa continua na tela. Por isso
+      // perguntamos o que fazer com os pedidos (o padrão — Esc / clique fora —
+      // é MANTER, nunca apagar sem o usuário pedir explicitamente).
+      const companyOrders = (allOrders || []).filter(o => o && (o.category || "").trim().toUpperCase() === name.trim().toUpperCase());
+      let deleteOrders = false;
+      if (companyOrders.length > 0) {
+        deleteOrders = await confirm({
+          title: 'Excluir também os pedidos?',
+          message: `${name} tem ${companyOrders.length} pedido(s) lançado(s). Excluir os pedidos junto é definitivo e apaga também os itens e parcelas deles. Se você mantiver, a empresa continua aparecendo na lista enquanto houver pedidos nela — e, se cadastrar a empresa de novo com o mesmo nome, eles voltam a ficar ligados a ela.`,
+          confirmLabel: 'Excluir pedidos',
+          cancelLabel: 'Manter pedidos',
+        });
+        if (deleteOrders && !offlineCache.isOnline()) {
+          toast.error("Sem internet: não dá para excluir os pedidos agora. Tente de novo online.");
+          return;
+        }
+      }
+
+      if (deleteOrders) {
+        const { error: delErr } = await supabase.from("orders").delete().eq("user_id", user?.id).in("id", companyOrders.map(o => o.id));
+        if (delErr) throw delErr;
+      }
+
       const updatedCategories = settings.categories.filter((c: string) => c !== name);
       await updateSettings({ categories: updatedCategories });
-      toast.success("Empresa removida.");
+      if (deleteOrders) {
+        const remaining = (allOrders || []).filter(o => !companyOrders.some(c => c.id === o.id));
+        offlineCache.set(CacheKeys.ORDERS, remaining);
+        setAllOrders(remaining);
+        loadOrders();
+      }
+      if (selectedCategory === name) setSelectedCategory("all");
+      toast.success(
+        deleteOrders
+          ? "Empresa e pedidos removidos."
+          : companyOrders.length > 0
+            ? "Empresa removida do cadastro. Os pedidos foram mantidos."
+            : "Empresa removida."
+      );
       setManagingCompany(null);
     } catch (err) {
       toast.error("Erro ao remover.");
