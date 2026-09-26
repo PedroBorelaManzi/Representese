@@ -36,7 +36,7 @@
       "destination": "/api/:path*"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!assets/|fonts/|api/).*)",
       "destination": "/index.html"
     }
   ],
