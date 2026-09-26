@@ -36,6 +36,7 @@ import {
   CalendarClock,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { groupTopByNetwork, type TopGrouped } from '../lib/redes';
 import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
 import { downloadExcelReport, downloadCSVReport } from '../lib/reportGenerator';
@@ -532,18 +533,38 @@ function DetailHeader({ icon: Icon, title, subtitle, onBack }: { icon: typeof Wa
   );
 }
 
+/** Alterna a lista de top clientes entre "por cliente" (cada CNPJ) e "por rede" (CDs da mesma rede somados). */
+function NetworkToggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <div className="inline-flex bg-slate-100 dark:bg-zinc-800 rounded-full p-0.5 mb-4" role="group" aria-label="Agrupar clientes">
+      {([[false, 'Por cliente'], [true, 'Por rede']] as const).map(([v, label]) => (
+        <button
+          key={label}
+          onClick={() => onChange(v)}
+          aria-pressed={value === v}
+          className={`px-3.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wide transition-all ${value === v ? 'bg-slate-900 text-white dark:bg-zinc-100 dark:text-zinc-900' : 'text-slate-500'}`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /** Lista completa de clientes do mês por receita (a versão "ver todos" do card Top Clientes). */
-function TopClientsDetail({ clients }: { clients: TopClient[] }) {
+function TopClientsDetail({ clients }: { clients: TopGrouped[] }) {
   if (clients.length === 0) {
     return <p className="text-sm text-slate-400 dark:text-zinc-500 font-medium py-8 text-center">Nenhum pedido lançado no período.</p>;
   }
   return (
     <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200/80 dark:border-zinc-800/80 p-3 sm:p-4">
       <div className="space-y-1">
-        {clients.map((client, idx) => (
-          <Link
+        {clients.map((client, idx) => {
+          const Row: any = client.isNetwork ? 'div' : Link;
+          return (
+          <Row
             key={client.id}
-            to={`/dashboard/clientes/${client.id}`}
+            {...(client.isNetwork ? {} : { to: `/dashboard/clientes/${client.id}` })}
             className="flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors group"
           >
             <span className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-[10px] font-black text-slate-500 dark:text-zinc-400 shrink-0 tabular-nums">
@@ -557,15 +578,16 @@ function TopClientsDetail({ clients }: { clients: TopClient[] }) {
                 <span className="text-sm font-black text-slate-900 dark:text-zinc-100 tabular-nums shrink-0">{BRL(client.revenue)}</span>
               </div>
               <div className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 mt-0.5">
-                {client.orders} pedido{client.orders === 1 ? '' : 's'} · {(client.share * 100).toFixed(1)}% do mês
+                {client.isNetwork && `Rede · ${client.members} CD${client.members === 1 ? '' : 's'} · `}{client.orders} pedido{client.orders === 1 ? '' : 's'} · {(client.share * 100).toFixed(1)}% do mês
               </div>
               <div className="h-1 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden mt-1.5">
                 <div style={{ width: `${client.share * 100}%` }} className="h-full bg-emerald-500 rounded-full" />
               </div>
             </div>
-            <ExternalLink className="w-3.5 h-3.5 text-slate-300 dark:text-zinc-700 group-hover:text-emerald-500 transition-colors shrink-0" />
-          </Link>
-        ))}
+            {!client.isNetwork && <ExternalLink className="w-3.5 h-3.5 text-slate-300 dark:text-zinc-700 group-hover:text-emerald-500 transition-colors shrink-0" />}
+          </Row>
+          );
+        })}
       </div>
     </div>
   );
@@ -674,6 +696,7 @@ export default function ReportsPage() {
   const monthOptions = useMemo(buildMonthOptions, []);
   const [selected, setSelected] = useState<MonthOption>(monthOptions[0]);
   const [exporting, setExporting] = useState<'excel' | 'csv' | null>(null);
+  const [byNetwork, setByNetwork] = useState(false);
   const [detailView, setDetailView] = useState<'topClients' | 'health' | 'byCompany' | 'byCity' | null>(null);
 
   const { data, isLoading, isError, refetch } = useQuery({
@@ -711,6 +734,10 @@ export default function ReportsPage() {
   };
 
   const kpis = data?.kpis;
+  const topRows: TopGrouped[] = useMemo(
+    () => (byNetwork ? groupTopByNetwork(data?.topClients || []) : (data?.topClients || []).map((c) => ({ ...c, members: 1, isNetwork: false }))),
+    [byNetwork, data?.topClients]
+  );
 
   return (
     <div className="space-y-6">
@@ -785,7 +812,8 @@ export default function ReportsPage() {
           {detailView === 'topClients' && (
             <>
               <DetailHeader icon={Trophy} title="Todos os clientes do mês" subtitle={`Ordenados por receita em ${selected.fullLabel}`} onBack={() => setDetailView(null)} />
-              <TopClientsDetail clients={data.topClients} />
+              <NetworkToggle value={byNetwork} onChange={setByNetwork} />
+              <TopClientsDetail clients={topRows} />
             </>
           )}
           {detailView === 'health' && (
@@ -849,15 +877,16 @@ export default function ReportsPage() {
               icon={Trophy}
               title="Top clientes do mês"
               subtitle="Participação na receita do período"
-              onExpand={data.topClients.length > 5 ? () => setDetailView('topClients') : undefined}
+              onExpand={topRows.length > 5 ? () => setDetailView('topClients') : undefined}
             >
-              {data.topClients.length === 0 ? (
+              <NetworkToggle value={byNetwork} onChange={setByNetwork} />
+              {topRows.length === 0 ? (
                 <p className="text-sm text-slate-400 dark:text-zinc-500 font-medium py-8 text-center">
                   Nenhum pedido lançado em {selected.fullLabel}.
                 </p>
               ) : (
                 <div className="space-y-4">
-                  {data.topClients.slice(0, 5).map((client, idx) => (
+                  {topRows.slice(0, 5).map((client, idx) => (
                     <div key={client.id}>
                       <div className="flex items-center justify-between gap-3 mb-1.5">
                         <div className="flex items-center gap-2.5 min-w-0">
@@ -866,7 +895,7 @@ export default function ReportsPage() {
                           </span>
                           <span className="text-sm font-bold text-slate-800 dark:text-zinc-200 truncate">{client.name}</span>
                           <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 shrink-0">
-                            {client.orders} ped.
+                            {client.isNetwork ? `${client.members} CD${client.members === 1 ? '' : 's'} · ` : ''}{client.orders} ped.
                           </span>
                         </div>
                         <span className="text-sm font-black text-slate-900 dark:text-zinc-100 tabular-nums shrink-0">{BRL(client.revenue)}</span>
