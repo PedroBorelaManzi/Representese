@@ -203,6 +203,7 @@ export default function CRMPage() {
         nome_fantasia: found.nomeFantasia || null,
         cnpj: cleanCnpj,
         city: clientData.city,
+        state: found.state || null,
         address: clientData.address,
         lat: coords?.lat || null,
         lng: coords?.lng || null,
