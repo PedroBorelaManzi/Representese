@@ -77,5 +77,13 @@ export function buildClientContext(
     );
   });
 
-  return { context: lines.join("\n"), total, truncated: total > MAX_CLIENTS_IN_CONTEXT };
+  // Ranking já calculado: o modelo errava "meus maiores clientes" ordenando de
+  // cabeça uma lista longa (dizia Caetano R$ 83 mil em 1º com Padovani R$ 175 mil na lista).
+  const top = ordered
+    .filter((c) => totalFaturamento(c.faturamento) > 0)
+    .slice(0, 10)
+    .map((c, i) => `${i + 1}. ${c.name} — R$${totalFaturamento(c.faturamento).toLocaleString("pt-BR")}`);
+  const ranking = top.length > 0 ? `RANKING PRONTO — 10 MAIORES CLIENTES POR FATURAMENTO TOTAL (use exatamente esta ordem e estes valores):\n${top.join("\n")}\n\n` : "";
+
+  return { context: ranking + lines.join("\n"), total, truncated: total > MAX_CLIENTS_IN_CONTEXT };
 }
