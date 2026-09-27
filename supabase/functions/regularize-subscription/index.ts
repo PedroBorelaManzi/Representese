@@ -97,7 +97,17 @@ serve(async (req) => {
     }
 
     const planId = settings?.plan_id || 'profissional'
-    const totalToPay = (PLAN_PRICES[planId] || PLAN_PRICES['default'])[cycle]
+    let totalToPay = (PLAN_PRICES[planId] || PLAN_PRICES['default'])[cycle]
+
+    // Desconto de indicador (programa de indicação) já conquistado por essa
+    // pessoa — mesma regra do process-checkout, aplicado aqui porque
+    // regularizar também gera uma cobrança avulsa, sem assinatura recorrente
+    // pra sincronizar depois.
+    const { data: referralSettings } = await supabase.from('user_settings').select('referral_discount_pct').eq('user_id', userId).maybeSingle()
+    const myReferralPct = referralSettings?.referral_discount_pct || 0
+    if (myReferralPct > 0) {
+      totalToPay = totalToPay - (totalToPay * myReferralPct / 100)
+    }
 
     const paymentResp = await fetch(`${ASAAS_API_URL}/payments`, {
       method: 'POST',

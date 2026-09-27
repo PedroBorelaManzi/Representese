@@ -9,7 +9,8 @@ import {
   Smartphone,
   Users,
   LogOut,
-  EyeOff
+  EyeOff,
+  Gift
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
@@ -25,6 +26,7 @@ import { SettingsSecurity } from './settings/SettingsSecurity';
 import { SettingsMobile } from './settings/SettingsMobile';
 import { SettingsTeam } from './settings/SettingsTeam';
 import { SettingsPrivacy } from './settings/SettingsPrivacy';
+import { SettingsReferral } from './settings/SettingsReferral';
 import { useModalEsc } from '../hooks/useModalEsc';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 
@@ -37,6 +39,7 @@ const menuItems = [
   { id: 'profile', label: 'Meu Perfil', icon: User, color: 'text-blue-500' },
   { id: 'appearance', label: 'Personalização', icon: Moon, color: 'text-indigo-500' },
   { id: 'subscription', label: 'Minha Assinatura', icon: CreditCard, color: 'text-emerald-500' },
+  { id: 'referral', label: 'Indique e Ganhe', icon: Gift, color: 'text-pink-500' },
   { id: 'notifications', label: 'Notificações', icon: Bell, color: 'text-amber-500' },
   { id: 'security', label: 'Segurança', icon: Shield, color: 'text-red-500' },
   { id: 'privacy', label: 'Privacidade', icon: EyeOff, color: 'text-amber-500' },
@@ -186,6 +189,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 {activeTab === 'security' && <SettingsSecurity />}
                 {activeTab === 'privacy' && <SettingsPrivacy />}
                 {activeTab === 'subscription' && <SettingsSubscription onClose={onClose} />}
+                {activeTab === 'referral' && <SettingsReferral />}
                 {activeTab === 'mobile' && <SettingsMobile />}
                 {activeTab === 'team' && <SettingsTeam />}
               </motion.div>

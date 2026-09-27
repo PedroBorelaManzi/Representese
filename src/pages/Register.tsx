@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowLeft, Mail, User, Phone, Building2, Loader2, ArrowRight, Lock, Eye, EyeOff, Check } from "lucide-react";
 import { Logo } from "../components/Logo";
-import { Link, useNavigate, Navigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams, Navigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
@@ -40,6 +40,10 @@ export default function Register() {
   const [aceitouTermos, setAceitouTermos] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // Link de indicação (?ref=CODIGO, ver SettingsReferral.tsx) — carrega até
+  // o Checkout pra aplicar o cupom sozinho.
+  const refCode = searchParams.get("ref")?.trim().toUpperCase() || undefined;
   const { user } = useAuth();
 
   // Se já estiver logado (cliente com conta ativa), pula direto pros planos.
@@ -121,7 +125,7 @@ export default function Register() {
 
       // Pro Checkout reaproveitar (nome/e-mail/telefone), em vez de pedir
       // tudo de novo do zero minutos depois.
-      saveLeadData({ name: name.trim(), email: email.trim(), phone, company: company.trim() || undefined });
+      saveLeadData({ name: name.trim(), email: email.trim(), phone, company: company.trim() || undefined, ref: refCode });
 
       toast.success("Agora escolha o seu plano!");
       navigate("/planos");

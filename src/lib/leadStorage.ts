@@ -12,6 +12,10 @@ export interface StoredLead {
   email: string;
   phone: string;
   company?: string;
+  /** Código de indicação (?ref= em /register, ver SettingsReferral.tsx) —
+   *  carregado até o Checkout pra aplicar o cupom sozinho, sem a pessoa
+   *  precisar digitar de novo o que já veio no link. */
+  ref?: string;
 }
 
 export function saveLeadData(lead: StoredLead): void {

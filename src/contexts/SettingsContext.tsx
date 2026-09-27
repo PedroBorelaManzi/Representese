@@ -68,6 +68,12 @@ interface Settings {
   last_lat?: number;
   last_lng?: number;
   last_location_at?: string;
+  /** Programa de indicação — quanto de desconto esta conta tem direito
+   *  agora (recalculado pelo backend) e quanto já está de fato refletido na
+   *  cobrança (site/Android sincronizam sozinhos; iOS só muda quando a
+   *  pessoa toca em "Resgatar", ver SettingsReferral.tsx). */
+  referral_discount_pct?: number;
+  referral_discount_applied_pct?: number;
 }
 
 const defaultSettings: Settings = {
@@ -304,6 +310,8 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           weather_state: data.weather_state ?? undefined,
           weather_lat: data.weather_lat ?? undefined,
           weather_lng: data.weather_lng ?? undefined,
+          referral_discount_pct: data.referral_discount_pct ?? 0,
+          referral_discount_applied_pct: data.referral_discount_applied_pct ?? 0,
         };
 
         setSettings(freshSettings);
