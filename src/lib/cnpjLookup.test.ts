@@ -48,6 +48,7 @@ describe('lookupCnpj', () => {
     expect(result).toEqual({
       cnpj: '11222333000181',
       name: 'ACME LTDA',
+      nomeFantasia: 'Acme',
       city: 'São Paulo',
       state: 'SP',
       address: 'Rua das Flores, 100 - Centro, São Paulo - SP',
@@ -62,7 +63,7 @@ describe('lookupCnpj', () => {
     });
   });
 
-  it('usa nome fantasia quando não há razão social', async () => {
+  it('separa nome fantasia de razão social — name fica vazio quando só há fantasia (decisão 2026-09-03: quem chama decide o fallback)', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ nome_fantasia: 'Acme' }),
@@ -70,7 +71,8 @@ describe('lookupCnpj', () => {
 
     const result = await lookupCnpj('11222333000181');
 
-    expect(result?.name).toBe('Acme');
+    expect(result?.name).toBe('');
+    expect(result?.nomeFantasia).toBe('Acme');
   });
 
   it('devolve null quando a API responde erro', async () => {
