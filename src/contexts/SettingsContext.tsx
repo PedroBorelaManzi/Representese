@@ -74,6 +74,10 @@ interface Settings {
    *  pessoa toca em "Resgatar", ver SettingsReferral.tsx). */
   referral_discount_pct?: number;
   referral_discount_applied_pct?: number;
+  /** Força a pessoa a definir uma senha nova assim que loga — usado quando
+   *  a conta foi criada manualmente com uma senha provisória (ver
+   *  ForcePasswordChange.tsx). */
+  must_change_password?: boolean;
 }
 
 const defaultSettings: Settings = {
@@ -312,6 +316,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           weather_lng: data.weather_lng ?? undefined,
           referral_discount_pct: data.referral_discount_pct ?? 0,
           referral_discount_applied_pct: data.referral_discount_applied_pct ?? 0,
+          must_change_password: data.must_change_password ?? false,
         };
 
         setSettings(freshSettings);

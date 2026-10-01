@@ -39,6 +39,7 @@ import { LocalNotifications } from '@capacitor/local-notifications';
 import { WhatsAppButton } from './WhatsAppButton';
 import { Logo } from './Logo';
 import { SubscriptionGuard } from './SubscriptionGuard';
+import { ForcePasswordChange } from './ForcePasswordChange';
 import { CommissionPrivacyProvider } from '../contexts/CommissionPrivacyContext';
 import { ErrorBoundary } from './ErrorBoundary';
 import { useIsSupportAdmin } from '../hooks/useIsSupportAdmin';
@@ -244,6 +245,7 @@ export default function Layout() {
   ];
 
   return (
+    <ForcePasswordChange>
     <SubscriptionGuard>
     <CommissionPrivacyProvider>
       <div className="flex h-screen bg-slate-100/60 dark:bg-zinc-950 transition-colors duration-300">
@@ -652,5 +654,6 @@ export default function Layout() {
       </div>
     </CommissionPrivacyProvider>
     </SubscriptionGuard>
+    </ForcePasswordChange>
   );
 }
