@@ -336,10 +336,12 @@ serve(async (req) => {
         status: 400,
       })
     }
-    // Limite razoável de cidades por chamada — nenhum uso legítimo do app
-    // pede centenas de municípios de uma vez (a carteira de um representante
-    // não chega perto disso).
-    if (locations.length > 50) {
+    // Limite de cidades por chamada — só pra barrar abuso grosseiro (o rate
+    // limit por IP acima já é a defesa principal). Representantes legítimos
+    // frequentemente têm clientes em mais de 50 cidades diferentes; o valor
+    // anterior (50) travava a função pra qualquer um deles e silenciosamente
+    // zerava os feriados municipais de todo mundo acima disso.
+    if (locations.length > 500) {
       return new Response(JSON.stringify({ error: 'Muitas localizações em uma única chamada.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
