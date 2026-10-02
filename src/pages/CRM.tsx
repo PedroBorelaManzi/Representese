@@ -50,6 +50,8 @@ export default function CRMPage() {
   const location = useLocation();
   const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState<'Todos' | 'Alerta' | 'Crítico' | 'Inativo'>('Todos');
+  // Filtro por representada nas abas de alerta — "" = todas.
+  const [companyFilter, setCompanyFilter] = useState('');
   const { data: clients = [], isLoading: loading, isFetching: loadingAlerts, dismissAlert } = useClients();
   const [searchTerm, setSearchTerm] = useState('');
   // Visão "Redes" e seleção em lote (definir rede de vários CDs de uma vez)
@@ -116,24 +118,42 @@ export default function CRMPage() {
 
   useEffect(() => {
     setDisplayLimit(40);
-  }, [debouncedSearchTerm, activeTab]);
+  }, [debouncedSearchTerm, activeTab, companyFilter]);
+
+  // Some sozinho se trocar de aba e a representada escolhida não tiver
+  // mais alerta ali — evita ficar com um filtro "preso" mostrando lista vazia.
+  useEffect(() => {
+    setCompanyFilter('');
+  }, [activeTab]);
+
+  /** Representadas com pelo menos um alerta ativo agora — pra popular o
+   *  filtro. Olha todas as representadas (não só as da aba atual) porque o
+   *  <select> precisa listar todas; o filtro em si é aplicado abaixo. */
+  const availableCompanies = useMemo(() => {
+    const set = new Set<string>();
+    (clients || []).forEach((c) => c.alerts?.forEach((a: Alert) => set.add(a.company)));
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [clients]);
 
   const filteredClients = useMemo(() => {
     const lowerSearch = debouncedSearchTerm.toLowerCase();
     const result = (clients || []).filter(c => {
-      const searchMatch = !debouncedSearchTerm || 
-        (c.name || "").toLowerCase().includes(lowerSearch) || 
-        (c.cnpj || "").includes(debouncedSearchTerm) || 
+      const searchMatch = !debouncedSearchTerm ||
+        (c.name || "").toLowerCase().includes(lowerSearch) ||
+        (c.cnpj || "").includes(debouncedSearchTerm) ||
         (c.city || "").toLowerCase().includes(lowerSearch);
-      
+
       if (!searchMatch) return false;
-      
-      if (activeTab === 'Todos') return true;
-      return c.alerts?.some((a: Alert) => a.type === activeTab);
+
+      if (activeTab === 'Todos' && !companyFilter) return true;
+      return c.alerts?.some((a: Alert) =>
+        (activeTab === 'Todos' || a.type === activeTab) &&
+        (!companyFilter || a.company === companyFilter)
+      );
     });
 
     return result.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-  }, [clients, debouncedSearchTerm, activeTab]);
+  }, [clients, debouncedSearchTerm, activeTab, companyFilter]);
 
   const displayClients = useMemo(() => {
     return filteredClients.slice(0, displayLimit);
@@ -472,8 +492,19 @@ export default function CRMPage() {
               {tab} <span className="ml-1 opacity-50">({countForTab(tab)})</span>
             </button>
           ))}
+          {activeTab !== 'Todos' && availableCompanies.length > 1 && (
+            <select
+              value={companyFilter}
+              onChange={(e) => setCompanyFilter(e.target.value)}
+              aria-label="Filtrar alertas por representada"
+              className="ml-auto shrink-0 px-3 py-1.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-full text-[11px] font-black outline-none"
+            >
+              <option value="">Todas as representadas</option>
+              {availableCompanies.map((comp) => <option key={comp} value={comp}>{comp}</option>)}
+            </select>
+          )}
           {loadingAlerts && (
-             <div className="flex items-center gap-2 ml-auto pr-4">
+             <div className={cn("flex items-center gap-2 pr-4", !(activeTab !== 'Todos' && availableCompanies.length > 1) && "ml-auto")}>
                 <Loader2 className="w-3 h-3 animate-spin text-emerald-600" />
                 <span className="text-[9px] font-black uppercase text-emerald-600/60 tracking-widest">Sincronizando Alertas...</span>
              </div>
@@ -534,7 +565,7 @@ export default function CRMPage() {
                              <p className="text-sm font-black text-slate-900 dark:text-zinc-100 normal-case truncate pr-1">{toTitleCase(client.name || "")}</p>
                              {client.alerts && client.alerts.length > 0 && (
                                <span className="flex gap-1 shrink-0">
-                                 {client.alerts.filter((a: Alert) => activeTab === 'Todos' ? true : a.type === activeTab).slice(0, 1).map((a: Alert, i: number) => (
+                                 {client.alerts.filter((a: Alert) => (activeTab === 'Todos' || a.type === activeTab) && (!companyFilter || a.company === companyFilter)).slice(0, 1).map((a: Alert, i: number) => (
                                    <span key={i} className={cn("pl-2 pr-1 py-0.5 rounded-md text-[8px] font-black uppercase border flex items-center gap-1", a.type === 'Inativo' ? 'bg-red-50 text-red-600 border-red-100 dark:bg-red-950/30 dark:border-red-900/40' : a.type === 'Crítico' ? 'bg-orange-50 text-orange-600 border-orange-100 dark:bg-orange-950/30 dark:border-orange-900/40' : 'bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-950/30 dark:border-amber-900/40') }>
                                      <span className="opacity-60">{a.company}</span> <span className="w-1 h-1 rounded-full bg-current opacity-30" /> <span>{a.type}: {a.days}D</span>
                                      <button
@@ -596,7 +627,8 @@ export default function CRMPage() {
                    return displayGroups.map(({ key, members }) => {
                      if (members.length === 1) return renderClientRow(members[0]);
                      const rep = members[0];
-                     const alert = rep.alerts?.find((a: Alert) => a.type === activeTab) || rep.alerts?.[0];
+                     const alert = rep.alerts?.find((a: Alert) => a.type === activeTab && (!companyFilter || a.company === companyFilter))
+                       || rep.alerts?.find((a: Alert) => !companyFilter || a.company === companyFilter);
                      const isExpanded = expandedGroups.has(key);
                      const groupLabel = rep.network_name ? `Rede ${rep.network_name}` : toTitleCase(rep.name || '');
                      return (

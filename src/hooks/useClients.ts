@@ -3,8 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
-import { computeClientAlerts, OrderLike, DismissalLike } from '../lib/clientAlerts';
-import { normalizeKey } from '../lib/utils';
+import { computeClientAlerts, clientGroupKey, OrderLike, DismissalLike } from '../lib/clientAlerts';
 import { offlineCache } from '../lib/offlineCache';
 import { Client, Alert } from '../types';
 
@@ -154,10 +153,14 @@ export function useClients() {
       .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   }, [clientsQuery.data, ordersQuery.data, dismissalsQuery.data, alertaDays, criticoDays, inativoDays, categories]);
 
-  /** "Ignora" o aviso de uma representada para o grupo (matriz + filiais) deste cliente. */
+  /** "Ignora" o aviso de uma representada para o grupo (matriz + filiais, ou
+   *  rede) deste cliente. Precisa ser a MESMA chave usada por computeClientAlerts
+   *  (clientGroupKey) — salvar só o nome normalizado, sem o prefixo "rede:",
+   *  fazia a dispensa nunca bater pra clientes com network_name, e o aviso
+   *  voltava na hora mesmo depois de "ignorar". */
   const dismissAlert = async (client: Client, alert: Alert & { lastOrderAt?: string }) => {
     if (!user || !alert.lastOrderAt) return;
-    const clientNameKey = normalizeKey(client.name || '') || `id:${client.id}`;
+    const clientNameKey = clientGroupKey(client);
     const { error } = await supabase.from('alert_dismissals').upsert(
       {
         user_id: user.id,
