@@ -482,32 +482,37 @@ export default function CRMPage() {
           )}
         </div>
         {view === 'clientes' && (
-        <div className="px-4 py-3 border-b dark:border-zinc-850 bg-slate-50/50 dark:bg-zinc-950/20 flex items-center gap-2 overflow-x-auto no-scrollbar">
-          {(['Todos', 'Alerta', 'Crítico', 'Inativo'] as const).map(tab => (
-            <button 
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-1.5 rounded-full text-xs font-black transition-all whitespace-nowrap ${activeTab === tab ? "bg-slate-900 text-white" : "text-slate-500 hover:bg-slate-100"}`}
-            >
-              {tab} <span className="ml-1 opacity-50">({countForTab(tab)})</span>
-            </button>
-          ))}
+        <div className="px-4 py-3 border-b dark:border-zinc-850 bg-slate-50/50 dark:bg-zinc-950/20 flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+            {(['Todos', 'Alerta', 'Crítico', 'Inativo'] as const).map(tab => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-4 py-1.5 rounded-full text-xs font-black transition-all whitespace-nowrap ${activeTab === tab ? "bg-slate-900 text-white" : "text-slate-500 hover:bg-slate-100"}`}
+              >
+                {tab} <span className="ml-1 opacity-50">({countForTab(tab)})</span>
+              </button>
+            ))}
+          </div>
+          {loadingAlerts && (
+             <div className="flex items-center gap-2">
+                <Loader2 className="w-3 h-3 animate-spin text-emerald-600" />
+                <span className="text-[9px] font-black uppercase text-emerald-600/60 tracking-widest">Sincronizando Alertas...</span>
+             </div>
+          )}
+          {/* Numa linha própria (não dentro da faixa de abas que rola pro lado):
+              no mobile, dentro da faixa das abas o filtro ficava fora da área
+              visível, sem indicação de que dava pra rolar até ele. */}
           {activeTab !== 'Todos' && availableCompanies.length > 1 && (
             <select
               value={companyFilter}
               onChange={(e) => setCompanyFilter(e.target.value)}
               aria-label="Filtrar alertas por representada"
-              className="ml-auto shrink-0 px-3 py-1.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-full text-[11px] font-black outline-none"
+              className="w-full sm:w-auto sm:ml-auto px-3 py-1.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-full text-[11px] font-black outline-none"
             >
               <option value="">Todas as representadas</option>
               {availableCompanies.map((comp) => <option key={comp} value={comp}>{comp}</option>)}
             </select>
-          )}
-          {loadingAlerts && (
-             <div className={cn("flex items-center gap-2 pr-4", !(activeTab !== 'Todos' && availableCompanies.length > 1) && "ml-auto")}>
-                <Loader2 className="w-3 h-3 animate-spin text-emerald-600" />
-                <span className="text-[9px] font-black uppercase text-emerald-600/60 tracking-widest">Sincronizando Alertas...</span>
-             </div>
           )}
         </div>
         )}
