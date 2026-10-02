@@ -6,6 +6,7 @@ import {
   ArrowLeft, ChevronRight, Loader2, Eye, EyeOff, RefreshCw,
   ShieldAlert, Crown, Gem, Trophy, Check, User, Mail, Phone, Hash, Tag, Copy, MapPin,
 } from "lucide-react";
+import { Capacitor } from '@capacitor/core';
 import { cn } from '../lib/utils';
 import { Logo } from '../components/Logo';
 import { toast } from "sonner";
@@ -86,6 +87,20 @@ export default function Checkout() {
   const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(null);
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
   const [installments, setInstallments] = useState(12);
+
+  // Link de indicação (?ref=CODIGO, ver SettingsReferral.tsx) — aplica
+  // sozinho o cupom de quem indicou, sem a pessoa precisar digitar nada.
+  // O ?ref= normalmente veio lá em /register (não aqui) — leadData carrega
+  // ele igual já carrega nome/e-mail/telefone; a URL desta tela também é
+  // checada por garantia, caso alguém caia direto aqui com o link. Só uma
+  // vez, e só se ainda não tiver cupom nenhum digitado/aplicado.
+  useEffect(() => {
+    const refCode = searchParams.get('ref') || leadData?.ref;
+    if (!refCode || couponCode || appliedCoupon) return;
+    setCouponCode(refCode.toUpperCase());
+    handleApplyCoupon(refCode);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Nome/e-mail/telefone que a pessoa já preencheu em /register minutos
   // antes — sem sessão de login nenhuma (não existe conta ainda), a única
@@ -178,8 +193,8 @@ export default function Checkout() {
   const pixDiscount = paymentMethod === 'PIX' ? (priceAfterCoupon * 5) / 100 : 0;
   const finalPrice = priceAfterCoupon - pixDiscount;
 
-  const handleApplyCoupon = async () => {
-    const codeUpper = couponCode.trim().toUpperCase();
+  const handleApplyCoupon = async (codeOverride?: string) => {
+    const codeUpper = (codeOverride ?? couponCode).trim().toUpperCase();
     if (!codeUpper) return;
     setIsApplyingCoupon(true);
     try {
@@ -329,6 +344,7 @@ export default function Checkout() {
       const { data, error } = await supabase.functions.invoke('process-checkout', {
         body: {
           userId: userId, planId: selectedPlan.id, billingCycle, paymentMethod, coupon: appliedCoupon?.code, finalPrice,
+          platform: Capacitor.getPlatform(),
           customer: { name: formData.name, email: formData.email, cpfCnpj: formData.cpfCnpj, phone: formData.phone },
           creditCard: paymentMethod === 'CREDIT_CARD' ? {
             holderName: formData.holderName, number: formData.cardNumber.replace(/\s/g, ''),
@@ -835,7 +851,7 @@ export default function Checkout() {
                       <Tag className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                       <input type="text" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} placeholder="Cupom de desconto" className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-3 py-3 text-[14px] text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 uppercase" />
                     </div>
-                    <button type="button" onClick={handleApplyCoupon} disabled={isApplyingCoupon} className="bg-white/10 hover:bg-white/20 px-5 rounded-xl text-[13px] font-bold transition-colors text-white whitespace-nowrap flex items-center">
+                    <button type="button" onClick={() => handleApplyCoupon()} disabled={isApplyingCoupon} className="bg-white/10 hover:bg-white/20 px-5 rounded-xl text-[13px] font-bold transition-colors text-white whitespace-nowrap flex items-center">
                       {isApplyingCoupon ? <Loader2 className="w-4 h-4 animate-spin" /> : "Aplicar"}
                     </button>
                   </div>

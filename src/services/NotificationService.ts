@@ -2,6 +2,7 @@ import { LocalNotifications } from '@capacitor/local-notifications';
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
+import { computeClientAlerts, OrderLike, DismissalLike, ClientRef, AlertLike } from '../lib/clientAlerts';
 
 export type NotificationType =
   | 'appointment_reminder'
@@ -106,53 +107,87 @@ export class NotificationService {
     }
   }
 
+  // Usa o MESMO motor de alerta do CRM (computeClientAlerts — Empresas,
+  // Relatórios, Assistente IA) em vez de `client.last_contact` direto: esse
+  // campo só muda em ação manual de follow-up e fica desencontrado de quem
+  // realmente comprou, então a notificação apontava cliente errado ou não
+  // respeitava os limites de dias configurados por cada usuário (Alerta/
+  // Crítico/Inativo, ajustáveis na barra lateral). Sem essa troca a notificação
+  // e a tela do app podiam discordar sobre quem está "esfriando".
   private static async scheduleClientFollowupReminders(userId: string) {
     try {
+      const { data: settings } = await supabase
+        .from('user_settings')
+        .select('alerta_days, critico_days, inativo_days, categories')
+        .eq('user_id', userId)
+        .maybeSingle();
+
       const { data: clients } = await supabase
         .from('clients')
-        .select('id, name, last_contact')
+        .select('id, name, network_name')
         .eq('user_id', userId)
         .eq('status', 'Ativo');
 
-      if (!clients) return;
+      if (!clients || clients.length === 0) return;
 
-      const notifications: NotificationPayload[] = [];
+      const { data: orders } = await supabase
+        .from('orders')
+        .select('client_id, file_name, created_at, category, file_path')
+        .eq('user_id', userId);
 
-      clients.forEach((client, index) => {
-        if (!client.last_contact) return;
+      const { data: dismissalsRaw } = await supabase
+        .from('alert_dismissals')
+        .select('client_name_key, company, last_order_at')
+        .eq('user_id', userId);
 
-        const lastContact = new Date(client.last_contact);
-        const daysSinceContact = Math.floor(
-          (Date.now() - lastContact.getTime()) / (1000 * 60 * 60 * 24)
-        );
+      const dismissals: DismissalLike[] = (dismissalsRaw || []).map(d => ({
+        clientNameKey: d.client_name_key,
+        company: d.company,
+        lastOrderAt: d.last_order_at,
+      }));
 
-        let body = '';
-        let shouldNotify = false;
+      const thresholds = {
+        alerta: settings?.alerta_days ?? 30,
+        critico: settings?.critico_days ?? 45,
+        inativo: settings?.inativo_days ?? 90,
+      };
 
-        if (daysSinceContact >= 30) {
-          body = `Há 30+ dias sem contato com ${client.name}. Que tal fazer um follow-up?`;
-          shouldNotify = true;
-        } else if (daysSinceContact >= 14) {
-          body = `${client.name} - ${daysSinceContact} dias sem contato. Considere fazer um follow-up.`;
-          shouldNotify = true;
+      const alertsByClient = computeClientAlerts(
+        clients as ClientRef[],
+        (orders || []) as OrderLike[],
+        thresholds,
+        settings?.categories || [],
+        Date.now(),
+        dismissals
+      );
+
+      // Achata cliente+alerta, prioriza Inativo > Crítico > Alerta e, dentro
+      // do mesmo nível, quem está parado há mais tempo — é o que mais merece
+      // um toque, não faz sentido avisar de 5 "Alerta" se há "Inativo" sobrando.
+      const severity: Record<AlertLike['type'], number> = { Inativo: 3, Crítico: 2, Alerta: 1 };
+      const flattened: { clientId: string; clientName: string; alert: AlertLike }[] = [];
+      for (const client of clients) {
+        const alerts = alertsByClient.get(client.id)?.alerts || [];
+        for (const alert of alerts) {
+          flattened.push({ clientId: client.id, clientName: client.name || 'cliente', alert });
         }
+      }
+      flattened.sort((a, b) => severity[b.alert.type] - severity[a.alert.type] || b.alert.days - a.alert.days);
 
-        if (shouldNotify) {
-          notifications.push({
-            type: 'client_followup',
-            title: '👥 Lembrete de Follow-up',
-            body,
-            data: {
-              clientId: client.id,
-              clientName: client.name,
-              daysSinceContact: daysSinceContact.toString(),
-            },
-          });
-        }
-      });
+      const icon = { Inativo: '🔴', Crítico: '🟠', Alerta: '🟡' } as const;
 
-      for (const notif of notifications.slice(0, 5)) {
-        await this.sendNotification(notif);
+      for (const { clientId, clientName, alert } of flattened.slice(0, 5)) {
+        await this.sendNotification({
+          type: 'client_followup',
+          title: `${icon[alert.type]} ${alert.type}: ${clientName}`,
+          body: `${alert.days} dias sem comprar de ${alert.company}. Que tal um follow-up?`,
+          data: {
+            clientId,
+            clientName,
+            company: alert.company,
+            days: alert.days.toString(),
+          },
+        });
       }
     } catch (error) {
       console.error('Error scheduling client followup reminders:', error);

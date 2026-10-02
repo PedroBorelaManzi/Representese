@@ -19,13 +19,21 @@ interface InlineEditFieldProps {
 const formatBRL = (n: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n);
 
 /** yyyy-mm-dd (o que <input type="date"> espera) a partir de qualquer string
- *  ISO de data/timestamp — sem passar por `new Date()` pra não sofrer com
- *  fuso (um `created_at` de meia-noite UTC não pode "voltar um dia" na tela). */
+ *  ISO de data/timestamp. Data pura ("2026-08-26") e meia-noite UTC exata
+ *  (legado) mantêm o próprio dia; um timestamp de verdade (ex.: `created_at`
+ *  do pedido) vira o dia LOCAL — senão um pedido lançado às 23h36 em Brasília
+ *  aparecia no dia seguinte (o prefixo do ISO é a data em UTC). */
 const toDateInputValue = (v: string | number | null | undefined): string => {
   if (!v) return "";
   const s = String(v);
   const match = s.match(/^\d{4}-\d{2}-\d{2}/);
-  return match ? match[0] : "";
+  if (!match) return "";
+  const hasTime = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(s);
+  const isUtcMidnight = /^\d{4}-\d{2}-\d{2}[T ]00:00(:00(\.0+)?)?(Z|\+00(:?00)?)?$/.test(s);
+  if (!hasTime || isUtcMidnight) return match[0];
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return match[0];
+  return d.toLocaleDateString("en-CA");
 };
 
 const displayValue = (value: InlineEditFieldProps["value"], type: FieldType): string => {

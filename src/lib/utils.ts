@@ -10,6 +10,14 @@ export function cn(...inputs: ClassValue[]) {
  * Capitaliza a primeira letra de cada palavra respeitando acentos.
  * (`\b\w` do regex ASCII quebrava em "Agropecuária" → "AgropecuáRia".)
  */
+/**
+ * Data local (yyyy-mm-dd) — NÃO usar `toISOString().slice(0,10)` pra "hoje":
+ * isso é a data em UTC e vira o dia seguinte depois das 21h em Brasília.
+ */
+export function localISODate(d: Date = new Date()): string {
+  return d.toLocaleDateString("en-CA");
+}
+
 export function toTitleCase(str: string): string {
   return str.toLowerCase().replace(/(^|[\s([/-])\S/g, (c) => c.toUpperCase());
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save, Loader2, Building2, MapPin, Phone, Mail, Network } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
@@ -13,6 +13,14 @@ export default function ClientEdit() {
   const { id } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Saída da edição: se veio da tela do cliente, VOLTA no histórico (não
+  // empilha o cliente de novo — senão o "Voltar" do cliente cai aqui outra vez
+  // e vira um loop). Sem histórico (link direto), substitui esta entrada.
+  const exitToClient = () => {
+    if ((location.state as { fromClient?: boolean } | null)?.fromClient) navigate(-1);
+    else navigate(`/dashboard/clientes/${id}`, { replace: true });
+  };
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -122,7 +130,7 @@ export default function ClientEdit() {
           (old || []).map((c) => (c.id === id ? { ...c, ...formData } : c))
         );
         toast.success('Cliente atualizado offline — sincroniza quando a internet voltar.');
-        navigate(`/dashboard/clientes/${id}`);
+        exitToClient();
         return;
       }
 
@@ -137,7 +145,7 @@ export default function ClientEdit() {
       // uma sincronização manual, mesmo já salva no banco.
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       toast.success('Cliente atualizado com sucesso!');
-      navigate(`/dashboard/clientes/${id}`);
+      exitToClient();
     } catch (err) {
       toast.error('Erro ao atualizar cliente');
     } finally {
@@ -157,7 +165,7 @@ export default function ClientEdit() {
     <div className="flex flex-col gap-8 pb-20 max-w-3xl mx-auto">
       <div className="flex items-center gap-4 mb-4">
         <button 
-          onClick={() => navigate(`/dashboard/clientes/${id}`)} 
+          onClick={exitToClient} 
           className="p-3 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl text-slate-400 hover:text-emerald-600 transition-all shadow-sm"
         >
           <ArrowLeft className="w-5 h-5" />

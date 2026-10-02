@@ -22,7 +22,8 @@ import {
   FileSpreadsheet,
   UserCog,
   Truck,
-  Target
+  Target,
+  Mail
 } from "lucide-react";
 import { supabase, logError } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
@@ -95,7 +96,20 @@ export default function EmpresasPage() {
   const [newCompanyCnpj, setNewCompanyCnpj] = useState("");
   const [isSavingCompany, setIsSavingCompany] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("all");
+  // Empresas (pelo nome que o usuário usa) já ligadas ao cadastro global por CNPJ,
+  // ou seja, com captura automática de pedido por e-mail ativa. company_reps só
+  // devolve as linhas do próprio usuário (RLS), então isso nunca vaza nada de outros.
+  const [emailActiveCats, setEmailActiveCats] = useState<Set<string>>(new Set());
   const [viewDate, setViewDate] = useState(new Date());
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    supabase.from("company_reps").select("category_name").eq("user_id", user.id).then(({ data, error }) => {
+      if (cancelled || error || !data) return;
+      setEmailActiveCats(new Set(data.map((r: { category_name: string }) => (r.category_name || "").trim().toUpperCase())));
+    });
+    return () => { cancelled = true; };
+  }, [user?.id, settings.categories]);
   const [managingCompany, setManagingCompany] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editDeliveryDays, setEditDeliveryDays] = useState("");
@@ -182,17 +196,6 @@ export default function EmpresasPage() {
     if (error) throw error;
     patchOrder(order.id, { [field]: value } as Partial<OrderType>);
   };
-
-  useEffect(() => {
-    if (showGoalsConfig) {
-      const draft: Record<string, string> = {};
-      (settings.categories || []).forEach((c: string) => {
-        const goal = settings.monthly_goals?.[c];
-        draft[c] = goal ? String(goal) : "";
-      });
-      setDraftGoals(draft);
-    }
-  }, [showGoalsConfig, settings.categories, settings.monthly_goals]);
 
   const handleSaveGoals = async () => {
     setSavingGoals(true);
@@ -500,6 +503,19 @@ export default function EmpresasPage() {
     return Array.from(catsMap.values());
   }, [allOrders, settings?.categories]);
 
+  // Mesma lista da faixa/gráfico: empresa que ainda aparece lá (mesmo só por
+  // ter pedidos) precisa poder receber meta.
+  useEffect(() => {
+    if (showGoalsConfig) {
+      const draft: Record<string, string> = {};
+      combinedCategories.forEach((c: string) => {
+        const goal = settings.monthly_goals?.[c];
+        draft[c] = goal ? String(goal) : "";
+      });
+      setDraftGoals(draft);
+    }
+  }, [showGoalsConfig, combinedCategories, settings.monthly_goals]);
+
   const catTotals = useMemo(() => {
     // Garantir que estamos calculando APENAS sobre pedidos que realmente existem no banco
     // e têm arquivos válidos (já filtrados no loadOrders)
@@ -524,7 +540,7 @@ export default function EmpresasPage() {
 
   const ordersToday = useMemo(() => {
     const today = new Date().toLocaleDateString("en-CA");
-    return (allOrders || []).filter(o => o && o.created_at && o.created_at.startsWith(today)).length;
+    return (allOrders || []).filter(o => o && o.created_at && new Date(o.created_at).toLocaleDateString("en-CA") === today).length;
   }, [allOrders]);
 
   const handleUpdateCompany = async () => {
@@ -585,12 +601,80 @@ export default function EmpresasPage() {
     }
   };
 
+  const handleDeleteOrder = async (order: any) => {
+    if (!(await confirm({ title: 'Excluir pedido', message: 'Deseja realmente excluir este pedido? Isso é definitivo e apaga também os itens e parcelas dele.' }))) return;
+    if (!offlineCache.isOnline()) {
+      toast.error("Sem internet: não dá para excluir o pedido agora. Tente de novo online.");
+      return;
+    }
+    try {
+      if (order.file_path) await supabase.storage.from("client_vault").remove([order.file_path]);
+      const { error } = await supabase.from("orders").delete().eq("id", order.id).eq("user_id", user?.id);
+      if (error) throw error;
+      const remaining = (allOrders || []).filter(o => o.id !== order.id);
+      offlineCache.set(CacheKeys.ORDERS, remaining);
+      setAllOrders(remaining);
+      if (selectedOrder?.id === order.id) setSelectedOrder(null);
+      if (order.client_id) {
+        const { data: clientData } = await supabase.from("clients").select("faturamento").eq("id", order.client_id).single();
+        if (clientData) {
+          const updatedFat = ajustarFaturamento(clientData.faturamento, order.category, -(order.value || 0));
+          const { error: fatError } = await supabase.from("clients").update({ faturamento: updatedFat }).eq("id", order.client_id).eq("user_id", user?.id);
+          if (fatError) {
+            toast.warning("Pedido excluído, mas não consegui atualizar o faturamento do cliente. Confira o total dele.");
+            return;
+          }
+        }
+      }
+      toast.success("Pedido excluído!");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao excluir o pedido.");
+    }
+  };
+
   const handleDeleteCompany = async (name: string) => {
     if (!(await confirm({ title: 'Excluir empresa', message: `Deseja realmente excluir a empresa ${name}?` }))) return;
     try {
+      // A faixa de empresas (combinedCategories) também lista qualquer categoria
+      // que apareça em pedidos — então tirar o nome de settings.categories não
+      // basta: enquanto houver pedido nela, a empresa continua na tela. Por isso,
+      // se há pedidos, a única forma de excluir é apagá-los junto. Cancelar (ou
+      // Esc / clique fora) ABORTA tudo: nunca remove a empresa pela metade.
+      const companyOrders = (allOrders || []).filter(o => o && (o.category || "").trim().toUpperCase() === name.trim().toUpperCase());
+      const deleteOrders = companyOrders.length > 0;
+      if (deleteOrders) {
+        const ok = await confirm({
+          title: 'Excluir empresa e pedidos?',
+          message: `${name} tem ${companyOrders.length} pedido(s) lançado(s). Para excluir a empresa, os pedidos serão apagados junto — isso é definitivo e apaga também os itens e parcelas deles.`,
+          confirmLabel: 'Excluir empresa e pedidos',
+          cancelLabel: 'Cancelar',
+        });
+        if (!ok) return;
+        if (!offlineCache.isOnline()) {
+          toast.error("Sem internet: não dá para excluir os pedidos agora. Tente de novo online.");
+          return;
+        }
+      }
+
+      if (deleteOrders) {
+        const { error: delErr } = await supabase.from("orders").delete().eq("user_id", user?.id).in("id", companyOrders.map(o => o.id));
+        if (delErr) throw delErr;
+      }
+
       const updatedCategories = settings.categories.filter((c: string) => c !== name);
       await updateSettings({ categories: updatedCategories });
-      toast.success("Empresa removida.");
+      if (deleteOrders) {
+        const remaining = (allOrders || []).filter(o => !companyOrders.some(c => c.id === o.id));
+        offlineCache.set(CacheKeys.ORDERS, remaining);
+        setAllOrders(remaining);
+        loadOrders();
+      }
+      if (selectedCategory === name) setSelectedCategory("all");
+      toast.success(
+        deleteOrders
+          ? "Empresa e pedidos removidos."
+          : "Empresa removida."
+      );
       setManagingCompany(null);
     } catch (err) {
       toast.error("Erro ao remover.");
@@ -805,7 +889,17 @@ export default function EmpresasPage() {
                   <Settings className="w-3.5 h-3.5 opacity-30 group-hover:rotate-45 transition-transform" />
                 </button>
               </div>
-              <p className="text-xs font-black tracking-tight whitespace-nowrap">{(catTotals[cat] || 0) === 0 ? <span className="text-slate-400 font-medium">Sem vendas</span> : formatCurrency(catTotals[cat] || 0)}</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-black tracking-tight whitespace-nowrap">{(catTotals[cat] || 0) === 0 ? <span className="text-slate-400 font-medium">Sem vendas</span> : formatCurrency(catTotals[cat] || 0)}</p>
+                {emailActiveCats.has(cat.trim().toUpperCase()) && (
+                  <span
+                    title="Cadastrada com CNPJ — pedidos por e-mail ativos"
+                    className="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded-full shrink-0"
+                  >
+                    <Mail className="w-2.5 h-2.5" /> E-mail ativo
+                  </span>
+                )}
+              </div>
             </div>
           ))}
 
@@ -832,6 +926,7 @@ export default function EmpresasPage() {
                 orders={filteredOrders}
                 onSelectOrder={setSelectedOrder}
                 saveField={saveOrderField as any}
+                onDelete={handleDeleteOrder}
                 emptyLabel="Nenhum pedido identificado neste período."
               />
             </div>
@@ -872,7 +967,7 @@ export default function EmpresasPage() {
                 )
               ) : (
                 filteredOrders.map(order => (
-                  <OrderCard key={order.id} order={order} onSelectOrder={setSelectedOrder} saveField={saveOrderField as any} />
+                  <OrderCard key={order.id} order={order} onSelectOrder={setSelectedOrder} saveField={saveOrderField as any} onDelete={handleDeleteOrder} />
                 ))
               )}
           </div>
@@ -1209,13 +1304,13 @@ export default function EmpresasPage() {
                 </button>
               </div>
               <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4">
-                {(settings.categories || []).length === 0 ? (
+                {combinedCategories.length === 0 ? (
                   <div className="text-center py-8 text-sm font-bold text-slate-400 dark:text-zinc-500">
                     Nenhuma empresa representada cadastrada ainda.
                   </div>
                 ) : (
                   <div className="flex flex-col gap-2.5">
-                    {(settings.categories || []).map((c: string) => (
+                    {combinedCategories.map((c: string) => (
                       <div key={c} className="flex items-center gap-3">
                         <span className="flex-1 text-sm font-bold text-slate-700 dark:text-zinc-200 truncate">{c}</span>
                         <input
@@ -1232,7 +1327,7 @@ export default function EmpresasPage() {
                 )}
               </div>
               <div className="px-6 py-4 border-t border-slate-100 dark:border-zinc-800">
-                <button onClick={handleSaveGoals} disabled={savingGoals || (settings.categories || []).length === 0} className="w-full py-3 rounded-2xl text-xs font-black uppercase tracking-widest bg-emerald-600 text-white hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
+                <button onClick={handleSaveGoals} disabled={savingGoals || combinedCategories.length === 0} className="w-full py-3 rounded-2xl text-xs font-black uppercase tracking-widest bg-emerald-600 text-white hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
                   {savingGoals ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                   Salvar metas
                 </button>

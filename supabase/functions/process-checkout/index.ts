@@ -60,7 +60,8 @@ serve(async (req) => {
   }
 
   try {
-    const { action, userId, planId, billingCycle, paymentMethod, coupon, customer = {}, creditCard } = body
+    const { action, userId, planId, billingCycle, paymentMethod, coupon, customer = {}, creditCard, platform } = body
+    const couponPlatform: 'web' | 'android' = platform === 'android' ? 'android' : 'web';
     const canonicalPlanId = normalizePlanId(planId)
     const clientIp = (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || 'unknown';
 
@@ -193,8 +194,13 @@ serve(async (req) => {
     if (coupon) {
         const normCode = coupon.toUpperCase().trim();
         const { data: dbCoupon } = await supabaseAdmin.from('coupons').select('*').eq('code', normCode).maybeSingle();
+        // Cupom de indicação (referrer_user_id preenchido) não pode ser usado
+        // pelo próprio dono — sem essa trava, dava pra criar uma 2ª conta e
+        // "se indicar" só pra farmar o desconto recorrente sem trazer
+        // cliente nenhum de verdade.
+        const isSelfReferral = dbCoupon?.referrer_user_id && dbCoupon.referrer_user_id === userId;
         const appliesToPlan = !dbCoupon?.applies_to_plans || dbCoupon.applies_to_plans.length === 0 || dbCoupon.applies_to_plans.includes(canonicalPlanId);
-        if (dbCoupon && dbCoupon.active && appliesToPlan && (!dbCoupon.expires_at || new Date(dbCoupon.expires_at).getTime() > Date.now()) && (!dbCoupon.max_redemptions || dbCoupon.times_redeemed < dbCoupon.max_redemptions)) {
+        if (dbCoupon && dbCoupon.active && !isSelfReferral && appliesToPlan && (!dbCoupon.expires_at || new Date(dbCoupon.expires_at).getTime() > Date.now()) && (!dbCoupon.max_redemptions || dbCoupon.times_redeemed < dbCoupon.max_redemptions)) {
             planDiscount = dbCoupon.discount_percent;
             couponCode = normCode;
         }
@@ -205,7 +211,7 @@ serve(async (req) => {
         if (couponCode) {
             await supabaseAdmin.rpc('increment_coupon', { c_code: couponCode }).then(() => {}, () => {});
             await supabaseAdmin.from('coupon_redemptions').upsert({
-                user_id: userId, code: couponCode, status: 'confirmed'
+                user_id: userId, code: couponCode, status: 'confirmed', platform: couponPlatform
             }, { onConflict: 'user_id,code' }).then(() => {}, () => {});
         }
         // Prazo do cupom grátis segue o ciclo escolhido (mensal/semestral/
@@ -227,13 +233,30 @@ serve(async (req) => {
     // então incrementa times_redeemed) quando o pagamento for aprovado.
     if (couponCode) {
         await supabaseAdmin.from('coupon_redemptions').upsert({
-            user_id: userId, code: couponCode, status: 'pending'
+            user_id: userId, code: couponCode, status: 'pending', platform: couponPlatform
         }, { onConflict: 'user_id,code', ignoreDuplicates: true }).then(() => {}, () => {});
     }
 
     let rawValue = (PLAN_PRICES[canonicalPlanId as keyof typeof PLAN_PRICES] || PLAN_PRICES.default)[billingCycle as 'MONTHLY'|'SEMIANNUAL'|'ANNUAL'];
     if (coupon && planDiscount > 0) {
         rawValue = rawValue - (rawValue * planDiscount / 100);
+    }
+
+    // Desconto de indicador (10%/indicado ativo, até 20%) já conquistado por
+    // quem está pagando agora — aplicado aqui pra cobrir MENSAL na criação
+    // (o ajuste contínuo depois, se o nº de indicados mudar, é o webhook que
+    // faz) e SEMESTRAL/ANUAL em toda renovação (esses ciclos não criam
+    // assinatura recorrente na Asaas — é cobrança avulsa a cada vez — então
+    // não tem "assinatura" pra sincronizar depois; só dá pra aplicar aqui,
+    // no momento do checkout). Nunca some com um cupom de indicação: quem
+    // acabou de usar um código de outra pessoa ainda não tem indicado
+    // nenhum próprio nesse mesmo instante.
+    if (!couponCode) {
+        const { data: mySettings } = await supabaseAdmin.from('user_settings').select('referral_discount_pct').eq('user_id', userId).maybeSingle();
+        const myReferralPct = mySettings?.referral_discount_pct || 0;
+        if (myReferralPct > 0) {
+            rawValue = rawValue - (rawValue * myReferralPct / 100);
+        }
     }
 
     if (paymentMethod === 'PIX') {

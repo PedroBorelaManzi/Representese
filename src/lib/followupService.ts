@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { localISODate } from "./utils";
 
 export interface ClientFollowupStatus {
   clientId: string;
@@ -97,7 +98,7 @@ export async function getClientFollowupStatus(
     else if (priority === 'low') nextDate.setDate(nextDate.getDate() + 14);
 
     if (nextDate > now) {
-      nextFollowupDate = nextDate.toISOString().split('T')[0];
+      nextFollowupDate = localISODate(nextDate);
     }
   }
 
@@ -126,7 +127,7 @@ export async function logClientFollowup(
     .insert({
       user_id: userId,
       client_id: clientId,
-      contact_date: new Date().toISOString().split('T')[0],
+      contact_date: localISODate(),
       method,
       notes,
       outcome,
@@ -144,7 +145,7 @@ export async function logClientFollowup(
   // Update client's last_contact
   await supabase
     .from('clients')
-    .update({ last_contact: new Date().toISOString().split('T')[0] })
+    .update({ last_contact: localISODate() })
     .eq('id', clientId)
     .eq('user_id', userId);
 

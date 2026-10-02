@@ -40,7 +40,8 @@ import { useSettings } from "../contexts/SettingsContext";
 import { geminiWithSystem, geminiText } from "../lib/geminiProxy";
 import { compressImage } from "../lib/imageCompression";
 import { posthog } from "../lib/posthog";
-import { cn } from "../lib/utils";
+import { cn, localISODate } from "../lib/utils";
+import { useClients } from "../hooks/useClients";
 import { toast } from "sonner";
 import {
   type AIAction,
@@ -102,7 +103,7 @@ export default function AssistenteIA() {
 
   const isUnlimited =
     settings?.plan_id === "master" && settings?.subscription_status === "active";
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = localISODate();
   const usageKey = user ? `rm_ai_usage_${user.id}` : "rm_ai_usage";
   const [usedToday, setUsedToday] = useState(0);
 
@@ -210,7 +211,7 @@ export default function AssistenteIA() {
       settings?.categories && settings.categories.length > 0
         ? settings.categories.join(", ")
         : "nenhuma empresa cadastrada ainda";
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localISODate();
     const upcoming = appointments
       .filter((a) => a.date >= today)
       .slice(0, 40)
@@ -310,7 +311,7 @@ Se faltar cliente, empresa ou valor, PERGUNTE antes — não emita o bloco incom
 
 LANÇAR PEDIDO POR FOTO: se o usuário anexar uma imagem de um pedido/nota e pedir para lançar, LEIA a imagem, extraia cliente, empresa representada e valor total, e emita o bloco de "order". Se o usuário já disser o cliente/empresa, use o que ele falou. Se algum dado não estiver claro na imagem nem na fala, pergunte antes de emitir.
 
-Regras gerais das ações: no máximo um bloco por resposta; o bloco vai sempre no final; o texto acima deve fazer sentido sozinho; o usuário SEMPRE confirma clicando num botão antes de a ação acontecer — então pode emitir com confiança quando ele pediu. Hoje é ${new Date().toISOString().slice(0, 10)} (use para interpretar "amanhã", "sexta", etc.). Datas sempre no formato AAAA-MM-DD.
+Regras gerais das ações: no máximo um bloco por resposta; o bloco vai sempre no final; o texto acima deve fazer sentido sozinho; o usuário SEMPRE confirma clicando num botão antes de a ação acontecer — então pode emitir com confiança quando ele pediu. Hoje é ${localISODate()} (use para interpretar "amanhã", "sexta", etc.). Datas sempre no formato AAAA-MM-DD.
 
 DADOS DA CARTEIRA DESTE USUÁRIO (total de ${total} cliente(s)${truncated ? `, exibindo os ${MAX_CLIENTS_IN_CONTEXT} de maior faturamento` : ""}):
 ${context || "Nenhum cliente cadastrado ainda."}
@@ -325,15 +326,23 @@ EMPRESAS REPRESENTADAS DO USUÁRIO (use exatamente estes nomes como "category" a
     return { systemInstruction: instruction, total, truncated };
   }, [clients, appointments, recentOrders, settings?.categories]);
 
+  // Alertas do CRM (mesma fonte da tela Clientes) pro resumo do dia
+  const { data: crmClients = [] } = useClients();
+  const crmAlerts = useMemo(() => {
+    const m = new Map<string, { type: string; days: number }[]>();
+    crmClients.forEach((c) => m.set(c.id, (c.alerts || []).map((a) => ({ type: a.type, days: a.days }))));
+    return m;
+  }, [crmClients]);
+
   // Briefing diário (calculado localmente, sem gastar IA)
   const briefing = useMemo(() => {
-    if (!clients.length) return null;
-    return buildDailyBriefing(clients, {
+    if (!clients.length || !crmClients.length) return null; // espera os alertas do CRM (evita piscar o número errado)
+    return buildDailyBriefing(clients.map((c) => ({ ...c, alerts: crmAlerts.get(c.id) })), {
       alerta: settings?.alerta_days ?? 30,
       critico: settings?.critico_days ?? 45,
       inativo: settings?.inativo_days ?? 90,
     });
-  }, [clients, settings?.alerta_days, settings?.critico_days, settings?.inativo_days]);
+  }, [clients, crmClients.length, crmAlerts, settings?.alerta_days, settings?.critico_days, settings?.inativo_days]);
 
   // Primeira renderização do histórico entra direto no fim (sem animação),
   // como se o chat já tivesse sido aberto lá embaixo; só mensagens novas

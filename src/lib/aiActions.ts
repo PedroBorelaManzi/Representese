@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { ajustarFaturamento } from "./faturamento";
+import { localISODate } from "./utils";
 
 /* ────────────────────────────────────────────────────────────────
    Ações que o Assistente IA pode executar dentro do app.
@@ -67,6 +68,8 @@ export interface AIActionClient {
   lat?: number | null;
   lng?: number | null;
   faturamento: Record<string, number> | null;
+  /** Alertas de inatividade do CRM (por último PEDIDO). Se vierem, o briefing usa eles. */
+  alerts?: { type: string; days: number }[];
 }
 
 /* ─── parsing dos blocos de ação ────────────────────────────────── */
@@ -304,7 +307,7 @@ export async function commitOrder(
 
   await supabase
     .from("clients")
-    .update({ faturamento: updatedFat, last_contact: new Date().toISOString().slice(0, 10) })
+    .update({ faturamento: updatedFat, last_contact: localISODate() })
     .eq("id", draft.client.id)
     .eq("user_id", userId);
 }
@@ -505,7 +508,7 @@ export async function commitCreateClient(
 
   const { data: inserted, error } = await supabase
     .from("clients")
-    .insert([{ user_id: userId, name, nome_fantasia: fantasia || null, cnpj, address, city, state, lat, lng, status: "Ativo", last_contact: new Date().toISOString().slice(0, 10) }])
+    .insert([{ user_id: userId, name, nome_fantasia: fantasia || null, cnpj, address, city, state, lat, lng, status: "Ativo", last_contact: localISODate() }])
     .select("id, name")
     .single();
   if (error) throw error;
@@ -763,19 +766,39 @@ export function buildDailyBriefing(
 ): DailyBriefing {
   let inativos = 0;
   let emAlerta = 0;
-  const comDias = clients
-    .map((c) => ({ name: c.name, dias: daysSince(c.last_contact) }))
-    .filter((x): x is { name: string; dias: number } => x.dias !== null);
+  let urgentes: { name: string; dias: number }[];
 
-  comDias.forEach(({ dias }) => {
-    if (dias >= thresholds.inativo) inativos++;
-    else if (dias >= thresholds.alerta) emAlerta++;
-  });
-
-  const urgentes = comDias
-    .filter((x) => x.dias >= thresholds.critico)
-    .sort((a, b) => b.dias - a.dias)
-    .slice(0, 3);
+  // Fonte única: os mesmos alertas do CRM (contam desde o último PEDIDO, com
+  // rede/matriz+filiais agrupadas). `last_contact` é data de contato, não de
+  // compra — usá-la aqui fazia o resumo dizer "350 inativos" com 109 no CRM.
+  if (clients.some((c) => Array.isArray(c.alerts))) {
+    const worst = clients.map((c) => {
+      const list = c.alerts || [];
+      const maxDays = list.reduce((m, a) => Math.max(m, a.days), 0);
+      return { name: c.name, list, maxDays };
+    });
+    worst.forEach(({ list }) => {
+      if (list.some((a) => a.type === 'Inativo')) inativos++;
+      else if (list.length > 0) emAlerta++;
+    });
+    urgentes = worst
+      .filter((w) => w.list.some((a) => a.type === 'Crítico' || a.type === 'Inativo'))
+      .sort((a, b) => b.maxDays - a.maxDays)
+      .slice(0, 3)
+      .map((w) => ({ name: w.name, dias: w.maxDays }));
+  } else {
+    const comDias = clients
+      .map((c) => ({ name: c.name, dias: daysSince(c.last_contact) }))
+      .filter((x): x is { name: string; dias: number } => x.dias !== null);
+    comDias.forEach(({ dias }) => {
+      if (dias >= thresholds.inativo) inativos++;
+      else if (dias >= thresholds.alerta) emAlerta++;
+    });
+    urgentes = comDias
+      .filter((x) => x.dias >= thresholds.critico)
+      .sort((a, b) => b.dias - a.dias)
+      .slice(0, 3);
+  }
 
   return {
     totalClientes: clients.length,

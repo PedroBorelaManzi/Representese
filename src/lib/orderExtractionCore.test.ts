@@ -28,6 +28,7 @@ describe('reconcileExtractionResult', () => {
       category: 'Cozimax',
       value: 500,
       address: 'Rua A, 1',
+      orderNumber: '',
       paymentTerms: '',
       status: 'ready',
       method: 'ai',

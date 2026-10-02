@@ -85,18 +85,42 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   // propósito: primeiro sobe o que foi feito offline, só depois baixa o
   // retrato completo — assim a cópia local reflete a MESMA alteração que
   // acabou de subir, não uma versão anterior a ela.
+  //
+  // Timeout de segurança: sem isso, uma requisição que nunca resolve nem
+  // rejeita (rede instável no meio de um download grande) deixava
+  // `fullSyncProgress` preso pra sempre — o indicador de sincronização
+  // nunca sumia. 90s é folgado pro pior caso (app nativo baixando arquivos).
   const runFull = useCallback(async () => {
     if (!user) return;
     try {
-      await runFullSync(user.id, setFullSyncProgress);
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('full sync timeout')), 90_000)
+      );
+      await Promise.race([runFullSync(user.id, setFullSyncProgress), timeout]);
       // Marca "sincronizado hoje" — a própria expiração do cache (24h) serve
       // de contador: passado esse prazo, a chave some sozinha e o boot sabe
       // que é hora de rodar de novo.
       offlineCache.set(CacheKeys.LAST_FULL_SYNC, true, 24 * 60 * 60 * 1000);
+    } catch (e) {
+      console.error('Erro (ou timeout) na sincronização completa:', e);
+      logError(e, 'SyncContext.runFull');
     } finally {
       setFullSyncProgress(null);
     }
   }, [user]);
+
+  /** Só verdadeiro se já passou 1 dia (ou nunca rodou) desde a última sincronização completa — a regra é "uma vez por dia", sozinha; sincronizar de novo antes disso é só no clique manual (syncNow). */
+  const dueForDailySync = () => !offlineCache.get(CacheKeys.LAST_FULL_SYNC);
+
+  // Toast curto (aparece e some sozinho) pras sincronizações automáticas —
+  // não usa o banner fixo antigo, que ficava ocupando espaço da tela até
+  // terminar. O ícone de nuvem no cabeçalho (Layout.tsx) já mostra que
+  // ainda está rodando, sem tomar espaço.
+  const runFullWithToast = useCallback(async () => {
+    toast.loading('Sincronizando dados com a nuvem…', { id: 'auto-full-sync' });
+    await runFull();
+    toast.success('Sincronização concluída!', { id: 'auto-full-sync', duration: 2000 });
+  }, [runFull]);
 
   useEffect(() => {
     updateStatus();
@@ -114,7 +138,14 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       if (onlineDebounceRef.current) clearTimeout(onlineDebounceRef.current);
       onlineDebounceRef.current = setTimeout(() => {
         onlineDebounceRef.current = null;
-        flushQueue().then(() => runFull());
+        // flushQueue (subir o que foi feito offline) sempre roda ao
+        // reconectar — é leve e não pode esperar o dia virar. A baixa
+        // completa (runFull) é que segue a regra de 1x por dia; antes
+        // disso ignorava o cache e baixava tudo de novo a cada handoff
+        // de wifi/dados, daí a sensação de "sincroniza toda hora".
+        flushQueue().then(() => {
+          if (dueForDailySync()) runFullWithToast();
+        });
       }, 2000);
     };
 
@@ -139,7 +170,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('sync-queue-updated', handleQueueUpdate);
     };
-  }, [flushQueue, runFull]);
+  }, [flushQueue, runFullWithToast]);
 
   // Sincronização completa no boot: uma vez por usuário logado (não a cada
   // re-render). Se trocar de usuário (logout/login) na mesma sessão do app,
@@ -155,9 +186,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     if (bootSyncedForUserRef.current === user.id) return;
     bootSyncedForUserRef.current = user.id;
     if (!offlineCache.get(CacheKeys.LAST_FULL_SYNC)) {
-      runFull();
+      runFullWithToast();
     }
-  }, [user, runFull]);
+  }, [user, runFullWithToast]);
 
   const syncNow = useCallback(async () => {
     if (!isOnline) {

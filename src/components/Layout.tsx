@@ -39,11 +39,11 @@ import { LocalNotifications } from '@capacitor/local-notifications';
 import { WhatsAppButton } from './WhatsAppButton';
 import { Logo } from './Logo';
 import { SubscriptionGuard } from './SubscriptionGuard';
+import { ForcePasswordChange } from './ForcePasswordChange';
 import { CommissionPrivacyProvider } from '../contexts/CommissionPrivacyContext';
 import { ErrorBoundary } from './ErrorBoundary';
 import { useIsSupportAdmin } from '../hooks/useIsSupportAdmin';
 import { toast } from 'sonner';
-import FullSyncBanner from './FullSyncBanner';
 import { UpdateNudge } from './UpdateNudge';
 import RenewalBanner from './RenewalBanner';
 
@@ -92,7 +92,12 @@ export default function Layout() {
 
   const { user, signOut } = useAuth();
   const { settings, updateSettings } = useSettings();
-  const { isOnline, pendingCount, deadLetterCount, isSyncing, syncNow } = useSync();
+  const { isOnline, pendingCount, deadLetterCount, isSyncing, syncNow, fullSyncProgress } = useSync();
+  // Sincronização automática completa (boot/reconexão) usa fullSyncProgress,
+  // não isSyncing (esse só cobre a fila offline) — sem juntar os dois aqui,
+  // o ícone de nuvem ficava parado enquanto a sincronização automática
+  // rodava por baixo, sem nenhum indício visível pro usuário.
+  const isBusySyncing = isSyncing || !!fullSyncProgress;
   const { isAdmin: isSupportAdmin } = useIsSupportAdmin();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -240,10 +245,10 @@ export default function Layout() {
   ];
 
   return (
+    <ForcePasswordChange>
     <SubscriptionGuard>
     <CommissionPrivacyProvider>
       <div className="flex h-screen bg-slate-100/60 dark:bg-zinc-950 transition-colors duration-300">
-        <FullSyncBanner />
         {/* Skip link: invisível até receber foco via Tab (a11y) */}
         <a
           href="#conteudo"
@@ -312,25 +317,25 @@ export default function Layout() {
 
             {/* Sync Status Button */}
             <div className="px-6 mb-4">
-              <button 
+              <button
                 onClick={syncNow}
-                disabled={isSyncing}
+                disabled={isBusySyncing}
                 className={`w-full flex items-center justify-between p-3 rounded-2xl border transition-all ${
-                  !isOnline ? 'bg-red-50/50 border-red-100/50 text-red-600' : 
-                  pendingCount > 0 ? 'bg-amber-50 border-amber-200 text-amber-700' : 
+                  !isOnline ? 'bg-red-50/50 border-red-100/50 text-red-600' :
+                  pendingCount > 0 ? 'bg-amber-50 border-amber-200 text-amber-700' :
                   'bg-emerald-50 border-emerald-100 text-emerald-700'
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  {!isOnline ? <CloudOff className="w-4 h-4" /> : <Cloud className="w-4 h-4" />}
+                  {!isOnline ? <CloudOff className="w-4 h-4" /> : isBusySyncing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Cloud className="w-4 h-4" />}
                   <span className="text-[10px] font-black uppercase tracking-widest">
-                    {!isOnline ? 'Offline' : pendingCount > 0 ? 'Sincronizar' : 'Online'}
+                    {!isOnline ? 'Offline' : isBusySyncing ? 'Sincronizando' : pendingCount > 0 ? 'Sincronizar' : 'Online'}
                   </span>
                 </div>
                 {pendingCount > 0 && (
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-black">{pendingCount}</span>
-                    <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+                    <RefreshCw className={`w-3.5 h-3.5 ${isBusySyncing ? 'animate-spin' : ''}`} />
                   </div>
                 )}
               </button>
@@ -559,23 +564,23 @@ export default function Layout() {
             </div>
             <div className="flex items-center gap-3">
                
-              <button 
+              <button
                 onClick={syncNow}
-                disabled={isSyncing}
+                disabled={isBusySyncing}
                 className={`flex items-center justify-center p-2 rounded-xl transition-all relative ${
-                  !isOnline ? 'bg-red-50 text-red-500' : 
-                  pendingCount > 0 ? 'bg-amber-50 text-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.2)]' : 
+                  !isOnline ? 'bg-red-50 text-red-500' :
+                  pendingCount > 0 ? 'bg-amber-50 text-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.2)]' :
                   'bg-slate-50 text-emerald-500'
                 }`}
               >
-                {pendingCount > 0 ? (
-                  <RefreshCw className={`w-5 h-5 ${isSyncing ? 'animate-spin' : ''}`} />
+                {pendingCount > 0 || isBusySyncing ? (
+                  <RefreshCw className={`w-5 h-5 ${isBusySyncing ? 'animate-spin' : ''}`} />
                 ) : !isOnline ? (
                   <CloudOff className="w-5 h-5" />
                 ) : (
                   <Cloud className="w-5 h-5" />
                 )}
-                {pendingCount > 0 && !isSyncing && (
+                {pendingCount > 0 && !isBusySyncing && (
                   <span className="absolute -top-1 -right-1 flex h-4 w-4">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-4 w-4 bg-amber-500 text-[8px] font-black text-white items-center justify-center">{pendingCount}</span>
@@ -649,5 +654,6 @@ export default function Layout() {
       </div>
     </CommissionPrivacyProvider>
     </SubscriptionGuard>
+    </ForcePasswordChange>
   );
 }

@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { UserCog, Eye, ArrowUpRight } from "lucide-react";
+import { UserCog, Eye, ArrowUpRight, Trash2 } from "lucide-react";
 import { InlineEditField } from "./InlineEditField";
 import { brl } from "../lib/format";
 import { cn } from "../lib/utils";
@@ -11,10 +11,13 @@ export function OrderCard({
   order,
   onSelectOrder,
   saveField,
+  onDelete,
 }: {
   order: any;
   onSelectOrder: (order: any) => void;
   saveField: SaveField;
+  /** Se passado, mostra o botão de excluir o pedido. */
+  onDelete?: (order: any) => void;
 }) {
   return (
     <div className="bg-white dark:bg-zinc-900 p-6 md:p-9 rounded-[32px] md:rounded-[45px] border border-slate-100 dark:border-zinc-800 hover:border-slate-200 dark:hover:border-zinc-700 hover:shadow-xl transition-all group relative overflow-hidden active:scale-[0.98]">
@@ -53,6 +56,11 @@ export function OrderCard({
           <button onClick={() => onSelectOrder(order)} className="p-2 md:p-3 bg-slate-50 dark:bg-zinc-800 rounded-xl md:rounded-2xl hover:bg-emerald-50 transition-colors" title="Ver detalhes do pedido">
             <Eye className="w-4 h-4 md:w-5 md:h-5 text-slate-400 hover:text-emerald-600 transition-colors" />
           </button>
+          {onDelete && (
+            <button onClick={() => onDelete(order)} className="p-2 md:p-3 bg-slate-50 dark:bg-zinc-800 rounded-xl md:rounded-2xl hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors" title="Excluir pedido" aria-label="Excluir pedido">
+              <Trash2 className="w-4 h-4 md:w-5 md:h-5 text-slate-400 hover:text-red-500 transition-colors" />
+            </button>
+          )}
           <Link to={"/dashboard/clientes/" + order.client_id} className="p-2 md:p-3 bg-slate-50 dark:bg-zinc-800 rounded-xl md:rounded-2xl hover:bg-emerald-50 transition-colors group/arrow">
             <ArrowUpRight className="w-4 h-4 md:w-5 md:h-5 text-slate-400 group-hover/arrow:text-emerald-600 transition-colors" />
           </Link>

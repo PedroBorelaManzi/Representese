@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { UserCog, Eye } from "lucide-react";
+import { UserCog, Eye, Trash2 } from "lucide-react";
 import { InlineEditField } from "./InlineEditField";
 import { NfCommissionStatusDot, type NfCommissionStatus } from "./NfCommissionStatusDot";
 import { cn } from "../lib/utils";
@@ -16,6 +16,8 @@ interface OrdersTableProps {
   flush?: boolean;
   /** Se passado, mostra a bolinha de status de comissão da NF (usado em Entregas). */
   onNfStatusChange?: (order: any, status: NfCommissionStatus) => void;
+  /** Se passado, mostra a coluna com o botão de excluir o pedido. */
+  onDelete?: (order: any) => void;
 }
 
 /** Quem lançou o pedido: pelo link de "enviar pedido" (colaborador) ou manual. */
@@ -34,7 +36,7 @@ const TD = "px-4 py-3 align-middle text-xs text-slate-700 dark:text-zinc-200";
  * "Entregas". 10 colunas, rola na horizontal (não cabem numa tela só). Células
  * de data/agenda/valor/obs/NF/nº continuam editáveis inline, igual aos cards.
  */
-export function OrdersTable({ orders, onSelectOrder, saveField, emptyLabel = "Nenhum pedido encontrado.", className, flush, onNfStatusChange }: OrdersTableProps) {
+export function OrdersTable({ orders, onSelectOrder, saveField, emptyLabel = "Nenhum pedido encontrado.", className, flush, onNfStatusChange, onDelete }: OrdersTableProps) {
   return (
     <div className={cn(
       "overflow-hidden",
@@ -42,7 +44,7 @@ export function OrdersTable({ orders, onSelectOrder, saveField, emptyLabel = "Ne
       className
     )}>
       <div className="overflow-x-auto custom-scrollbar">
-        <table className="w-full min-w-[1480px] border-collapse">
+        <table className="w-full min-w-[1520px] border-collapse">
           <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-zinc-950/80 backdrop-blur border-b border-slate-200 dark:border-zinc-800">
             <tr>
               <th className={TH}>Representada</th>
@@ -56,12 +58,13 @@ export function OrdersTable({ orders, onSelectOrder, saveField, emptyLabel = "Ne
               <th className={cn(TH, "text-right")}>Valor</th>
               <th className={TH}>Digitado por</th>
               <th className={TH}>Nº da NF</th>
+              {onDelete && <th className={TH}><span className="sr-only">Excluir</span></th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/70">
             {orders.length === 0 ? (
               <tr>
-                <td colSpan={11} className="px-4 py-16 text-center text-[11px] font-black text-slate-400 uppercase tracking-widest">
+                <td colSpan={onDelete ? 12 : 11} className="px-4 py-16 text-center text-[11px] font-black text-slate-400 uppercase tracking-widest">
                   {emptyLabel}
                 </td>
               </tr>
@@ -131,6 +134,18 @@ export function OrdersTable({ orders, onSelectOrder, saveField, emptyLabel = "Ne
                         <InlineEditField type="text" value={order.nf_number} onSave={saveField(order, "nf_number")} label="Número da NF" placeholder="NF" />
                       </span>
                     </td>
+                    {onDelete && (
+                      <td className={TD}>
+                        <button
+                          onClick={() => onDelete(order)}
+                          title="Excluir pedido"
+                          aria-label="Excluir pedido"
+                          className="p-2 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 );
               })

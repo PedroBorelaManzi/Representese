@@ -22,6 +22,8 @@ export interface TopClient {
   orders: number;
   /** participação na receita do mês, 0..1 */
   share: number;
+  /** rede do cliente (network_name), se houver — usada pra agrupar por rede */
+  network?: string | null;
 }
 
 export interface CompanySlice {
@@ -308,6 +310,7 @@ export async function fetchReportAnalytics(
   // ---- Clientes do mês, por receita (lista completa — a tela mostra os 5
   //      primeiros e oferece "ver todos" pra essa lista inteira) -----------
   const clientNames = new Map(clients.map((c) => [c.id, c.name]));
+  const clientNetworks = new Map(clients.map((c) => [c.id, c.network_name || null]));
   const topClients: TopClient[] = Array.from(clientAgg.entries())
     .map(([id, agg]) => ({
       id,
@@ -315,6 +318,7 @@ export async function fetchReportAnalytics(
       revenue: agg.revenue,
       orders: agg.orders,
       share: revenue > 0 ? agg.revenue / revenue : 0,
+      network: clientNetworks.get(id) || null,
     }))
     .sort((a, b) => b.revenue - a.revenue);
 
