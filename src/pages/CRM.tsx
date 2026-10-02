@@ -26,6 +26,7 @@ import RedesView from '../components/RedesView';
 import NetworkAssignModal from '../components/NetworkAssignModal';
 import { useAssignNetwork } from '../hooks/useAssignNetwork';
 import { existingNetworks } from '../lib/redes';
+import { clientGroupKey } from '../lib/clientAlerts';
 
 /** Iniciais para o avatar da lista. `name.substring(0,2)` transformava
  *  "5 Irmãos Matieli" em "5", "57.571.186 Isabel Aparecida" em "57" e
@@ -57,6 +58,14 @@ export default function CRMPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isNetworkModalOpen, setIsNetworkModalOpen] = useState(false);
   const { assign: assignNetwork, saving: savingNetwork } = useAssignNetwork();
+  // Nas abas de alerta (Alerta/Crítico/Inativo), cada rede fica recolhida num
+  // card só por padrão — expande pra ver os CNPJs de dentro dela.
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const toggleGroupExpanded = (key: string) => setExpandedGroups(prev => {
+    const next = new Set(prev);
+    next.has(key) ? next.delete(key) : next.add(key);
+    return next;
+  });
   const toggleSelected = (id: string) => setSelectedIds(prev => {
     const next = new Set(prev);
     next.has(id) ? next.delete(id) : next.add(id);
@@ -129,6 +138,40 @@ export default function CRMPage() {
   const displayClients = useMemo(() => {
     return filteredClients.slice(0, displayLimit);
   }, [filteredClients, displayLimit]);
+
+  /** Nas abas de alerta, agrupa cadastros da mesma rede/nome num único card —
+   *  o alerta já é calculado por grupo (useClients/computeClientAlerts), então
+   *  listar cada CNPJ da mesma rede separado só repetia o mesmo aviso uma vez
+   *  por filial (ex.: "Rede Campos" com 8 CDs aparecia 8 vezes). Na aba
+   *  "Todos" continua uma linha por cadastro — é o diretório completo. */
+  const alertGroups = useMemo(() => {
+    if (activeTab === 'Todos') return null;
+    const map = new Map<string, Client[]>();
+    filteredClients.forEach((c) => {
+      const key = clientGroupKey(c);
+      const arr = map.get(key) || [];
+      arr.push(c);
+      map.set(key, arr);
+    });
+    return Array.from(map.entries())
+      .map(([key, members]) => ({ key, members }))
+      .sort((a, b) => (a.members[0].name || '').localeCompare(b.members[0].name || ''));
+  }, [filteredClients, activeTab]);
+
+  const displayGroups = useMemo(() => {
+    if (!alertGroups) return null;
+    return alertGroups.slice(0, displayLimit);
+  }, [alertGroups, displayLimit]);
+
+  const totalRows = alertGroups ? alertGroups.length : filteredClients.length;
+
+  /** Conta por aba: entidades reais (redes contam uma vez), não CNPJs duplicados. */
+  const countForTab = (tab: 'Todos' | 'Alerta' | 'Crítico' | 'Inativo') => {
+    if (tab === 'Todos') return clients.length;
+    const keys = new Set<string>();
+    clients.forEach((c) => { if (c.alerts?.some((a: Alert) => a.type === tab)) keys.add(clientGroupKey(c)); });
+    return keys.size;
+  };
 
   const handleDeleteClient = async (id: string) => {
     if (!(await confirm({ title: 'Excluir cliente', message: 'Deseja realmente excluir este cliente? Todos os pedidos associados serão mantidos, mas o vínculo será perdido.' }))) return;
@@ -426,7 +469,7 @@ export default function CRMPage() {
               onClick={() => setActiveTab(tab)}
               className={`px-4 py-1.5 rounded-full text-xs font-black transition-all whitespace-nowrap ${activeTab === tab ? "bg-slate-900 text-white" : "text-slate-500 hover:bg-slate-100"}`}
             >
-              {tab} <span className="ml-1 opacity-50">({clients.filter(c => tab === 'Todos' ? true : c.alerts?.some((a: Alert) => a.type === tab)).length})</span>
+              {tab} <span className="ml-1 opacity-50">({countForTab(tab)})</span>
             </button>
           ))}
           {loadingAlerts && (
@@ -472,7 +515,8 @@ export default function CRMPage() {
                  {/* Cada linha é um Link de verdade, não uma <div> com onClick:
                      assim dá para chegar no cliente pelo Tab, abrir em nova aba
                      com Ctrl+clique e o leitor de tela anuncia como link. */}
-                 {displayClients.map((client) => (
+                 {(() => {
+                   const renderClientRow = (client: Client) => (
                     <Link
                       key={client.id}
                       to={`/dashboard/clientes/${client.id}`}
@@ -545,14 +589,60 @@ export default function CRMPage() {
                           <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-emerald-500 transition-colors" />
                        </div>
                     </Link>
-                 ))}
-                 {filteredClients.length > displayLimit && (
-                    <button 
+                   );
+
+                   if (!displayGroups) return displayClients.map(renderClientRow);
+
+                   return displayGroups.map(({ key, members }) => {
+                     if (members.length === 1) return renderClientRow(members[0]);
+                     const rep = members[0];
+                     const alert = rep.alerts?.find((a: Alert) => a.type === activeTab) || rep.alerts?.[0];
+                     const isExpanded = expandedGroups.has(key);
+                     const groupLabel = rep.network_name ? `Rede ${rep.network_name}` : toTitleCase(rep.name || '');
+                     return (
+                       <div key={key} className="border-b border-slate-100 dark:border-zinc-800/60">
+                         <button
+                           onClick={() => toggleGroupExpanded(key)}
+                           aria-expanded={isExpanded}
+                           className="w-full p-4 flex items-center gap-4 text-left hover:bg-slate-50/80 dark:hover:bg-zinc-800/40 transition-colors"
+                         >
+                           <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-200 dark:ring-emerald-900/40 shrink-0">
+                             <Network className="w-5 h-5" />
+                           </div>
+                           <div className="flex-1 min-w-0">
+                             <p className="text-sm font-black text-slate-900 dark:text-zinc-100 normal-case truncate">{groupLabel}</p>
+                             <p className="text-[10px] text-slate-400 dark:text-zinc-500 uppercase font-bold tracking-tight mt-0.5">
+                               {members.length} CNPJ{members.length === 1 ? '' : 's'} nesta rede
+                             </p>
+                           </div>
+                           {alert && (
+                             <span className={cn(
+                               "text-[10px] font-black uppercase tracking-tight px-2 py-0.5 rounded-full shrink-0",
+                               alert.type === 'Crítico' ? "bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-500" :
+                               alert.type === 'Inativo' ? "bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400" :
+                               "bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-500"
+                             )}>
+                               {alert.days}d sem comprar
+                             </span>
+                           )}
+                           <ChevronDown className={cn("w-4 h-4 text-slate-300 transition-transform shrink-0", isExpanded && "rotate-180")} />
+                         </button>
+                         {isExpanded && (
+                           <div className="bg-slate-50/40 dark:bg-zinc-950/20">
+                             {members.map(renderClientRow)}
+                           </div>
+                         )}
+                       </div>
+                     );
+                   });
+                 })()}
+                 {totalRows > displayLimit && (
+                    <button
                       onClick={() => setDisplayLimit(prev => prev + 40)}
                       className="w-full py-8 text-[11px] font-black uppercase tracking-widest text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/5 transition-all flex items-center justify-center gap-3 border-t border-slate-100 dark:border-zinc-850"
                     >
                        <ChevronDown className="w-4 h-4" />
-                       Carregar mais clientes ({filteredClients.length - displayLimit} restantes)
+                       Carregar mais ({totalRows - displayLimit} restantes)
                     </button>
                  )}
                  {filteredClients.length === 0 && (
