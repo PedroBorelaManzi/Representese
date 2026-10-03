@@ -22,6 +22,7 @@ const PREFERENCIAS: Linha[] = [
 
 const ANALITICOS: Linha[] = [
   { nome: "ph_* / posthog", provedor: "PostHog", finalidade: "Métricas de uso do produto e eventos de navegação. Só com seu aceite.", duracao: "Até 12 meses" },
+  { nome: "_gcl_aw / _gcl_au", provedor: "Google Ads", finalidade: "Mede se um clique em anúncio do Google resultou em assinatura (conversão). Não usamos para remarketing. Só com seu aceite.", duracao: "Até 90 dias" },
   { nome: "landing_session_id", provedor: "Represente-Se!", finalidade: "Identificador aleatório para não contar a mesma visita duas vezes.", duracao: "Persistente" },
   { nome: "user_events / landing_events", provedor: "Represente-Se! (Supabase)", finalidade: "Tempo em cada tela e seções vistas, para melhorar o app.", duracao: "Armazenado na conta" },
 ];
