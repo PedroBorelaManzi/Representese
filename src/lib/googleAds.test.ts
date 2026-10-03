@@ -31,8 +31,18 @@ describe('googleAds', () => {
     expect(m.valorPrimeiraCobranca('x', 'y', 'ANNUAL')).toBe(0);
   });
 
-  it('sem consentimento analítico não envia conversão nem baixa o script', async () => {
+  it('sem consentimento analítico não envia conversão', async () => {
     const m = await carregar();
     expect(m.trackPaidSubscription('user-1', 97)).toBe(false);
+  });
+
+  it('estadoConsentimento: negado nega tudo; concedido libera só medição, nunca personalização', async () => {
+    const m = await carregar();
+    expect(m.estadoConsentimento(false)).toEqual({
+      ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    });
+    expect(m.estadoConsentimento(true)).toEqual({
+      ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'denied', analytics_storage: 'denied',
+    });
   });
 });

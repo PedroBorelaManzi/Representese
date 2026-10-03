@@ -18,6 +18,8 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 //
 // Sentry entra como legítimo interesse (estabilidade/segurança, first-party) —
 // carrega sempre. PostHog é "análise": só depois do aceite no banner de cookies.
+// A tag do Google Ads carrega sempre, mas em Consent Mode (tudo negado até o aceite;
+// ela mesma acompanha mudanças de consentimento — ver lib/googleAds.ts).
 // Se o usuário aceitar mais tarde, o subscribe abaixo dispara o init na hora.
 const initTelemetry = () => {
   import('./lib/sentry').then((m) => m.initSentry());
@@ -28,7 +30,6 @@ const initTelemetry = () => {
       if (m.hasAnalyticsConsent()) {
         unsub();
         import('./lib/posthog').then((p) => p.initPostHog());
-        import('./lib/googleAds').then((g) => g.initGoogleAds());
       }
     });
   });

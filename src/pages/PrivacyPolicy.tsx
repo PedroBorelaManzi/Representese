@@ -79,8 +79,9 @@ export default function PrivacyPolicy() {
               <p>
                 Usamos cookies e armazenamento local essenciais (login, segurança, uso offline) e, mediante o seu aceite,
                 ferramentas de análise de uso (PostHog e métricas próprias) para melhorar o app. O monitoramento de erros
-                (Sentry) e a medição de velocidade (Vercel) rodam sob legítimo interesse, sem perfilamento nem
-                publicidade. Você escolhe no banner da primeira visita e pode mudar quando quiser em Configurações ›
+                (Sentry), a medição de velocidade (Vercel) e a tag do Google Ads em modo restrito (sem cookies nem identificadores
+                antes do seu aceite; só dados técnicos da conexão, como IP) rodam sob legítimo interesse, sem perfilamento nem
+                remarketing. Com o seu aceite, o Google Ads passa a medir se um clique em anúncio virou assinatura. Você escolhe no banner da primeira visita e pode mudar quando quiser em Configurações ›
                 Privacidade. Detalhe de cada item em{' '}
                 <Link to="/cookies" className="text-emerald-600 underline">Política de Cookies</Link>.
               </p>
