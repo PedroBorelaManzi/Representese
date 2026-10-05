@@ -10,6 +10,7 @@ import { isValidPhone, formatPhone } from "../lib/validators";
 import { cn } from "../lib/utils";
 import { usePageMeta } from "../hooks/usePageMeta";
 import { saveLeadData } from "../lib/leadStorage";
+import { getAttribution } from "../lib/attribution";
 import { isIOSApp } from "../lib/iapPolicy";
 import { checkPassword, PASSWORD_MIN_LENGTH } from "../lib/passwordPolicy";
 
@@ -119,6 +120,7 @@ export default function Register() {
         p_email: email.trim(),
         p_phone: phone,
         p_company: company.trim() || null,
+        p_attribution: getAttribution(),
       });
 
       if (error) throw error;

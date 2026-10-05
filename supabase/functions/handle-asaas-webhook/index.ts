@@ -110,6 +110,38 @@ async function recomputeAndSyncReferrer(supabase: any, referrerUserId: string): 
   await syncAsaasSubscriptionValue(supabase, referrerUserId);
 }
 
+// Registra, uma única vez por usuário, a 1ª cobrança confirmada — é a conversão "Assinatura
+// paga" do Google Ads medida pelo servidor (não depende de a pessoa reabrir o app). Guarda o
+// gclid/utm vindos do cadastro (user_metadata.attribution) ou do lead (leads.attribution).
+// Exportar as linhas com gclid e exported_at nulo → Google Ads > Conversões > Uploads.
+// Nunca pode derrubar o webhook: qualquer erro só vai pro log.
+async function registerAdsConversion(supabase: any, userId: string, payment: any, planId?: string, cycle?: string): Promise<void> {
+  try {
+    const { data: u } = await supabase.auth.admin.getUserById(userId);
+    const user = u?.user;
+    let attr: any = user?.user_metadata?.attribution ?? null;
+    if (!attr && user?.email) {
+      const { data: lead } = await supabase.from('leads').select('attribution').eq('email', String(user.email).toLowerCase()).maybeSingle();
+      attr = lead?.attribution ?? null;
+    }
+    const value = Number(payment?.value ?? 0);
+    await supabase.from('ads_conversions').upsert({
+      user_id: userId,
+      conversion_time: new Date().toISOString(),
+      value: value > 0 ? value : null,
+      gclid: attr?.gclid ?? null,
+      gbraid: attr?.gbraid ?? null,
+      wbraid: attr?.wbraid ?? null,
+      attribution: attr,
+      plan_id: planId ?? null,
+      billing_cycle: cycle ?? null,
+      asaas_payment_id: payment?.id ?? null,
+    }, { onConflict: 'user_id', ignoreDuplicates: true });
+  } catch (e) {
+    console.error('Erro ao registrar conversão do Google Ads:', e);
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
@@ -212,6 +244,11 @@ serve(async (req) => {
       user_id: userId,
       ...updateData
     }, { onConflict: 'user_id' })
+
+    // 1ª cobrança confirmada: grava a conversão do Google Ads (idempotente por usuário).
+    if (newStatus === 'active') {
+      await registerAdsConversion(supabase, userId, payment, updateData.plan_id, updateData.billing_cycle)
+    }
 
     // Programa de indicação: se este usuário foi indicado por alguém, toda
     // mudança de status dele (voltou a pagar, ficou past_due, cancelou...)

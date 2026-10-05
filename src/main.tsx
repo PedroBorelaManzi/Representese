@@ -25,6 +25,7 @@ const initTelemetry = () => {
   import('./lib/sentry').then((m) => m.initSentry());
   import('./lib/posthog').then((m) => m.initPostHog());
   import('./lib/googleAds').then((m) => m.initGoogleAds());
+  import('./lib/attribution').then((m) => m.captureAttribution());
   import('./lib/cookieConsent').then((m) => {
     const unsub = m.subscribeConsent(() => {
       if (m.hasAnalyticsConsent()) {

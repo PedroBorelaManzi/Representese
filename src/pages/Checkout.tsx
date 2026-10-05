@@ -14,6 +14,7 @@ import { supabase } from "../lib/supabase";
 import { posthog } from "../lib/posthog";
 import { useAuth } from "../contexts/AuthContext";
 import { loadLeadData, clearLeadData } from "../lib/leadStorage";
+import { getAttribution } from '../lib/attribution';
 import { lookupCep } from "../lib/cepLookup";
 
 const plans = {
@@ -290,6 +291,8 @@ export default function Checkout() {
               cpf_cnpj: formData.cpfCnpj,
               // Data/hora do aceite dos termos, para comprovar em contestação.
               termos_aceitos_em: new Date().toISOString(),
+              // Origem (anúncio/utm) — a Edge Function de webhook lê daqui ao confirmar o pagamento.
+              attribution: getAttribution() ?? undefined,
             }
           }
         });
