@@ -5,6 +5,7 @@
  * chunk lazy, o hero (que é o LCP) pinta sem esperar o framer baixar/parsear —
  * e no mobile, com CPU 4x mais lenta, isso é meio segundo do caminho crítico. */
 
+import { useEffect } from 'react';
 import { SectionBridge } from './primitives';
 import { IntegrationsMarquee, DiferencialSection } from './Diferencial';
 import { RecursosBentoSection, GestaoInteligenteSection } from './Recursos';
@@ -22,6 +23,18 @@ interface Props {
 }
 
 export default function LandingBelowFold({ demoOpen, onDemoClose }: Props) {
+  // As seções vivem neste chunk lazy: quando a página abre com #ancora (ex.: sitelinks
+  // do Google Ads), o navegador tenta rolar antes de elas existirem e fica no topo.
+  // Rola de novo assim que montam (e uma 2ª vez, após imagens/animações assentarem).
+  useEffect(() => {
+    const id = decodeURIComponent(window.location.hash.slice(1));
+    if (!id) return;
+    const go = () => document.getElementById(id)?.scrollIntoView();
+    const t1 = window.setTimeout(go, 150);
+    const t2 = window.setTimeout(go, 900);
+    return () => { window.clearTimeout(t1); window.clearTimeout(t2); };
+  }, []);
+
   return (
     <>
       <IntegrationsMarquee />
