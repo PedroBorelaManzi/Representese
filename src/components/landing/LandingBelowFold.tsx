@@ -29,7 +29,7 @@ export default function LandingBelowFold({ demoOpen, onDemoClose }: Props) {
   useEffect(() => {
     const id = decodeURIComponent(window.location.hash.slice(1));
     if (!id) return;
-    const go = () => document.getElementById(id)?.scrollIntoView();
+    const go = () => document.getElementById(id)?.scrollIntoView({ behavior: 'instant' as ScrollBehavior });
     const t1 = window.setTimeout(go, 150);
     const t2 = window.setTimeout(go, 900);
     return () => { window.clearTimeout(t1); window.clearTimeout(t2); };
