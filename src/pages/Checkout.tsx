@@ -15,6 +15,7 @@ import { posthog } from "../lib/posthog";
 import { useAuth } from "../contexts/AuthContext";
 import { loadLeadData, clearLeadData } from "../lib/leadStorage";
 import { getAttribution } from '../lib/attribution';
+import { PhoneField } from '../components/PhoneField';
 import { lookupCep } from "../lib/cepLookup";
 
 const plans = {
@@ -42,7 +43,7 @@ const plans = {
 };
 
 import {
-  isValidCPF, isValidCNPJ, isValidPhone,
+  isValidCPF, isValidCNPJ, isValidPhone, isValidWhatsApp,
   formatCpfCnpj, formatPhone, formatCardNumber, formatExpiry, formatCcv, formatCep,
   passwordStrength,
 } from '../lib/validators';
@@ -159,7 +160,7 @@ export default function Checkout() {
 
   const isPersonalName = formData.name.trim().split(/\s+/).filter(w => w.length > 0).length >= 2;
   const docNameMatch = isCpf ? (isPersonalName && !/ltda|s\/?a|eireli|me|epp|cnpj/i.test(formData.name)) : (formData.name.trim().length >= 3);
-  const phoneValid = isValidPhone(cleanPhone);
+  const phoneValid = isValidWhatsApp(cleanPhone);
 
   const cleanCep = formData.cep.replace(/\D/g, '');
   const isAddressValid = cleanCep.length === 8 && formData.street.trim() && formData.addressNumber.trim() && formData.city.trim() && formData.state.trim();
@@ -611,13 +612,13 @@ export default function Checkout() {
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[13px] font-bold text-slate-700">WhatsApp</label>
-                        <div className="relative">
-                          <Phone className="w-[18px] h-[18px] text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
-                          <input required type="tel" autoComplete="tel" value={formData.phone}
-                            onChange={(e) => { setFormData({ ...formData, phone: formatPhone(e.target.value) }); setFormErrors(prev => ({ ...prev, phone: '' })); }}
-                            placeholder="(00) 00000-0000"
-                            className={cn(inputBase, formErrors.phone ? inputErr : inputOk)} />
-                        </div>
+                        <PhoneField
+                          value={formData.phone}
+                          onChange={(v) => { setFormData({ ...formData, phone: v }); setFormErrors(prev => ({ ...prev, phone: '' })); }}
+                          hasError={!!formErrors.phone}
+                          iconClassName="pl-4"
+                          inputClassName={cn(inputBase, 'pl-12', formErrors.phone ? inputErr : inputOk)}
+                        />
                         {formErrors.phone && <p className="text-[12px] text-red-500 font-bold pt-1 animate-in fade-in slide-in-from-top-1">{formErrors.phone}</p>}
                       </div>
                     </div>

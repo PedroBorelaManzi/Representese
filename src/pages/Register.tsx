@@ -6,7 +6,8 @@ import { Link, useNavigate, useSearchParams, Navigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
-import { isValidPhone, formatPhone } from "../lib/validators";
+import { isValidWhatsApp } from "../lib/validators";
+import { PhoneField } from "../components/PhoneField";
 import { cn } from "../lib/utils";
 import { usePageMeta } from "../hooks/usePageMeta";
 import { saveLeadData } from "../lib/leadStorage";
@@ -55,8 +56,8 @@ export default function Register() {
   }
 
   const cleanPhone = phone.replace(/\D/g, "");
-  const isPhoneValid = isValidPhone(cleanPhone);
-  const showPhoneError = cleanPhone.length >= 10 && !isPhoneValid;
+  const isPhoneValid = isValidWhatsApp(cleanPhone);
+  const showPhoneError = cleanPhone.length >= 11 && !isPhoneValid;
   const passwordChecks = checkPassword(password);
   const isPasswordValid = Object.values(passwordChecks).every(Boolean);
   const isFormValid = iosApp
@@ -107,7 +108,7 @@ export default function Register() {
       return;
     }
 
-    if (!isValidPhone(cleanPhone)) {
+    if (!isValidWhatsApp(cleanPhone)) {
       toast.error("Informe um WhatsApp válido");
       return;
     }
@@ -200,28 +201,22 @@ export default function Register() {
               <label htmlFor="register-phone" className="text-[13px] font-bold text-slate-700 dark:text-zinc-300 ml-1">
                 WhatsApp *
               </label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-emerald-500 transition-colors">
-                  <Phone className="w-5 h-5" />
-                </div>
-                <input
-                  id="register-phone"
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(formatPhone(e.target.value))}
-                  className={cn(
-                    "w-full pl-11 pr-4 py-3.5 bg-slate-50 dark:bg-zinc-950/50 border rounded-2xl text-sm font-medium focus:ring-2 outline-none transition-all dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-600",
-                    showPhoneError
-                      ? "border-red-400 focus:ring-red-500/20 focus:border-red-500"
-                      : "border-slate-200 dark:border-zinc-800 focus:ring-emerald-500/20 focus:border-emerald-500"
-                  )}
-                  placeholder="(00) 00000-0000"
-                  required
-                />
-              </div>
+              <PhoneField
+                id="register-phone"
+                value={phone}
+                onChange={setPhone}
+                hasError={showPhoneError}
+                inputClassName={cn(
+                  "w-full pl-11 pr-4 py-3.5 bg-slate-50 dark:bg-zinc-950/50 border rounded-2xl text-sm font-medium focus:ring-2 outline-none transition-all dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-600",
+                  showPhoneError
+                    ? "border-red-400 focus:ring-red-500/20 focus:border-red-500"
+                    : "border-slate-200 dark:border-zinc-800 focus:ring-emerald-500/20 focus:border-emerald-500"
+                )}
+              />
+              <p className="text-[11px] text-slate-400 ml-1">Escolha o DDD na lista e digite o celular (9 dígitos, começando com 9).</p>
               {showPhoneError && (
                 <p className="text-[12px] text-red-500 font-bold pt-1 ml-1">
-                  Informe um WhatsApp válido, com DDD (ex: (11) 98765-4321)
+                  Esse número não parece válido. Confira o DDD e os 9 dígitos do celular (ex.: 98765-4321).
                 </p>
               )}
             </div>
