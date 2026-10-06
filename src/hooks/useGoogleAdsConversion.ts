@@ -5,6 +5,7 @@ import { plans } from '../lib/plansData';
 import { isTrackingDisabled } from '../lib/trackingOptOut';
 import { subscribeConsent, hasAnalyticsConsent } from '../lib/cookieConsent';
 import { trackPaidSubscription, valorPrimeiraCobranca } from '../lib/googleAds';
+import { metaSubscribe } from '../lib/metaPixel';
 
 /** Conta criada há mais que isso não é lead de anúncio: é cliente antigo abrindo o app. */
 const JANELA_DIAS = 45;
@@ -37,6 +38,7 @@ export function useGoogleAdsConversion() {
       const plano = plans.find((p) => p.id === planId);
       const valor = plano ? valorPrimeiraCobranca(plano.price, plano.annualPrice, ciclo) : 0;
       if (!trackPaidSubscription(userId, valor)) return false;
+      metaSubscribe(userId, valor);
       try {
         localStorage.setItem(chave(userId), new Date().toISOString());
       } catch {
