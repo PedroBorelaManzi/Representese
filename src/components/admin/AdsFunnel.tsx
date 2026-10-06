@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Copy, Link2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
@@ -22,6 +22,18 @@ type Funnel = {
   paid: number;
   paid_value: number;
   campaigns: string[];
+};
+
+type Stat = {
+  id: string;
+  source: 'google' | 'meta';
+  period_from: string;
+  period_to: string;
+  impressions: number;
+  clicks: number;
+  spend: number | null;
+  note: string | null;
+  created_at: string;
 };
 
 type Periodo = '7' | '30' | '90' | 'desde';
@@ -153,6 +165,20 @@ export default function AdsFunnel() {
   const [origem, setOrigem] = useState<Origem>('todos');
   const [campanha, setCampanha] = useState<string>('');
   const [manual, setManual] = useState<Manual>(carregarManual);
+  const queryClient = useQueryClient();
+
+  // Números das plataformas gravados no banco (Google Ads / Meta Business Suite).
+  const { data: stats } = useQuery({
+    queryKey: ['ads_platform_stats'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('ads_platform_stats').select('*').order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as Stat[];
+    },
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
+  const ultimo = (o: 'google' | 'meta') => stats?.find((x) => x.source === o);
 
   useEffect(() => {
     try {
@@ -188,8 +214,36 @@ export default function AdsFunnel() {
   const somaTodas = (campo: 'impressoes' | 'cliques') =>
     (['google', 'meta'] as Origem[]).reduce((t, o) => t + soNumero((manual[`${o}|${campanha}`] ?? { impressoes: '', cliques: '' })[campo]), 0);
 
-  const impressoes = origem === 'todos' ? somaTodas('impressoes') : soNumero(lerManual(origem).impressoes);
-  const cliques = origem === 'todos' ? somaTodas('cliques') : soNumero(lerManual(origem).cliques);
+  // Valor mostrado: o que foi digitado aqui; se nada foi digitado (e sem filtro de campanha), o último gravado no banco.
+  const valorDe = (o: 'google' | 'meta', campo: 'impressoes' | 'cliques'): number => {
+    const digitado = (manual[`${o}|${campanha}`] ?? { impressoes: '', cliques: '' })[campo];
+    if (digitado !== '') return soNumero(digitado);
+    if (campanha) return 0;
+    const u = ultimo(o);
+    return u ? (campo === 'impressoes' ? u.impressions : u.clicks) : 0;
+  };
+  const impressoes = origem === 'todos' ? valorDe('google', 'impressoes') + valorDe('meta', 'impressoes') : valorDe(origem, 'impressoes');
+  const cliques = origem === 'todos' ? valorDe('google', 'cliques') + valorDe('meta', 'cliques') : valorDe(origem, 'cliques');
+  const ultimaLinha = origem === 'todos' ? null : ultimo(origem);
+
+  const salvarNoPainel = async () => {
+    if (origem === 'todos' || campanha) return;
+    const imp = valorDe(origem, 'impressoes');
+    const cli = valorDe(origem, 'cliques');
+    const hoje = new Date();
+    const de = new Date(since);
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    const { error } = await supabase.from('ads_platform_stats').insert([
+      { source: origem, period_from: iso(de), period_to: iso(hoje), impressions: imp, clicks: cli, note: 'Digitado no painel' },
+    ]);
+    if (error) {
+      toast.error('Não consegui salvar: ' + error.message);
+      return;
+    }
+    toast.success('Números salvos no painel');
+    setManual((m) => ({ ...m, [chaveManual(origem)]: { impressoes: '', cliques: '' } }));
+    queryClient.invalidateQueries({ queryKey: ['ads_platform_stats'] });
+  };
 
   const info = ORIGENS.find((o) => o.id === origem)!;
 
@@ -275,7 +329,7 @@ export default function AdsFunnel() {
                   inputMode="numeric"
                   value={lerManual(origem).impressoes}
                   onChange={(e) => setManual((m) => ({ ...m, [chaveManual(origem)]: { ...lerManual(origem), impressoes: e.target.value } }))}
-                  placeholder="ex.: 3804"
+                  placeholder={ultimaLinha ? String(ultimaLinha.impressions) : 'ex.: 3804'}
                   className="mt-1 w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white"
                 />
               </label>
@@ -285,13 +339,33 @@ export default function AdsFunnel() {
                   inputMode="numeric"
                   value={lerManual(origem).cliques}
                   onChange={(e) => setManual((m) => ({ ...m, [chaveManual(origem)]: { ...lerManual(origem), cliques: e.target.value } }))}
-                  placeholder="ex.: 320"
+                  placeholder={ultimaLinha ? String(ultimaLinha.clicks) : 'ex.: 320'}
                   className="mt-1 w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white"
                 />
               </label>
             </>
           )}
         </div>
+        {origem !== 'todos' && !campanha && (
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-zinc-500">
+            {ultimaLinha ? (
+              <span>
+                Dados gravados de {new Date(ultimaLinha.period_from + 'T12:00:00').toLocaleDateString('pt-BR')} a{' '}
+                {new Date(ultimaLinha.period_to + 'T12:00:00').toLocaleDateString('pt-BR')}
+                {ultimaLinha.spend != null ? ` · gasto ${brl.format(Number(ultimaLinha.spend))}` : ''}
+                {ultimaLinha.note ? ` · ${ultimaLinha.note}` : ''}
+              </span>
+            ) : (
+              <span>Ainda não há números gravados para esta origem.</span>
+            )}
+            <button
+              onClick={salvarNoPainel}
+              className="sm:ml-auto px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-semibold"
+            >
+              Salvar números no painel
+            </button>
+          </div>
+        )}
       </div>
 
       {isLoading ? (
