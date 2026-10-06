@@ -14,7 +14,7 @@ import { hasAnalyticsConsent, subscribeConsent } from './cookieConsent';
 
 const KEY = 'rm_attribution';
 const TTL_MS = 90 * 24 * 60 * 60 * 1000;
-const PARAMS = ['gclid', 'gbraid', 'wbraid', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'] as const;
+const PARAMS = ['gclid', 'gbraid', 'wbraid', 'fbclid', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'] as const;
 
 export type Attribution = Partial<Record<(typeof PARAMS)[number], string>> & {
   /** Host de onde a pessoa veio, quando não há parâmetro de campanha. */
@@ -49,11 +49,14 @@ export function parseAttribution(search: string, pathname: string, referrer: str
   return a;
 }
 
-/** Origem da visita: 'google' (ID de clique ou utm_source=google), senão utm_source ou domínio de referência. */
+/** Origem normalizada da visita: 'google' (ID de clique ou utm_source=google), 'meta' (Instagram/Facebook:
+ *  fbclid, utm_source ou domínio de referência), senão utm_source / domínio de referência. */
 export function adsSource(a: Attribution | null): string | null {
   if (!a) return null;
   if (a.gclid || a.gbraid || a.wbraid) return 'google';
   const utm = (a.utm_source || '').toLowerCase().trim();
+  if (utm === 'google') return 'google';
+  if (a.fbclid || ['instagram', 'ig', 'facebook', 'fb', 'meta'].includes(utm) || /(instagram|facebook|fb\.com|fb\.me)/i.test(a.ref_host || '')) return 'meta';
   if (utm) return utm.slice(0, 100);
   return a.ref_host ? a.ref_host.slice(0, 100) : null;
 }

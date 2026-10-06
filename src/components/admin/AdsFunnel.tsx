@@ -1,14 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Copy, Link2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import { cn } from '../../lib/utils';
 
-/* Funil de anúncios do Google: do anúncio até a assinatura paga, com a porcentagem de
- * cada etapa. Impressões e cliques vêm do Google Ads (digitados aqui, ficam salvos neste
- * navegador); o resto vem do banco pela RPC admin_ads_funnel. */
+/* Funil de anúncios: da impressão até a assinatura paga, com a porcentagem de cada etapa,
+ * filtrável por origem (Google, Instagram/Meta, todas) e por campanha. Impressões e cliques
+ * vêm das plataformas de anúncio (digitados aqui, ficam salvos neste navegador); o resto vem
+ * do banco pela RPC admin_ads_funnel. */
 
 type Funnel = {
   since: string;
+  source: string;
+  campaign: string | null;
   visits: number;
   register_views: number;
   checkout_views: number;
@@ -16,13 +21,24 @@ type Funnel = {
   accounts: number;
   paid: number;
   paid_value: number;
+  campaigns: string[];
 };
 
 type Periodo = '7' | '30' | '90' | 'desde';
+type Origem = 'google' | 'meta' | 'todos';
+
+const ORIGENS: { id: Origem; label: string; plataforma: string }[] = [
+  { id: 'todos', label: 'Todas', plataforma: 'das plataformas' },
+  { id: 'google', label: 'Google', plataforma: 'do Google Ads' },
+  { id: 'meta', label: 'Instagram / Meta', plataforma: 'da Meta (Instagram/Facebook)' },
+];
 
 /** Dia em que começamos a guardar a origem do clique (gclid/utm). */
 const INICIO_RASTREIO = '2026-10-05T00:00:00-03:00';
-const MANUAL_KEY = 'rs_ads_funnel_manual';
+const MANUAL_KEY = 'rs_ads_funnel_manual_v2';
+const SITE = 'https://www.representese.com';
+
+type Manual = Record<string, { impressoes: string; cliques: string }>;
 
 const nf = new Intl.NumberFormat('pt-BR');
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -32,19 +48,111 @@ function pct(num: number, den: number): string {
   return `${((num / den) * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`;
 }
 
-function carregarManual(): { impressoes: string; cliques: string } {
+const soNumero = (v: string) => Number(v.replace(/\D/g, '')) || 0;
+
+function carregarManual(): Manual {
   try {
     const raw = localStorage.getItem(MANUAL_KEY);
-    if (raw) return { impressoes: '', cliques: '', ...JSON.parse(raw) };
+    if (raw) return JSON.parse(raw) as Manual;
   } catch {
     /* storage indisponível */
   }
-  return { impressoes: '', cliques: '' };
+  return {};
+}
+
+const slug = (v: string) =>
+  v
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+/** Cria links com marcação (utm) para bio, stories, anúncios etc. */
+function GeradorLinks() {
+  const [origem, setOrigem] = useState('instagram');
+  const [meio, setMeio] = useState('bio');
+  const [campanha, setCampanha] = useState('');
+  const [pagina, setPagina] = useState('/');
+
+  const url = useMemo(() => {
+    const params = new URLSearchParams();
+    params.set('utm_source', slug(origem) || 'instagram');
+    params.set('utm_medium', slug(meio) || 'social');
+    if (slug(campanha)) params.set('utm_campaign', slug(campanha));
+    const caminho = pagina.startsWith('/') ? pagina : `/${pagina}`;
+    return `${SITE}${caminho}?${params.toString()}`;
+  }, [origem, meio, campanha, pagina]);
+
+  const campo = 'mt-1 w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white text-sm';
+
+  return (
+    <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800 space-y-4">
+      <div className="flex items-center gap-2">
+        <Link2 className="w-5 h-5 text-teal-600" />
+        <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">Gerador de links com marcação</h3>
+      </div>
+      <p className="text-sm text-zinc-500">
+        Use um link marcado em cada lugar (bio, stories, cada anúncio) para saber de onde veio cada cadastro e assinatura.
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <label className="text-sm text-zinc-600 dark:text-zinc-400">
+          Origem
+          <select value={origem} onChange={(e) => setOrigem(e.target.value)} className={campo}>
+            <option value="instagram">Instagram</option>
+            <option value="facebook">Facebook</option>
+            <option value="whatsapp">WhatsApp</option>
+            <option value="youtube">YouTube</option>
+            <option value="google">Google</option>
+          </select>
+        </label>
+        <label className="text-sm text-zinc-600 dark:text-zinc-400">
+          Onde o link fica
+          <select value={meio} onChange={(e) => setMeio(e.target.value)} className={campo}>
+            <option value="bio">Link da bio</option>
+            <option value="stories">Stories</option>
+            <option value="reels">Reels</option>
+            <option value="post">Post / legenda</option>
+            <option value="anuncio">Anúncio pago</option>
+            <option value="direct">Mensagem direta</option>
+          </select>
+        </label>
+        <label className="text-sm text-zinc-600 dark:text-zinc-400">
+          Nome da campanha
+          <input value={campanha} onChange={(e) => setCampanha(e.target.value)} placeholder="ex.: reels outubro" className={campo} />
+        </label>
+        <label className="text-sm text-zinc-600 dark:text-zinc-400">
+          Página
+          <select value={pagina} onChange={(e) => setPagina(e.target.value)} className={campo}>
+            <option value="/">Página inicial</option>
+            <option value="/register">Cadastro</option>
+            <option value="/planos">Planos</option>
+          </select>
+        </label>
+      </div>
+      <div className="flex flex-col sm:flex-row gap-2">
+        <input readOnly value={url} onFocus={(e) => e.currentTarget.select()} className={cn(campo, 'mt-0 font-mono text-xs flex-1')} />
+        <button
+          onClick={() => {
+            navigator.clipboard?.writeText(url).then(
+              () => toast.success('Link copiado'),
+              () => toast.error('Não consegui copiar — selecione e copie à mão'),
+            );
+          }}
+          className="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold flex items-center justify-center gap-2"
+        >
+          <Copy className="w-4 h-4" /> Copiar
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export default function AdsFunnel() {
   const [periodo, setPeriodo] = useState<Periodo>('desde');
-  const [manual, setManual] = useState(carregarManual);
+  const [origem, setOrigem] = useState<Origem>('todos');
+  const [campanha, setCampanha] = useState<string>('');
+  const [manual, setManual] = useState<Manual>(carregarManual);
 
   useEffect(() => {
     try {
@@ -60,9 +168,13 @@ export default function AdsFunnel() {
   }, [periodo]);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['admin_ads_funnel', since],
+    queryKey: ['admin_ads_funnel', since, origem, campanha],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('admin_ads_funnel', { p_since: since });
+      const { data, error } = await supabase.rpc('admin_ads_funnel', {
+        p_since: since,
+        p_source: origem,
+        p_campaign: campanha || null,
+      });
       if (error) throw error;
       return data as Funnel;
     },
@@ -70,12 +182,20 @@ export default function AdsFunnel() {
     refetchOnMount: 'always',
   });
 
-  const impressoes = Number(manual.impressoes.replace(/\D/g, '')) || 0;
-  const cliques = Number(manual.cliques.replace(/\D/g, '')) || 0;
+  // Impressões/cliques digitados: por origem (e por campanha, quando filtrada). "Todas" soma Google + Meta.
+  const chaveManual = (o: Origem) => `${o}|${campanha}`;
+  const lerManual = (o: Origem) => manual[chaveManual(o)] ?? { impressoes: '', cliques: '' };
+  const somaTodas = (campo: 'impressoes' | 'cliques') =>
+    (['google', 'meta'] as Origem[]).reduce((t, o) => t + soNumero((manual[`${o}|${campanha}`] ?? { impressoes: '', cliques: '' })[campo]), 0);
+
+  const impressoes = origem === 'todos' ? somaTodas('impressoes') : soNumero(lerManual(origem).impressoes);
+  const cliques = origem === 'todos' ? somaTodas('cliques') : soNumero(lerManual(origem).cliques);
+
+  const info = ORIGENS.find((o) => o.id === origem)!;
 
   const etapas = [
-    { chave: 'impressoes', nome: 'Viram o anúncio', valor: impressoes, origem: 'Google Ads (digitado)', manual: true },
-    { chave: 'cliques', nome: 'Clicaram no anúncio', valor: cliques, origem: 'Google Ads (digitado)', manual: true },
+    { chave: 'impressoes', nome: 'Viram o anúncio', valor: impressoes, origem: `${info.plataforma} (digitado)`, manual: true },
+    { chave: 'cliques', nome: 'Clicaram / abriram o link', valor: cliques, origem: `${info.plataforma} (digitado)`, manual: true },
     { chave: 'visitas', nome: 'Entraram no site', valor: data?.visits ?? 0, origem: 'Site · só quem aceitou cookies' },
     { chave: 'cadastro_tela', nome: 'Abriram o cadastro', valor: data?.register_views ?? 0, origem: 'Site · só quem aceitou cookies' },
     { chave: 'leads', nome: 'Fizeram cadastro (lead)', valor: data?.leads ?? 0, origem: 'Banco · exato' },
@@ -85,16 +205,33 @@ export default function AdsFunnel() {
   ];
 
   const maior = Math.max(1, ...etapas.map((e) => e.valor));
+  const campanhas = data?.campaigns ?? [];
+
+  const chip = (ativo: boolean) =>
+    cn(
+      'px-4 py-2 rounded-xl text-sm font-semibold border transition-colors',
+      ativo
+        ? 'bg-emerald-600 text-white border-emerald-600'
+        : 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800',
+    );
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
       <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800 space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">Funil de anúncios (Google)</h2>
-            <p className="text-sm text-zinc-500 mt-1">
-              Do anúncio até a assinatura paga, só com visitantes que vieram de um clique do Google.
-            </p>
+        <div>
+          <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">Funil de anúncios</h2>
+          <p className="text-sm text-zinc-500 mt-1">
+            Do anúncio (ou link) até a assinatura paga. Escolha a origem para ver tudo junto ou separado.
+          </p>
+        </div>
+
+        <div className="flex flex-col lg:flex-row gap-4 lg:items-center justify-between">
+          <div className="flex gap-2 flex-wrap">
+            {ORIGENS.map((o) => (
+              <button key={o.id} onClick={() => setOrigem(o.id)} className={chip(origem === o.id)}>
+                {o.label}
+              </button>
+            ))}
           </div>
           <div className="flex gap-2 flex-wrap">
             {([
@@ -103,43 +240,57 @@ export default function AdsFunnel() {
               ['30', '30 dias'],
               ['90', '90 dias'],
             ] as [Periodo, string][]).map(([v, label]) => (
-              <button
-                key={v}
-                onClick={() => setPeriodo(v)}
-                className={cn(
-                  'px-4 py-2 rounded-xl text-sm font-semibold border transition-colors',
-                  periodo === v
-                    ? 'bg-emerald-600 text-white border-emerald-600'
-                    : 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800',
-                )}
-              >
+              <button key={v} onClick={() => setPeriodo(v)} className={chip(periodo === v)}>
                 {label}
               </button>
             ))}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <label className="text-sm text-zinc-600 dark:text-zinc-400">
-            Impressões no Google Ads (mesmo período)
-            <input
-              inputMode="numeric"
-              value={manual.impressoes}
-              onChange={(e) => setManual((m) => ({ ...m, impressoes: e.target.value }))}
-              placeholder="ex.: 3804"
+            Campanha
+            <select
+              value={campanha}
+              onChange={(e) => setCampanha(e.target.value)}
               className="mt-1 w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white"
-            />
+            >
+              <option value="">Todas as campanhas</option>
+              {campanhas.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
           </label>
-          <label className="text-sm text-zinc-600 dark:text-zinc-400">
-            Cliques no Google Ads (mesmo período)
-            <input
-              inputMode="numeric"
-              value={manual.cliques}
-              onChange={(e) => setManual((m) => ({ ...m, cliques: e.target.value }))}
-              placeholder="ex.: 320"
-              className="mt-1 w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white"
-            />
-          </label>
+          {origem === 'todos' ? (
+            <p className="sm:col-span-2 text-sm text-zinc-500 self-end pb-2">
+              Impressões e cliques de “Todas” são a soma do que você digitar em Google e em Instagram / Meta.
+            </p>
+          ) : (
+            <>
+              <label className="text-sm text-zinc-600 dark:text-zinc-400">
+                Impressões {info.plataforma}
+                <input
+                  inputMode="numeric"
+                  value={lerManual(origem).impressoes}
+                  onChange={(e) => setManual((m) => ({ ...m, [chaveManual(origem)]: { ...lerManual(origem), impressoes: e.target.value } }))}
+                  placeholder="ex.: 3804"
+                  className="mt-1 w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white"
+                />
+              </label>
+              <label className="text-sm text-zinc-600 dark:text-zinc-400">
+                Cliques {info.plataforma}
+                <input
+                  inputMode="numeric"
+                  value={lerManual(origem).cliques}
+                  onChange={(e) => setManual((m) => ({ ...m, [chaveManual(origem)]: { ...lerManual(origem), cliques: e.target.value } }))}
+                  placeholder="ex.: 320"
+                  className="mt-1 w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white"
+                />
+              </label>
+            </>
+          )}
         </div>
       </div>
 
@@ -204,10 +355,13 @@ export default function AdsFunnel() {
           <p className="mt-6 text-xs text-zinc-500 leading-relaxed">
             “Entraram no site”, “Abriram o cadastro” e “Abriram o checkout” só contam quem aceitou os cookies de análise
             (LGPD), então podem ficar abaixo do número de cliques. Cadastro, conta criada e assinatura vêm direto do banco e são
-            exatos. A origem só é guardada a partir de 05/10/2026.
+            exatos. O Instagram só é reconhecido quando o link tem marcação (use o gerador abaixo) ou quando o clique vem de
+            anúncio da Meta; links sem marcação aparecem como origem desconhecida. A origem só é guardada a partir de 05/10/2026.
           </p>
         </div>
       )}
+
+      <GeradorLinks />
     </div>
   );
 }
