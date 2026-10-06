@@ -12,10 +12,11 @@
  * anúncio nunca passa por este navegador.
  *
  * Não usamos remarketing nem personalização de anúncios: `ad_personalization`
- * fica sempre negado. A única conversão medida é "Assinatura paga", que dispara
+ * fica sempre negado. A conversão principal é "Assinatura paga", que dispara
  * quando o pagamento é CONFIRMADO (user_entitlements.subscription_status virou
  * 'active'), não quando o checkout é criado — Pix pendente e teste de 7 dias
- * não contam. E só com consentimento: sem aceite, nenhum evento é enviado. */
+ * não contam. E só com consentimento: sem aceite, nenhum evento é enviado.
+ * Duas conversões secundárias (cadastro e início do checkout) só alimentam o funil. */
 
 import { Capacitor } from '@capacitor/core';
 import { hasAnalyticsConsent, subscribeConsent } from './cookieConsent';
@@ -23,6 +24,9 @@ import { hasAnalyticsConsent, subscribeConsent } from './cookieConsent';
 export const GOOGLE_ADS_ID = 'AW-18449917835';
 /** Rótulo da ação de conversão "Assinatura paga" (Google Ads → Metas → Conversões). */
 export const GOOGLE_ADS_PAID_LABEL = 'WX6OCMr6648dEIvPzd1E';
+/** Conversões SECUNDÁRIAS (só para observar o funil; não entram na otimização de lances). */
+export const GOOGLE_ADS_LEAD_LABEL = 'k1hgCNnHz5IdEIvPzd1E'; // "Cadastro (lead)"
+export const GOOGLE_ADS_CHECKOUT_LABEL = '7P27CNbHz5IdEIvPzd1E'; // "Início do checkout"
 
 type Gtag = (...args: unknown[]) => void;
 
@@ -110,4 +114,34 @@ export function trackPaidSubscription(transactionId: string, value: number): boo
     transaction_id: transactionId,
   });
   return true;
+}
+
+/** Evita mandar a mesma conversão secundária mais de uma vez por aba/sessão. */
+function jaEnviouNestaSessao(chave: string): boolean {
+  try {
+    if (sessionStorage.getItem(chave)) return true;
+    sessionStorage.setItem(chave, '1');
+  } catch {
+    /* sem storage: manda mesmo (conversão de lead conta no máximo uma por clique) */
+  }
+  return false;
+}
+
+function trackSecondary(label: string, chave: string): boolean {
+  if (!hasAnalyticsConsent()) return false;
+  initGoogleAds();
+  if (!window.gtag) return false;
+  if (jaEnviouNestaSessao(chave)) return false;
+  window.gtag('event', 'conversion', { send_to: `${GOOGLE_ADS_ID}/${label}`, value: 1, currency: 'BRL' });
+  return true;
+}
+
+/** "Cadastro (lead)": a pessoa preencheu o formulário de /register. */
+export function trackLeadConversion(): boolean {
+  return trackSecondary(GOOGLE_ADS_LEAD_LABEL, 'rs_gads_lead');
+}
+
+/** "Início do checkout": a pessoa abriu /checkout. */
+export function trackCheckoutStartConversion(): boolean {
+  return trackSecondary(GOOGLE_ADS_CHECKOUT_LABEL, 'rs_gads_checkout');
 }

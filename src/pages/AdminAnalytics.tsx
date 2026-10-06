@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { useSettings } from '../contexts/SettingsContext';
 import { Navigate } from 'react-router-dom';
-import { BarChart3, Clock, LayoutDashboard, MousePointerClick, Search, ChevronDown, ChevronUp, User, Users, LineChart, Download, Building2, Phone, UserCog, Settings as SettingsIcon, X, Trash2, Mail, Loader2, ShieldAlert, Map as MapIcon } from 'lucide-react';
+import { BarChart3, Clock, LayoutDashboard, MousePointerClick, Search, ChevronDown, ChevronUp, User, Users, LineChart, Download, Building2, Phone, UserCog, Settings as SettingsIcon, X, Trash2, Mail, Loader2, ShieldAlert, Map as MapIcon, Filter } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell
@@ -17,6 +17,7 @@ import UserDossier from '../components/admin/UserDossier';
 
 // Leaflet só carrega quando a aba Cobertura é aberta.
 const CoverageMap = lazy(() => import('../components/admin/CoverageMap'));
+const AdsFunnel = lazy(() => import('../components/admin/AdsFunnel'));
 
 const COLORS = [
   '#10b981', '#6366f1', '#f59e0b', '#ef4444', 
@@ -75,7 +76,7 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
   const [deletingUser, setDeletingUser] = useState(false);
   const queryClient = useQueryClient();
   const confirm = useConfirm();
-  const [activeTab, setActiveTab] = useState<'sistema' | 'landing' | 'leads' | 'usuarios' | 'ficha' | 'cobertura'>('sistema');
+  const [activeTab, setActiveTab] = useState<'sistema' | 'landing' | 'leads' | 'usuarios' | 'ficha' | 'cobertura' | 'funil'>('sistema');
 
   // --- QUERY 1: Sistema (Usuários Logados) ---
   const { data, isLoading } = useQuery({
@@ -543,9 +544,27 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
           </div>
           {activeTab === 'cobertura' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-rose-600" />}
         </button>
+        <button
+          onClick={() => setActiveTab('funil')}
+          className={cn(
+            "px-6 py-3 font-semibold text-sm transition-all relative",
+            activeTab === 'funil' ? "text-teal-600" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+          )}
+        >
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4" />
+            Funil de anúncios
+          </div>
+          {activeTab === 'funil' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-teal-600" />}
+        </button>
       </div>
 
       {activeTab === 'ficha' && <UserDossier />}
+      {activeTab === 'funil' && (
+        <Suspense fallback={<div className="py-20 text-center text-slate-400">Carregando funil…</div>}>
+          <AdsFunnel />
+        </Suspense>
+      )}
       {activeTab === 'cobertura' && (
         <Suspense fallback={<div className="py-20 text-center text-slate-400">Carregando mapa…</div>}>
           <CoverageMap />

@@ -12,6 +12,7 @@ import { cn } from "../lib/utils";
 import { usePageMeta } from "../hooks/usePageMeta";
 import { saveLeadData } from "../lib/leadStorage";
 import { getAttribution } from "../lib/attribution";
+import { trackLeadConversion } from "../lib/googleAds";
 import { isIOSApp } from "../lib/iapPolicy";
 import { checkPassword, PASSWORD_MIN_LENGTH } from "../lib/passwordPolicy";
 
@@ -125,6 +126,7 @@ export default function Register() {
       });
 
       if (error) throw error;
+      trackLeadConversion();
 
       // Pro Checkout reaproveitar (nome/e-mail/telefone), em vez de pedir
       // tudo de novo do zero minutos depois.
