@@ -1,3 +1,4 @@
+import { isIOSApp } from "../lib/iapPolicy";
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -95,8 +96,11 @@ export default function AssistenteIA() {
   const abortRef = useRef<AbortController | null>(null);
   const [listening, setListening] = useState(false);
   const recognitionRef = useRef<any>(null);
+  // No app iOS o WKWebView não oferece ditado confiável (travou na revisão da Apple): lá fica o ditado
+  // nativo do teclado. No site e no Android segue o botão de voz.
   const voiceSupported =
     typeof window !== "undefined" &&
+    !isIOSApp() &&
     !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
   const [attachedImage, setAttachedImage] = useState<{ dataUrl: string; base64: string; mime: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);

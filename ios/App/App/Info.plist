@@ -74,6 +74,10 @@
 	<string>Use o Face ID para entrar no Represente-Se! mais rápido, sem digitar sua senha.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Permita o acesso à câmera para fotografar pedidos, documentos e comprovantes.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Permita o uso do microfone para ditar mensagens ao assistente por voz.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Permita o reconhecimento de fala para transformar sua voz em texto no assistente.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Permita o acesso às fotos para anexar imagens de pedidos, documentos e comprovantes.</string>
 	<key>CFBundleURLTypes</key>

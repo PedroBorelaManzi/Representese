@@ -1,3 +1,4 @@
+import { hasAiConsent } from "./aiConsent";
 import { supabase } from "./supabase";
 import { apiUrl } from "./apiBase";
 
@@ -182,7 +183,7 @@ export async function getHighPrecisionCoordinates(
 
   // ── Tier 3: Gemini com contexto rico ─────────────────────────────
   // Usa o conhecimento de treinamento do Gemini sobre a empresa pelo nome/CNPJ
-  if (token) {
+  if (token && hasAiConsent()) {
     try {
       const res = await fetch(apiUrl("/api/ai"), {
         method: "POST",

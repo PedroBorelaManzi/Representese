@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { EyeOff, Lock, Check, BarChart3, MapPin } from 'lucide-react';
+import { EyeOff, Lock, Check, BarChart3, MapPin, Sparkles } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { hashCommissionPassword } from '../../lib/commissionPrivacy';
@@ -9,6 +9,7 @@ import { cn } from '../../lib/utils';
 import { useConsent } from '../../hooks/useConsent';
 import { setConsent } from '../../lib/cookieConsent';
 import { capturarLocalizacao, limparLocalizacao } from '../../lib/geoTracking';
+import { hasAiConsent, setAiConsent } from '../../lib/aiConsent';
 
 export const SettingsPrivacy = React.memo(function SettingsPrivacy() {
   const { user } = useAuth();
@@ -22,6 +23,12 @@ export const SettingsPrivacy = React.memo(function SettingsPrivacy() {
   const isHiding = !!settings.hide_commissions;
 
   const { categorias, decididoEm } = useConsent();
+  const [iaPermitida, setIaPermitida] = useState(hasAiConsent());
+  const revogarIa = () => {
+    setAiConsent(false);
+    setIaPermitida(false);
+    toast.success('Permissão da IA revogada. O app voltará a perguntar antes de usar a IA.');
+  };
 
   const toggleAnalytics = () => {
     const novo = !categorias.analiticos;
@@ -207,6 +214,34 @@ export const SettingsPrivacy = React.memo(function SettingsPrivacy() {
           {decididoEm && (
             <> · escolha registrada em {new Date(decididoEm).toLocaleDateString('pt-BR')}</>
           )}
+        </p>
+      </div>
+
+      <div className="p-4 md:p-6 rounded-2xl md:rounded-[32px] bg-slate-50 dark:bg-zinc-950 border border-slate-100 dark:border-zinc-800 space-y-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-6">
+            <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 shadow-sm text-emerald-500">
+              <Sparkles className="w-6 h-6" />
+            </div>
+            <div className="text-left">
+              <p className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Enviar dados à IA (Google Gemini)</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
+                {iaPermitida ? 'Permitido neste aparelho' : 'O app pergunta antes de usar a IA'}
+              </p>
+            </div>
+          </div>
+          {iaPermitida && (
+            <button
+              onClick={revogarIa}
+              className="px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 bg-red-50 dark:bg-red-900/20 text-red-500"
+            >
+              Revogar
+            </button>
+          )}
+        </div>
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight leading-relaxed">
+          Texto, anexos e dados de clientes necessários para a resposta são enviados à Google só quando você usa a IA.{' '}
+          <Link to="/privacy" className="text-emerald-600 underline">Política de Privacidade</Link>
         </p>
       </div>
 

@@ -1,5 +1,5 @@
 import React from "react";
-import { ShieldCheck, Lock, Eye, Scale, ArrowLeft, Cookie, MapPin } from "lucide-react";
+import { ShieldCheck, Lock, Eye, Scale, ArrowLeft, Cookie, MapPin, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { usePageMeta } from "../hooks/usePageMeta";
 
@@ -115,8 +115,45 @@ export default function PrivacyPolicy() {
 
             <section className="space-y-4">
               <h2 className="text-xl font-bold text-slate-800 dark:text-zinc-200 flex items-center gap-3">
+                <div className="w-8 h-8 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center text-emerald-600"><Sparkles className="w-4 h-4" /></div>
+                7. Inteligência artificial (Google Gemini)
+              </h2>
+              <p>
+                O Assistente de IA, a importação inteligente de clientes e catálogo e a leitura de pedidos usam um serviço
+                de inteligência artificial de terceiros: a <strong className="font-bold text-slate-700 dark:text-zinc-200">API Gemini, da Google</strong>.
+                Esses recursos só enviam dados depois de você autorizar, na primeira vez em que os usa, e você pode
+                revogar essa permissão a qualquer momento.
+              </p>
+              <ul className="list-disc pl-6 space-y-1">
+                <li>
+                  <strong className="font-bold text-slate-700 dark:text-zinc-200">Quais dados:</strong> o texto que você
+                  escreve ou dita; imagens e arquivos que você anexa (fotos de pedidos, planilhas, PDFs); e, quando
+                  necessário para a resposta, dados do seu CRM — nomes, contatos e endereços de clientes, pedidos,
+                  compromissos e as empresas que você representa.
+                </li>
+                <li>
+                  <strong className="font-bold text-slate-700 dark:text-zinc-200">Como:</strong> o conteúdo passa pelos
+                  nossos servidores, que o encaminham à Google. A chave de acesso fica só no servidor.
+                </li>
+                <li>
+                  <strong className="font-bold text-slate-700 dark:text-zinc-200">Para quê:</strong> exclusivamente para
+                  gerar a resposta, a importação ou a leitura que você pediu. Não vendemos esses dados nem os usamos
+                  para publicidade.
+                </li>
+                <li>
+                  <strong className="font-bold text-slate-700 dark:text-zinc-200">Proteção:</strong> a Google trata os
+                  dados conforme os termos da API Gemini, que exigem proteção equivalente à descrita aqui.
+                </li>
+              </ul>
+              <p>
+                Quem não autoriza continua usando todo o restante do aplicativo normalmente.
+              </p>
+            </section>
+
+            <section className="space-y-4">
+              <h2 className="text-xl font-bold text-slate-800 dark:text-zinc-200 flex items-center gap-3">
                 <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center text-orange-600"><Scale className="w-4 h-4" /></div>
-                7. Seus Direitos
+                8. Seus Direitos
               </h2>
               <p>
                 Você tem o direito de acessar, corrigir ou excluir seus dados pessoais a qualquer momento. Para excluir
