@@ -49,6 +49,15 @@ export function parseAttribution(search: string, pathname: string, referrer: str
   return a;
 }
 
+/** Origem da visita: 'google' (ID de clique ou utm_source=google), senão utm_source ou domínio de referência. */
+export function adsSource(a: Attribution | null): string | null {
+  if (!a) return null;
+  if (a.gclid || a.gbraid || a.wbraid) return 'google';
+  const utm = (a.utm_source || '').toLowerCase().trim();
+  if (utm) return utm.slice(0, 100);
+  return a.ref_host ? a.ref_host.slice(0, 100) : null;
+}
+
 function ler(storage: Storage | undefined): Attribution | null {
   try {
     const raw = storage?.getItem(KEY);

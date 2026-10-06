@@ -5,22 +5,13 @@
 
 import { Capacitor } from '@capacitor/core';
 import { supabase } from './supabase';
-import { getAttribution, type Attribution } from './attribution';
+import { adsSource, getAttribution } from './attribution';
 import { hasAnalyticsConsent } from './cookieConsent';
 import { isTrackingDisabled } from './trackingOptOut';
 
 export type FunnelStep = 'visit' | 'register_view' | 'checkout_view';
 
 const SESSION_KEY = 'rs_ads_funnel_sid';
-
-/** Origem da visita: 'google' (ID de clique ou utm_source=google), senão utm_source ou domínio de referência. */
-export function adsSource(a: Attribution | null): string | null {
-  if (!a) return null;
-  if (a.gclid || a.gbraid || a.wbraid) return 'google';
-  const utm = (a.utm_source || '').toLowerCase().trim();
-  if (utm) return utm.slice(0, 100);
-  return a.ref_host ? a.ref_host.slice(0, 100) : null;
-}
 
 function sessionId(): string | null {
   try {

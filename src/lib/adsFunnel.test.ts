@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { adsSource } from './adsFunnel';
+import { adsSource } from './attribution';
 
 describe('adsSource', () => {
   it('ID de clique do Google vira "google"', () => {
