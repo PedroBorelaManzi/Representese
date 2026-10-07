@@ -371,7 +371,11 @@ export default function Checkout() {
           return;
         }
 
-        toast.success("Pagamento processado!");
+        // Cartão: a confirmação vem do banco/Asaas alguns segundos depois — o
+        // acesso é liberado sozinho assim que o pagamento for identificado.
+        toast.success(paymentMethod === 'CREDIT_CARD'
+          ? "Pagamento enviado! Estamos confirmando e liberando seu acesso..."
+          : "Pagamento processado!");
         if (data.invoiceUrl) setTimeout(() => { window.location.href = data.invoiceUrl; }, 1500);
         // Quem acabou de se cadastrar já está autenticado pelo signUp: mandar
         // para /login obrigava a digitar a senha de novo logo após pagar.
