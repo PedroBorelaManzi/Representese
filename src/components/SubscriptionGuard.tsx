@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSettings } from '../contexts/SettingsContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -10,9 +10,36 @@ import { isIOSApp, SITE_DOMAIN } from '../lib/iapPolicy';
 import { openManageSubscriptions } from '../lib/iap';
 
 export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
-  const { settings, loading: settingsLoading } = useSettings();
+  const { settings, loading: settingsLoading, refetchSettings } = useSettings();
   const { user } = useAuth();
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+
+  const blocked = settings.subscription_status === 'inactive'
+    || settings.subscription_status === 'past_due'
+    || settings.subscription_status === 'canceled';
+
+  // Quem acabou de pagar cai aqui antes de o webhook do Asaas gravar o status
+  // 'active'. Em vez de exigir recarregar a página, rechecamos sozinho (a cada 5s
+  // por até 5 min, e ao voltar para a aba) enquanto o acesso estiver bloqueado.
+  useEffect(() => {
+    if (settingsLoading || !blocked || !user) return;
+    const startedAt = Date.now();
+    const tick = async () => {
+      if (Date.now() - startedAt > 5 * 60 * 1000) return;
+      const { data } = await supabase.from('user_entitlements')
+        .select('subscription_status').eq('user_id', user.id).maybeSingle();
+      // Só recarrega as configurações quando o status mudou de verdade — o
+      // refetch liga o loading e faria a tela piscar a cada checagem.
+      if (data && data.subscription_status !== settings.subscription_status) refetchSettings();
+    };
+    const interval = setInterval(tick, 5000);
+    const onVisible = () => { if (document.visibilityState === 'visible') tick(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [settingsLoading, blocked, user, settings.subscription_status, refetchSettings]);
 
   // Se estiver carregando, não bloqueia ainda para evitar flashes
   if (settingsLoading) return <>{children}</>;
