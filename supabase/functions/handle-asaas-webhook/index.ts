@@ -173,7 +173,11 @@ serve(async (req) => {
       return new Response(JSON.stringify({ message: 'Sem dados de cliente' }), { status: 200 })
     }
 
-    let userId = payment.externalReference
+    // regularize-subscription grava externalReference como "REG_<userId>" —
+    // sem tirar o prefixo, o pagamento da regularização nunca reativava a conta.
+    let userId = typeof payment.externalReference === 'string'
+      ? payment.externalReference.replace(/^REG_/, '')
+      : payment.externalReference
 
     if (!userId) {
       const customerResp = await fetch(`https://www.asaas.com/api/v3/customers/${payment.customer}`, {
@@ -205,6 +209,19 @@ serve(async (req) => {
       isCanceled = true;
     }
     if (event === 'PAYMENT_CONFIRMED' || event === 'PAYMENT_RECEIVED') newStatus = 'active'
+
+    // Uma cobrança ABANDONADA (ex.: Pix gerado e não pago, depois a pessoa pagou no
+    // cartão) vence/é apagada dias depois e não pode derrubar quem já pagou e ainda
+    // está dentro do período. Se o acesso está ativo e o período ainda não acabou,
+    // ignora vencida/apagada — a renovação que de fato falhar é rebaixada sozinha
+    // pelo SettingsContext assim que current_period_end passar.
+    if (event === 'PAYMENT_OVERDUE' || event === 'PAYMENT_DELETED') {
+      const { data: cur } = await supabase.from('user_entitlements')
+        .select('subscription_status, current_period_end').eq('user_id', userId).maybeSingle();
+      if (cur?.subscription_status === 'active' && cur.current_period_end && new Date(cur.current_period_end).getTime() > Date.now()) {
+        return new Response(JSON.stringify({ success: true, ignored: `${event} (acesso ainda dentro do período)` }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 })
+      }
+    }
 
     if (!newStatus && !isCanceled) {
       return new Response(JSON.stringify({ success: true, ignored: event }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 })
@@ -240,10 +257,17 @@ serve(async (req) => {
       updateData.current_period_end = new Date(Date.now() + PERIOD_DAYS[cycle] * 24 * 60 * 60 * 1000).toISOString();
     }
 
-    await supabase.from('user_entitlements').upsert({
+    const { error: entErr } = await supabase.from('user_entitlements').upsert({
       user_id: userId,
       ...updateData
     }, { onConflict: 'user_id' })
+    if (entErr) {
+      // Libera o id do evento pra o reenvio do Asaas ser processado de novo —
+      // senão o evento ficaria "já processado" sem o acesso ter sido liberado.
+      if (body.id) await supabase.from('asaas_webhook_events').delete().eq('event_id', body.id)
+      console.error('Erro ao gravar user_entitlements:', entErr)
+      return new Response(JSON.stringify({ error: entErr.message }), { status: 500 })
+    }
 
     // 1ª cobrança confirmada: grava a conversão do Google Ads (idempotente por usuário).
     if (newStatus === 'active') {

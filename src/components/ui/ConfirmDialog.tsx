@@ -76,7 +76,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
       {pending && (
         <div
           className={cn(
-            'fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity duration-150',
+            'fixed inset-0 z-[20000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity duration-150',
             shown ? 'opacity-100' : 'opacity-0'
           )}
           onClick={() => settle(false)}
