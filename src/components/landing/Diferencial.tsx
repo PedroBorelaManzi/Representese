@@ -81,7 +81,7 @@ export function DiferencialSection() {
               Feito para representar,<br />não só para vender.
             </h3>
             <p className="text-slate-600 font-medium leading-relaxed mb-8 max-w-md">
-              Um CRM comum trata você como uma empresa só. Mas você carrega <span className="font-bold text-slate-900">várias representadas ao mesmo tempo</span> — cada uma com seu pedido, faturamento e meta. O Represente-Se separa cada marca, sem misturar nada.
+              Um sistema comum trata você como uma empresa só. Mas você carrega <span className="font-bold text-slate-900">várias representadas ao mesmo tempo</span> — cada uma com seu pedido, faturamento e meta. O Represente-Se separa cada marca, sem misturar nada.
             </p>
 
             <ul className="space-y-3.5 mb-10">

@@ -721,7 +721,7 @@ const SCENES: Scene[] = [
   {
     id: "crm",
     duration: 5000,
-    eyebrow: "CRM inteligente",
+    eyebrow: "Gestão de clientes",
     title: "Clientes organizados, com resumo da IA",
     subtitle: "Saiba quem reativar e o momento certo de cada contato.",
     Visual: SceneCRM,

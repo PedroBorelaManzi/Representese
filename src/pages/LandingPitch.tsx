@@ -174,7 +174,7 @@ export default function LandingPitch() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
             </span>
-            A plataforma de quem representa várias marcas
+            Sistema para representante comercial
           </div>
 
           {/* headline — elemento de LCP: renderiza visível de imediato, sem
@@ -215,7 +215,7 @@ export default function LandingPitch() {
             style={{ animationDelay: "0.15s" }}
           >
             Pedidos, faturamento e metas separados por representada.
-            CRM, agenda, e-mail e IA — tudo num só lugar.
+            Sistema completo para representantes: clientes, pedidos, comissões, agenda e IA — tudo num só app.
           </p>
 
           {/* CTAs */}
