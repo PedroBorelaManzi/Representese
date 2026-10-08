@@ -248,7 +248,7 @@ export default function LandingPitch() {
             className="hero-anim text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-10"
             style={{ animationDelay: "0.35s" }}
           >
-            Garantia de 7 dias · Sem fidelidade
+            Sem fidelidade · Cancele quando quiser
           </p>
         </div>
 

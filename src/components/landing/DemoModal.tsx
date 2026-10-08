@@ -694,7 +694,7 @@ const SceneClosing = React.memo(function SceneClosing() {
           <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
         </Link>
         <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mt-4">
-          7 dias de garantia · Sem fidelidade
+          Sem fidelidade
         </p>
       </motion.div>
     </div>

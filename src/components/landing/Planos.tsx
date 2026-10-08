@@ -18,7 +18,7 @@ export function PlanosSection() {
             Planos que crescem com você.
           </h2>
           <p className="text-slate-500 font-medium max-w-xl mx-auto">
-            Seu plano acompanha o número de empresas que você representa — de 1 a ilimitadas. 7 dias de garantia, sem fidelidade.
+            Seu plano acompanha o número de empresas que você representa — de 1 a ilimitadas. Sem fidelidade.
           </p>
         </FadeUp>
 

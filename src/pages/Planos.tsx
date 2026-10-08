@@ -55,7 +55,7 @@ const trustItems = [
 export default function Planos() {
   usePageMeta(
     "Planos e Preços",
-    "Conheça os planos do Represente-Se! — de R$ 97/mês, sem fidelidade, com 7 dias de garantia. Escolha o ideal para o número de empresas que você representa.",
+    "Conheça os planos do Represente-Se! — de R$ 97/mês, sem fidelidade. Escolha o ideal para o número de empresas que você representa.",
     "/planos"
   );
   const [billingCycle, setBillingCycle] = useState<'MONTHLY' | 'ANNUAL'>('MONTHLY');
