@@ -60,6 +60,8 @@ test.describe('Etapa 1: Revisão Frontend (Web Desktop) - Fluxos Principais', ()
     await expect(page.getByText('Confirme seus dados')).toBeVisible();
     await expect(page.locator('input[type="email"]')).toHaveValue('maria@exemplo.com');
     await expect(page.locator('input[autocomplete="name"]')).toHaveValue('Maria da Silva');
-    await expect(page.locator('input[autocomplete="tel"]')).toHaveValue('(11) 98765-4321');
+    // WhatsApp é um PhoneField: DDD numa lista + número (9 dígitos) à parte.
+    await expect(page.locator('input[autocomplete="tel-national"]')).toHaveValue('98765-4321');
+    await expect(page.locator('select').first()).toHaveValue('11');
   });
 });

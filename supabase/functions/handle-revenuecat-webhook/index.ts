@@ -116,10 +116,17 @@ serve(async (req) => {
       return new Response(JSON.stringify({ success: true, ignored: eventType }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 })
     }
 
-    await supabase.from('user_entitlements').upsert({
+    const { error: entErr } = await supabase.from('user_entitlements').upsert({
       user_id: userId,
       ...updateData
     }, { onConflict: 'user_id' })
+    if (entErr) {
+      // Libera o id do evento pra o reenvio do RevenueCat ser processado de novo —
+      // senão a compra ficaria "já processada" sem o acesso ter sido liberado.
+      await supabase.from('iap_webhook_events').delete().eq('event_id', event.id)
+      console.error('Erro ao gravar user_entitlements:', entErr)
+      return new Response(JSON.stringify({ error: entErr.message }), { status: 500 })
+    }
 
     return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 })
 

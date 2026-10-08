@@ -20,6 +20,7 @@ import { plans } from "../lib/plansData";
 import { PlanCards } from "../components/plans/PlanCards";
 import { usePageMeta } from "../hooks/usePageMeta";
 import { isIOSApp } from "../lib/iapPolicy";
+import { supabase } from "../lib/supabase";
 import { getIosPlanPrices, purchasePlan, restorePurchases, openManageSubscriptions, IosPlanPrices } from "../lib/iap";
 
 const faqItems = [
@@ -127,7 +128,18 @@ export default function Planos() {
       setPurchasingPlanId(null);
       if (result.success) {
         toast.success('Compra confirmada! Liberando seu acesso...');
-        refetchSettings();
+        // O acesso é liberado pelo webhook do RevenueCat alguns segundos depois da
+        // compra: espera aparecer 'active' antes de ir ao painel, pra não cair de
+        // volta na tela "Quase lá!" logo após pagar.
+        setPurchasingPlanId(plan.id);
+        for (let i = 0; i < 12; i++) {
+          const { data } = await supabase.from('user_entitlements')
+            .select('subscription_status').eq('user_id', user.id).maybeSingle();
+          if (data?.subscription_status === 'active') break;
+          await new Promise((r) => setTimeout(r, 1500));
+        }
+        setPurchasingPlanId(null);
+        await refetchSettings();
         navigate('/dashboard');
       } else if (!result.userCancelled) {
         toast.error(result.message || 'Erro ao processar a compra.');
