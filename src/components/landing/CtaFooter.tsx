@@ -69,7 +69,7 @@ export function LandingFooter() {
   return (
     <footer className="bg-slate-50 border-t border-slate-200 text-slate-500 px-6 pt-16 pb-10">
       <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-12">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-10 mb-12">
           <div className="col-span-2 md:col-span-1">
             <Logo showText variant="light" />
             <p className="text-[13px] font-medium leading-relaxed mt-4 max-w-xs">
@@ -84,6 +84,20 @@ export function LandingFooter() {
               <li><a href="#industrias" className="hover:text-emerald-600 transition-colors">Setores</a></li>
               <li><Link to="/register" className="hover:text-emerald-600 transition-colors">Planos</Link></li>
               <li><a href="#duvidas" className="hover:text-emerald-600 transition-colors">Dúvidas</a></li>
+            </ul>
+          </div>
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-widest text-slate-900 mb-4">Guias</p>
+            {/* Páginas estáticas de SEO (public/<slug>/index.html, geradas por scripts/gen-seo-pages.py):
+                <a> comum, não <Link>, porque não são rotas do app. */}
+            <ul className="space-y-2.5 text-[13px] font-medium">
+              <li><a href="/sistema-para-representante-comercial/" className="hover:text-emerald-600 transition-colors">Sistema para representante</a></li>
+              <li><a href="/app-para-representante-comercial/" className="hover:text-emerald-600 transition-colors">App para representante</a></li>
+              <li><a href="/controle-de-vendas-para-representante/" className="hover:text-emerald-600 transition-colors">Controle de vendas</a></li>
+              <li><a href="/controle-de-comissoes-representante-comercial/" className="hover:text-emerald-600 transition-colors">Controle de comissões</a></li>
+              <li><a href="/sistema-de-pedidos-para-representante/" className="hover:text-emerald-600 transition-colors">Sistema de pedidos</a></li>
+              <li><a href="/software-para-representante-comercial/" className="hover:text-emerald-600 transition-colors">Software para representante</a></li>
+              <li><a href="/gestao-de-representantes-comerciais/" className="hover:text-emerald-600 transition-colors">Gestão de representantes</a></li>
             </ul>
           </div>
           <div>

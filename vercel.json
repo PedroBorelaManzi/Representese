@@ -36,6 +36,34 @@
       "destination": "/api/:path*"
     },
     {
+      "source": "/sistema-para-representante-comercial",
+      "destination": "/sistema-para-representante-comercial/index.html"
+    },
+    {
+      "source": "/app-para-representante-comercial",
+      "destination": "/app-para-representante-comercial/index.html"
+    },
+    {
+      "source": "/controle-de-vendas-para-representante",
+      "destination": "/controle-de-vendas-para-representante/index.html"
+    },
+    {
+      "source": "/gestao-de-representantes-comerciais",
+      "destination": "/gestao-de-representantes-comerciais/index.html"
+    },
+    {
+      "source": "/software-para-representante-comercial",
+      "destination": "/software-para-representante-comercial/index.html"
+    },
+    {
+      "source": "/controle-de-comissoes-representante-comercial",
+      "destination": "/controle-de-comissoes-representante-comercial/index.html"
+    },
+    {
+      "source": "/sistema-de-pedidos-para-representante",
+      "destination": "/sistema-de-pedidos-para-representante/index.html"
+    },
+    {
       "source": "/((?!assets/|fonts/|api/).*)",
       "destination": "/index.html"
     }
