@@ -51,3 +51,27 @@ export function trackFunnelStep(step: FunnelStep): void {
     .insert([{ session_id: sid, step, source, campaign: a?.utm_campaign ?? null }])
     .then(() => {}, () => {});
 }
+
+/** Visita ANÔNIMA de quem ainda não aceitou cookies de análise: só origem + campanha, sem
+ *  identificador de sessão, sem e-mail/telefone, nada de PostHog/Pixel. Serve apenas para o
+ *  painel enxergar o volume real de cliques de anúncio que chegam ao site. Respeita o opt-out
+ *  (?notrack=1) e quem recusou explicitamente continua contado só como número agregado. */
+const ANON_DONE_KEY = 'rs_ads_anon_visit';
+export function trackAnonymousVisit(): void {
+  try {
+    if (Capacitor.isNativePlatform()) return;
+  } catch {
+    /* segue como web */
+  }
+  if (isTrackingDisabled() || hasAnalyticsConsent()) return;
+  const source = adsSource(getAttribution());
+  if (!source) return;
+  try {
+    if (sessionStorage.getItem(ANON_DONE_KEY)) return;
+    sessionStorage.setItem(ANON_DONE_KEY, '1');
+  } catch {
+    return; // sem storage não dá para evitar contar toda navegação
+  }
+  const campaign = getAttribution()?.utm_campaign ?? null;
+  supabase.from('ads_anon_visits').insert([{ source, campaign }]).then(() => {}, () => {});
+}

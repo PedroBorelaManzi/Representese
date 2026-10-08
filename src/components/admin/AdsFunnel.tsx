@@ -15,6 +15,7 @@ type Funnel = {
   source: string;
   campaign: string | null;
   visits: number;
+  anon_visits: number;
   register_views: number;
   checkout_views: number;
   leads: number;
@@ -250,7 +251,7 @@ export default function AdsFunnel() {
   const etapas = [
     { chave: 'impressoes', nome: 'Viram o anúncio', valor: impressoes, origem: `${info.plataforma} (digitado)`, manual: true },
     { chave: 'cliques', nome: 'Clicaram / abriram o link', valor: cliques, origem: `${info.plataforma} (digitado)`, manual: true },
-    { chave: 'visitas', nome: 'Entraram no site', valor: data?.visits ?? 0, origem: 'Site · só quem aceitou cookies' },
+    { chave: 'visitas', nome: 'Entraram no site', valor: (data?.visits ?? 0) + (data?.anon_visits ?? 0), origem: `Site · ${data?.visits ?? 0} aceitaram cookies + ${data?.anon_visits ?? 0} anônimas (sem aceite; pode repetir quem aceitou depois)` },
     { chave: 'cadastro_tela', nome: 'Abriram o cadastro', valor: data?.register_views ?? 0, origem: 'Site · só quem aceitou cookies' },
     { chave: 'leads', nome: 'Fizeram cadastro (lead)', valor: data?.leads ?? 0, origem: 'Banco · exato' },
     { chave: 'checkout', nome: 'Abriram o checkout', valor: data?.checkout_views ?? 0, origem: 'Site · só quem aceitou cookies' },

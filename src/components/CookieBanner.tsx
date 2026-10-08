@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { aceitarTudo, recusarNaoEssenciais, precisaDecidir } from '../lib/cookieConsent';
 
@@ -22,10 +22,26 @@ export default function CookieBanner() {
     }
   });
 
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Reserva o espaço do aviso no fim da página: assim ele nunca cobre botões e
+  // campos de baixo (o usuário consegue rolar até eles com o aviso aberto).
+  useEffect(() => {
+    if (!visivel) return;
+    const el = ref.current;
+    if (!el) return;
+    const aplicar = () => { document.body.style.paddingBottom = `${el.offsetHeight}px`; };
+    aplicar();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(aplicar) : null;
+    ro?.observe(el);
+    return () => { ro?.disconnect(); document.body.style.paddingBottom = ''; };
+  }, [visivel]);
+
   if (!visivel) return null;
 
   return (
     <div
+      ref={ref}
       role="dialog"
       aria-label="Aviso de cookies"
       aria-live="polite"
