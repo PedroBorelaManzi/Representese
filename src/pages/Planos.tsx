@@ -20,7 +20,7 @@ import { plans } from "../lib/plansData";
 import { PlanCards } from "../components/plans/PlanCards";
 import { usePageMeta } from "../hooks/usePageMeta";
 import { isIOSApp } from "../lib/iapPolicy";
-import { getIosPlanPrices, purchasePlan, IosPlanPrices } from "../lib/iap";
+import { getIosPlanPrices, purchasePlan, restorePurchases, openManageSubscriptions, IosPlanPrices } from "../lib/iap";
 
 const faqItems = [
   {
@@ -93,6 +93,26 @@ export default function Planos() {
         { icon: CalendarClock, title: "Renovação automática", desc: "Cobrança recorrente conforme o plano, até você cancelar." },
       ]
     : trustItems;
+
+  const [restoring, setRestoring] = useState(false);
+  const handleRestore = async () => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    setRestoring(true);
+    const result = await restorePurchases();
+    if (!result.success) {
+      setRestoring(false);
+      toast.error(result.message || 'Erro ao restaurar compras.');
+      return;
+    }
+    // O webhook do RevenueCat atualiza user_entitlements; damos um instante e relemos.
+    await new Promise((r) => setTimeout(r, 2500));
+    await refetchSettings();
+    setRestoring(false);
+    toast.success('Compras restauradas. Se houver uma assinatura ativa, seu acesso será liberado.');
+  };
 
   const handleSubscribe = async (plan: typeof plans[0]) => {
     if (iosApp) {
@@ -305,7 +325,38 @@ export default function Planos() {
           </div>
         </div>
 
-        {/* Gerenciar conta */}
+        {iosApp ? (
+          /* No iOS a assinatura é da App Store: restaurar/gerenciar são nativos
+             (Guideline 3.1.1) e os links legais precisam estar perto da compra (3.1.2). */
+          <div className="max-w-3xl mx-auto p-8 md:p-10 bg-white dark:bg-zinc-900 rounded-3xl border border-slate-100 dark:border-zinc-800 text-center">
+            <h4 className="text-lg font-black text-slate-900 dark:text-zinc-100 mb-2">Já assina o Represente-Se!?</h4>
+            <p className="text-slate-500 dark:text-zinc-400 font-medium mb-6 max-w-md mx-auto text-sm leading-relaxed">
+              Se você já comprou uma assinatura com este Apple ID, restaure sua compra. Para alterar ou cancelar, use o gerenciamento de assinaturas da App Store.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <button
+                onClick={handleRestore}
+                disabled={restoring}
+                className="w-full sm:w-auto px-8 py-3.5 bg-slate-900 dark:bg-zinc-800 text-white rounded-2xl font-black text-[12px] uppercase tracking-widest hover:bg-slate-800 transition-all disabled:opacity-50"
+              >
+                {restoring ? 'Restaurando...' : 'Restaurar compras'}
+              </button>
+              <button
+                onClick={() => openManageSubscriptions()}
+                className="w-full sm:w-auto px-8 py-3.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 rounded-2xl font-black text-[12px] uppercase tracking-widest transition-all"
+              >
+                Gerenciar assinatura
+              </button>
+            </div>
+            <p className="mt-6 text-[11px] text-slate-400 dark:text-zinc-500 leading-relaxed max-w-md mx-auto">
+              A assinatura renova automaticamente (mensal ou anual, conforme o plano escolhido) até ser cancelada nos Ajustes da App Store, ao menos 24h antes do fim do período. O pagamento é cobrado na sua conta Apple.
+            </p>
+            <div className="mt-3 flex items-center justify-center gap-4 text-[11px] font-bold">
+              <Link to="/terms" className="text-emerald-600 dark:text-emerald-400 underline">Termos de Uso</Link>
+              <Link to="/privacy" className="text-emerald-600 dark:text-emerald-400 underline">Política de Privacidade</Link>
+            </div>
+          </div>
+        ) : (
         <div className="max-w-3xl mx-auto p-8 md:p-10 bg-white dark:bg-zinc-900 rounded-3xl border border-slate-100 dark:border-zinc-800 text-center">
           <h4 className="text-lg font-black text-slate-900 dark:text-zinc-100 mb-2">Precisa de ajuda com sua conta?</h4>
           <p className="text-slate-500 dark:text-zinc-400 font-medium mb-7 max-w-md mx-auto text-sm leading-relaxed">
@@ -327,6 +378,7 @@ export default function Planos() {
             </button>
           </div>
         </div>
+        )}
       </div>
     </div>
   );
