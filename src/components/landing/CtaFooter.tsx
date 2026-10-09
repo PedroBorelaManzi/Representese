@@ -44,13 +44,13 @@ export function CtaFinalSection() {
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Link
-                  to="/register"
+                  to="/planos"
                   className="group flex items-center gap-2 px-10 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-[14px] transition-all shadow-[0_0_32px_rgba(16,185,129,0.35)] hover:-translate-y-0.5"
                 >
-                  Criar minha conta agora
+                  Ver planos e começar
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </Link>
-                <Link to="/register" className="px-10 py-4 rounded-2xl border border-white/15 bg-white/5 backdrop-blur text-white font-black text-[14px] transition-all hover:bg-white/10 hover:border-white/25">
+                <Link to="/planos" className="px-10 py-4 rounded-2xl border border-white/15 bg-white/5 backdrop-blur text-white font-black text-[14px] transition-all hover:bg-white/10 hover:border-white/25">
                   Ver planos
                 </Link>
               </div>
@@ -82,7 +82,7 @@ export function LandingFooter() {
               <li><a href="#diferencial" className="hover:text-emerald-600 transition-colors">Diferencial</a></li>
               <li><a href="#recursos" className="hover:text-emerald-600 transition-colors">Recursos</a></li>
               <li><a href="#industrias" className="hover:text-emerald-600 transition-colors">Setores</a></li>
-              <li><Link to="/register" className="hover:text-emerald-600 transition-colors">Planos</Link></li>
+              <li><Link to="/planos" className="hover:text-emerald-600 transition-colors">Planos</Link></li>
               <li><a href="#duvidas" className="hover:text-emerald-600 transition-colors">Dúvidas</a></li>
             </ul>
           </div>

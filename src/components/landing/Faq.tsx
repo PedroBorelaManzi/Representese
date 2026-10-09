@@ -62,8 +62,8 @@ export function FaqSection() {
         </div>
 
         <FadeUp delay={0.2} className="text-center mt-12">
-          <Link to="/register" className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[13px] transition-all shadow-lg shadow-emerald-600/20 hover:-translate-y-0.5 group">
-            Criar minha conta
+          <Link to="/planos" className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[13px] transition-all shadow-lg shadow-emerald-600/20 hover:-translate-y-0.5 group">
+            Ver planos e começar
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </Link>
           <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mt-4">

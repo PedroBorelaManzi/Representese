@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { trackAnonymousStep } from "../lib/adsFunnel";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -123,6 +124,8 @@ export default function Checkout() {
     cardNumber: "", expiry: "", ccv: "", holderName: ""
   });
   const [isLookingUpCep, setIsLookingUpCep] = useState(false);
+  // Rua/bairro/cidade/UF vêm do CEP e ficam recolhidos num resumo; só abrem se a busca falhar ou se a pessoa quiser editar.
+  const [editAddress, setEditAddress] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -257,6 +260,7 @@ export default function Checkout() {
         return;
       }
       setFormErrors({});
+      trackAnonymousStep('checkout_step2');
       setStep(2);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
@@ -278,6 +282,7 @@ export default function Checkout() {
       // — não precisa validar de novo aqui.
     }
     setLoading(true);
+    trackAnonymousStep('checkout_submit');
 
     try {
       let userId = user?.id;
@@ -362,6 +367,7 @@ export default function Checkout() {
       if (error) throw error;
       if (data.success) {
         posthog.capture('signup_completed', { plan_id: selectedPlan.id, billing_cycle: billingCycle });
+        trackAnonymousStep('checkout_success');
 
         // Pix: a função devolve { pix: { qrcode, payload } }. Antes o front só
         // sabia ler invoiceUrl (que ela nunca retorna) e mandava a pessoa para
@@ -645,56 +651,70 @@ export default function Checkout() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-5">
-                      <div className="space-y-1.5">
-                        <label className="text-[13px] font-bold text-slate-700">Rua</label>
-                        <input required type="text" autoComplete="address-line1" value={formData.street}
-                          onChange={(e) => setFormData({ ...formData, street: e.target.value })}
-                          placeholder="Rua, avenida..."
-                          className={cn(inputBase.replace('pl-11', 'pl-4'), inputOk)} />
-                      </div>
-                      <div className="space-y-1.5 md:w-32">
-                        <label className="text-[13px] font-bold text-slate-700">Número</label>
-                        <input required type="text" value={formData.addressNumber}
-                          onChange={(e) => setFormData({ ...formData, addressNumber: e.target.value.slice(0, 10) })}
-                          placeholder="123"
-                          className={cn(inputBase.replace('pl-11', 'pl-4'), inputOk)} />
-                      </div>
+                    <div className="space-y-1.5 md:w-40">
+                      <label className="text-[13px] font-bold text-slate-700">Número</label>
+                      <input required type="text" value={formData.addressNumber}
+                        onChange={(e) => setFormData({ ...formData, addressNumber: e.target.value.slice(0, 10) })}
+                        placeholder="123"
+                        className={cn(inputBase.replace('pl-11', 'pl-4'), inputOk)} />
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      <div className="space-y-1.5">
-                        <label className="text-[13px] font-bold text-slate-700">Complemento (opcional)</label>
-                        <input type="text" value={formData.addressComplement}
-                          onChange={(e) => setFormData({ ...formData, addressComplement: e.target.value })}
-                          placeholder="Apto, bloco..."
-                          className={cn(inputBase.replace('pl-11', 'pl-4'), inputOk)} />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[13px] font-bold text-slate-700">Bairro</label>
-                        <input type="text" value={formData.neighborhood}
-                          onChange={(e) => setFormData({ ...formData, neighborhood: e.target.value })}
-                          placeholder="Bairro"
-                          className={cn(inputBase.replace('pl-11', 'pl-4'), inputOk)} />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-5">
-                      <div className="space-y-1.5">
-                        <label className="text-[13px] font-bold text-slate-700">Cidade</label>
-                        <input required type="text" autoComplete="address-level2" value={formData.city}
-                          onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                          placeholder="Cidade"
-                          className={cn(inputBase.replace('pl-11', 'pl-4'), inputOk)} />
-                      </div>
-                      <div className="space-y-1.5 md:w-24">
-                        <label className="text-[13px] font-bold text-slate-700">UF</label>
-                        <input required type="text" maxLength={2} autoComplete="address-level1" value={formData.state}
-                          onChange={(e) => setFormData({ ...formData, state: e.target.value.toUpperCase() })}
-                          placeholder="SP"
-                          className={cn(inputBase.replace('pl-11', 'pl-4'), inputOk, "uppercase")} />
-                      </div>
-                    </div>
+                    {(() => {
+                      const preenchido = !!(formData.street.trim() && formData.city.trim() && formData.state.trim());
+                      const mostrarCampos = editAddress || (cleanCep.length === 8 && !isLookingUpCep && !preenchido);
+                      if (preenchido && !mostrarCampos) {
+                        return (
+                          <div className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3 text-[13px] text-slate-600">
+                            <span>{formData.street}{formData.neighborhood ? `, ${formData.neighborhood}` : ''} — {formData.city}/{formData.state}</span>
+                            <button type="button" onClick={() => setEditAddress(true)} className="font-bold text-emerald-600 shrink-0">Editar</button>
+                          </div>
+                        );
+                      }
+                      if (!mostrarCampos) return null;
+                      return (
+                        <>
+                          <div className="space-y-1.5">
+                            <label className="text-[13px] font-bold text-slate-700">Rua</label>
+                            <input required type="text" autoComplete="address-line1" value={formData.street}
+                              onChange={(e) => setFormData({ ...formData, street: e.target.value })}
+                              placeholder="Rua, avenida..."
+                              className={cn(inputBase.replace('pl-11', 'pl-4'), inputOk)} />
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div className="space-y-1.5">
+                              <label className="text-[13px] font-bold text-slate-700">Complemento (opcional)</label>
+                              <input type="text" value={formData.addressComplement}
+                                onChange={(e) => setFormData({ ...formData, addressComplement: e.target.value })}
+                                placeholder="Apto, bloco..."
+                                className={cn(inputBase.replace('pl-11', 'pl-4'), inputOk)} />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-[13px] font-bold text-slate-700">Bairro</label>
+                              <input type="text" value={formData.neighborhood}
+                                onChange={(e) => setFormData({ ...formData, neighborhood: e.target.value })}
+                                placeholder="Bairro"
+                                className={cn(inputBase.replace('pl-11', 'pl-4'), inputOk)} />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-5">
+                            <div className="space-y-1.5">
+                              <label className="text-[13px] font-bold text-slate-700">Cidade</label>
+                              <input required type="text" autoComplete="address-level2" value={formData.city}
+                                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                                placeholder="Cidade"
+                                className={cn(inputBase.replace('pl-11', 'pl-4'), inputOk)} />
+                            </div>
+                            <div className="space-y-1.5 md:w-24">
+                              <label className="text-[13px] font-bold text-slate-700">UF</label>
+                              <input required type="text" maxLength={2} autoComplete="address-level1" value={formData.state}
+                                onChange={(e) => setFormData({ ...formData, state: e.target.value.toUpperCase() })}
+                                placeholder="SP"
+                                className={cn(inputBase.replace('pl-11', 'pl-4'), inputOk, "uppercase")} />
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
 
                   {/* Aceite registrado: é o que sustenta a cobrança recorrente

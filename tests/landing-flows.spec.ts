@@ -11,7 +11,7 @@ test.describe('Landing: seções, FAQ e planos', () => {
   });
 
   test('Deve renderizar todas as seções principais da landing', async ({ page }) => {
-    // Planos não fica na landing — fluxo de captura de leads manda pra /register → /planos.
+    // Planos não fica na landing — os botões levam direto pra /planos.
     await expect(page.locator('#diferencial')).toBeAttached({ timeout: 15000 });
     await expect(page.locator('#recursos')).toBeAttached();
     await expect(page.locator('#industrias')).toBeAttached();
@@ -34,8 +34,8 @@ test.describe('Landing: seções, FAQ e planos', () => {
       await expect(page.locator(`nav a[href="#${id}"]`)).toBeAttached();
       await expect(page.locator(`#${id}`)).toBeAttached();
     }
-    // "Planos" no nav manda direto pro cadastro (captura de leads antes do checkout)
-    await expect(page.locator('nav a[href="/register"]', { hasText: 'Planos' })).toBeAttached();
+    // "Planos" no nav manda direto pra página de planos (sem formulário de contato antes)
+    await expect(page.locator('nav a[href="/planos"]', { hasText: /^Planos$/ })).toBeAttached();
   });
 });
 

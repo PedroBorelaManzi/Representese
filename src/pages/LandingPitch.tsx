@@ -97,7 +97,7 @@ export default function LandingPitch() {
                 return (
                   <Link
                     key={item.id}
-                    to="/register"
+                    to="/planos"
                     className={cn(
                       "text-[13px] font-semibold transition-all px-3.5 py-2 rounded-full",
                       isActive
@@ -130,8 +130,8 @@ export default function LandingPitch() {
           <span className="hidden lg:block h-5 w-px bg-slate-200 mx-1" />
 
           <Link to="/login" className="text-[13px] font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all px-3 sm:px-3.5 py-2 rounded-full whitespace-nowrap">Entrar</Link>
-          <Link to="/register" className="group text-[13px] font-black text-white bg-emerald-600 hover:bg-emerald-500 transition-all px-4 sm:px-5 py-2.5 rounded-full shadow-lg shadow-emerald-600/25 hover:shadow-emerald-600/35 flex items-center gap-1.5 whitespace-nowrap">
-            Cadastre-se
+          <Link to="/planos" className="group text-[13px] font-black text-white bg-emerald-600 hover:bg-emerald-500 transition-all px-4 sm:px-5 py-2.5 rounded-full shadow-lg shadow-emerald-600/25 hover:shadow-emerald-600/35 flex items-center gap-1.5 whitespace-nowrap">
+            Ver planos
             <ArrowRight className="hidden sm:block w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
           </Link>
         </div>
@@ -224,11 +224,11 @@ export default function LandingPitch() {
             style={{ animationDelay: "0.25s" }}
           >
             <Link
-              to="/register"
+              to="/planos"
               className="group relative flex items-center gap-2 px-8 py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm transition-all shadow-xl shadow-emerald-600/25 hover:shadow-2xl hover:shadow-emerald-600/30 hover:-translate-y-0.5 overflow-hidden"
             >
               <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-              Criar minha conta
+              Ver planos e começar
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
             <button
@@ -308,10 +308,10 @@ export default function LandingPitch() {
           style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)" }}
         >
           <Link
-            to="/register"
+            to="/planos"
             className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl bg-emerald-600 active:bg-emerald-700 text-white font-black text-sm shadow-lg shadow-emerald-600/25"
           >
-            Criar minha conta
+            Ver planos e começar
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>

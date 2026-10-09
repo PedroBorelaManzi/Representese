@@ -687,10 +687,10 @@ const SceneClosing = React.memo(function SceneClosing() {
         transition={{ duration: 0.5, delay: 0.9, ease: EASE }}
       >
         <Link
-          to="/register"
+          to="/planos"
           className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm transition-all shadow-xl shadow-emerald-600/25"
         >
-          Criar minha conta grátis
+          Ver planos e começar
           <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
         </Link>
         <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mt-4">

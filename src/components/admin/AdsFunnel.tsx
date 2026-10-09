@@ -436,7 +436,83 @@ export default function AdsFunnel() {
         </div>
       )}
 
+      <PassosFunil since={since} origem={origem} />
+
       <GeradorLinks />
     </div>
   );
 }
+
+const ROTULOS_PASSO: [string, string][] = [
+  ['visit', 'Visitaram o site (sem aceite de cookies)'],
+  ['planos_view', 'Abriram os planos'],
+  ['register_view', 'Abriram o cadastro de contato'],
+  ['checkout_view', 'Abriram o checkout'],
+  ['checkout_step2', 'Chegaram ao pagamento (passo 2)'],
+  ['checkout_submit', 'Enviaram o pagamento'],
+  ['checkout_success', 'Pagamento aceito'],
+];
+const ROTULOS_RESPOSTA: Record<string, string> = {
+  preco: 'O preço',
+  quero_testar: 'Quero testar antes',
+  nao_sei_se_serve: 'Não sei se serve para mim',
+  falta_funcao: 'Falta alguma função',
+  so_pesquisando: 'Só estou pesquisando',
+  outro: 'Outro motivo',
+};
+
+/** Etapas anônimas do funil (sem identificador) e respostas da pergunta de 1 clique, por origem. */
+function PassosFunil({ since, origem }: { since: string; origem: string }) {
+  const { data } = useQuery({
+    queryKey: ['admin_funnel_steps', since, origem],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('admin_funnel_steps', { p_since: since, p_source: origem });
+      if (error) throw error;
+      return data as { steps: Record<string, number>; feedback: Record<string, number> };
+    },
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
+  const steps = data?.steps ?? {};
+  const fb = data?.feedback ?? {};
+  const totalFb = Object.values(fb).reduce((a, b) => a + b, 0);
+  return (
+    <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800 space-y-5">
+      <div>
+        <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">Onde o tráfego para (etapas anônimas)</h3>
+        <p className="text-xs text-zinc-500 mt-1">
+          Contagem sem identificador de quem chegou com origem conhecida (anúncio, UTM ou referência). Cada etapa é contada uma vez por aba.
+          Dados a partir da publicação desta tela; a visita só inclui quem não aceitou cookies.
+        </p>
+      </div>
+      <div className="space-y-2">
+        {ROTULOS_PASSO.map(([id, nome], i) => {
+          const v = steps[id] ?? 0;
+          const ant = i > 0 ? steps[ROTULOS_PASSO[i - 1][0]] ?? 0 : 0;
+          return (
+            <div key={id} className="flex items-center justify-between text-sm border-b border-zinc-100 dark:border-zinc-800 pb-2">
+              <span className="text-zinc-700 dark:text-zinc-200">{nome}</span>
+              <span className="tabular-nums font-semibold text-zinc-900 dark:text-white">
+                {v}
+                {i > 0 && ant > 0 && <span className="ml-2 text-xs font-normal text-zinc-400">{Math.round((v / ant) * 100)}% da etapa acima</span>}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      <div>
+        <h4 className="text-sm font-semibold text-zinc-900 dark:text-white mb-2">"O que falta para você assinar hoje?" ({totalFb} respostas)</h4>
+        {totalFb === 0 ? (
+          <p className="text-xs text-zinc-500">Ainda sem respostas.</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(fb).sort((a, b) => b[1] - a[1]).map(([k, v]) => (
+              <span key={k} className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold">{ROTULOS_RESPOSTA[k] ?? k}: {v}</span>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+

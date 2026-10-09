@@ -52,26 +52,34 @@ export function trackFunnelStep(step: FunnelStep): void {
     .then(() => {}, () => {});
 }
 
-/** Visita ANÔNIMA de quem ainda não aceitou cookies de análise: só origem + campanha, sem
- *  identificador de sessão, sem e-mail/telefone, nada de PostHog/Pixel. Serve apenas para o
- *  painel enxergar o volume real de cliques de anúncio que chegam ao site. Respeita o opt-out
- *  (?notrack=1) e quem recusou explicitamente continua contado só como número agregado. */
-const ANON_DONE_KEY = 'rs_ads_anon_visit';
-export function trackAnonymousVisit(): void {
+export type AnonStep = 'visit' | 'register_view' | 'planos_view' | 'checkout_view' | 'checkout_step2' | 'checkout_submit' | 'checkout_success';
+
+/** Etapa ANÔNIMA do funil de quem chegou por anúncio/origem conhecida: só etapa + origem + campanha,
+ *  sem identificador de sessão, sem IP, sem e-mail/telefone e sem ligar ao cadastro. Serve para o painel
+ *  mostrar onde o tráfego para (visita → planos → checkout → pagamento).
+ *  - 'visit' só conta de quem AINDA não aceitou os cookies de análise (quem aceitou já entra em ads_funnel_events);
+ *  - as demais etapas contam para todos, porque são números agregados e não identificam ninguém.
+ *  Respeita o opt-out (?notrack=1) e o app nativo. Cada etapa é contada uma vez por aba. */
+export function trackAnonymousStep(step: AnonStep): void {
   try {
     if (Capacitor.isNativePlatform()) return;
   } catch {
     /* segue como web */
   }
-  if (isTrackingDisabled() || hasAnalyticsConsent()) return;
-  const source = adsSource(getAttribution());
+  if (isTrackingDisabled()) return;
+  if (step === 'visit' && hasAnalyticsConsent()) return;
+  const a = getAttribution();
+  const source = adsSource(a);
   if (!source) return;
+  const key = `rs_ads_anon_${step}`;
   try {
-    if (sessionStorage.getItem(ANON_DONE_KEY)) return;
-    sessionStorage.setItem(ANON_DONE_KEY, '1');
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, '1');
   } catch {
     return; // sem storage não dá para evitar contar toda navegação
   }
-  const campaign = getAttribution()?.utm_campaign ?? null;
-  supabase.from('ads_anon_visits').insert([{ source, campaign }]).then(() => {}, () => {});
+  supabase.from('ads_anon_visits').insert([{ source, campaign: a?.utm_campaign ?? null, step }]).then(() => {}, () => {});
 }
+
+/** Compatibilidade: a visita anônima original. */
+export const trackAnonymousVisit = () => trackAnonymousStep('visit');

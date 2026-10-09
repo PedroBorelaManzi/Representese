@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useSettings } from '../contexts/SettingsContext';
 import { hasAnalyticsConsent, subscribeConsent } from '../lib/cookieConsent';
-import { trackFunnelStep, trackAnonymousVisit } from '../lib/adsFunnel';
+import { trackFunnelStep, trackAnonymousStep } from '../lib/adsFunnel';
 import { trackCheckoutStartConversion } from '../lib/googleAds';
 
 /** Marca as etapas do funil de anúncios conforme a rota: qualquer página = visita,
@@ -16,10 +16,12 @@ export function useAdsFunnelTracking() {
   useEffect(() => {
     if (loading || isAdmin) return;
     const rodar = () => {
-      if (!hasAnalyticsConsent()) {
-        trackAnonymousVisit();
-        return;
-      }
+      // Etapas anônimas (sem identificador): contam com ou sem aceite.
+      trackAnonymousStep('visit');
+      if (pathname.startsWith('/register')) trackAnonymousStep('register_view');
+      if (pathname.startsWith('/planos')) trackAnonymousStep('planos_view');
+      if (pathname.startsWith('/checkout')) trackAnonymousStep('checkout_view');
+      if (!hasAnalyticsConsent()) return;
       trackFunnelStep('visit');
       if (pathname.startsWith('/register')) trackFunnelStep('register_view');
       if (pathname.startsWith('/checkout')) {

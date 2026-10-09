@@ -21,6 +21,7 @@ import { PlanCards } from "../components/plans/PlanCards";
 import { usePageMeta } from "../hooks/usePageMeta";
 import { isIOSApp } from "../lib/iapPolicy";
 import { supabase } from "../lib/supabase";
+import { FunnelPoll } from "../components/FunnelPoll";
 import { getIosPlanPrices, purchasePlan, restorePurchases, openManageSubscriptions, IosPlanPrices } from "../lib/iap";
 
 const faqItems = [
@@ -293,6 +294,8 @@ export default function Planos() {
             </div>
           ))}
         </div>
+
+        <FunnelPoll page="planos" />
 
         {/* FAQ — objeções comuns antes de assinar */}
         <div className="max-w-2xl mx-auto mb-16">

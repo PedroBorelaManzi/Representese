@@ -30,8 +30,8 @@ function PasswordRequirement({ label, met }: { label: string; met: boolean }) {
 
 export default function Register() {
   usePageMeta(
-    "Criar Conta Grátis",
-    "Cadastre-se gratuitamente no Represente-Se! e comece a organizar sua carteira de clientes como representante comercial.",
+    "Conheça os Planos",
+    "Deixe seu contato e veja os planos do Represente-Se!, o sistema para representante comercial: clientes, pedidos, agenda e comissões.",
     "/register"
   );
   const iosApp = isIOSApp();
