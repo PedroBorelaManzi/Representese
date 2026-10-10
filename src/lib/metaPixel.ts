@@ -15,7 +15,7 @@ import { hasAnalyticsConsent, subscribeConsent } from './cookieConsent';
 import { isTrackingDisabled } from './trackingOptOut';
 
 /** Conjunto de dados "Represente-Se Site" no Gerenciador de Eventos da Meta. */
-export const META_PIXEL_ID = '1419946310333519';
+export const META_PIXEL_ID = '1102995059199007';
 
 type Fbq = ((...args: unknown[]) => void) & {
   callMethod?: (...args: unknown[]) => void;
