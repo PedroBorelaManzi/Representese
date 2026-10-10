@@ -438,7 +438,63 @@ export default function AdsFunnel() {
 
       <PassosFunil since={since} origem={origem} />
 
+      <PorAnuncio since={since} campanha={campanha} />
+
       <GeradorLinks />
+    </div>
+  );
+}
+
+
+/** Comparação A × B: etapas, leads e contas por anúncio (utm_content) das campanhas do Instagram/Meta. */
+function PorAnuncio({ since, campanha }: { since: string; campanha: string }) {
+  const { data } = useQuery({
+    queryKey: ['admin_funnel_by_ad', since, campanha],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('admin_funnel_by_ad', { p_since: since, p_campaign: campanha || null });
+      if (error) throw error;
+      return data as { ads: { ad: string; steps: Record<string, number>; leads: number; accounts: number }[] };
+    },
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
+  const ads = data?.ads ?? [];
+  const cols: [string, string][] = [['visit', 'Visita'], ['planos_view', 'Planos'], ['register_view', 'Cadastro'], ['checkout_view', 'Checkout'], ['checkout_step2', 'Pagamento'], ['checkout_success', 'Pago']];
+  return (
+    <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800 space-y-3">
+      <div>
+        <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">Por anúncio (Instagram/Meta)</h3>
+        <p className="text-xs text-zinc-500 mt-1">
+          Vem do nome do anúncio no link (utm_content): A-register-caderno × B-planos-caderno. Contagem anônima desde a publicação desta tela;
+          a visita só inclui quem não aceitou cookies.
+        </p>
+      </div>
+      {ads.length === 0 ? (
+        <p className="text-xs text-zinc-500">Ainda sem dados por anúncio.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs text-zinc-500">
+                <th className="py-1 pr-3">Anúncio</th>
+                {cols.map(([, n]) => <th key={n} className="py-1 px-2 text-right">{n}</th>)}
+                <th className="py-1 px-2 text-right">Leads</th>
+                <th className="py-1 pl-2 text-right">Contas</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ads.map((a) => (
+                <tr key={a.ad} className="border-t border-zinc-100 dark:border-zinc-800">
+                  <td className="py-2 pr-3 font-semibold text-zinc-900 dark:text-white">{a.ad}</td>
+                  {cols.map(([id]) => <td key={id} className="py-2 px-2 text-right tabular-nums">{a.steps[id] ?? 0}</td>)}
+                  <td className="py-2 px-2 text-right tabular-nums">{a.leads}</td>
+                  <td className="py-2 pl-2 text-right tabular-nums">{a.accounts}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

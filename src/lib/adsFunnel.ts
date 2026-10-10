@@ -78,7 +78,7 @@ export function trackAnonymousStep(step: AnonStep): void {
   } catch {
     return; // sem storage não dá para evitar contar toda navegação
   }
-  supabase.from('ads_anon_visits').insert([{ source, campaign: a?.utm_campaign ?? null, step }]).then(() => {}, () => {});
+  supabase.from('ads_anon_visits').insert([{ source, campaign: a?.utm_campaign ?? null, ad: a?.utm_content ?? null, step }]).then(() => {}, () => {});
 }
 
 /** Compatibilidade: a visita anônima original. */
