@@ -122,6 +122,8 @@ export default function OnboardingModal() {
 
   // Step 3: Comissões por empresa (%)
   const [commissions, setCommissions] = useState<Record<string, number>>({});
+  // Empresa que paga comissão por produto (cada produto com o seu %) em vez de um % único.
+  const [perProduct, setPerProduct] = useState<Record<string, boolean>>({});
   const setCommission = (cat: string, value: string) => {
     const num = value === "" ? 0 : Math.max(0, Math.min(100, Number(value)));
     setCommissions((prev) => ({ ...prev, [cat]: isNaN(num) ? 0 : num }));
@@ -136,9 +138,13 @@ export default function OnboardingModal() {
   const [theme, setTheme] = useState<'light' | 'dark'>(settings.theme || 'light');
 
   const handleFinish = async () => {
+    const porProduto = categories.filter((c) => perProduct[c]);
+    const commissionsFixas = Object.fromEntries(Object.entries(commissions).filter(([c]) => !perProduct[c]));
+    const commissionMode = Object.fromEntries(porProduto.map((c) => [c, 'per_product' as const]));
     await updateSettings({
       categories,
-      commissions,
+      commissions: commissionsFixas,
+      commission_mode: commissionMode,
       alerta_days: alerta,
       critico_days: critico,
       inativo_days: inativo,
@@ -299,29 +305,54 @@ export default function OnboardingModal() {
                   <Wallet className="w-5 h-5 text-emerald-600" /> Suas comissões
                 </h2>
                 <p className="text-sm text-slate-500 dark:text-zinc-400 mt-1">
-                  Qual o percentual de comissão em cada empresa? Deixe 0% se preferir configurar depois.
+                  Qual a comissão em cada empresa? Use o valor fixo, ou &quot;Por produto&quot; se cada produto paga um percentual diferente. Deixe 0% se preferir configurar depois.
                 </p>
               </div>
 
               <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
-                {categories.map((cat) => (
-                  <div key={cat} className="flex items-center justify-between gap-3 p-3 bg-slate-50 dark:bg-zinc-950 border border-slate-100 dark:border-zinc-800 rounded-xl">
-                    <span className="text-sm font-bold text-slate-800 dark:text-zinc-200 truncate">{cat}</span>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <input
-                        type="number"
-                        min={0}
-                        max={100}
-                        step={0.5}
-                        value={commissions[cat] ?? ""}
-                        onChange={(e) => setCommission(cat, e.target.value)}
-                        placeholder="0"
-                        className="w-16 px-2 py-1.5 text-center bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-lg text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500"
-                      />
-                      <Percent className="w-3.5 h-3.5 text-slate-400" />
+                {categories.map((cat) => {
+                  const porProduto = !!perProduct[cat];
+                  return (
+                    <div key={cat} className="p-3 bg-slate-50 dark:bg-zinc-950 border border-slate-100 dark:border-zinc-800 rounded-xl space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm font-bold text-slate-800 dark:text-zinc-200 truncate">{cat}</span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <input
+                            type="number"
+                            min={0}
+                            max={100}
+                            step={0.5}
+                            value={porProduto ? "" : commissions[cat] ?? ""}
+                            disabled={porProduto}
+                            onChange={(e) => setCommission(cat, e.target.value)}
+                            placeholder={porProduto ? "—" : "0"}
+                            aria-label={`Comissão de ${cat}`}
+                            className="w-16 px-2 py-1.5 text-center bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-lg text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                          />
+                          <Percent className="w-3.5 h-3.5 text-slate-400" />
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        {([false, true] as const).map((v) => (
+                          <button
+                            key={String(v)}
+                            type="button"
+                            aria-pressed={porProduto === v}
+                            onClick={() => setPerProduct((prev) => ({ ...prev, [cat]: v }))}
+                            className={`flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors ${porProduto === v ? "bg-emerald-600 text-white" : "bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-400 dark:text-zinc-500"}`}
+                          >
+                            {v ? "Por produto" : "Valor fixo"}
+                          </button>
+                        ))}
+                      </div>
+                      {porProduto && (
+                        <p className="text-[11px] font-medium text-slate-400 dark:text-zinc-500 leading-relaxed">
+                          Cada produto tem o seu %. Você configura na aba Produtos depois.
+                        </p>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="flex gap-3 mt-4">

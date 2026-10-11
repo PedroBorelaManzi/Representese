@@ -36,4 +36,17 @@ test('Onboarding pergunta o mercado de atuação antes das empresas e salva a re
   await expect.poll(() => saved.length).toBeGreaterThan(0);
   expect(saved[0].segments).toEqual(['supermercado']);
   expect(saved[0].segment_other).toBe('Revenda de gás e água');
+
+  // empresas → comissões: uma empresa por valor fixo, outra por produto
+  await page.getByPlaceholder(/^Ex: Nestlé/).fill('Nestlé');
+  await page.keyboard.press('Enter');
+  await page.getByPlaceholder(/^Ex: Nestlé/).fill('Tigre');
+  await page.keyboard.press('Enter');
+  await page.getByRole('button', { name: /próximo passo/i }).click();
+  await expect(page.getByText('Suas comissões')).toBeVisible();
+  await page.getByLabel('Comissão de Nestlé').fill('5');
+  await page.getByRole('button', { name: 'Por produto' }).nth(1).click();
+  await expect(page.getByLabel('Comissão de Tigre')).toBeDisabled();
+  await expect(page.getByText('Cada produto tem o seu %. Você configura na aba Produtos depois.')).toBeVisible();
+  await expect(page.getByLabel('Comissão de Nestlé')).toBeEnabled();
 });
