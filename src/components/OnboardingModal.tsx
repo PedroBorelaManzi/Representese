@@ -92,7 +92,7 @@ export default function OnboardingModal() {
   const { user } = useAuth();
   const [step, setStep] = useState(1);
 
-  // Step 1: Área de atuação (lista + texto livre pra quem não achar a sua)
+  // Step 1: Mercados de atuação (lista + texto livre pra quem não achar o seu)
   const [segments, setSegments] = useState<string[]>([]);
   const [segmentOther, setSegmentOther] = useState("");
   const toggleSegment = (id: string) =>
@@ -180,8 +180,8 @@ export default function OnboardingModal() {
               className="space-y-4"
             >
               <div>
-                <h2 className="text-xl font-black text-slate-900 dark:text-zinc-50 uppercase tracking-tight">Qual a sua área de atuação?</h2>
-                <p className="text-sm text-slate-500 dark:text-zinc-400 mt-1">Marque o que você vende. Pode escolher mais de uma.</p>
+                <h2 className="text-xl font-black text-slate-900 dark:text-zinc-50 uppercase tracking-tight">Em quais mercados você atua?</h2>
+                <p className="text-sm text-slate-500 dark:text-zinc-400 mt-1">Marque os mercados para onde você vende. Pode escolher mais de um.</p>
               </div>
 
               <div data-testid="segment-options" className="flex flex-wrap gap-2 max-h-56 overflow-y-auto pr-1">
@@ -202,14 +202,14 @@ export default function OnboardingModal() {
               </div>
 
               <div className="space-y-1.5">
-                <label htmlFor="segment-other" className="text-[13px] font-bold text-slate-700 dark:text-zinc-300">Não achou a sua? Escreva aqui</label>
+                <label htmlFor="segment-other" className="text-[13px] font-bold text-slate-700 dark:text-zinc-300">Não achou o seu mercado? Escreva aqui</label>
                 <input
                   id="segment-other"
                   type="text"
                   value={segmentOther}
                   maxLength={80}
                   onChange={(e) => setSegmentOther(e.target.value)}
-                  placeholder="Ex: Produtos para panificação"
+                  placeholder="Ex: Revenda de gás e água"
                   className="w-full px-4 py-3 border border-slate-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-emerald-500 text-sm bg-white dark:bg-zinc-950 dark:text-zinc-100"
                 />
               </div>

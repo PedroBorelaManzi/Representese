@@ -989,7 +989,7 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
                     <th className="px-6 py-4">E-mail</th>
                     <th className="px-6 py-4">WhatsApp</th>
                     <th className="px-6 py-4">Endereço</th>
-                    <th className="px-6 py-4">Área de atuação</th>
+                    <th className="px-6 py-4">Mercado de atuação</th>
                     <th className="px-6 py-4">Status</th>
                   </tr>
                 </thead>

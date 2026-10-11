@@ -1,8 +1,8 @@
 import { test, expect } from '@playwright/test';
 
-/* Onboarding, passo 1: área de atuação (lista + "Outro"). O modal só abre pra conta sem onboarding
+/* Onboarding, passo 1: mercado de atuação (lista + "Outro"). O modal só abre pra conta sem onboarding
    concluído e sem empresas; aqui a sessão e o banco são simulados. */
-test('Onboarding pergunta a área de atuação antes das empresas e salva a resposta', async ({ page }) => {
+test('Onboarding pergunta o mercado de atuação antes das empresas e salva a resposta', async ({ page }) => {
   const saved: any[] = [];
   await page.route('**/rest/v1/user_settings*', async (route) => {
     const req = route.request();
@@ -23,16 +23,16 @@ test('Onboarding pergunta a área de atuação antes das empresas e salva a resp
   await page.route('**/rest/v1/clients*', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '[]', headers: { 'content-range': '0-0/0' } }));
 
   await page.goto('/dashboard');
-  await expect(page.getByText('Qual a sua área de atuação?')).toBeVisible({ timeout: 20000 });
+  await expect(page.getByText('Em quais mercados você atua?')).toBeVisible({ timeout: 20000 });
   const next = page.getByRole('button', { name: /próximo passo/i });
   await expect(next).toBeDisabled();
 
-  await page.getByRole('button', { name: 'Alimentos' }).click();
-  await page.getByLabel(/não achou a sua/i).fill('Produtos para panificação');
+  await page.getByRole('button', { name: /^Supermercado/ }).click();
+  await page.getByLabel(/não achou o seu mercado/i).fill('Revenda de gás e água');
   await next.click();
 
   await expect(page.getByText('Configure suas empresas')).toBeVisible();
   await expect.poll(() => saved.length).toBeGreaterThan(0);
-  expect(saved[0].segments).toEqual(['alimentos']);
-  expect(saved[0].segment_other).toBe('Produtos para panificação');
+  expect(saved[0].segments).toEqual(['supermercado']);
+  expect(saved[0].segment_other).toBe('Revenda de gás e água');
 });
