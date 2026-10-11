@@ -9,7 +9,7 @@ const prices = {
 };
 const normalizePlanId = (v: string) => (v?.includes('master') ? 'master' : v?.includes('exclusivo') ? 'exclusivo' : 'profissional');
 
-function mk(opts: { subId?: string | null; sub?: any; ent?: any; coupon?: any; referral?: number; putOk?: boolean; payOk?: boolean }) {
+function mk(opts: { subId?: string | null; sub?: any; ent?: any; coupon?: any; referral?: number; putOk?: boolean; payOk?: boolean; noToken?: boolean }) {
   const calls: { path: string; method?: string; body?: any }[] = [];
   const updates: any[] = [];
   const table = (name: string) => ({
@@ -17,7 +17,7 @@ function mk(opts: { subId?: string | null; sub?: any; ent?: any; coupon?: any; r
       eq: () => ({
         maybeSingle: async () => {
           if (name === 'coupons') return { data: opts.coupon ?? null };
-          if (name === 'user_settings') return { data: { asaas_subscription_id: opts.subId ?? null, referral_discount_pct: opts.referral ?? 0 } };
+          if (name === 'user_settings') return { data: { asaas_subscription_id: opts.subId ?? null, referral_discount_pct: opts.referral ?? 0, billing_cep: '01001000', billing_number: '10' } };
           if (name === 'user_entitlements') return { data: opts.ent ?? null };
           return { data: null };
         },
@@ -30,6 +30,7 @@ function mk(opts: { subId?: string | null; sub?: any; ent?: any; coupon?: any; r
     prices, normalizePlanId,
     asaas: async (path, init) => {
       calls.push({ path, method: init?.method, body: init?.body });
+      if (path.startsWith('/payments?subscription=') && !init?.method) return { ok: true, status: 200, data: { data: [{ id: 'pay_old', creditCard: opts.noToken ? {} : { creditCardToken: 'tok_1', creditCardBrand: 'VISA', creditCardNumber: '1234' } }] } };
       if (path.startsWith('/subscriptions/') && !init?.method) return { ok: true, status: 200, data: opts.sub };
       if (path.startsWith('/subscriptions/') && init?.method === 'PUT') return opts.putOk === false ? { ok: false, status: 500, data: {} } : { ok: true, status: 200, data: { id: 'sub_1' } };
       if (path === '/payments') return opts.payOk === false ? { ok: false, status: 400, data: { errors: [{ description: 'Cartão recusado' }] } } : { ok: true, status: 200, data: { id: 'pay_1' } };
@@ -131,5 +132,41 @@ describe('executeDiffUpgrade', () => {
     const r = await executeDiffUpgrade(deps, q, { ...input, cycle: 'ANNUAL' }, err);
     expect(r).toMatchObject({ success: true, chargedNow: 540 });
     expect(calls.map((c) => c.path)).toEqual(['/payments']);
+  });
+
+  it('cartão salvo: cobra a diferença com o token (sem dados de cartão nem endereço) e a quote mostra só marca e final', async () => {
+    const { deps, calls } = mk({ subId: 'sub_1', sub: { status: 'ACTIVE', value: 147 } });
+    const q = await quoteUpgrade(deps, 'u1', 'master', 'MONTHLY');
+    expect(q.savedCard).toEqual({ brand: 'VISA', last4: '1234' });
+    expect(JSON.stringify(q)).not.toContain('tok_1');
+    calls.length = 0;
+    const r = await executeDiffUpgrade(deps, q, { ...input, creditCard: undefined, useSavedCard: true }, err);
+    expect(r.success).toBe(true);
+    const pay = calls.find((c) => c.path === '/payments')!;
+    expect(pay.body.creditCardToken).toBe('tok_1');
+    expect(pay.body.creditCard).toBeUndefined();
+    expect(pay.body.creditCardHolderInfo).toBeUndefined();
+    expect(pay.body.remoteIp).toBe('1.1.1.1');
+    expect(pay.body.value).toBe(50);
+  });
+  it('cartão salvo pedido mas não encontrado: não cobra e pede o cartão', async () => {
+    const { deps, calls } = mk({ subId: 'sub_1', sub: { status: 'ACTIVE', value: 147 }, noToken: true });
+    const q = await quoteUpgrade(deps, 'u1', 'master', 'MONTHLY');
+    expect(q.savedCard).toBeNull();
+    calls.length = 0;
+    const r = await executeDiffUpgrade(deps, q, { ...input, creditCard: undefined, useSavedCard: true }, err);
+    expect(r.success).toBe(false);
+    expect(calls.some((c) => c.path === '/payments')).toBe(false);
+  });
+  it('cartão novo sem CEP/número: usa o endereço do cadastro', async () => {
+    const { deps, calls } = mk({ subId: 'sub_1', sub: { status: 'ACTIVE', value: 147 } });
+    const q = await quoteUpgrade(deps, 'u1', 'master', 'MONTHLY');
+    calls.length = 0;
+    const { postalCode, addressNumber, ...semEndereco } = card;
+    const r = await executeDiffUpgrade(deps, q, { ...input, creditCard: semEndereco }, err);
+    expect(r.success).toBe(true);
+    const info = calls.find((c) => c.path === '/payments')!.body.creditCardHolderInfo;
+    expect(info.postalCode).toBe('01001000');
+    expect(info.addressNumber).toBe('10');
   });
 });

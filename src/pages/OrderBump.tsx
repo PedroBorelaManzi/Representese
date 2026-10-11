@@ -97,12 +97,11 @@ export default function OrderBump() {
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
   const [cardCvv, setCardCvv] = useState("");
-  const [cardCep, setCardCep] = useState("");
-  const [cardAddressNumber, setCardAddressNumber] = useState("");
 
   // Simulação do servidor: quanto cobra agora (só a diferença) e quanto passa a ser a mensalidade.
   // Sem ela (função antiga no ar, sem rede...), a tela mostra o comportamento antigo: valor cheio.
-  const [quote, setQuote] = useState<{ mode: string; newValue: number; currentValue: number | null; chargeNow: number } | null>(null);
+  const [quote, setQuote] = useState<{ mode: string; newValue: number; currentValue: number | null; chargeNow: number; savedCard: { brand: string | null; last4: string | null } | null } | null>(null);
+  const [useOtherCard, setUseOtherCard] = useState(false);
 
   const currentTier = settings.plan_id ? (settings.plan_id === 'premium' ? 'profissional' : settings.plan_id) : 'exclusivo';
 
@@ -117,7 +116,7 @@ export default function OrderBump() {
       body: { action: 'upgrade-quote', userId: user.id, planId: nextTier, billingCycle: cycleApi, coupon: activeCoupon?.code },
     }).then(({ data, error }) => {
       if (!vivo || error || !data?.success || typeof data.chargeNow !== 'number') return;
-      setQuote({ mode: data.mode, newValue: data.newValue, currentValue: data.currentValue ?? null, chargeNow: data.chargeNow });
+      setQuote({ mode: data.mode, newValue: data.newValue, currentValue: data.currentValue ?? null, chargeNow: data.chargeNow, savedCard: data.savedCard ?? null });
     }).catch(() => { /* sem simulação: mostra o valor cheio */ });
     return () => { vivo = false; };
   }, [user?.id, currentTier, billingCycle, activeCoupon?.code]);
@@ -164,14 +163,6 @@ export default function OrderBump() {
       toast.error("O código de segurança CVV deve conter exatamente 3 dígitos.");
       return false;
     }
-    if (cardCep.replace(/\D/g, '').length !== 8) {
-      toast.error("Informe o CEP do titular do cartão (obrigatório para a cobrança).");
-      return false;
-    }
-    if (!cardAddressNumber.trim()) {
-      toast.error("Informe o número do endereço do titular do cartão.");
-      return false;
-    }
     return true;
   };
 
@@ -213,6 +204,7 @@ export default function OrderBump() {
   const per = billingCycle === 'Anual' ? '/ano' : '/mês';
   const brl = (v: number) => v.toFixed(2).replace('.', ',');
   const diffMode = !!quote && quote.mode !== 'full';
+  const usingSavedCard = diffMode && !!quote!.savedCard && !useOtherCard;
 
 
   const handleApplyCoupon = async (e: React.FormEvent) => {
@@ -246,7 +238,7 @@ export default function OrderBump() {
 
   const handleConfirmUpgrade = async () => {
     if (showCheckout) {
-      if (!validateCard()) {
+      if (!usingSavedCard && !validateCard()) {
         return; // Validation failed
       }
       if (!user) {
@@ -255,7 +247,7 @@ export default function OrderBump() {
       }
       setLoading(true);
       try {
-        const [expiryMonth, expiryYearShort] = cardExpiry.split('/');
+        const [expiryMonth, expiryYearShort] = usingSavedCard ? ['', ''] : cardExpiry.split('/');
         const { data, error } = await supabase.functions.invoke('process-checkout', {
           body: {
             action: 'upgrade-subscription',
@@ -270,15 +262,14 @@ export default function OrderBump() {
               cpfCnpj: user.user_metadata?.cpf_cnpj || '',
               phone: user.user_metadata?.phone || ''
             },
-            creditCard: {
+            useSavedCard: usingSavedCard,
+            creditCard: usingSavedCard ? undefined : {
               holderName: cardHolder,
               number: cardNumber.replace(/\s/g, ''),
               expiryMonth,
               expiryYear: '20' + expiryYearShort,
               ccv: cardCvv,
-              installments: 1,
-              postalCode: cardCep.replace(/\D/g, ''),
-              addressNumber: cardAddressNumber.trim()
+              installments: 1
             }
           }
         });
@@ -507,6 +498,25 @@ export default function OrderBump() {
                 <div className="space-y-4">
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Informações de Pagamento</p>
                   
+                  {usingSavedCard && (
+                    <div data-testid="cartao-salvo" className="flex items-center justify-between gap-3 p-4 rounded-2xl bg-slate-50 dark:bg-zinc-950 border border-slate-100 dark:border-zinc-800">
+                      <div>
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Cartão salvo</p>
+                        <p className="text-xs font-black text-slate-800 dark:text-zinc-100 mt-1">
+                          {(quote!.savedCard!.brand || 'Cartão').toString().toUpperCase()} •••• {quote!.savedCard!.last4 || '----'}
+                        </p>
+                      </div>
+                      <button type="button" onClick={() => setUseOtherCard(true)} className="text-[10px] font-black uppercase tracking-widest text-emerald-600">
+                        Usar outro cartão
+                      </button>
+                    </div>
+                  )}
+                  {!usingSavedCard && quote?.savedCard && diffMode && (
+                    <button type="button" onClick={() => setUseOtherCard(false)} className="text-[10px] font-black uppercase tracking-widest text-emerald-600">
+                      Voltar ao cartão salvo ({(quote.savedCard.brand || 'cartão').toString().toUpperCase()} •••• {quote.savedCard.last4 || '----'})
+                    </button>
+                  )}
+                  {!usingSavedCard && (
                   <div className="space-y-3">
                     <div>
                       <input 
@@ -564,29 +574,8 @@ export default function OrderBump() {
                         className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-100 dark:border-zinc-850 rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-widest outline-none focus:border-emerald-500 focus:bg-white dark:focus:bg-zinc-900 transition-all placeholder:text-slate-400 placeholder:normal-case placeholder:tracking-normal"
                       />
                     </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        autoComplete="postal-code"
-                        placeholder="CEP do titular"
-                        value={cardCep}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/\D/g, '').substring(0, 8);
-                          setCardCep(val.length > 5 ? val.substring(0, 5) + '-' + val.substring(5) : val);
-                        }}
-                        className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-100 dark:border-zinc-850 rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-widest outline-none focus:border-emerald-500 focus:bg-white dark:focus:bg-zinc-900 transition-all placeholder:text-slate-400 placeholder:normal-case placeholder:tracking-normal"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Nº do endereço"
-                        value={cardAddressNumber}
-                        onChange={(e) => setCardAddressNumber(e.target.value.substring(0, 10))}
-                        className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-100 dark:border-zinc-850 rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-widest outline-none focus:border-emerald-500 focus:bg-white dark:focus:bg-zinc-900 transition-all placeholder:text-slate-400 placeholder:normal-case placeholder:tracking-normal"
-                      />
-                    </div>
                   </div>
+                  )}
                 </div>
 
                 {/* Finalize Payment Button */}
@@ -603,7 +592,7 @@ export default function OrderBump() {
                   ) : (
                     <>
                       <ShieldCheck className="w-4 h-4" />
-                      <span>Confirmar e Pagar R$ {finalDiff}</span>
+                      <span>Confirmar e Pagar R$ {diffMode ? brl(quote!.chargeNow) : finalDiff}</span>
                     </>
                   )}
                 </button>

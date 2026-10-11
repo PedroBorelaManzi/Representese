@@ -23,6 +23,8 @@ export type UpgradeMode = 'diff_subscription' | 'diff_oneoff' | 'full';
 
 export interface UpgradeQuote {
   mode: UpgradeMode;
+  /** Cartão já usado nas cobranças da assinatura (só marca e final — o token fica no servidor). */
+  savedCard?: { brand: string | null; last4: string | null } | null;
   /** Valor cheio do plano novo (o que passa a ser cobrado nas próximas vezes). */
   newValue: number;
   /** O que a pessoa paga hoje no plano atual (null se não deu pra saber). */
@@ -30,6 +32,21 @@ export interface UpgradeQuote {
   /** Quanto cobrar agora. */
   chargeNow: number;
   subscriptionId: string | null;
+}
+
+interface SavedCardToken { token: string; brand: string | null; last4: string | null }
+
+/** Acha o cartão (token do Asaas) usado nas cobranças da assinatura, pra não pedir o cartão de novo. */
+export async function findSavedCard(d: UpgradeDeps, subscriptionId: string): Promise<SavedCardToken | null> {
+  const r = await d.asaas(`/payments?subscription=${subscriptionId}&limit=10`);
+  if (!r.ok) return null;
+  for (const p of r.data?.data || []) {
+    const c = p?.creditCard;
+    if (c?.creditCardToken) {
+      return { token: c.creditCardToken, brand: c.creditCardBrand ?? null, last4: c.creditCardNumber ? String(c.creditCardNumber).slice(-4) : null };
+    }
+  }
+  return null;
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -61,7 +78,9 @@ export async function quoteUpgrade(d: UpgradeDeps, userId: string, planId: strin
     const cur = Number(r.data?.value);
     if (r.ok && r.data?.status === 'ACTIVE' && cur > 0) {
       const diff = round2(newValue - cur);
-      return { mode: 'diff_subscription', newValue, currentValue: cur, chargeNow: diff > 0 ? Math.max(diff, MIN_CHARGE) : 0, subscriptionId: st.asaas_subscription_id };
+      const chargeNow = diff > 0 ? Math.max(diff, MIN_CHARGE) : 0;
+      const saved = chargeNow > 0 ? await findSavedCard(d, st.asaas_subscription_id) : null;
+      return { mode: 'diff_subscription', newValue, currentValue: cur, chargeNow, subscriptionId: st.asaas_subscription_id, savedCard: saved ? { brand: saved.brand, last4: saved.last4 } : null };
     }
   }
 
@@ -86,6 +105,8 @@ export interface DiffUpgradeInput {
   cycle: string;
   asaasCustomerId: string;
   creditCard?: any;
+  /** Cobrar no cartão já usado na assinatura (sem pedir os dados de novo). */
+  useSavedCard?: boolean;
   cleanCpf: string;
   cleanPhone: string;
   email: string;
@@ -97,28 +118,44 @@ export async function executeDiffUpgrade(d: UpgradeDeps, q: UpgradeQuote, i: Dif
   const description = `Plano ${i.planId} - ${i.cycle}`;
 
   if (q.chargeNow > 0) {
-    if (!i.creditCard) return { success: false, message: 'Dados do cartão incompletos. Verifique e tente novamente.' };
-    const pay = await d.asaas('/payments', {
-      method: 'POST',
-      body: {
-        customer: i.asaasCustomerId,
-        billingType: 'CREDIT_CARD',
-        value: q.chargeNow,
-        dueDate: new Date().toISOString().split('T')[0],
-        description,
-        externalReference: i.userId,
+    const base = {
+      customer: i.asaasCustomerId,
+      billingType: 'CREDIT_CARD',
+      value: q.chargeNow,
+      dueDate: new Date().toISOString().split('T')[0],
+      description,
+      externalReference: i.userId,
+      remoteIp: i.clientIp,
+    };
+    let cardPart: Record<string, unknown>;
+    if (i.useSavedCard && q.subscriptionId) {
+      const saved = await findSavedCard(d, q.subscriptionId);
+      if (!saved) return { success: false, message: 'Não encontramos o cartão salvo. Informe os dados do cartão para continuar.' };
+      cardPart = { creditCardToken: saved.token };
+    } else {
+      if (!i.creditCard) return { success: false, message: 'Dados do cartão incompletos. Verifique e tente novamente.' };
+      // CEP e número do titular: usa os do cadastro (guardados no checkout) em vez de pedir de novo.
+      let postalCode = i.creditCard.postalCode;
+      let addressNumber = i.creditCard.addressNumber;
+      if (!postalCode || !addressNumber) {
+        const { data: st } = await d.supabaseAdmin.from('user_settings').select('billing_cep, billing_number').eq('user_id', i.userId).maybeSingle();
+        postalCode = postalCode || st?.billing_cep;
+        addressNumber = addressNumber || st?.billing_number;
+      }
+      if (!postalCode || !addressNumber) return { success: false, message: 'Faltam o CEP e o número do endereço no seu cadastro. Fale com o suporte pelo WhatsApp.' };
+      cardPart = {
         creditCard: {
           holderName: i.creditCard.holderName, number: i.creditCard.number,
           expiryMonth: i.creditCard.expiryMonth, expiryYear: i.creditCard.expiryYear, ccv: i.creditCard.ccv,
         },
         creditCardHolderInfo: {
           name: i.creditCard.holderName || i.name, email: i.email, cpfCnpj: i.cleanCpf,
-          postalCode: String(i.creditCard.postalCode).replace(/\D/g, ''), addressNumber: String(i.creditCard.addressNumber),
+          postalCode: String(postalCode).replace(/\D/g, ''), addressNumber: String(addressNumber),
           phone: i.cleanPhone, mobilePhone: i.cleanPhone,
         },
-        remoteIp: i.clientIp,
-      },
-    });
+      };
+    }
+    const pay = await d.asaas('/payments', { method: 'POST', body: { ...base, ...cardPart } });
     const err = asaasError(pay.ok, pay.status, pay.data);
     if (err || !pay.data?.id) return { success: false, message: err || 'Não foi possível cobrar a diferença do upgrade.' };
   }
