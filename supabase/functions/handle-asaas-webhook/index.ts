@@ -110,6 +110,57 @@ async function recomputeAndSyncReferrer(supabase: any, referrerUserId: string): 
   await syncAsaasSubscriptionValue(supabase, referrerUserId);
 }
 
+// ---- Meta (Instagram/Facebook): API de Conversões, no servidor --------------------------------
+// Envia o evento "Subscribe" da 1ª cobrança confirmada de quem chegou por anúncio da Meta, com
+// e-mail/telefone em hash SHA-256 (nunca em texto puro; sem nome, CPF nem dados de pagamento).
+// Divulgado na Política de Privacidade (seção 5). Só roda se META_CAPI_TOKEN existir.
+async function sha256Hex(v: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v));
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function isMetaAttribution(attr: any): boolean {
+  if (!attr) return false;
+  if (attr.fbclid) return true;
+  const utm = String(attr.utm_source ?? '').toLowerCase().trim();
+  return ['instagram', 'ig', 'facebook', 'fb', 'meta'].includes(utm);
+}
+
+async function sendMetaSubscribe(email: string | null, phone: string | null, userId: string, attr: any, value: number, paymentId?: string): Promise<void> {
+  try {
+    const token = Deno.env.get('META_CAPI_TOKEN');
+    if (!token || !isMetaAttribution(attr)) return;
+    const pixelId = Deno.env.get('META_PIXEL_ID') || '1807570517102801';
+    const userData: Record<string, unknown> = { external_id: [await sha256Hex(userId)] };
+    if (email) userData.em = [await sha256Hex(email.trim().toLowerCase())];
+    const digits = String(phone ?? '').replace(/\D/g, '');
+    if (digits.length >= 10) userData.ph = [await sha256Hex(digits.length <= 11 ? `55${digits}` : digits)];
+    if (attr?.fbclid) {
+      const ts = attr.captured_at ? new Date(attr.captured_at).getTime() : Date.now();
+      userData.fbc = `fb.1.${Number.isFinite(ts) ? ts : Date.now()}.${attr.fbclid}`;
+    }
+    const payload: Record<string, unknown> = {
+      data: [{
+        event_name: 'Subscribe',
+        event_time: Math.floor(Date.now() / 1000),
+        event_id: paymentId ? `sub_${paymentId}` : undefined,
+        action_source: 'website',
+        event_source_url: 'https://www.representese.com/checkout',
+        user_data: userData,
+        custom_data: { currency: 'BRL', value: value > 0 ? value : undefined, utm_campaign: attr?.utm_campaign, utm_content: attr?.utm_content },
+      }],
+    };
+    const test = Deno.env.get('META_CAPI_TEST_CODE');
+    if (test) payload.test_event_code = test;
+    const res = await fetch(`https://graph.facebook.com/v21.0/${pixelId}/events?access_token=${encodeURIComponent(token)}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+    });
+    if (!res.ok) console.error('Meta CAPI respondeu erro:', res.status, (await res.text()).slice(0, 300));
+  } catch (e) {
+    console.error('Erro ao enviar Subscribe à Meta:', e);
+  }
+}
+
 // Registra, uma única vez por usuário, a 1ª cobrança confirmada — é a conversão "Assinatura
 // paga" do Google Ads medida pelo servidor (não depende de a pessoa reabrir o app). Guarda o
 // gclid/utm vindos do cadastro (user_metadata.attribution) ou do lead (leads.attribution).
@@ -125,6 +176,7 @@ async function registerAdsConversion(supabase: any, userId: string, payment: any
       attr = lead?.attribution ?? null;
     }
     const value = Number(payment?.value ?? 0);
+    const { data: jaRegistrada } = await supabase.from('ads_conversions').select('id').eq('user_id', userId).maybeSingle();
     await supabase.from('ads_conversions').upsert({
       user_id: userId,
       conversion_time: new Date().toISOString(),
@@ -137,6 +189,15 @@ async function registerAdsConversion(supabase: any, userId: string, payment: any
       billing_cycle: cycle ?? null,
       asaas_payment_id: payment?.id ?? null,
     }, { onConflict: 'user_id', ignoreDuplicates: true });
+    // Mesma conversão para a Meta, só na 1ª cobrança (renovações não reenviam).
+    if (!jaRegistrada) {
+      let phone: string | null = user?.user_metadata?.phone ?? null;
+      if (!phone && user?.email) {
+        const { data: lead2 } = await supabase.from('leads').select('phone').eq('email', String(user.email).toLowerCase()).maybeSingle();
+        phone = lead2?.phone ?? null;
+      }
+      await sendMetaSubscribe(user?.email ?? null, phone, userId, attr, value, payment?.id);
+    }
   } catch (e) {
     console.error('Erro ao registrar conversão do Google Ads:', e);
   }

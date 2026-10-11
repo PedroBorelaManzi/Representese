@@ -89,7 +89,7 @@ export default function PrivacyPolicy() {
                 Comunicações e medição de anúncios: ao se cadastrar, você aceita receber ofertas e promoções do Represente-Se! por
                 e-mail e WhatsApp; pode cancelar a qualquer momento respondendo à mensagem ou pelo e-mail contato@representese.com.
                 Para medir qual anúncio trouxe cada assinatura, podemos enviar à Meta (Instagram/Facebook), apenas na primeira
-                cobrança confirmada de quem chegou por anúncio e aceitou os cookies de análise, o evento de assinatura com dados em
+                cobrança confirmada de quem chegou por anúncio, o evento de assinatura com dados em
                 formato codificado (hash) de e-mail e telefone, sem nome, CPF ou dados de pagamento. A Meta usa esse dado só para
                 atribuição e otimização dos anúncios.
               </p>
