@@ -608,7 +608,6 @@ export default function OrderBump() {
                   <div className="p-5 bg-slate-50 dark:bg-zinc-950 border-2 border-slate-100 dark:border-zinc-800/80 rounded-2xl flex justify-between items-center shadow-inner">
                     <div>
                       <h4 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Total da Nova Assinatura</h4>
-                      <p className="text-[8px] font-bold text-slate-400 uppercase mt-1">Sem desconto proporcional do plano atual</p>
                     </div>
                     <div className="text-right">
                       <span className="text-xs font-black text-slate-400">R$</span>
