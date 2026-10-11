@@ -131,7 +131,7 @@ export default function InstagramStats() {
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-      <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800">
+      <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-700/70">
         <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">Instagram · @represente_se_</h2>
         <p className="text-sm text-zinc-500 mt-1">
           Dados do Meta Business Suite{periodo ? ` — ${periodo}` : ''}. Visualizações e cliques incluem os anúncios impulsionados.
@@ -144,14 +144,14 @@ export default function InstagramStats() {
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {cards.map((c) => (
-              <div key={c.label} className="bg-white dark:bg-zinc-900 p-5 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800">
+              <div key={c.label} className="bg-white dark:bg-zinc-900 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-700/70">
                 <p className="text-xs text-zinc-500">{c.label}</p>
                 <p className="text-3xl font-black text-zinc-900 dark:text-white tabular-nums">{nf.format(c.valor)}</p>
               </div>
             ))}
           </div>
 
-          <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800 h-[360px]">
+          <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-700/70 h-[360px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={grafico} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
@@ -173,7 +173,7 @@ export default function InstagramStats() {
         </>
       )}
 
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800 overflow-hidden">
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-700/70 overflow-hidden">
         <div className="p-6 pb-2">
           <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">Campanhas pagas · Meta (rosa) e Google (azul)</h3>
           <p className="text-xs text-zinc-500 mt-1">As faixas coloridas do gráfico mostram os dias de cada campanha. Datas marcadas com ~ são estimadas pelos picos diários (campanhas excluídas/impulsionadas pelo app não guardam o período).</p>
@@ -205,7 +205,7 @@ export default function InstagramStats() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800 overflow-hidden">
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-700/70 overflow-hidden">
         <div className="p-6 pb-2">
           <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">Dia a dia: Instagram × campanhas × site</h3>
           <p className="text-xs text-zinc-500 mt-1">
@@ -244,7 +244,7 @@ export default function InstagramStats() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800 overflow-hidden">
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-700/70 overflow-hidden">
         <div className="p-6 pb-2">
           <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">Posts e stories ({posts?.length ?? 0})</h3>
         </div>

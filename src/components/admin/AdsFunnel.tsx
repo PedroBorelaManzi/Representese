@@ -100,7 +100,7 @@ function GeradorLinks() {
   const campo = 'mt-1 w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white text-sm';
 
   return (
-    <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800 space-y-4">
+    <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-700/70 space-y-4">
       <div className="flex items-center gap-2">
         <Link2 className="w-5 h-5 text-teal-600" />
         <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">Gerador de links com marcação</h3>
@@ -272,7 +272,7 @@ export default function AdsFunnel() {
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-      <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800 space-y-4">
+      <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-700/70 space-y-4">
         <div>
           <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">Funil de anúncios</h2>
           <p className="text-sm text-zinc-500 mt-1">
@@ -376,7 +376,7 @@ export default function AdsFunnel() {
           Não foi possível carregar o funil. {(error as Error).message}
         </div>
       ) : (
-        <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800">
+        <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-700/70">
           <div className="space-y-4">
             {etapas.map((e, i) => {
               const anterior = i > 0 ? etapas[i - 1].valor : 0;
@@ -461,7 +461,7 @@ function PorAnuncio({ since, campanha }: { since: string; campanha: string }) {
   const ads = data?.ads ?? [];
   const cols: [string, string][] = [['visit', 'Visita'], ['planos_view', 'Planos'], ['register_view', 'Cadastro'], ['checkout_view', 'Checkout'], ['checkout_step2', 'Pagamento'], ['checkout_success', 'Pago']];
   return (
-    <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800 space-y-3">
+    <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-700/70 space-y-3">
       <div>
         <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">Por anúncio (Instagram/Meta)</h3>
         <p className="text-xs text-zinc-500 mt-1">
@@ -533,7 +533,7 @@ function PassosFunil({ since, origem }: { since: string; origem: string }) {
   const fb = data?.feedback ?? {};
   const totalFb = Object.values(fb).reduce((a, b) => a + b, 0);
   return (
-    <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800 space-y-5">
+    <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-700/70 space-y-5">
       <div>
         <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">Onde o tráfego para (etapas anônimas)</h3>
         <p className="text-xs text-zinc-500 mt-1">
