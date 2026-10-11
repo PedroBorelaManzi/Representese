@@ -13,6 +13,7 @@ export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
   const { settings, loading: settingsLoading, refetchSettings } = useSettings();
   const { user } = useAuth();
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+  const [, setTick] = useState(0);
 
   const blocked = settings.subscription_status === 'inactive'
     || settings.subscription_status === 'past_due'
@@ -26,6 +27,7 @@ export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
     const startedAt = Date.now();
     const tick = async () => {
       if (Date.now() - startedAt > 5 * 60 * 1000) return;
+      setTick((n) => n + 1); // reavalia a janela de "acabou de pagar"
       const { data } = await supabase.from('user_entitlements')
         .select('subscription_status').eq('user_id', user.id).maybeSingle();
       // Só recarrega as configurações quando o status mudou de verdade — o
@@ -41,8 +43,41 @@ export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
     };
   }, [settingsLoading, blocked, user, settings.subscription_status, refetchSettings]);
 
+  // Quem acabou de pagar no checkout (flag gravada pelo Checkout) vê "configurando"
+  // em vez de "escolha um plano"/"pendência" enquanto o webhook ainda não gravou o status.
+  const justPaid = (() => {
+    try {
+      const t = Number(sessionStorage.getItem('rm_just_paid'));
+      return !!t && Date.now() - t < 5 * 60 * 1000;
+    } catch { return false; }
+  })();
+  useEffect(() => {
+    if (!blocked && !settingsLoading) { try { sessionStorage.removeItem('rm_just_paid'); } catch { /* ignora */ } }
+  }, [blocked, settingsLoading]);
+
   // Se estiver carregando, não bloqueia ainda para evitar flashes
   if (settingsLoading) return <>{children}</>;
+
+  if (blocked && justPaid) {
+    return (
+      <div data-testid="configurando-acesso" className="fixed inset-0 z-[9999] bg-slate-50 dark:bg-zinc-950 flex flex-col items-center justify-center p-6 text-center">
+        <div className="max-w-md w-full space-y-8">
+          <Logo size="lg" />
+          <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-8 rounded-[40px] space-y-6 shadow-xl">
+            <div className="w-20 h-20 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-3xl flex items-center justify-center mx-auto shadow-inner">
+              <Loader2 className="w-10 h-10 animate-spin" />
+            </div>
+            <div className="space-y-2">
+              <h1 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Aguarde um instante</h1>
+              <p className="text-sm font-medium text-slate-500 dark:text-slate-400 leading-relaxed">
+                Pagamento recebido! Estamos configurando o seu acesso. Isso leva só alguns segundos e a tela libera sozinha.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Se o status for 'past_due', mostramos a tela de bloqueio financeiro
   const isPastDue = settings.subscription_status === 'past_due' || settings.subscription_status === 'canceled';

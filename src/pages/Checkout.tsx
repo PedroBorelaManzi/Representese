@@ -397,7 +397,11 @@ export default function Checkout() {
         if (data.invoiceUrl) setTimeout(() => { window.location.href = data.invoiceUrl; }, 1500);
         // Quem acabou de se cadastrar já está autenticado pelo signUp: mandar
         // para /login obrigava a digitar a senha de novo logo após pagar.
-        else navigate("/dashboard");
+        else {
+          // O dashboard mostra "Aguarde um instante" (e não "escolha um plano") até o webhook liberar o acesso.
+          try { sessionStorage.setItem('rm_just_paid', String(Date.now())); } catch { /* ignora */ }
+          navigate("/dashboard");
+        }
       } else toast.error(data.message || "Erro no processamento");
     } catch (err: any) {
       toast.error(err.message || "Erro na comunicação");
