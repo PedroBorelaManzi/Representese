@@ -32,6 +32,7 @@ test('Onboarding pergunta o mercado de atuação antes das empresas e salva a re
   await next.click();
 
   await expect(page.getByText('Configure suas empresas')).toBeVisible();
+  await expect(page.getByPlaceholder(/^Ex: Nestlé, Coca-Cola/)).toBeVisible(); // Supermercado → Nestlé, Coca-Cola
   await expect.poll(() => saved.length).toBeGreaterThan(0);
   expect(saved[0].segments).toEqual(['supermercado']);
   expect(saved[0].segment_other).toBe('Revenda de gás e água');

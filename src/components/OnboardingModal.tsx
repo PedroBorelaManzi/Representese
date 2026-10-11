@@ -5,7 +5,7 @@ import { useSettings } from "../contexts/SettingsContext";
 import { toast } from "sonner";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
-import { SEGMENTS } from "../lib/segments";
+import { SEGMENTS, companyExamples } from "../lib/segments";
 
 const TOTAL_STEPS = 5;
 
@@ -242,7 +242,7 @@ export default function OnboardingModal() {
                   type="text"
                   value={newCat}
                   onChange={(e) => setNewCat(e.target.value)}
-                  placeholder="Ex: Nestlé, Coca-Cola..."
+                  placeholder={`Ex: ${companyExamples(segments).join(", ")}...`}
                   className="flex-1 px-4 py-3 border border-slate-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-emerald-500 text-sm bg-white dark:bg-zinc-950 dark:text-zinc-100"
                   onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCategory())}
                   autoFocus
