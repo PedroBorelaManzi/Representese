@@ -42,6 +42,8 @@ export default function Register() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [aceitouTermos, setAceitouTermos] = useState(false);
+  // Consentimento de marketing (opcional). Começa DESMARCADO: caixa pré-marcada não vale como consentimento na LGPD.
+  const [aceitaMarketing, setAceitaMarketing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -124,6 +126,7 @@ export default function Register() {
         p_phone: phone,
         p_company: company.trim() || null,
         p_attribution: getAttribution(),
+        p_marketing_consent: aceitaMarketing,
       });
 
       if (error) throw error;
@@ -326,6 +329,25 @@ export default function Register() {
                   </span>
                 </label>
               </>
+            )}
+
+            {!iosApp && (
+              <label className="flex items-start gap-3 px-1 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={aceitaMarketing}
+                  onChange={(e) => setAceitaMarketing(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded border-slate-300 cursor-pointer"
+                  data-testid="register-marketing-consent"
+                />
+                <span className="text-[13px] text-slate-600 dark:text-zinc-400 leading-snug">
+                  Aceito receber contato do Represente-Se! por WhatsApp e e-mail e que meus dados sejam usados para medir e melhorar os anúncios (inclusive pelo Meta).{" "}
+                  <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-bold text-emerald-600 hover:underline">
+                    Política de Privacidade
+                  </a>
+                  . Opcional.
+                </span>
+              </label>
             )}
 
             <button
