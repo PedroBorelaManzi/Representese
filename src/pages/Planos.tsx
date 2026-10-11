@@ -36,7 +36,7 @@ const faqItems = [
   },
   {
     q: "Posso trocar de plano depois?",
-    a: "Sim, a qualquer momento. Se você representa mais empresas do que seu plano permite, é só fazer upgrade — o valor é ajustado proporcionalmente na próxima cobrança.",
+    a: "Sim, a qualquer momento. Se você representa mais empresas do que seu plano permite, é só fazer upgrade — você paga apenas a diferença entre os planos e as próximas cobranças já vêm no valor do plano novo.",
   },
   {
     q: "O que acontece se eu ultrapassar o limite de empresas do meu plano?",
