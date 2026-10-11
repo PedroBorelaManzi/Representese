@@ -5,7 +5,7 @@ test('Banner: aceitar em destaque e recusa discreta, mas visível e funcional', 
   await page.goto('/');
   const banner = page.getByRole('dialog', { name: 'Aviso de cookies' });
   await expect(banner).toBeVisible({ timeout: 15000 });
-  await expect(banner).toContainText('medir a origem das visitas');
+  await expect(banner).toContainText('melhor experiência ao usuário');
   const aceitar = banner.getByRole('button', { name: 'Aceitar', exact: true });
   const recusar = banner.getByRole('button', { name: 'Continuar sem aceitar' });
   await expect(aceitar).toBeVisible();

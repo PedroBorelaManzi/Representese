@@ -5,9 +5,8 @@ import { aceitarTudo, recusarNaoEssenciais, precisaDecidir } from '../lib/cookie
 /* Barra de consentimento (LGPD). Enxuta: um texto curto com link pra Política de
  * Cookies, "Aceitar" em destaque e "Rejeitar" como link de texto discreto — mas sempre
  * visível e a um clique (a ANPD não admite recusa escondida ou mais difícil que o aceite).
- * O texto precisa continuar verdadeiro sobre a finalidade (melhorar o site e medir a origem
- * das visitas, inclusive de campanhas): não reduzir a "só funcionamento", senão o aceite
- * deixa de ser informado. Ajuste fino por categoria fica em Configurações › Privacidade.
+ * O texto é genérico por decisão do dono; o detalhe das finalidades (incluindo medição de
+ * campanhas) fica na Política de Cookies, linkada em "Saiba mais". Ajuste fino por categoria fica em Configurações › Privacidade.
  *
  * Notas de mobile (iOS Safari):
  *  - respeita safe-area-inset-bottom, senão os botões ficam atrás da barra do
@@ -53,7 +52,7 @@ export default function CookieBanner() {
     >
       <div className="mx-auto max-w-2xl flex flex-col sm:flex-row sm:items-center gap-3 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 py-3 shadow-2xl shadow-slate-900/15">
         <p className="flex-1 text-[13px] leading-snug font-medium text-slate-600 dark:text-zinc-300">
-          Usamos cookies para o site funcionar melhor e medir a origem das visitas, inclusive de campanhas.{' '}
+          Usamos cookies para melhor funcionalidade do site e para promover uma melhor experiência ao usuário.{' '}
           <Link
             to="/cookies"
             className="text-emerald-600 dark:text-emerald-400 underline underline-offset-2 whitespace-nowrap"
