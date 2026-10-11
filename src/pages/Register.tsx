@@ -334,7 +334,7 @@ export default function Register() {
                 <a href="/terms" target="_blank" rel="noopener noreferrer" className="font-bold text-emerald-600 hover:underline">Termos de Serviço</a>{" "}
                 e a{" "}
                 <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-bold text-emerald-600 hover:underline">Política de Privacidade</a>
-                {" "}e aceita receber ofertas e promoções no seu e-mail/WhatsApp. Você pode cancelar quando quiser.
+                .
               </p>
             )}
 
