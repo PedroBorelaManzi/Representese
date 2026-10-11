@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { quoteUpgrade, executeDiffUpgrade, UpgradeDeps } from './upgrade.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -47,6 +48,23 @@ const asaasError = (resp: Response, data: any): string | null => {
   return null;
 };
 
+// Dependências do upgrade só-a-diferença (ver upgrade.ts).
+const makeUpgradeDeps = (supabaseAdmin: any): UpgradeDeps => ({
+  supabaseAdmin,
+  prices: PLAN_PRICES,
+  normalizePlanId,
+  asaas: async (path, init) => {
+    const resp = await fetch(`${ASAAS_API_URL}${path}`, {
+      method: init?.method || 'GET',
+      headers: { 'Content-Type': 'application/json', 'access_token': ASAAS_API_KEY! },
+      body: init?.body ? JSON.stringify(init.body) : undefined,
+    });
+    let data: any = null;
+    try { data = await resp.json(); } catch { /* sem corpo */ }
+    return { ok: resp.ok, status: resp.status, data };
+  },
+});
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -86,6 +104,13 @@ serve(async (req) => {
         if (!rlError && allowed === false) {
           return jsonResponse({ success: false, message: 'Muitas tentativas. Aguarde um minuto e tente novamente.' }, 429);
         }
+    }
+
+    // Simulação do upgrade (só leitura): quanto cobra agora e quanto passa a ser a mensalidade.
+    if (action === 'upgrade-quote') {
+      if (!ASAAS_API_KEY) return jsonResponse({ success: false, message: 'Chave API Asaas não encontrada.' })
+      const q = await quoteUpgrade(makeUpgradeDeps(supabaseAdmin), userId, canonicalPlanId, billingCycle, coupon);
+      return jsonResponse({ success: true, mode: q.mode, newValue: q.newValue, currentValue: q.currentValue, chargeNow: q.chargeNow })
     }
 
     if (action !== 'check-uniqueness') {
@@ -172,6 +197,20 @@ serve(async (req) => {
     }
 
     if (action === 'upgrade-subscription') {
+      // Com base pra comparar (assinatura mensal ativa, ou plano anual/semestral ativo): paga só a
+      // diferença e a mesma assinatura passa a cobrar o valor cheio do plano novo. Sem isso, cai no
+      // comportamento antigo abaixo (cancela e cria nova no valor cheio).
+      const deps = makeUpgradeDeps(supabaseAdmin);
+      const quote = await quoteUpgrade(deps, userId, canonicalPlanId, billingCycle, coupon);
+      if (quote.mode !== 'full') {
+        const result = await executeDiffUpgrade(deps, quote, {
+          userId, planId: canonicalPlanId, cycle: billingCycle, asaasCustomerId,
+          creditCard: creditCard ? { ...creditCard } : undefined,
+          cleanCpf, cleanPhone, email: customer.email, name: customer.name, clientIp,
+        }, (ok, status, data) => data?.errors?.length ? (data.errors[0].description || 'Pagamento recusado pela operadora.') : (!ok ? `Falha na comunicação com o gateway de pagamento (${status}).` : null));
+        return jsonResponse(result as Record<string, unknown>);
+      }
+
       // Cancela a(s) assinatura(s) ativa(s) anterior(es) antes de criar a nova,
       // pra não deixar duas assinaturas cobrando o mesmo cliente.
       const subIdsToCancel = new Set<string>();
