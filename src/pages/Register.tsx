@@ -171,10 +171,10 @@ export default function Register() {
         >
           <div className="text-center space-y-2 mb-8">
             <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-              {iosApp ? "Crie sua conta" : "Ver planos disponíveis"}
+              Crie seu acesso
             </h1>
             <p className="text-sm text-slate-500 dark:text-zinc-400 font-medium">
-              {iosApp ? "Leva menos de um minuto. Depois é só escolher o plano." : "Deixe seu contato para liberar o acesso aos planos"}
+              {iosApp || !searchParams.get("plan") ? "Leva menos de um minuto. Depois é só escolher o plano." : "Leva menos de um minuto. Depois é só finalizar a assinatura."}
             </p>
           </div>
 
