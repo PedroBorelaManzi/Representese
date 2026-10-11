@@ -42,8 +42,6 @@ export default function Register() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [aceitouTermos, setAceitouTermos] = useState(false);
-  // Consentimento de marketing (opcional). Começa DESMARCADO: caixa pré-marcada não vale como consentimento na LGPD.
-  const [aceitaMarketing, setAceitaMarketing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -126,7 +124,6 @@ export default function Register() {
         p_phone: phone,
         p_company: company.trim() || null,
         p_attribution: getAttribution(),
-        p_marketing_consent: aceitaMarketing,
       });
 
       if (error) throw error;
@@ -332,22 +329,13 @@ export default function Register() {
             )}
 
             {!iosApp && (
-              <label className="flex items-start gap-3 px-1 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={aceitaMarketing}
-                  onChange={(e) => setAceitaMarketing(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 rounded border-slate-300 cursor-pointer"
-                  data-testid="register-marketing-consent"
-                />
-                <span className="text-[13px] text-slate-600 dark:text-zinc-400 leading-snug">
-                  Desejo receber ofertas e promoções no meu e-mail/WhatsApp.{" "}
-                  <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-bold text-emerald-600 hover:underline">
-                    Política de Privacidade
-                  </a>
-                  . Opcional.
-                </span>
-              </label>
+              <p className="px-1 text-[12px] text-slate-500 dark:text-zinc-500 leading-snug" data-testid="register-notice">
+                Ao continuar, você concorda com os{" "}
+                <a href="/terms" target="_blank" rel="noopener noreferrer" className="font-bold text-emerald-600 hover:underline">Termos de Serviço</a>{" "}
+                e a{" "}
+                <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-bold text-emerald-600 hover:underline">Política de Privacidade</a>
+                {" "}e aceita receber ofertas e promoções no seu e-mail/WhatsApp. Você pode cancelar quando quiser.
+              </p>
             )}
 
             <button
