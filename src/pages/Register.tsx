@@ -341,7 +341,7 @@ export default function Register() {
                   data-testid="register-marketing-consent"
                 />
                 <span className="text-[13px] text-slate-600 dark:text-zinc-400 leading-snug">
-                  Aceito receber contato do Represente-Se! por WhatsApp e e-mail e que meus dados sejam usados para medir e melhorar os anúncios (inclusive pelo Meta).{" "}
+                  Desejo receber ofertas e promoções no meu e-mail/WhatsApp.{" "}
                   <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-bold text-emerald-600 hover:underline">
                     Política de Privacidade
                   </a>
