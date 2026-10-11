@@ -134,6 +134,14 @@ export default function Register() {
       // tudo de novo do zero minutos depois.
       saveLeadData({ name: name.trim(), email: email.trim(), phone, company: company.trim() || undefined, ref: refCode });
 
+      // Veio de um clique no plano em /planos: segue direto pro checkout dele.
+      const planParam = searchParams.get("plan")?.toLowerCase();
+      if (planParam && ["exclusivo", "profissional", "master"].includes(planParam)) {
+        const period = searchParams.get("period") === "ANNUAL" ? "ANNUAL" : "MONTHLY";
+        toast.success("Dados salvos! Agora é só finalizar.");
+        navigate(`/checkout?plan=${planParam}&period=${period}`);
+        return;
+      }
       toast.success("Agora escolha o seu plano!");
       navigate("/planos");
     } catch (err: any) {
@@ -150,16 +158,6 @@ export default function Register() {
         Voltar para a página inicial
       </Link>
 
-      {/* Atalho discreto pra quem só quer ver os planos sem preencher o
-          cadastro — /planos já é uma rota pública, então isso não pula
-          nenhuma checagem, só evita esse formulário de captura de lead.
-          No iOS não existe: sem conta criada aqui, não tem como comprar
-          via IAP em /planos. */}
-      {!iosApp && (
-        <Link to="/planos" className="absolute top-6 right-6 text-slate-300 hover:text-slate-400 dark:text-zinc-700 dark:hover:text-zinc-500 transition-colors text-[11px] font-normal z-10">
-          pular
-        </Link>
-      )}
 
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-10">

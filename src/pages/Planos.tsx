@@ -21,6 +21,7 @@ import { PlanCards } from "../components/plans/PlanCards";
 import { usePageMeta } from "../hooks/usePageMeta";
 import { isIOSApp } from "../lib/iapPolicy";
 import { supabase } from "../lib/supabase";
+import { loadLeadData } from "../lib/leadStorage";
 import { FunnelPoll } from "../components/FunnelPoll";
 import { getIosPlanPrices, purchasePlan, restorePurchases, openManageSubscriptions, IosPlanPrices } from "../lib/iap";
 
@@ -149,6 +150,12 @@ export default function Planos() {
     }
     // Checkout público: cria a conta (passo 1) e processa o pagamento (passo 2).
     // Não exige login prévio — a pessoa escolhe o plano, se cadastra e paga.
+    // Sem conta e sem cadastro de contato feito: passa antes pela tela de cadastro,
+    // que depois devolve a pessoa ao checkout do plano escolhido.
+    if (!user && !loadLeadData()) {
+      navigate(`/register?plan=${plan.id}&period=${billingCycle}`);
+      return;
+    }
     navigate(`/checkout?plan=${plan.id}&period=${billingCycle}`);
   };
 

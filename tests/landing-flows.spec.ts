@@ -58,7 +58,13 @@ test.describe('Planos: toggle e checkout', () => {
     await expect(page.locator('text=147').first()).toBeVisible();
   });
 
-  test('CTA do plano leva ao checkout com plano e período na URL', async ({ page }) => {
+  test('CTA do plano sem cadastro leva ao /register com plano e período na URL', async ({ page }) => {
+    await page.locator('button', { hasText: 'Assinar agora' }).first().click();
+    await expect(page).toHaveURL(/\/register\?plan=\w+&period=(ANNUAL|MONTHLY)/);
+  });
+
+  test('CTA do plano com cadastro já feito leva ao checkout', async ({ page }) => {
+    await page.evaluate(() => localStorage.setItem('rm_lead_data', JSON.stringify({ name: 'Maria da Silva', email: 'maria@exemplo.com', phone: '(11) 98765-4321' })));
     await page.locator('button', { hasText: 'Assinar agora' }).first().click();
     await expect(page).toHaveURL(/\/checkout\?plan=\w+&period=(ANNUAL|MONTHLY)/);
   });
