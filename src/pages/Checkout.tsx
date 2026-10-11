@@ -162,11 +162,23 @@ export default function Checkout() {
   const docValid = isCpf ? isValidCPF(cleanCpfCnpj) : isValidCNPJ(cleanCpfCnpj);
 
   const isPersonalName = formData.name.trim().split(/\s+/).filter(w => w.length > 0).length >= 2;
-  const docNameMatch = isCpf ? (isPersonalName && !/ltda|s\/?a|eireli|me|epp|cnpj/i.test(formData.name)) : (formData.name.trim().length >= 3);
+  const docNameMatch = isCpf ? (isPersonalName && !/\b(ltda|s\/?a|eireli|me|epp|cnpj)\b/i.test(formData.name)) : (formData.name.trim().length >= 3);
   const phoneValid = isValidWhatsApp(cleanPhone);
 
   const cleanCep = formData.cep.replace(/\D/g, '');
   const isAddressValid = cleanCep.length === 8 && formData.street.trim() && formData.addressNumber.trim() && formData.city.trim() && formData.state.trim();
+
+  // Por que o botão "Continuar" está travado — mostrado embaixo dele pra pessoa não ficar sem saber.
+  const step1Pendencias: string[] = [];
+  if (!formData.name.trim()) step1Pendencias.push('nome completo');
+  else if (isCpf && !docNameMatch) step1Pendencias.push('nome e sobrenome (como no documento)');
+  if (!formData.email.trim()) step1Pendencias.push('e-mail');
+  if (!formData.cpfCnpj) step1Pendencias.push('CPF ou CNPJ');
+  else if (!docValid) step1Pendencias.push(isCpf ? 'CPF válido (confira os números)' : 'CNPJ válido (confira os números)');
+  if (!phoneValid) step1Pendencias.push('WhatsApp com DDD e 9 dígitos');
+  if (!isAddressValid) step1Pendencias.push('CEP e número do endereço');
+  if (!user && !isPasswordValid) step1Pendencias.push('senha dentro das regras');
+  if (!aceitouTermos) step1Pendencias.push('aceite dos Termos');
 
   const isStep1Valid = formData.name && formData.email && formData.cpfCnpj && docValid && docNameMatch && formData.phone && phoneValid && isAddressValid && (user ? true : isPasswordValid) && aceitouTermos;
 
@@ -619,6 +631,7 @@ export default function Checkout() {
                             className={cn(inputBase, formErrors.cpfCnpj ? inputErr : inputOk)} />
                         </div>
                         {formErrors.cpfCnpj && <p className="text-[12px] text-red-500 font-bold pt-1 animate-in fade-in slide-in-from-top-1">{formErrors.cpfCnpj}</p>}
+                        {!formErrors.cpfCnpj && (cleanCpfCnpj.length === 11 || cleanCpfCnpj.length === 14) && !docValid && <p className="text-[12px] text-red-500 font-bold pt-1">{cleanCpfCnpj.length === 11 ? 'CPF inválido. Confira os números.' : 'CNPJ inválido. Confira os números.'}</p>}
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[13px] font-bold text-slate-700">WhatsApp</label>
@@ -747,6 +760,9 @@ export default function Checkout() {
                   >
                     {isCheckingUniqueness ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Continuar para pagamento <ChevronRight className="w-5 h-5" /></>}
                   </button>
+                  {!isStep1Valid && step1Pendencias.length > 0 && (
+                    <p data-testid="step1-pendencias" className="text-center text-[12px] text-amber-600 font-bold">Falta: {step1Pendencias.join(', ')}.</p>
+                  )}
                 </motion.div>
               ) : (
                 <motion.div key="step2" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} className="space-y-6">

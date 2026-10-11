@@ -67,9 +67,8 @@ test('Checkout vindo do anúncio B leva campanha, anúncio e telefone até o cad
   expect(meta.termos_aceitos_em).toBeTruthy();
 
   // etapas anônimas por anúncio (o envio é assíncrono: espera chegar)
-  await expect.poll(() => anon.map((a) => a?.step), { timeout: 15000 }).toContain('checkout_submit');
-  const passos = anon.map((a) => `${a.step}|${a.source}|${a.campaign}|${a.ad}`);
+  const passos = () => anon.map((a) => `${a.step}|${a.source}|${a.campaign}|${a.ad}`);
   for (const step of ['planos_view', 'checkout_view', 'checkout_step2', 'checkout_submit']) {
-    expect(passos).toContain(`${step}|meta|ciclo1-trafego-ig-out26|B-planos-caderno`);
+    await expect.poll(passos, { timeout: 15000 }).toContain(`${step}|meta|ciclo1-trafego-ig-out26|B-planos-caderno`);
   }
 });
