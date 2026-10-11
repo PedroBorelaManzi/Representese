@@ -2,8 +2,10 @@
 //
 // Antes: o upgrade cancelava a assinatura atual e criava outra no valor cheio, cobrando tudo na hora
 // (sem crédito pelo que já foi pago). Agora, quando há uma assinatura mensal ativa, a pessoa paga só
-// a diferença entre o plano novo e o valor que ela paga hoje, e a MESMA assinatura passa a cobrar o
-// valor do plano novo nas próximas mensalidades. Anual/semestral (cobrança avulsa, sem assinatura):
+// a diferença entre o plano novo e o valor que ela paga hoje (cobrança avulsa) e a assinatura mensal
+// passa a cobrar o valor do plano novo na MESMA data de renovação. O Asaas não deixa alterar o valor de
+// uma assinatura de cartão que já tem fatura paga, então criamos a nova (com a data da renovação atual)
+// e só depois cancelamos a antiga. Anual/semestral (cobrança avulsa, sem assinatura):
 // paga a diferença entre os dois planos do mesmo ciclo. Sem base pra comparar → comportamento antigo
 // (modo 'full').
 //
@@ -32,6 +34,8 @@ export interface UpgradeQuote {
   /** Quanto cobrar agora. */
   chargeNow: number;
   subscriptionId: string | null;
+  /** Próxima cobrança da assinatura atual (a nova assinatura herda essa data). */
+  nextDueDate?: string | null;
 }
 
 interface SavedCardToken { token: string; brand: string | null; last4: string | null }
@@ -78,9 +82,13 @@ export async function quoteUpgrade(d: UpgradeDeps, userId: string, planId: strin
     const cur = Number(r.data?.value);
     if (r.ok && r.data?.status === 'ACTIVE' && cur > 0) {
       const diff = round2(newValue - cur);
-      const chargeNow = diff > 0 ? Math.max(diff, MIN_CHARGE) : 0;
-      const saved = chargeNow > 0 ? await findSavedCard(d, st.asaas_subscription_id) : null;
-      return { mode: 'diff_subscription', newValue, currentValue: cur, chargeNow, subscriptionId: st.asaas_subscription_id, savedCard: saved ? { brand: saved.brand, last4: saved.last4 } : null };
+      // Se a diferença já foi paga numa tentativa anterior (o webhook do pagamento já pôs a pessoa no plano
+      // novo) e só faltou trocar a assinatura, não cobra de novo: só conclui a troca.
+      const { data: ent0 } = await d.supabaseAdmin.from('user_entitlements').select('plan_id').eq('user_id', userId).maybeSingle();
+      const jaPagou = !!ent0?.plan_id && ent0.plan_id !== 'none' && d.normalizePlanId(ent0.plan_id) === planId;
+      const chargeNow = !jaPagou && diff > 0 ? Math.max(diff, MIN_CHARGE) : 0;
+      const saved = await findSavedCard(d, st.asaas_subscription_id);
+      return { mode: 'diff_subscription', newValue, currentValue: cur, chargeNow, subscriptionId: st.asaas_subscription_id, nextDueDate: r.data?.nextDueDate ?? null, savedCard: saved ? { brand: saved.brand, last4: saved.last4 } : null };
     }
   }
 
@@ -116,61 +124,82 @@ export interface DiffUpgradeInput {
 
 export async function executeDiffUpgrade(d: UpgradeDeps, q: UpgradeQuote, i: DiffUpgradeInput, asaasError: (ok: boolean, status: number, data: any) => string | null): Promise<{ success: boolean; message?: string; chargedNow?: number; newValue?: number }> {
   const description = `Plano ${i.planId} - ${i.cycle}`;
+  const today = new Date().toISOString().split('T')[0];
 
-  if (q.chargeNow > 0) {
-    const base = {
-      customer: i.asaasCustomerId,
-      billingType: 'CREDIT_CARD',
-      value: q.chargeNow,
-      dueDate: new Date().toISOString().split('T')[0],
-      description,
-      externalReference: i.userId,
-      remoteIp: i.clientIp,
-    };
-    let cardPart: Record<string, unknown>;
-    if (i.useSavedCard && q.subscriptionId) {
-      const saved = await findSavedCard(d, q.subscriptionId);
-      if (!saved) return { success: false, message: 'Não encontramos o cartão salvo. Informe os dados do cartão para continuar.' };
-      cardPart = { creditCardToken: saved.token };
-    } else {
-      if (!i.creditCard) return { success: false, message: 'Dados do cartão incompletos. Verifique e tente novamente.' };
-      // CEP e número do titular: usa os do cadastro (guardados no checkout) em vez de pedir de novo.
-      let postalCode = i.creditCard.postalCode;
-      let addressNumber = i.creditCard.addressNumber;
-      if (!postalCode || !addressNumber) {
-        const { data: st } = await d.supabaseAdmin.from('user_settings').select('billing_cep, billing_number').eq('user_id', i.userId).maybeSingle();
-        postalCode = postalCode || st?.billing_cep;
-        addressNumber = addressNumber || st?.billing_number;
-      }
-      if (!postalCode || !addressNumber) return { success: false, message: 'Faltam o CEP e o número do endereço no seu cadastro. Fale com o suporte pelo WhatsApp.' };
-      cardPart = {
-        creditCard: {
-          holderName: i.creditCard.holderName, number: i.creditCard.number,
-          expiryMonth: i.creditCard.expiryMonth, expiryYear: i.creditCard.expiryYear, ccv: i.creditCard.ccv,
-        },
-        creditCardHolderInfo: {
-          name: i.creditCard.holderName || i.name, email: i.email, cpfCnpj: i.cleanCpf,
-          postalCode: String(postalCode).replace(/\D/g, ''), addressNumber: String(addressNumber),
-          phone: i.cleanPhone, mobilePhone: i.cleanPhone,
-        },
-      };
+  // 1) Cartão (salvo ou digitado) — conferido ANTES de cobrar ou mudar qualquer coisa.
+  let cardPart: Record<string, unknown> | null = null;
+  if (i.useSavedCard && q.subscriptionId) {
+    const saved = await findSavedCard(d, q.subscriptionId);
+    if (!saved) return { success: false, message: 'Não encontramos o cartão salvo. Informe os dados do cartão para continuar.' };
+    cardPart = { creditCardToken: saved.token };
+  } else if (i.creditCard) {
+    // CEP e número do titular: usa os do cadastro (guardados no checkout) em vez de pedir de novo.
+    let postalCode = i.creditCard.postalCode;
+    let addressNumber = i.creditCard.addressNumber;
+    if (!postalCode || !addressNumber) {
+      const { data: st } = await d.supabaseAdmin.from('user_settings').select('billing_cep, billing_number').eq('user_id', i.userId).maybeSingle();
+      postalCode = postalCode || st?.billing_cep;
+      addressNumber = addressNumber || st?.billing_number;
     }
-    const pay = await d.asaas('/payments', { method: 'POST', body: { ...base, ...cardPart } });
+    if (!postalCode || !addressNumber) return { success: false, message: 'Faltam o CEP e o número do endereço no seu cadastro. Fale com o suporte pelo WhatsApp.' };
+    cardPart = {
+      creditCard: {
+        holderName: i.creditCard.holderName, number: i.creditCard.number,
+        expiryMonth: i.creditCard.expiryMonth, expiryYear: i.creditCard.expiryYear, ccv: i.creditCard.ccv,
+      },
+      creditCardHolderInfo: {
+        name: i.creditCard.holderName || i.name, email: i.email, cpfCnpj: i.cleanCpf,
+        postalCode: String(postalCode).replace(/\D/g, ''), addressNumber: String(addressNumber),
+        phone: i.cleanPhone, mobilePhone: i.cleanPhone,
+      },
+    };
+  } else if (q.subscriptionId) {
+    // Sem diferença a cobrar e sem cartão informado: a assinatura nova usa o cartão já salvo.
+    const saved = await findSavedCard(d, q.subscriptionId);
+    if (saved) cardPart = { creditCardToken: saved.token };
+  }
+  if (!cardPart && (q.chargeNow > 0 || q.subscriptionId)) return { success: false, message: 'Dados do cartão incompletos. Verifique e tente novamente.' };
+
+  // 2) Cobra a diferença agora (avulsa, no cartão).
+  if (q.chargeNow > 0) {
+    const pay = await d.asaas('/payments', {
+      method: 'POST',
+      body: {
+        customer: i.asaasCustomerId, billingType: 'CREDIT_CARD', value: q.chargeNow, dueDate: today,
+        description, externalReference: i.userId, remoteIp: i.clientIp, ...(cardPart as object),
+      },
+    });
     const err = asaasError(pay.ok, pay.status, pay.data);
     if (err || !pay.data?.id) return { success: false, message: err || 'Não foi possível cobrar a diferença do upgrade.' };
+    // Se o cartão foi digitado, o Asaas devolve o token: a assinatura nova usa o token, sem reenviar o cartão.
+    const tok = pay.data?.creditCard?.creditCardToken;
+    if (tok) cardPart = { creditCardToken: tok };
   }
 
-  // A mesma assinatura passa a cobrar o valor cheio do plano novo (e a descrição nova mantém o plano
-  // certo no webhook das próximas cobranças).
+  // 3) Assinatura mensal: cria a nova no valor cheio do plano novo, com a MESMA data de renovação, e só
+  //    então cancela a antiga (o Asaas não permite mudar o valor de assinatura de cartão já paga).
   if (q.subscriptionId) {
-    const upd = await d.asaas(`/subscriptions/${q.subscriptionId}`, {
-      method: 'PUT',
-      body: { value: q.newValue, description, updatePendingPayments: true },
+    const due = q.nextDueDate && q.nextDueDate > today ? q.nextDueDate : new Date(Date.now() + 86400000).toISOString().split('T')[0];
+    const created = await d.asaas('/subscriptions', {
+      method: 'POST',
+      body: {
+        customer: i.asaasCustomerId, billingType: 'CREDIT_CARD', value: q.newValue, nextDueDate: due, cycle: 'MONTHLY',
+        description, externalReference: i.userId, remoteIp: i.clientIp, ...(cardPart as object),
+      },
     });
-    if (!upd.ok) {
-      console.error('Upgrade: diferença cobrada, mas falhou atualizar a assinatura', q.subscriptionId, upd.status, JSON.stringify(upd.data).slice(0, 300));
-      return { success: false, message: `Cobramos a diferença de R$ ${q.chargeNow.toFixed(2).replace('.', ',')}, mas não conseguimos atualizar sua assinatura. Fale com o suporte pelo WhatsApp que ajustamos na hora.` };
+    const newId = created.data?.id;
+    if (!created.ok || !newId) {
+      console.error('Upgrade: diferença cobrada, mas falhou criar a nova assinatura', created.status, JSON.stringify(created.data).slice(0, 300));
+      return { success: false, message: q.chargeNow > 0 ? `Cobramos a diferença de R$ ${q.chargeNow.toFixed(2).replace('.', ',')}, mas não conseguimos concluir a troca da assinatura. Não tente de novo: fale com o suporte pelo WhatsApp que ajustamos na hora.` : 'Não foi possível concluir a troca da assinatura. Tente novamente.' };
     }
+    const del = await d.asaas(`/subscriptions/${q.subscriptionId}`, { method: 'DELETE' });
+    if (!del.ok) {
+      // Duas assinaturas ativas cobrariam em dobro: desfaz a nova e avisa.
+      console.error('Upgrade: não conseguiu cancelar a assinatura antiga', q.subscriptionId, del.status, JSON.stringify(del.data).slice(0, 300));
+      await d.asaas(`/subscriptions/${newId}`, { method: 'DELETE' });
+      return { success: false, message: 'Não conseguimos concluir a troca da assinatura. Não tente de novo: fale com o suporte pelo WhatsApp que ajustamos na hora.' };
+    }
+    await d.supabaseAdmin.from('user_settings').update({ asaas_subscription_id: newId, cancel_at_period_end: false }).eq('user_id', i.userId);
   }
 
   await d.supabaseAdmin.from('user_entitlements').update({ plan_id: i.planId, updated_at: new Date().toISOString() }).eq('user_id', i.userId);

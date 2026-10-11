@@ -9,7 +9,7 @@ const prices = {
 };
 const normalizePlanId = (v: string) => (v?.includes('master') ? 'master' : v?.includes('exclusivo') ? 'exclusivo' : 'profissional');
 
-function mk(opts: { subId?: string | null; sub?: any; ent?: any; coupon?: any; referral?: number; putOk?: boolean; payOk?: boolean; noToken?: boolean }) {
+function mk(opts: { subId?: string | null; sub?: any; ent?: any; coupon?: any; referral?: number; createOk?: boolean; delOk?: boolean; payOk?: boolean; noToken?: boolean }) {
   const calls: { path: string; method?: string; body?: any }[] = [];
   const updates: any[] = [];
   const table = (name: string) => ({
@@ -32,8 +32,9 @@ function mk(opts: { subId?: string | null; sub?: any; ent?: any; coupon?: any; r
       calls.push({ path, method: init?.method, body: init?.body });
       if (path.startsWith('/payments?subscription=') && !init?.method) return { ok: true, status: 200, data: { data: [{ id: 'pay_old', creditCard: opts.noToken ? {} : { creditCardToken: 'tok_1', creditCardBrand: 'VISA', creditCardNumber: '1234' } }] } };
       if (path.startsWith('/subscriptions/') && !init?.method) return { ok: true, status: 200, data: opts.sub };
-      if (path.startsWith('/subscriptions/') && init?.method === 'PUT') return opts.putOk === false ? { ok: false, status: 500, data: {} } : { ok: true, status: 200, data: { id: 'sub_1' } };
-      if (path === '/payments') return opts.payOk === false ? { ok: false, status: 400, data: { errors: [{ description: 'Cartão recusado' }] } } : { ok: true, status: 200, data: { id: 'pay_1' } };
+      if (path === '/subscriptions' && init?.method === 'POST') return opts.createOk === false ? { ok: false, status: 400, data: { errors: [{ description: 'erro' }] } } : { ok: true, status: 200, data: { id: 'sub_new' } };
+      if (path.startsWith('/subscriptions/') && init?.method === 'DELETE') return opts.delOk === false ? { ok: false, status: 500, data: {} } : { ok: true, status: 200, data: { deleted: true } };
+      if (path === '/payments') return opts.payOk === false ? { ok: false, status: 400, data: { errors: [{ description: 'Cartão recusado' }] } } : { ok: true, status: 200, data: { id: 'pay_1', creditCard: { creditCardToken: 'tok_new' } } };
       return { ok: false, status: 404, data: {} };
     },
   };
@@ -45,7 +46,7 @@ const input = { userId: 'u1', planId: 'master', cycle: 'MONTHLY', asaasCustomerI
 
 describe('quoteUpgrade', () => {
   it('mensal com assinatura ativa: cobra só a diferença (147 → 197 = 50) e o novo valor cheio fica 197', async () => {
-    const { deps } = mk({ subId: 'sub_1', sub: { status: 'ACTIVE', value: 147 } });
+    const { deps } = mk({ subId: 'sub_1', sub: { status: 'ACTIVE', value: 147, nextDueDate: '2099-12-01' } });
     const q = await quoteUpgrade(deps, 'u1', 'master', 'MONTHLY');
     expect(q).toMatchObject({ mode: 'diff_subscription', newValue: 197, currentValue: 147, chargeNow: 50, subscriptionId: 'sub_1' });
   });
@@ -55,7 +56,7 @@ describe('quoteUpgrade', () => {
     expect(q.chargeNow).toBe(189.65);
   });
   it('cupom no plano novo reduz o novo valor e a diferença', async () => {
-    const { deps } = mk({ subId: 'sub_1', sub: { status: 'ACTIVE', value: 147 }, coupon: { active: true, discount_percent: 10, applies_to_plans: null } });
+    const { deps } = mk({ subId: 'sub_1', sub: { status: 'ACTIVE', value: 147, nextDueDate: '2099-12-01' }, coupon: { active: true, discount_percent: 10, applies_to_plans: null } });
     const q = await quoteUpgrade(deps, 'u1', 'master', 'MONTHLY', 'promo');
     expect(q.newValue).toBe(177.3);
     expect(q.chargeNow).toBe(30.3);
@@ -83,9 +84,10 @@ describe('quoteUpgrade', () => {
 });
 
 describe('executeDiffUpgrade', () => {
-  it('cobra a diferença no cartão, atualiza a MESMA assinatura pro valor novo e grava o plano', async () => {
-    const { deps, calls, updates } = mk({ subId: 'sub_1', sub: { status: 'ACTIVE', value: 147 } });
+  it('cobra a diferença, cria a assinatura nova (mesma data de renovação, token do cartão), cancela a antiga e grava tudo', async () => {
+    const { deps, calls, updates } = mk({ subId: 'sub_1', sub: { status: 'ACTIVE', value: 147, nextDueDate: '2099-12-01' } });
     const q = await quoteUpgrade(deps, 'u1', 'master', 'MONTHLY');
+    expect(q.nextDueDate).toBe('2099-12-01');
     calls.length = 0;
     const r = await executeDiffUpgrade(deps, q, input, err);
     expect(r).toEqual({ success: true, chargedNow: 50, newValue: 197 });
@@ -93,37 +95,71 @@ describe('executeDiffUpgrade', () => {
     expect(pay.body.value).toBe(50);
     expect(pay.body.description).toBe('Plano master - MONTHLY');
     expect(pay.body.externalReference).toBe('u1');
-    const put = calls.find((c) => c.method === 'PUT')!;
-    expect(put.path).toBe('/subscriptions/sub_1');
-    expect(put.body).toMatchObject({ value: 197, description: 'Plano master - MONTHLY', updatePendingPayments: true });
-    expect(calls.some((c) => c.method === 'DELETE')).toBe(false); // não cancela nada
+    const created = calls.find((c) => c.path === '/subscriptions' && c.method === 'POST')!;
+    expect(created.body).toMatchObject({ value: 197, nextDueDate: '2099-12-01', cycle: 'MONTHLY', description: 'Plano master - MONTHLY', externalReference: 'u1', creditCardToken: 'tok_new' });
+    expect(created.body.creditCard).toBeUndefined(); // não reenvia o número do cartão
+    expect(calls.some((c) => c.method === 'PUT')).toBe(false); // o Asaas não aceita mudar o valor
+    const ordem = calls.map((c) => `${c.method || 'GET'} ${c.path}`);
+    expect(ordem.indexOf('POST /subscriptions')).toBeLessThan(ordem.indexOf('DELETE /subscriptions/sub_1')); // cria antes de cancelar
+    expect(updates).toContainEqual({ name: 'user_settings', v: expect.objectContaining({ asaas_subscription_id: 'sub_new', cancel_at_period_end: false }) });
     expect(updates).toContainEqual({ name: 'user_entitlements', v: expect.objectContaining({ plan_id: 'master' }) });
   });
-  it('cartão recusado: nada muda (não mexe na assinatura nem no plano)', async () => {
-    const { deps, calls, updates } = mk({ subId: 'sub_1', sub: { status: 'ACTIVE', value: 147 }, payOk: false });
+  it('cartão recusado: nada muda (não cria nem cancela assinatura, não grava plano)', async () => {
+    const { deps, calls, updates } = mk({ subId: 'sub_1', sub: { status: 'ACTIVE', value: 147, nextDueDate: '2099-12-01' }, payOk: false });
     const q = await quoteUpgrade(deps, 'u1', 'master', 'MONTHLY');
     calls.length = 0;
     const r = await executeDiffUpgrade(deps, q, input, err);
     expect(r).toEqual({ success: false, message: 'Cartão recusado' });
-    expect(calls.some((c) => c.method === 'PUT')).toBe(false);
+    expect(calls.filter((c) => c.path.startsWith('/subscriptions'))).toHaveLength(0);
     expect(updates).toHaveLength(0);
   });
-  it('cobrou mas falhou atualizar a assinatura: avisa e não grava o plano', async () => {
-    const { deps, updates } = mk({ subId: 'sub_1', sub: { status: 'ACTIVE', value: 147 }, putOk: false });
+  it('cobrou mas falhou criar a assinatura nova: não cancela a antiga, avisa para não repetir', async () => {
+    const { deps, calls, updates } = mk({ subId: 'sub_1', sub: { status: 'ACTIVE', value: 147, nextDueDate: '2099-12-01' }, createOk: false });
     const q = await quoteUpgrade(deps, 'u1', 'master', 'MONTHLY');
+    calls.length = 0;
     const r = await executeDiffUpgrade(deps, q, input, err);
     expect(r.success).toBe(false);
     expect(r.message).toContain('Cobramos a diferença de R$ 50,00');
+    expect(r.message).toContain('Não tente de novo');
+    expect(calls.some((c) => c.method === 'DELETE')).toBe(false);
     expect(updates).toHaveLength(0);
   });
-  it('diferença zero: não cobra cartão, só atualiza a assinatura', async () => {
-    const { deps, calls } = mk({ subId: 'sub_1', sub: { status: 'ACTIVE', value: 300 } });
+  it('não conseguiu cancelar a antiga: desfaz a nova pra não cobrar em dobro', async () => {
+    const { deps, calls, updates } = mk({ subId: 'sub_1', sub: { status: 'ACTIVE', value: 147, nextDueDate: '2099-12-01' }, delOk: false });
+    const q = await quoteUpgrade(deps, 'u1', 'master', 'MONTHLY');
+    calls.length = 0;
+    const r = await executeDiffUpgrade(deps, q, input, err);
+    expect(r.success).toBe(false);
+    expect(calls.filter((c) => c.method === 'DELETE').map((c) => c.path)).toEqual(['/subscriptions/sub_1', '/subscriptions/sub_new']);
+    expect(updates).toHaveLength(0);
+  });
+  it('data de renovação já passada: a nova assinatura começa amanhã (nunca cobra "retroativo")', async () => {
+    const { deps, calls } = mk({ subId: 'sub_1', sub: { status: 'ACTIVE', value: 147, nextDueDate: '2000-01-01' } });
+    const q = await quoteUpgrade(deps, 'u1', 'master', 'MONTHLY');
+    calls.length = 0;
+    await executeDiffUpgrade(deps, q, input, err);
+    const due = calls.find((c) => c.path === '/subscriptions' && c.method === 'POST')!.body.nextDueDate;
+    expect(due > new Date().toISOString().split('T')[0]).toBe(true);
+  });
+  it('diferença zero: não cobra, cria a assinatura nova usando o cartão salvo e cancela a antiga', async () => {
+    const { deps, calls } = mk({ subId: 'sub_1', sub: { status: 'ACTIVE', value: 300, nextDueDate: '2099-12-01' } });
     const q = await quoteUpgrade(deps, 'u1', 'master', 'MONTHLY');
     calls.length = 0;
     const r = await executeDiffUpgrade(deps, q, { ...input, creditCard: undefined }, err);
     expect(r.success).toBe(true);
     expect(calls.some((c) => c.path === '/payments')).toBe(false);
-    expect(calls.find((c) => c.method === 'PUT')!.body.value).toBe(197);
+    const created = calls.find((c) => c.path === '/subscriptions' && c.method === 'POST')!;
+    expect(created.body).toMatchObject({ value: 197, creditCardToken: 'tok_1' });
+  });
+  it('diferença já paga numa tentativa anterior (plano já é o novo, assinatura ainda no valor antigo): não cobra de novo, só troca a assinatura', async () => {
+    const { deps, calls } = mk({ subId: 'sub_1', sub: { status: 'ACTIVE', value: 7.35, nextDueDate: '2099-12-01' }, ent: { plan_id: 'master', subscription_status: 'active', billing_cycle: 'MONTHLY' } });
+    const q = await quoteUpgrade(deps, 'u1', 'master', 'MONTHLY');
+    expect(q.chargeNow).toBe(0);
+    calls.length = 0;
+    const r = await executeDiffUpgrade(deps, q, { ...input, creditCard: undefined, useSavedCard: true }, err);
+    expect(r.success).toBe(true);
+    expect(calls.some((c) => c.path === '/payments')).toBe(false);
+    expect(calls.find((c) => c.path === '/subscriptions' && c.method === 'POST')!.body.value).toBe(197);
   });
   it('anual: cobra a diferença avulsa e não mexe em assinatura', async () => {
     const { deps, calls } = mk({ ent: { plan_id: 'profissional', billing_cycle: 'ANNUAL', subscription_status: 'active' } });
@@ -135,7 +171,7 @@ describe('executeDiffUpgrade', () => {
   });
 
   it('cartão salvo: cobra a diferença com o token (sem dados de cartão nem endereço) e a quote mostra só marca e final', async () => {
-    const { deps, calls } = mk({ subId: 'sub_1', sub: { status: 'ACTIVE', value: 147 } });
+    const { deps, calls } = mk({ subId: 'sub_1', sub: { status: 'ACTIVE', value: 147, nextDueDate: '2099-12-01' } });
     const q = await quoteUpgrade(deps, 'u1', 'master', 'MONTHLY');
     expect(q.savedCard).toEqual({ brand: 'VISA', last4: '1234' });
     expect(JSON.stringify(q)).not.toContain('tok_1');
@@ -150,7 +186,7 @@ describe('executeDiffUpgrade', () => {
     expect(pay.body.value).toBe(50);
   });
   it('cartão salvo pedido mas não encontrado: não cobra e pede o cartão', async () => {
-    const { deps, calls } = mk({ subId: 'sub_1', sub: { status: 'ACTIVE', value: 147 }, noToken: true });
+    const { deps, calls } = mk({ subId: 'sub_1', sub: { status: 'ACTIVE', value: 147, nextDueDate: '2099-12-01' }, noToken: true });
     const q = await quoteUpgrade(deps, 'u1', 'master', 'MONTHLY');
     expect(q.savedCard).toBeNull();
     calls.length = 0;
@@ -159,7 +195,7 @@ describe('executeDiffUpgrade', () => {
     expect(calls.some((c) => c.path === '/payments')).toBe(false);
   });
   it('cartão novo sem CEP/número: usa o endereço do cadastro', async () => {
-    const { deps, calls } = mk({ subId: 'sub_1', sub: { status: 'ACTIVE', value: 147 } });
+    const { deps, calls } = mk({ subId: 'sub_1', sub: { status: 'ACTIVE', value: 147, nextDueDate: '2099-12-01' } });
     const q = await quoteUpgrade(deps, 'u1', 'master', 'MONTHLY');
     calls.length = 0;
     const { postalCode, addressNumber, ...semEndereco } = card;
