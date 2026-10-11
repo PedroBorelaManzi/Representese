@@ -143,7 +143,9 @@ async function sendMetaSubscribe(email: string | null, phone: string | null, use
       data: [{
         event_name: 'Subscribe',
         event_time: Math.floor(Date.now() / 1000),
-        event_id: paymentId ? `sub_${paymentId}` : undefined,
+        // Mesmo id do Subscribe do navegador (metaSubscribe → `sub_${userId}`): a Meta junta os dois
+        // em 1 evento em vez de contar a assinatura em dobro.
+        event_id: `sub_${userId}`,
         action_source: 'website',
         event_source_url: 'https://www.representese.com/checkout',
         user_data: userData,
