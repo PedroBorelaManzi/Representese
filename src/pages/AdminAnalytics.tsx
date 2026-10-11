@@ -1,6 +1,7 @@
 import React, { useState, lazy, Suspense } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
+import { segmentLabel } from '../lib/segments';
 import { useSettings } from '../contexts/SettingsContext';
 import { Navigate } from 'react-router-dom';
 import { BarChart3, Clock, LayoutDashboard, MousePointerClick, Search, ChevronDown, ChevronUp, User, Users, LineChart, Download, Building2, Phone, UserCog, Settings as SettingsIcon, X, Trash2, Mail, Loader2, ShieldAlert, Map as MapIcon, Filter, Instagram } from 'lucide-react';
@@ -241,7 +242,7 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
       // reflete se o usuário realmente pagou. A fonte de verdade da assinatura é
       // user_entitlements, atualizada pelo webhook do Asaas em cada pagamento.
       const [{ data: leads, error: leadsError }, { data: entitlements, error: entError }] = await Promise.all([
-        supabase.from('user_settings').select('user_id, email, phone, created_at, is_admin, billing_cep, billing_street, billing_number, billing_complement, billing_neighborhood, billing_city, billing_state').order('created_at', { ascending: false }),
+        supabase.from('user_settings').select('user_id, email, phone, created_at, is_admin, billing_cep, billing_street, billing_number, billing_complement, billing_neighborhood, billing_city, billing_state, segments, segment_other').order('created_at', { ascending: false }),
         supabase.from('user_entitlements').select('user_id, subscription_status, plan_id'),
       ]);
       if (leadsError) throw leadsError;
@@ -988,11 +989,13 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
                     <th className="px-6 py-4">E-mail</th>
                     <th className="px-6 py-4">WhatsApp</th>
                     <th className="px-6 py-4">Endereço</th>
+                    <th className="px-6 py-4">Área de atuação</th>
                     <th className="px-6 py-4">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-zinc-800">
                   {leadsData?.map(lead => {
+                    const areas = [...(lead.segments || []).map(segmentLabel), lead.segment_other && `Outro: ${lead.segment_other}`].filter(Boolean).join(', ');
                     const enderecoCompleto = [
                       lead.billing_street && `${lead.billing_street}, ${lead.billing_number || 'S/N'}`,
                       lead.billing_complement,
@@ -1013,6 +1016,9 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
                       </td>
                       <td className="px-6 py-4 text-slate-600 dark:text-zinc-300" title={enderecoCompleto || undefined}>
                         {cidadeUf || '-'}
+                      </td>
+                      <td className="px-6 py-4 text-slate-600 dark:text-zinc-300 max-w-[260px] truncate" title={areas || undefined}>
+                        {areas || '-'}
                       </td>
                       <td className="px-6 py-4">
                         <span className={cn(
