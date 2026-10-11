@@ -2,9 +2,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { aceitarTudo, recusarNaoEssenciais, precisaDecidir } from '../lib/cookieConsent';
 
-/* Barra de consentimento (LGPD). Enxuta: um texto com link pra Política de
- * Cookies + "Aceitar" e "Rejeitar" com o mesmo peso (exigência da ANPD).
- * Ajuste fino por categoria fica em Configurações › Privacidade.
+/* Barra de consentimento (LGPD). Enxuta: um texto curto com link pra Política de
+ * Cookies, "Aceitar" em destaque e "Rejeitar" como link de texto discreto — mas sempre
+ * visível e a um clique (a ANPD não admite recusa escondida ou mais difícil que o aceite).
+ * O texto precisa continuar verdadeiro sobre a finalidade (melhorar o site e medir a origem
+ * das visitas, inclusive de campanhas): não reduzir a "só funcionamento", senão o aceite
+ * deixa de ser informado. Ajuste fino por categoria fica em Configurações › Privacidade.
  *
  * Notas de mobile (iOS Safari):
  *  - respeita safe-area-inset-bottom, senão os botões ficam atrás da barra do
@@ -50,35 +53,35 @@ export default function CookieBanner() {
     >
       <div className="mx-auto max-w-2xl flex flex-col sm:flex-row sm:items-center gap-3 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 py-3 shadow-2xl shadow-slate-900/15">
         <p className="flex-1 text-[13px] leading-snug font-medium text-slate-600 dark:text-zinc-300">
-          Usamos cookies para o funcionamento do app e, com seu aceite, para análise de uso.{' '}
+          Usamos cookies para o site funcionar melhor e medir a origem das visitas, inclusive de campanhas.{' '}
           <Link
             to="/cookies"
             className="text-emerald-600 dark:text-emerald-400 underline underline-offset-2 whitespace-nowrap"
             onClick={() => setVisivel(false)}
           >
-            Política de Cookies
+            Saiba mais
           </Link>
         </p>
-        <div className="flex gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={() => {
-              recusarNaoEssenciais();
-              setVisivel(false);
-            }}
-            className="flex-1 sm:flex-none min-h-[44px] px-5 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 text-xs font-black uppercase tracking-widest active:bg-slate-200 dark:active:bg-zinc-700 transition-colors"
-          >
-            Rejeitar
-          </button>
+        <div className="flex flex-col items-stretch sm:items-center gap-1 shrink-0">
           <button
             type="button"
             onClick={() => {
               aceitarTudo();
               setVisivel(false);
             }}
-            className="flex-1 sm:flex-none min-h-[44px] px-5 rounded-xl bg-emerald-600 text-white text-xs font-black uppercase tracking-widest active:bg-emerald-700 transition-colors"
+            className="min-h-[44px] px-8 rounded-xl bg-emerald-600 text-white text-xs font-black uppercase tracking-widest active:bg-emerald-700 transition-colors"
           >
             Aceitar
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              recusarNaoEssenciais();
+              setVisivel(false);
+            }}
+            className="min-h-[44px] sm:min-h-[32px] px-2 text-[11px] font-medium text-slate-400 dark:text-zinc-500 underline underline-offset-2 hover:text-slate-500 dark:hover:text-zinc-400 transition-colors"
+          >
+            Continuar sem aceitar
           </button>
         </div>
       </div>
