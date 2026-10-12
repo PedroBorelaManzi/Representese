@@ -22,6 +22,9 @@ export type Attribution = Partial<Record<(typeof PARAMS)[number], string>> & {
   /** Primeira página vista nesta origem (ex.: "/register"). */
   landing?: string;
   captured_at?: string;
+  /** Cookies do pixel da Meta (_fbp/_fbc), lidos na hora de gravar o cadastro/conta — ligam a venda ao anúncio. */
+  fbp?: string;
+  fbc?: string;
 };
 
 const limpa = (v: string | null | undefined) => (v ?? '').trim().slice(0, 200) || undefined;
@@ -101,8 +104,22 @@ export function captureAttribution(): void {
   });
 }
 
-/** Origem guardada (localStorage com aceite, senão a da sessão). null se não há. */
+function cookie(nome: string): string | undefined {
+  try {
+    const m = document.cookie.match(new RegExp(`(?:^|; )${nome}=([^;]*)`));
+    return m ? decodeURIComponent(m[1]).slice(0, 200) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Origem guardada (localStorage com aceite, senão a da sessão). null se não há.
+ *  Junta os cookies _fbp/_fbc do pixel da Meta, que só existem depois do aceite de cookies. */
 export function getAttribution(): Attribution | null {
-  return ler(typeof localStorage !== 'undefined' ? localStorage : undefined)
+  const base = ler(typeof localStorage !== 'undefined' ? localStorage : undefined)
     ?? ler(typeof sessionStorage !== 'undefined' ? sessionStorage : undefined);
+  const fbp = typeof document !== 'undefined' ? cookie('_fbp') : undefined;
+  const fbc = typeof document !== 'undefined' ? cookie('_fbc') : undefined;
+  if (!fbp && !fbc) return base;
+  return { ...(base ?? {}), ...(fbp ? { fbp } : {}), ...(fbc ? { fbc } : {}) };
 }
