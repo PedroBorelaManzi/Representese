@@ -63,7 +63,7 @@ export default function Planos() {
   );
   const [billingCycle, setBillingCycle] = useState<'MONTHLY' | 'ANNUAL'>('MONTHLY');
   const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const { settings, refetchSettings } = useSettings();
   const navigate = useNavigate();
   const iosApp = isIOSApp();
@@ -407,6 +407,19 @@ export default function Planos() {
               <Link to="/terms" className="text-emerald-600 dark:text-emerald-400 underline">Termos de Uso</Link>
               <Link to="/privacy" className="text-emerald-600 dark:text-emerald-400 underline">Política de Privacidade</Link>
             </div>
+            {user && (
+              <div className="mt-6 pt-5 border-t border-slate-100 dark:border-zinc-800">
+                {user.email && <p className="text-[11px] text-slate-400 dark:text-zinc-500 break-all mb-2">Conectado como {user.email}</p>}
+                <button
+                  type="button"
+                  data-testid="planos-sair"
+                  onClick={async () => { try { await signOut(); } finally { navigate('/login', { replace: true }); } }}
+                  className="text-[12px] font-bold text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200 underline"
+                >
+                  Sair e entrar com outra conta
+                </button>
+              </div>
+            )}
           </div>
         ) : (
         <div className="max-w-3xl mx-auto p-8 md:p-10 bg-white dark:bg-zinc-900 rounded-3xl border border-slate-100 dark:border-zinc-800 text-center">

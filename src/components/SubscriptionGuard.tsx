@@ -2,16 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { useSettings } from '../contexts/SettingsContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { ShieldAlert, CreditCard, ExternalLink, MessageCircle, Loader2, Sparkles, ArrowRight } from 'lucide-react';
+import { ShieldAlert, CreditCard, ExternalLink, MessageCircle, Loader2, Sparkles, ArrowRight, LogOut } from 'lucide-react';
 import { Logo } from './Logo';
 import { toast } from 'sonner';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { isIOSApp } from '../lib/iapPolicy';
 import { openManageSubscriptions } from '../lib/iap';
 
 export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
   const { settings, loading: settingsLoading, refetchSettings } = useSettings();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
   const [, setTick] = useState(0);
 
@@ -124,6 +126,29 @@ export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Quem entrou com a conta errada (sem plano) precisa conseguir trocar de conta.
+  const handleSignOut = async () => {
+    if (isSigningOut) return;
+    setIsSigningOut(true);
+    try {
+      await signOut();
+    } finally {
+      navigate('/login', { replace: true });
+    }
+  };
+  const signOutButton = (
+    <button
+      type="button"
+      onClick={handleSignOut}
+      disabled={isSigningOut}
+      data-testid="guard-sair"
+      className="mx-auto flex items-center justify-center gap-2 text-[12px] font-bold text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors disabled:opacity-50"
+    >
+      {isSigningOut ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogOut className="w-3.5 h-3.5" />}
+      Sair e entrar com outra conta
+    </button>
+  );
+
   if (isPastDue || isLead) {
     const whatsappNumber = "5515997472785";
     const userEmail = user?.email || "não informado";
@@ -158,6 +183,10 @@ export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
                   <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
+              {user?.email && (
+                <p className="text-[11px] text-slate-400 dark:text-zinc-500 break-all">Conectado como {user.email}</p>
+              )}
+              {signOutButton}
             </div>
           </div>
         </div>
@@ -244,6 +273,7 @@ export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
             Assim que o pagamento da fatura for identificado, seu acesso será liberado automaticamente.
           </p>
+          {signOutButton}
         </div>
       </div>
     );
