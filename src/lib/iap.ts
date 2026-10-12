@@ -48,30 +48,63 @@ export async function iapLogOut(): Promise<void> {
 
 export type IosPlanPrices = Partial<Record<IosOfferingId, { monthly?: string; annual?: string }>>;
 
+export interface IosPlanPricesResult {
+  prices: IosPlanPrices;
+  // Mensagem já pronta pra mostrar na tela quando não foi possível carregar
+  // os planos da App Store (com o motivo real vindo do StoreKit/RevenueCat).
+  error?: string;
+}
+
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+function describeIapError(err: any): string {
+  const parts = [err?.message, err?.underlyingErrorMessage, err?.code != null ? `código ${err.code}` : null]
+    .filter((x) => typeof x === 'string' && x.length > 0 || typeof x === 'number');
+  return parts.join(' — ') || 'erro desconhecido';
+}
+
 // Preço real, formatado e localizado pela própria App Store — nunca
-// calculado a partir de plansData.ts (que é o preço do site).
-export async function getIosPlanPrices(): Promise<IosPlanPrices> {
-  if (!isIOSApp()) return {};
-  try {
-    const { all } = await Purchases.getOfferings();
-    const result: IosPlanPrices = {};
-    for (const id of IOS_OFFERING_IDS) {
-      const offering = all[id];
-      if (!offering) continue;
-      result[id] = {
-        monthly: offering.monthly?.product.priceString,
-        annual: offering.annual?.product.priceString,
-      };
+// calculado a partir de plansData.ts (que é o preço do site). Tenta 3 vezes
+// (rede ruim / SDK ainda configurando) e devolve o motivo real do erro em vez
+// de engolir: a Apple rejeitou a v1.78 por "erro ao carregar os produtos" e
+// sem esse motivo não dava pra diagnosticar.
+export async function loadIosPlanPrices(): Promise<IosPlanPricesResult> {
+  if (!isIOSApp()) return { prices: {} };
+  let lastError = '';
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      if (!configured) await initPurchases();
+      if (!configured) throw new Error('RevenueCat não configurado (chave pública ausente ou inválida)');
+      const { all } = await Purchases.getOfferings();
+      const prices: IosPlanPrices = {};
+      for (const id of IOS_OFFERING_IDS) {
+        const offering = all[id];
+        if (!offering) continue;
+        prices[id] = {
+          monthly: offering.monthly?.product.priceString,
+          annual: offering.annual?.product.priceString,
+        };
+      }
+      if (Object.keys(prices).length === 0) {
+        throw new Error(`nenhuma oferta encontrada (ofertas recebidas: ${Object.keys(all).join(', ') || 'nenhuma'})`);
+      }
+      return { prices };
+    } catch (err) {
+      lastError = describeIapError(err);
+      console.error(`Erro ao buscar preços da App Store (tentativa ${attempt + 1}):`, err);
+      if (attempt < 2) await wait(1500 * (attempt + 1));
     }
-    return result;
-  } catch (err) {
-    console.error('Erro ao buscar preços da App Store:', err);
-    return {};
   }
+  return { prices: {}, error: lastError };
+}
+
+export async function getIosPlanPrices(): Promise<IosPlanPrices> {
+  return (await loadIosPlanPrices()).prices;
 }
 
 async function getPackage(planId: string, period: 'MONTHLY' | 'ANNUAL'): Promise<PurchasesPackage | null> {
   if (!isIosOfferingId(planId)) return null;
+  if (!configured) await initPurchases();
   const { all } = await Purchases.getOfferings();
   const offering = all[planId];
   if (!offering) return null;
@@ -88,7 +121,7 @@ export async function purchasePlan(planId: string, period: 'MONTHLY' | 'ANNUAL')
   try {
     const aPackage = await getPackage(planId, period);
     if (!aPackage) {
-      return { success: false, userCancelled: false, message: 'Plano indisponível na App Store no momento.' };
+      return { success: false, userCancelled: false, message: 'Plano indisponível na App Store no momento. Toque em "Tentar novamente" ou volte em instantes.' };
     }
     await Purchases.purchasePackage({ aPackage });
     // user_entitlements é atualizado pelo webhook do RevenueCat
@@ -96,7 +129,7 @@ export async function purchasePlan(planId: string, period: 'MONTHLY' | 'ANNUAL')
     return { success: true, userCancelled: false };
   } catch (err: any) {
     if (err?.userCancelled) return { success: false, userCancelled: true };
-    return { success: false, userCancelled: false, message: err?.message || 'Erro ao processar a compra.' };
+    return { success: false, userCancelled: false, message: describeIapError(err) || 'Erro ao processar a compra.' };
   }
 }
 

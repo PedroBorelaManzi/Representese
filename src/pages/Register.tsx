@@ -216,6 +216,7 @@ export default function Register() {
                 )}
               />
               <p className="text-[11px] text-slate-400 ml-1">Escolha o DDD na lista e digite o celular (9 dígitos, começando com 9).</p>
+              <p className="text-[11px] text-slate-400 ml-1">Usamos seu WhatsApp para avisar quando o seu plano estiver perto de acabar e para enviar promoções e novidades do Represente-Se!.</p>
               {showPhoneError && (
                 <p className="text-[12px] text-red-500 font-bold pt-1 ml-1">
                   Esse número não parece válido. Confira o DDD e os 9 dígitos do celular (ex.: 98765-4321).

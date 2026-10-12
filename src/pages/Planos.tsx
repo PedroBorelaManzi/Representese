@@ -23,7 +23,7 @@ import { isIOSApp } from "../lib/iapPolicy";
 import { supabase } from "../lib/supabase";
 import { loadLeadData } from "../lib/leadStorage";
 import { FunnelPoll } from "../components/FunnelPoll";
-import { getIosPlanPrices, purchasePlan, restorePurchases, openManageSubscriptions, IosPlanPrices } from "../lib/iap";
+import { loadIosPlanPrices, purchasePlan, restorePurchases, openManageSubscriptions, IosPlanPrices } from "../lib/iap";
 
 const faqItems = [
   {
@@ -67,15 +67,26 @@ export default function Planos() {
   const navigate = useNavigate();
   const iosApp = isIOSApp();
   const [iosPrices, setIosPrices] = useState<IosPlanPrices>({});
+  const [iosLoadError, setIosLoadError] = useState<string | null>(null);
+  const [iosLoading, setIosLoading] = useState(false);
   const [purchasingPlanId, setPurchasingPlanId] = useState<string | null>(null);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, []);
 
+  const carregarPrecosIos = async () => {
+    setIosLoading(true);
+    setIosLoadError(null);
+    const { prices, error } = await loadIosPlanPrices();
+    setIosPrices(prices);
+    setIosLoadError(error ?? null);
+    setIosLoading(false);
+  };
+
   useEffect(() => {
     if (!iosApp) return;
-    getIosPlanPrices().then(setIosPrices);
+    void carregarPrecosIos();
   }, [iosApp]);
 
   // Comprado via App Store, quem cuida de reembolso é a própria Apple (não
@@ -274,6 +285,20 @@ export default function Planos() {
             </button>
           </div>
         </div>
+
+        {iosApp && iosLoadError && (
+          <div role="alert" data-testid="ios-planos-erro" className="max-w-2xl mx-auto mb-6 rounded-2xl border border-amber-200 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-500/30 p-4 text-center">
+            <p className="text-sm font-bold text-amber-800 dark:text-amber-300">Não foi possível carregar os planos da App Store.</p>
+            <p className="text-xs text-amber-700 dark:text-amber-400 mt-1 break-words">Detalhe: {iosLoadError}</p>
+            <button
+              onClick={() => void carregarPrecosIos()}
+              disabled={iosLoading}
+              className="mt-3 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold disabled:opacity-60"
+            >
+              {iosLoading ? 'Carregando…' : 'Tentar novamente'}
+            </button>
+          </div>
+        )}
 
         {/* Cards */}
         <PlanCards
