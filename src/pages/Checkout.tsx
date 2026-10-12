@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { trackAnonymousStep } from "../lib/adsFunnel";
+import { metaAddPaymentInfo, metaCompleteRegistration } from "../lib/metaPixel";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -273,6 +274,7 @@ export default function Checkout() {
       }
       setFormErrors({});
       trackAnonymousStep('checkout_step2');
+      metaAddPaymentInfo({ planId: selectedPlan.id, planName: selectedPlan.name, ciclo: billingCycle, value: finalPrice });
       setStep(2);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
@@ -336,6 +338,7 @@ export default function Checkout() {
         }
 
         userId = authData?.user?.id;
+        if (userId) metaCompleteRegistration(userId, { planId: selectedPlan.id, planName: selectedPlan.name, ciclo: billingCycle, value: finalPrice });
         clearLeadData();
       } else {
         const { error: updateError } = await supabase.auth.updateUser({

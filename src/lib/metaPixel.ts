@@ -7,8 +7,11 @@
  * (cliques em botões, metadados de página) e NUNCA mandamos e-mail, telefone ou nome: só o nome
  * do evento, o valor da assinatura e um identificador aleatório de deduplicação.
  *
- * Eventos: PageView (cada tela), Lead (cadastro em /register), InitiateCheckout (abriu /checkout),
- * Subscribe (primeira cobrança confirmada, com valor). */
+ * Eventos: PageView (cada tela), ViewContent (abriu /planos), AddToCart (escolheu um plano),
+ * Lead (cadastro em /register), InitiateCheckout (abriu /checkout, com plano e valor),
+ * AddPaymentInfo (chegou na etapa de pagamento), CompleteRegistration (conta criada) e
+ * Subscribe (primeira cobrança confirmada, com valor). Só Subscribe leva valor de receita real:
+ * Purchase NÃO é enviado de propósito, pra Meta não contar a mesma venda duas vezes. */
 
 import { Capacitor } from '@capacitor/core';
 import { hasAnalyticsConsent, subscribeConsent } from './cookieConsent';
@@ -84,7 +87,9 @@ export function initMetaPixel(): boolean {
 }
 
 /** Dispara um evento padrão. `eventId` evita contar duas vezes o mesmo evento. */
-export function metaTrack(evento: 'PageView' | 'Lead' | 'InitiateCheckout' | 'Subscribe', dados?: Record<string, unknown>, eventId?: string): boolean {
+export type MetaEvento = 'PageView' | 'ViewContent' | 'AddToCart' | 'Lead' | 'InitiateCheckout' | 'AddPaymentInfo' | 'CompleteRegistration' | 'Subscribe';
+
+export function metaTrack(evento: MetaEvento, dados?: Record<string, unknown>, eventId?: string): boolean {
   if (!initMetaPixel() || !window.fbq) return false;
   if (eventId) window.fbq('track', evento, dados ?? {}, { eventID: eventId });
   else window.fbq('track', evento, dados ?? {});
@@ -106,9 +111,51 @@ export function metaLead(): boolean {
   return metaTrack('Lead');
 }
 
-export function metaInitiateCheckout(): boolean {
+/** Dados do plano pros eventos de funil: o conteúdo é o plano e o valor é o total da cobrança. */
+export interface MetaPlano {
+  planId: string;
+  planName?: string;
+  value?: number;
+  ciclo?: 'MONTHLY' | 'ANNUAL';
+}
+
+function dadosPlano(p?: MetaPlano): Record<string, unknown> {
+  if (!p) return {};
+  return {
+    content_type: 'product',
+    content_ids: [p.planId],
+    content_name: `${p.planName ?? p.planId}${p.ciclo === 'ANNUAL' ? ' (anual)' : p.ciclo === 'MONTHLY' ? ' (mensal)' : ''}`,
+    ...(typeof p.value === 'number' && p.value > 0 ? { value: p.value, currency: 'BRL' } : {}),
+  };
+}
+
+export function metaInitiateCheckout(plano?: MetaPlano): boolean {
   if (!podeRastrear() || !umaVezPorSessao('rs_meta_checkout')) return false;
-  return metaTrack('InitiateCheckout');
+  return metaTrack('InitiateCheckout', dadosPlano(plano));
+}
+
+/** Abriu a página de planos. */
+export function metaViewContent(): boolean {
+  if (!podeRastrear() || !umaVezPorSessao('rs_meta_viewcontent')) return false;
+  return metaTrack('ViewContent', { content_type: 'product_group', content_name: 'Planos' });
+}
+
+/** Escolheu um plano (a cada escolha diferente na sessão). */
+export function metaAddToCart(plano: MetaPlano): boolean {
+  if (!podeRastrear() || !umaVezPorSessao(`rs_meta_atc_${plano.planId}_${plano.ciclo ?? ''}`)) return false;
+  return metaTrack('AddToCart', dadosPlano(plano));
+}
+
+/** Passou dos dados pessoais e chegou na etapa de pagamento. */
+export function metaAddPaymentInfo(plano?: MetaPlano): boolean {
+  if (!podeRastrear() || !umaVezPorSessao('rs_meta_addpay')) return false;
+  return metaTrack('AddPaymentInfo', dadosPlano(plano));
+}
+
+/** Conta criada com sucesso; o id do usuário deduplica. */
+export function metaCompleteRegistration(userId: string, plano?: MetaPlano): boolean {
+  if (!podeRastrear()) return false;
+  return metaTrack('CompleteRegistration', { status: true, ...dadosPlano(plano) }, `reg_${userId}`);
 }
 
 /** Assinatura paga: valor da 1ª cobrança; o id do usuário deduplica. */

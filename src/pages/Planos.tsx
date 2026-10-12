@@ -16,6 +16,7 @@ import { Logo } from "../components/Logo";
 import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
 import { cn } from "../lib/utils";
+import { metaAddToCart } from "../lib/metaPixel";
 import { plans } from "../lib/plansData";
 import { PlanCards } from "../components/plans/PlanCards";
 import { usePageMeta } from "../hooks/usePageMeta";
@@ -129,6 +130,10 @@ export default function Planos() {
   };
 
   const handleSubscribe = async (plan: typeof plans[0]) => {
+    metaAddToCart({
+      planId: plan.id, planName: plan.name, ciclo: billingCycle,
+      value: Number(billingCycle === 'ANNUAL' ? plan.annualPrice : plan.price) * (billingCycle === 'ANNUAL' ? 12 : 1),
+    });
     if (iosApp) {
       // Sem conta ainda: precisa criá-la antes de comprar via IAP (o
       // formulário de checkout do Asaas não existe no app).
