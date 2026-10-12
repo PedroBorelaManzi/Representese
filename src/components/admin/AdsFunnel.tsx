@@ -253,9 +253,9 @@ export default function AdsFunnel() {
     { chave: 'cliques', nome: 'Clicaram / abriram o link', valor: cliques, origem: `${info.plataforma} (digitado)`, manual: true },
     { chave: 'visitas', nome: 'Entraram no site', valor: (data?.visits ?? 0) + (data?.anon_visits ?? 0), origem: `Site · ${data?.visits ?? 0} aceitaram cookies + ${data?.anon_visits ?? 0} anônimas (sem aceite; pode repetir quem aceitou depois)` },
     { chave: 'cadastro_tela', nome: 'Abriram o cadastro', valor: data?.register_views ?? 0, origem: 'Site · só quem aceitou cookies' },
-    { chave: 'leads', nome: 'Fizeram cadastro (lead)', valor: data?.leads ?? 0, origem: 'Banco · exato' },
+    { chave: 'leads', nome: 'Preencheram o cadastro (contato salvo)', valor: data?.leads ?? 0, origem: 'Banco · exato' },
     { chave: 'checkout', nome: 'Abriram o checkout', valor: data?.checkout_views ?? 0, origem: 'Site · só quem aceitou cookies' },
-    { chave: 'contas', nome: 'Criaram conta no checkout', valor: data?.accounts ?? 0, origem: 'Banco · exato' },
+    { chave: 'contas', nome: 'Cadastro concluído com sucesso (conta criada)', valor: data?.accounts ?? 0, origem: 'Banco · exato' },
     { chave: 'pagos', nome: 'Assinaram (pagaram)', valor: data?.paid ?? 0, origem: 'Banco · exato' },
   ];
 
@@ -412,7 +412,14 @@ export default function AdsFunnel() {
             })}
           </div>
 
-          <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30" data-testid="funil-cadastros-concluidos">
+              <p className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold">Cadastros concluídos com sucesso</p>
+              <p className="text-3xl font-black text-zinc-900 dark:text-white tabular-nums">{nf.format(data?.accounts ?? 0)}</p>
+              <p className="text-[11px] text-zinc-500 mt-1">
+                {pct(data?.accounts ?? 0, data?.leads ?? 0)} de quem preencheu o cadastro · {pct(data?.accounts ?? 0, cliques)} dos cliques
+              </p>
+            </div>
             <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-950">
               <p className="text-xs text-zinc-500">Cliques que viraram assinatura</p>
               <p className="text-2xl font-black text-zinc-900 dark:text-white">{pct(data?.paid ?? 0, cliques)}</p>
