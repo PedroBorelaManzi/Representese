@@ -141,7 +141,15 @@ export async function purchasePlan(planId: string, period: 'MONTHLY' | 'ANNUAL')
     // (handle-revenuecat-webhook) — não escrevemos nada daqui.
     return { success: true, userCancelled: false };
   } catch (err: any) {
-    if (err?.userCancelled) return { success: false, userCancelled: true };
+    // O plugin do RevenueCat rejeita com code "1" (PURCHASE_CANCELLED_ERROR) e/ou
+    // userCancelled em locais diferentes conforme a versão — checa todos, senão
+    // fechar a janela da Apple aparece pro usuário como "erro".
+    const cancelou =
+      err?.userCancelled === true ||
+      err?.userInfo?.userCancelled === true ||
+      String(err?.code) === '1' ||
+      /PURCHASE_CANCELLED|purchase was cancelled/i.test(`${err?.code ?? ''} ${err?.message ?? ''}`);
+    if (cancelou) return { success: false, userCancelled: true };
     return { success: false, userCancelled: false, message: describeIapError(err) || 'Erro ao processar a compra.' };
   }
 }
