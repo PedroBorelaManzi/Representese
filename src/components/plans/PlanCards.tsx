@@ -37,6 +37,7 @@ export function PlanCards({ billingCycle, currentSubscriptionPlan, onSubscribe, 
         const price = annual ? plan.annualPrice : plan.price;
         const discount = Math.round((1 - Number(price) / Number(plan.originalPrice)) * 100);
         const nativePriceString = nativePrices?.[plan.id as keyof IosPlanPrices]?.[annual ? 'annual' : 'monthly'];
+        const nativePerMonth = annual ? nativePrices?.[plan.id as keyof IosPlanPrices]?.annualPerMonth : undefined;
         const isCurrent = currentSubscriptionPlan?.toLowerCase().includes(plan.id.toLowerCase());
         const isUserMaster = currentSubscriptionPlan?.toLowerCase().includes('master');
         const showAlreadyBestPlan = isUserMaster && plan.id === 'master';
@@ -99,7 +100,9 @@ export function PlanCards({ billingCycle, currentSubscriptionPlan, onSubscribe, 
                   </span>
                 </div>
                 <p className={cn("text-[11px] font-medium mb-6 h-4", popular ? "text-slate-500" : "text-slate-400")}>
-                  {annual ? "cobrado anualmente pela App Store" : "por mês, via App Store"}
+                  {annual
+                    ? (nativePerMonth ? `equivale a ${nativePerMonth}/mês · cobrado 1x por ano pela App Store` : "cobrado anualmente pela App Store")
+                    : "por mês, via App Store"}
                 </p>
               </>
             ) : (
@@ -115,12 +118,17 @@ export function PlanCards({ billingCycle, currentSubscriptionPlan, onSubscribe, 
                   )}
                 </div>
                 <div className="flex items-end gap-1 mb-1">
+                  {annual && (
+                    <span className={cn("text-[15px] font-bold mb-2 mr-1", popular ? "text-slate-300" : "text-slate-500 dark:text-zinc-400")}>12x de</span>
+                  )}
                   <span className={cn("text-2xl font-black mb-1", popular ? "text-white" : "text-slate-900 dark:text-zinc-100")}>R$</span>
                   <span className={cn("text-5xl font-black tracking-tight", popular ? "text-white" : "text-slate-900 dark:text-zinc-100")}>{price}</span>
-                  <span className={cn("text-[14px] font-bold mb-2", popular ? "text-slate-400" : "text-slate-500 dark:text-zinc-400")}>/mês</span>
+                  {!annual && (
+                    <span className={cn("text-[14px] font-bold mb-2", popular ? "text-slate-400" : "text-slate-500 dark:text-zinc-400")}>/mês</span>
+                  )}
                 </div>
                 <p className={cn("text-[11px] font-medium mb-6 h-4", popular ? "text-slate-500" : "text-slate-400")}>
-                  {annual ? "cobrado anualmente" : "no plano mensal"}
+                  {annual ? `sem juros no cartão · ou R$ ${Number(price) * 12} à vista` : "no plano mensal"}
                 </p>
               </>
             )}

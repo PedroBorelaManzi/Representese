@@ -46,7 +46,19 @@ export async function iapLogOut(): Promise<void> {
   }
 }
 
-export type IosPlanPrices = Partial<Record<IosOfferingId, { monthly?: string; annual?: string }>>;
+// `annualPerMonth`: o plano anual dividido por 12, já formatado na moeda da
+// loja do usuário — só pra comparar com o mensal. A Apple não parcela
+// assinatura, então NUNCA apresentar isso como "12x": é só equivalência.
+export type IosPlanPrices = Partial<Record<IosOfferingId, { monthly?: string; annual?: string; annualPerMonth?: string }>>;
+
+function formatPerMonth(total: number | undefined, currencyCode: string | undefined): string | undefined {
+  if (!total || !currencyCode) return undefined;
+  try {
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency: currencyCode }).format(total / 12);
+  } catch {
+    return undefined;
+  }
+}
 
 export interface IosPlanPricesResult {
   prices: IosPlanPrices;
@@ -83,6 +95,7 @@ export async function loadIosPlanPrices(): Promise<IosPlanPricesResult> {
         prices[id] = {
           monthly: offering.monthly?.product.priceString,
           annual: offering.annual?.product.priceString,
+          annualPerMonth: formatPerMonth(offering.annual?.product.price, offering.annual?.product.currencyCode),
         };
       }
       if (Object.keys(prices).length === 0) {
