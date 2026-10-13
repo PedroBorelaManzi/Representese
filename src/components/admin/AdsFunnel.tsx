@@ -436,7 +436,9 @@ export default function AdsFunnel() {
 
           <p className="mt-6 text-xs text-zinc-500 leading-relaxed">
             “Entraram no site”, “Abriram o cadastro” e “Abriram o checkout” só contam quem aceitou os cookies de análise
-            (LGPD), então podem ficar abaixo do número de cliques. Cadastro, conta criada e assinatura vêm direto do banco e são
+            (LGPD), então podem ficar abaixo do número de cliques. Atenção: não é um funil em fila única — dá para abrir o checkout
+            direto pela landing ou pelos planos sem passar pelo cadastro de contato, por isso “Abriram o checkout” pode superar “Preencheram
+            o cadastro”; e “Abriram o cadastro” só conta a tela aberta. Cadastro, conta criada e assinatura vêm direto do banco e são
             exatos. O Instagram só é reconhecido quando o link tem marcação (use o gerador abaixo) ou quando o clique vem de
             anúncio da Meta; links sem marcação aparecem como origem desconhecida. A origem só é guardada a partir de 05/10/2026.
           </p>
@@ -466,14 +468,16 @@ function PorAnuncio({ since, campanha }: { since: string; campanha: string }) {
     refetchOnMount: 'always',
   });
   const ads = data?.ads ?? [];
-  const cols: [string, string][] = [['visit', 'Visita'], ['planos_view', 'Planos'], ['register_view', 'Cadastro'], ['checkout_view', 'Checkout'], ['checkout_step2', 'Pagamento'], ['checkout_success', 'Pago']];
+  const cols: [string, string][] = [['visit', 'Visitou'], ['planos_view', 'Abriu planos'], ['register_view', 'Abriu a tela de cadastro'], ['checkout_view', 'Abriu o checkout'], ['checkout_step2', 'Chegou ao pagamento'], ['checkout_success', 'Pago']];
   return (
     <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-700/70 space-y-3">
       <div>
         <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">Por anúncio (Instagram/Meta)</h3>
         <p className="text-xs text-zinc-500 mt-1">
-          Vem do nome do anúncio no link (utm_content): A-register-caderno × B-planos-caderno. Contagem anônima desde a publicação desta tela;
-          a visita só inclui quem não aceitou cookies.
+          Vem do nome do anúncio no link (utm_content): A-register-caderno × B-planos-caderno. As colunas de “Abriu…” contam telas abertas
+          (uma vez por aba), NÃO cadastros feitos: quem realmente se cadastrou está nas duas colunas verdes (cadastro feito e conta criada,
+          vindas do banco). O checkout pode ser aberto sem passar pela tela de cadastro (botões da landing e dos planos), então
+          “abriu o checkout” pode ser maior que “cadastro feito”.
         </p>
       </div>
       {ads.length === 0 ? (
@@ -485,8 +489,8 @@ function PorAnuncio({ since, campanha }: { since: string; campanha: string }) {
               <tr className="text-left text-xs text-zinc-500">
                 <th className="py-1 pr-3">Anúncio</th>
                 {cols.map(([, n]) => <th key={n} className="py-1 px-2 text-right">{n}</th>)}
-                <th className="py-1 px-2 text-right">Leads</th>
-                <th className="py-1 pl-2 text-right">Contas</th>
+                <th className="py-1 px-2 text-right font-bold text-emerald-700">Cadastro feito (lead)</th>
+                <th className="py-1 pl-2 text-right font-bold text-emerald-700">Conta criada</th>
               </tr>
             </thead>
             <tbody>
