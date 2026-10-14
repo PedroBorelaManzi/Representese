@@ -59,11 +59,12 @@ export default function Register() {
 
   const cleanPhone = phone.replace(/\D/g, "");
   const isPhoneValid = isValidWhatsApp(cleanPhone);
+  // Apple (5.1.1(v), 12/10/2026): no app iOS o telefone não pode ser obrigatório.
   const showPhoneError = cleanPhone.length >= 11 && !isPhoneValid;
   const passwordChecks = checkPassword(password);
   const isPasswordValid = Object.values(passwordChecks).every(Boolean);
   const isFormValid = iosApp
-    ? name.trim().length >= 3 && email.trim() && isPhoneValid && isPasswordValid && aceitouTermos
+    ? name.trim().length >= 3 && email.trim() && (cleanPhone.length === 0 || isPhoneValid) && isPasswordValid && aceitouTermos
     : name.trim().length >= 3 && email.trim() && isPhoneValid;
 
   // No iOS não existe o formulário de checkout do Asaas (CPF/CNPJ, endereço,
@@ -83,7 +84,7 @@ export default function Register() {
         options: {
           data: {
             full_name: name.trim(),
-            phone,
+            phone: cleanPhone ? phone : undefined,
             company: company.trim() || undefined,
             termos_aceitos_em: new Date().toISOString(),
           },
@@ -201,13 +202,14 @@ export default function Register() {
 
             <div className="space-y-1.5">
               <label htmlFor="register-phone" className="text-[13px] font-bold text-slate-700 dark:text-zinc-300 ml-1">
-                WhatsApp *
+                {iosApp ? "WhatsApp (opcional)" : "WhatsApp *"}
               </label>
               <PhoneField
                 id="register-phone"
                 value={phone}
                 onChange={setPhone}
                 hasError={showPhoneError}
+                required={!iosApp}
                 inputClassName={cn(
                   "w-full pl-11 pr-4 py-3.5 bg-slate-50 dark:bg-zinc-950/50 border rounded-2xl text-sm font-medium focus:ring-2 outline-none transition-all dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-600",
                   showPhoneError
@@ -216,7 +218,7 @@ export default function Register() {
                 )}
               />
               <p className="text-[11px] text-slate-400 ml-1">Escolha o DDD na lista e digite o celular (9 dígitos, começando com 9).</p>
-              <p className="text-[11px] text-slate-400 ml-1">Usamos seu WhatsApp para avisar quando o seu plano estiver perto de acabar e para enviar promoções e novidades do Represente-Se!.</p>
+              <p className="text-[11px] text-slate-400 ml-1">{iosApp ? "Se informar, usamos" : "Usamos"} seu WhatsApp para avisar quando o seu plano estiver perto de acabar e para enviar promoções e novidades do Represente-Se!.</p>
               {showPhoneError && (
                 <p className="text-[12px] text-red-500 font-bold pt-1 ml-1">
                   Esse número não parece válido. Confira o DDD e os 9 dígitos do celular (ex.: 98765-4321).

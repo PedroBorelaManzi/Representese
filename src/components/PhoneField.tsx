@@ -13,6 +13,7 @@ interface Props {
   inputClassName: string;
   /** Tamanho do ícone/padding da esquerda do número. */
   iconClassName?: string;
+  required?: boolean;
 }
 
 /** "(11) 98765-4321" ← 98765 4321 com máscara de 9 dígitos: 00000-0000. */
@@ -21,7 +22,7 @@ const maskNumber = (n: string) => (n.length > 5 ? `${n.slice(0, 5)}-${n.slice(5)
 /** WhatsApp com DDD escolhido numa lista (no celular vira aquela "roleta" nativa) e o número
  *  digitado à parte. Evita DDD digitado errado e trava números que não são de celular:
  *  só aceita dígitos, tem que começar com 9 e no máximo 9 dígitos. */
-export function PhoneField({ id, value, onChange, hasError, inputClassName, iconClassName }: Props) {
+export function PhoneField({ id, value, onChange, hasError, inputClassName, iconClassName, required = true }: Props) {
   const inicial = splitPhone(value);
   const [ddd, setDdd] = useState(inicial.ddd);
   const [num, setNum] = useState(inicial.number);
@@ -91,7 +92,7 @@ export function PhoneField({ id, value, onChange, hasError, inputClassName, icon
           onChange={(e) => aoDigitar(e.target.value)}
           placeholder="90000-0000"
           maxLength={20}
-          required
+          required={required}
           className={inputClassName}
         />
       </div>
