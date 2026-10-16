@@ -153,14 +153,14 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 flex flex-col items-center justify-center p-4 selection:bg-emerald-100 selection:text-emerald-900 font-sans">
-      <Link to="/" className="absolute top-6 left-6 flex items-center gap-2 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors text-sm font-semibold group z-10">
+    <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 flex flex-col items-center justify-center px-4 pb-8 [padding-top:max(1rem,env(safe-area-inset-top))] selection:bg-emerald-100 selection:text-emerald-900 font-sans">
+      <Link to="/" className="absolute left-6 [top:max(1.5rem,calc(env(safe-area-inset-top)+0.75rem))] flex items-center gap-2 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors text-sm font-semibold group z-10">
         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
         Voltar para a página inicial
       </Link>
 
 
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md [padding-top:3.5rem]">
         <div className="flex justify-center mb-10">
           <Logo size="lg" showText />
         </div>
