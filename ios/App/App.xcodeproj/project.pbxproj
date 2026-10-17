@@ -308,7 +308,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.78;
+				MARKETING_VERSION = 1.79;
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
 				PRODUCT_BUNDLE_IDENTIFIER = com.representese.app;
 				PRODUCT_NAME = "Represente-Se!";
@@ -331,7 +331,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.78;
+				MARKETING_VERSION = 1.79;
 				PRODUCT_BUNDLE_IDENTIFIER = com.representese.app;
 				PRODUCT_NAME = "Represente-Se!";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
