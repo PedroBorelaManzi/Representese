@@ -8,6 +8,9 @@ import {
   RefreshCw,
   CalendarClock,
   ChevronDown,
+  Check,
+  Ticket,
+  X,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, Link } from "react-router-dom";
@@ -24,7 +27,7 @@ import { isIOSApp } from "../lib/iapPolicy";
 import { supabase } from "../lib/supabase";
 import { loadLeadData } from "../lib/leadStorage";
 import { FunnelPoll } from "../components/FunnelPoll";
-import { loadIosPlanPrices, purchasePlan, restorePurchases, openManageSubscriptions, IosPlanPrices } from "../lib/iap";
+import { loadIosPlanPrices, purchasePlan, restorePurchases, openManageSubscriptions, redeemOfferCode, IosPlanPrices } from "../lib/iap";
 
 const faqItems = [
   {
@@ -71,6 +74,8 @@ export default function Planos() {
   const [iosLoadError, setIosLoadError] = useState<string | null>(null);
   const [iosLoading, setIosLoading] = useState(false);
   const [purchasingPlanId, setPurchasingPlanId] = useState<string | null>(null);
+  // iOS: tela de confirmação entre escolher o plano e abrir a folha da Apple.
+  const [confirmPlan, setConfirmPlan] = useState<typeof plans[0] | null>(null);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
@@ -129,6 +134,48 @@ export default function Planos() {
     toast.success('Compras restauradas. Se houver uma assinatura ativa, seu acesso será liberado.');
   };
 
+  // Espera o webhook do RevenueCat liberar o acesso e vai pro painel, pra não
+  // cair de volta na tela "Quase lá!" logo após pagar.
+  const aguardarAcessoIos = async (planId: string) => {
+    if (!user) return;
+    setPurchasingPlanId(planId);
+    for (let i = 0; i < 12; i++) {
+      const { data } = await supabase.from('user_entitlements')
+        .select('subscription_status').eq('user_id', user.id).maybeSingle();
+      if (data?.subscription_status === 'active') break;
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+    setPurchasingPlanId(null);
+    await refetchSettings();
+    navigate('/dashboard');
+  };
+
+  const comprarIos = async (plan: typeof plans[0]) => {
+    setConfirmPlan(null);
+    setPurchasingPlanId(plan.id);
+    const result = await purchasePlan(plan.id, billingCycle);
+    setPurchasingPlanId(null);
+    if (result.success) {
+      toast.success('Compra confirmada! Liberando seu acesso...');
+      await aguardarAcessoIos(plan.id);
+    } else if (!result.userCancelled) {
+      toast.error(result.message || 'Erro ao processar a compra.');
+    }
+  };
+
+  // Offer Code da Apple (único tipo de cupom permitido no iOS).
+  const resgatarCodigo = async () => {
+    const planId = confirmPlan?.id ?? 'codigo';
+    const result = await redeemOfferCode();
+    if (!result.success) {
+      toast.error(result.message || 'Não foi possível abrir o resgate de código.');
+      return;
+    }
+    setConfirmPlan(null);
+    toast.success('Se o código foi aceito, liberamos seu acesso em instantes.');
+    await aguardarAcessoIos(planId);
+  };
+
   const handleSubscribe = async (plan: typeof plans[0]) => {
     metaAddToCart({
       planId: plan.id, planName: plan.name, ciclo: billingCycle,
@@ -141,27 +188,8 @@ export default function Planos() {
         navigate('/register');
         return;
       }
-      setPurchasingPlanId(plan.id);
-      const result = await purchasePlan(plan.id, billingCycle);
-      setPurchasingPlanId(null);
-      if (result.success) {
-        toast.success('Compra confirmada! Liberando seu acesso...');
-        // O acesso é liberado pelo webhook do RevenueCat alguns segundos depois da
-        // compra: espera aparecer 'active' antes de ir ao painel, pra não cair de
-        // volta na tela "Quase lá!" logo após pagar.
-        setPurchasingPlanId(plan.id);
-        for (let i = 0; i < 12; i++) {
-          const { data } = await supabase.from('user_entitlements')
-            .select('subscription_status').eq('user_id', user.id).maybeSingle();
-          if (data?.subscription_status === 'active') break;
-          await new Promise((r) => setTimeout(r, 1500));
-        }
-        setPurchasingPlanId(null);
-        await refetchSettings();
-        navigate('/dashboard');
-      } else if (!result.userCancelled) {
-        toast.error(result.message || 'Erro ao processar a compra.');
-      }
+      // Passa antes pela tela de confirmação (plano, preço, código).
+      setConfirmPlan(plan);
       return;
     }
     // Checkout público: cria a conta (passo 1) e processa o pagamento (passo 2).
@@ -445,6 +473,76 @@ export default function Planos() {
         </div>
         )}
       </div>
+
+      {/* iOS: confirmação antes da folha de pagamento da Apple */}
+      <AnimatePresence>
+        {iosApp && confirmPlan && (() => {
+          const px = iosPrices[confirmPlan.id as keyof IosPlanPrices];
+          const anual = billingCycle === 'ANNUAL';
+          const preco = anual ? px?.annual : px?.monthly;
+          return (
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[80] bg-black/50 flex items-end sm:items-center justify-center"
+              data-testid="ios-confirmar-plano"
+              onClick={() => setConfirmPlan(null)}
+            >
+              <motion.div
+                initial={{ y: 40 }} animate={{ y: 0 }} exit={{ y: 40 }}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-md bg-white dark:bg-zinc-900 rounded-t-3xl sm:rounded-3xl p-6 [padding-bottom:max(1.5rem,env(safe-area-inset-bottom))] max-h-[90vh] overflow-y-auto"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <p className="text-[11px] font-black uppercase tracking-widest text-emerald-600">Confirme seu plano</p>
+                    <h3 className="text-2xl font-black text-slate-900 dark:text-white">{confirmPlan.name}</h3>
+                    <p className="text-sm text-slate-500 dark:text-zinc-400 font-medium">{anual ? 'Plano anual' : 'Plano mensal'}</p>
+                  </div>
+                  <button onClick={() => setConfirmPlan(null)} aria-label="Fechar" className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-800">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="rounded-2xl bg-slate-50 dark:bg-zinc-950/50 border border-slate-100 dark:border-zinc-800 p-4 mb-4">
+                  <p className="text-3xl font-black text-slate-900 dark:text-white">
+                    {preco ?? '—'}<span className="text-sm font-bold text-slate-400"> {anual ? '/ano' : '/mês'}</span>
+                  </p>
+                  {anual && px?.annualPerMonth && (
+                    <p className="text-xs text-slate-500 dark:text-zinc-400 font-medium mt-1">Equivale a {px.annualPerMonth} por mês</p>
+                  )}
+                </div>
+
+                <ul className="space-y-2 mb-5">
+                  {confirmPlan.features.slice(0, 6).map((f) => (
+                    <li key={f.text} className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-zinc-300">
+                      <Check className="w-4 h-4 text-emerald-500 shrink-0" />{f.text}
+                    </li>
+                  ))}
+                </ul>
+
+                <button
+                  onClick={() => comprarIos(confirmPlan)}
+                  disabled={!preco}
+                  data-testid="ios-assinar"
+                  className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm disabled:opacity-50"
+                >
+                  Assinar com a Apple
+                </button>
+                <button
+                  onClick={resgatarCodigo}
+                  data-testid="ios-tenho-codigo"
+                  className="w-full mt-3 py-3.5 rounded-2xl border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 font-bold text-sm flex items-center justify-center gap-2"
+                >
+                  <Ticket className="w-4 h-4" /> Tenho um código
+                </button>
+                <p className="text-[11px] text-slate-400 text-center mt-3 leading-relaxed">
+                  O pagamento é feito com o cartão ou Apple Pay da sua conta Apple. A assinatura renova sozinha e pode ser cancelada quando quiser em Ajustes › Assinaturas.
+                </p>
+              </motion.div>
+            </motion.div>
+          );
+        })()}
+      </AnimatePresence>
     </div>
   );
 }

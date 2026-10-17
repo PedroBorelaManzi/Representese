@@ -154,6 +154,18 @@ export async function purchasePlan(planId: string, period: 'MONTHLY' | 'ANNUAL')
   }
 }
 
+// Abre a folha nativa da Apple pra resgatar um Offer Code (código promocional
+// de assinatura). O resgate acontece dentro da Apple; o acesso chega depois
+// pelo webhook do RevenueCat, igual a uma compra.
+export async function redeemOfferCode(): Promise<PurchaseOutcome> {
+  try {
+    await Purchases.presentCodeRedemptionSheet();
+    return { success: true, userCancelled: false };
+  } catch (err: any) {
+    return { success: false, userCancelled: false, message: describeIapError(err) || 'Não foi possível abrir o resgate de código.' };
+  }
+}
+
 export async function restorePurchases(): Promise<PurchaseOutcome> {
   try {
     await Purchases.restorePurchases();
