@@ -121,7 +121,7 @@ async function sha256Hex(v: string): Promise<string> {
 
 function isMetaAttribution(attr: any): boolean {
   if (!attr) return false;
-  if (attr.fbclid) return true;
+  if (attr.fbclid || attr.fbc) return true;
   const utm = String(attr.utm_source ?? '').toLowerCase().trim();
   return ['instagram', 'ig', 'facebook', 'fb', 'meta'].includes(utm);
 }
@@ -135,10 +135,15 @@ async function sendMetaSubscribe(email: string | null, phone: string | null, use
     if (email) userData.em = [await sha256Hex(email.trim().toLowerCase())];
     const digits = String(phone ?? '').replace(/\D/g, '');
     if (digits.length >= 10) userData.ph = [await sha256Hex(digits.length <= 11 ? `55${digits}` : digits)];
-    if (attr?.fbclid) {
+    // fbc/fbp: o cookie do pixel (guardado no cadastro) é o valor exato que a Meta espera; sem ele,
+    // monta o fbc a partir do fbclid da URL do anúncio.
+    if (typeof attr?.fbc === 'string' && attr.fbc.startsWith('fb.')) {
+      userData.fbc = attr.fbc;
+    } else if (attr?.fbclid) {
       const ts = attr.captured_at ? new Date(attr.captured_at).getTime() : Date.now();
       userData.fbc = `fb.1.${Number.isFinite(ts) ? ts : Date.now()}.${attr.fbclid}`;
     }
+    if (typeof attr?.fbp === 'string' && attr.fbp.startsWith('fb.')) userData.fbp = attr.fbp;
     const payload: Record<string, unknown> = {
       data: [{
         event_name: 'Subscribe',
