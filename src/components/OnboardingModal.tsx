@@ -3,8 +3,11 @@ import { Plus, Trash2, Sun, Moon, Check, X, ChevronRight, ChevronLeft, Wallet, P
 import { motion, AnimatePresence } from "framer-motion";
 import { useSettings } from "../contexts/SettingsContext";
 import { toast } from "sonner";
+import { supabase } from "../lib/supabase";
+import { useAuth } from "../contexts/AuthContext";
+import { SEGMENTS, companyExamples } from "../lib/segments";
 
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 5;
 
 export default function OnboardingModal() {
   const [editingDaysField, setEditingDaysField] = useState<'alerta' | 'critico' | 'inativo' | null>(null);
@@ -86,9 +89,27 @@ export default function OnboardingModal() {
   };
 
   const { settings, loading, updateSettings } = useSettings();
+  const { user } = useAuth();
   const [step, setStep] = useState(1);
 
-  // Step 1: Categories (empresas representadas)
+  // Step 1: Mercados de atuação (lista + texto livre pra quem não achar o seu)
+  const [segments, setSegments] = useState<string[]>([]);
+  const [segmentOther, setSegmentOther] = useState("");
+  const toggleSegment = (id: string) =>
+    setSegments((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const segmentOk = segments.length > 0 || segmentOther.trim().length >= 2;
+  const saveSegments = () => {
+    // Salva já ao avançar (e não só no fim) pra não perder a resposta de quem abandona o onboarding.
+    if (user) {
+      supabase.from('user_settings').upsert(
+        { user_id: user.id, segments, segment_other: segmentOther.trim() || null, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id' }
+      ).then(({ error }) => { if (error) console.error('Erro ao salvar área de atuação:', error); });
+    }
+    setStep(2);
+  };
+
+  // Step 2: Categories (empresas representadas)
   const [categories, setCategories] = useState<string[]>([]);
   const [newCat, setNewCat] = useState("");
 
@@ -99,25 +120,31 @@ export default function OnboardingModal() {
     }
   };
 
-  // Step 2: Comissões por empresa (%)
+  // Step 3: Comissões por empresa (%)
   const [commissions, setCommissions] = useState<Record<string, number>>({});
+  // Empresa que paga comissão por produto (cada produto com o seu %) em vez de um % único.
+  const [perProduct, setPerProduct] = useState<Record<string, boolean>>({});
   const setCommission = (cat: string, value: string) => {
     const num = value === "" ? 0 : Math.max(0, Math.min(100, Number(value)));
     setCommissions((prev) => ({ ...prev, [cat]: isNaN(num) ? 0 : num }));
   };
 
-  // Step 3: Alertas de inatividade
+  // Step 4: Alertas de inatividade
   const [alerta, setAlerta] = useState(15);
   const [critico, setCritico] = useState(30);
   const [inativo, setInativo] = useState(90);
 
-  // Step 4: Tema
+  // Step 5: Tema
   const [theme, setTheme] = useState<'light' | 'dark'>(settings.theme || 'light');
 
   const handleFinish = async () => {
+    const porProduto = categories.filter((c) => perProduct[c]);
+    const commissionsFixas = Object.fromEntries(Object.entries(commissions).filter(([c]) => !perProduct[c]));
+    const commissionMode = Object.fromEntries(porProduto.map((c) => [c, 'per_product' as const]));
     await updateSettings({
       categories,
-      commissions,
+      commissions: commissionsFixas,
+      commission_mode: commissionMode,
       alerta_days: alerta,
       critico_days: critico,
       inativo_days: inativo,
@@ -159,6 +186,59 @@ export default function OnboardingModal() {
               className="space-y-4"
             >
               <div>
+                <h2 className="text-xl font-black text-slate-900 dark:text-zinc-50 uppercase tracking-tight">Em quais mercados você atua?</h2>
+                <p className="text-sm text-slate-500 dark:text-zinc-400 mt-1">Marque os mercados para onde você vende. Pode escolher mais de um.</p>
+              </div>
+
+              <div data-testid="segment-options" className="flex flex-wrap gap-2 max-h-56 overflow-y-auto pr-1">
+                {SEGMENTS.map((seg) => {
+                  const on = segments.includes(seg.id);
+                  return (
+                    <button
+                      key={seg.id}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => toggleSegment(seg.id)}
+                      className={`px-3.5 py-2 rounded-full text-[13px] font-bold border transition-all ${on ? "bg-emerald-600 border-emerald-600 text-white" : "bg-white dark:bg-zinc-950 border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-300 hover:border-emerald-500/50"}`}
+                    >
+                      {seg.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="segment-other" className="text-[13px] font-bold text-slate-700 dark:text-zinc-300">Não achou o seu mercado? Escreva aqui</label>
+                <input
+                  id="segment-other"
+                  type="text"
+                  value={segmentOther}
+                  maxLength={80}
+                  onChange={(e) => setSegmentOther(e.target.value)}
+                  placeholder="Ex: Revenda de gás e água"
+                  className="w-full px-4 py-3 border border-slate-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-emerald-500 text-sm bg-white dark:bg-zinc-950 dark:text-zinc-100"
+                />
+              </div>
+
+              <button
+                onClick={saveSegments}
+                disabled={!segmentOk}
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm tracking-wide disabled:opacity-50 flex items-center justify-center gap-1 mt-2"
+              >
+                Próximo Passo <ChevronRight className="w-4 h-4" />
+              </button>
+            </motion.div>
+          )}
+
+          {step === 2 && (
+            <motion.div
+              key="step2"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-4"
+            >
+              <div>
                 <h2 className="text-xl font-black text-slate-900 dark:text-zinc-50 uppercase tracking-tight">Configure suas empresas</h2>
                 <p className="text-sm text-slate-500 dark:text-zinc-400 mt-1">Adicione as empresas que você representa hoje.</p>
               </div>
@@ -168,7 +248,7 @@ export default function OnboardingModal() {
                   type="text"
                   value={newCat}
                   onChange={(e) => setNewCat(e.target.value)}
-                  placeholder="Ex: Nestlé, Coca-Cola..."
+                  placeholder={`Ex: ${companyExamples(segments).join(", ")}...`}
                   className="flex-1 px-4 py-3 border border-slate-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-emerald-500 text-sm bg-white dark:bg-zinc-950 dark:text-zinc-100"
                   onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCategory())}
                   autoFocus
@@ -199,19 +279,22 @@ export default function OnboardingModal() {
                 )}
               </div>
 
-              <button
-                onClick={() => setStep(2)}
-                disabled={categories.length === 0}
-                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm tracking-wide disabled:opacity-50 flex items-center justify-center gap-1 mt-4"
-              >
-                Próximo Passo <ChevronRight className="w-4 h-4" />
-              </button>
+              <div className="flex gap-3 mt-4">
+                <button onClick={() => setStep(1)} className="flex-1 py-3 bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-300 rounded-xl font-bold text-sm flex items-center justify-center gap-1"><ChevronLeft className="w-4 h-4" /> Voltar</button>
+                <button
+                  onClick={() => setStep(3)}
+                  disabled={categories.length === 0}
+                  className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm tracking-wide disabled:opacity-50 flex items-center justify-center gap-1"
+                >
+                  Próximo Passo <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
             </motion.div>
           )}
 
-          {step === 2 && (
+          {step === 3 && (
             <motion.div
-              key="step2"
+              key="step3"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
@@ -222,41 +305,66 @@ export default function OnboardingModal() {
                   <Wallet className="w-5 h-5 text-emerald-600" /> Suas comissões
                 </h2>
                 <p className="text-sm text-slate-500 dark:text-zinc-400 mt-1">
-                  Qual o percentual de comissão em cada empresa? Deixe 0% se preferir configurar depois.
+                  Qual a comissão em cada empresa? Use o valor fixo, ou &quot;Por produto&quot; se cada produto paga um percentual diferente. Deixe 0% se preferir configurar depois.
                 </p>
               </div>
 
               <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
-                {categories.map((cat) => (
-                  <div key={cat} className="flex items-center justify-between gap-3 p-3 bg-slate-50 dark:bg-zinc-950 border border-slate-100 dark:border-zinc-800 rounded-xl">
-                    <span className="text-sm font-bold text-slate-800 dark:text-zinc-200 truncate">{cat}</span>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <input
-                        type="number"
-                        min={0}
-                        max={100}
-                        step={0.5}
-                        value={commissions[cat] ?? ""}
-                        onChange={(e) => setCommission(cat, e.target.value)}
-                        placeholder="0"
-                        className="w-16 px-2 py-1.5 text-center bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-lg text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500"
-                      />
-                      <Percent className="w-3.5 h-3.5 text-slate-400" />
+                {categories.map((cat) => {
+                  const porProduto = !!perProduct[cat];
+                  return (
+                    <div key={cat} className="p-3 bg-slate-50 dark:bg-zinc-950 border border-slate-100 dark:border-zinc-800 rounded-xl space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm font-bold text-slate-800 dark:text-zinc-200 truncate">{cat}</span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <input
+                            type="number"
+                            min={0}
+                            max={100}
+                            step={0.5}
+                            value={porProduto ? "" : commissions[cat] ?? ""}
+                            disabled={porProduto}
+                            onChange={(e) => setCommission(cat, e.target.value)}
+                            placeholder={porProduto ? "—" : "0"}
+                            aria-label={`Comissão de ${cat}`}
+                            className="w-16 px-2 py-1.5 text-center bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-lg text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                          />
+                          <Percent className="w-3.5 h-3.5 text-slate-400" />
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        {([false, true] as const).map((v) => (
+                          <button
+                            key={String(v)}
+                            type="button"
+                            aria-pressed={porProduto === v}
+                            onClick={() => setPerProduct((prev) => ({ ...prev, [cat]: v }))}
+                            className={`flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors ${porProduto === v ? "bg-emerald-600 text-white" : "bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-400 dark:text-zinc-500"}`}
+                          >
+                            {v ? "Por produto" : "Valor fixo"}
+                          </button>
+                        ))}
+                      </div>
+                      {porProduto && (
+                        <p className="text-[11px] font-medium text-slate-400 dark:text-zinc-500 leading-relaxed">
+                          Cada produto tem o seu %. Você configura na aba Produtos depois.
+                        </p>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="flex gap-3 mt-4">
-                <button onClick={() => setStep(1)} className="flex-1 py-3 bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-300 rounded-xl font-bold text-sm flex items-center justify-center gap-1"><ChevronLeft className="w-4 h-4" /> Voltar</button>
-                <button onClick={() => setStep(3)} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-1">Próximo <ChevronRight className="w-4 h-4" /></button>
+                <button onClick={() => setStep(2)} className="flex-1 py-3 bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-300 rounded-xl font-bold text-sm flex items-center justify-center gap-1"><ChevronLeft className="w-4 h-4" /> Voltar</button>
+                <button onClick={() => setStep(4)} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-1">Próximo <ChevronRight className="w-4 h-4" /></button>
               </div>
             </motion.div>
           )}
 
-          {step === 3 && (
+          {step === 4 && (
             <motion.div
-              key="step3"
+              key="step4"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
@@ -274,15 +382,15 @@ export default function OnboardingModal() {
               </div>
 
               <div className="flex gap-3 mt-4">
-                <button onClick={() => setStep(2)} className="flex-1 py-3 bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-300 rounded-xl font-bold text-sm flex items-center justify-center gap-1"><ChevronLeft className="w-4 h-4" /> Voltar</button>
-                <button onClick={() => setStep(4)} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-1">Próximo <ChevronRight className="w-4 h-4" /></button>
+                <button onClick={() => setStep(3)} className="flex-1 py-3 bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-300 rounded-xl font-bold text-sm flex items-center justify-center gap-1"><ChevronLeft className="w-4 h-4" /> Voltar</button>
+                <button onClick={() => setStep(5)} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-1">Próximo <ChevronRight className="w-4 h-4" /></button>
               </div>
             </motion.div>
           )}
 
-          {step === 4 && (
+          {step === 5 && (
             <motion.div
-              key="step4"
+              key="step5"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               className="space-y-4"
@@ -311,7 +419,7 @@ export default function OnboardingModal() {
               </div>
 
               <div className="flex gap-3 mt-4">
-                <button onClick={() => setStep(3)} className="flex-1 py-3 bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-300 rounded-xl font-bold text-sm flex items-center justify-center gap-1"><ChevronLeft className="w-4 h-4" /> Voltar</button>
+                <button onClick={() => setStep(4)} className="flex-1 py-3 bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-300 rounded-xl font-bold text-sm flex items-center justify-center gap-1"><ChevronLeft className="w-4 h-4" /> Voltar</button>
                 <button onClick={handleFinish} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-1"><Check className="w-4 h-4" /> Começar a usar</button>
               </div>
             </motion.div>

@@ -23,6 +23,7 @@ function PageviewTracker() {
 import PageTracker from "./components/PageTracker";
 import GeoCapture from "./components/GeoCapture";
 import CookieBanner from "./components/CookieBanner";
+import AiConsentDialog from "./components/AiConsentDialog";
 import NativeAuthListener from "./components/NativeAuthListener";
 import BackButtonHandler from "./components/BackButtonHandler";
 
@@ -185,6 +186,7 @@ export default function App() {
         </SyncProvider>
         <SpeedInsights />
         <CookieBanner />
+        <AiConsentDialog />
       </BrowserRouter>
       </SessionGateProvider>
     </AuthProvider>

@@ -110,6 +110,106 @@ async function recomputeAndSyncReferrer(supabase: any, referrerUserId: string): 
   await syncAsaasSubscriptionValue(supabase, referrerUserId);
 }
 
+// ---- Meta (Instagram/Facebook): API de Conversões, no servidor --------------------------------
+// Envia o evento "Subscribe" da 1ª cobrança confirmada de quem chegou por anúncio da Meta, com
+// e-mail/telefone em hash SHA-256 (nunca em texto puro; sem nome, CPF nem dados de pagamento).
+// Divulgado na Política de Privacidade (seção 5). Só roda se META_CAPI_TOKEN existir.
+async function sha256Hex(v: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v));
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function isMetaAttribution(attr: any): boolean {
+  if (!attr) return false;
+  if (attr.fbclid || attr.fbc) return true;
+  const utm = String(attr.utm_source ?? '').toLowerCase().trim();
+  return ['instagram', 'ig', 'facebook', 'fb', 'meta'].includes(utm);
+}
+
+async function sendMetaSubscribe(email: string | null, phone: string | null, userId: string, attr: any, value: number, paymentId?: string): Promise<void> {
+  try {
+    const token = Deno.env.get('META_CAPI_TOKEN');
+    if (!token || !isMetaAttribution(attr)) return;
+    const pixelId = Deno.env.get('META_PIXEL_ID') || '1807570517102801';
+    const userData: Record<string, unknown> = { external_id: [await sha256Hex(userId)] };
+    if (email) userData.em = [await sha256Hex(email.trim().toLowerCase())];
+    const digits = String(phone ?? '').replace(/\D/g, '');
+    if (digits.length >= 10) userData.ph = [await sha256Hex(digits.length <= 11 ? `55${digits}` : digits)];
+    // fbc/fbp: o cookie do pixel (guardado no cadastro) é o valor exato que a Meta espera; sem ele,
+    // monta o fbc a partir do fbclid da URL do anúncio.
+    if (typeof attr?.fbc === 'string' && attr.fbc.startsWith('fb.')) {
+      userData.fbc = attr.fbc;
+    } else if (attr?.fbclid) {
+      const ts = attr.captured_at ? new Date(attr.captured_at).getTime() : Date.now();
+      userData.fbc = `fb.1.${Number.isFinite(ts) ? ts : Date.now()}.${attr.fbclid}`;
+    }
+    if (typeof attr?.fbp === 'string' && attr.fbp.startsWith('fb.')) userData.fbp = attr.fbp;
+    const payload: Record<string, unknown> = {
+      data: [{
+        event_name: 'Subscribe',
+        event_time: Math.floor(Date.now() / 1000),
+        // Mesmo id do Subscribe do navegador (metaSubscribe → `sub_${userId}`): a Meta junta os dois
+        // em 1 evento em vez de contar a assinatura em dobro.
+        event_id: `sub_${userId}`,
+        action_source: 'website',
+        event_source_url: 'https://www.representese.com/checkout',
+        user_data: userData,
+        custom_data: { currency: 'BRL', value: value > 0 ? value : undefined, utm_campaign: attr?.utm_campaign, utm_content: attr?.utm_content },
+      }],
+    };
+    const test = Deno.env.get('META_CAPI_TEST_CODE');
+    if (test) payload.test_event_code = test;
+    const res = await fetch(`https://graph.facebook.com/v21.0/${pixelId}/events?access_token=${encodeURIComponent(token)}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+    });
+    if (!res.ok) console.error('Meta CAPI respondeu erro:', res.status, (await res.text()).slice(0, 300));
+  } catch (e) {
+    console.error('Erro ao enviar Subscribe à Meta:', e);
+  }
+}
+
+// Registra, uma única vez por usuário, a 1ª cobrança confirmada — é a conversão "Assinatura
+// paga" do Google Ads medida pelo servidor (não depende de a pessoa reabrir o app). Guarda o
+// gclid/utm vindos do cadastro (user_metadata.attribution) ou do lead (leads.attribution).
+// Exportar as linhas com gclid e exported_at nulo → Google Ads > Conversões > Uploads.
+// Nunca pode derrubar o webhook: qualquer erro só vai pro log.
+async function registerAdsConversion(supabase: any, userId: string, payment: any, planId?: string, cycle?: string): Promise<void> {
+  try {
+    const { data: u } = await supabase.auth.admin.getUserById(userId);
+    const user = u?.user;
+    let attr: any = user?.user_metadata?.attribution ?? null;
+    if (!attr && user?.email) {
+      const { data: lead } = await supabase.from('leads').select('attribution').eq('email', String(user.email).toLowerCase()).maybeSingle();
+      attr = lead?.attribution ?? null;
+    }
+    const value = Number(payment?.value ?? 0);
+    const { data: jaRegistrada } = await supabase.from('ads_conversions').select('id').eq('user_id', userId).maybeSingle();
+    await supabase.from('ads_conversions').upsert({
+      user_id: userId,
+      conversion_time: new Date().toISOString(),
+      value: value > 0 ? value : null,
+      gclid: attr?.gclid ?? null,
+      gbraid: attr?.gbraid ?? null,
+      wbraid: attr?.wbraid ?? null,
+      attribution: attr,
+      plan_id: planId ?? null,
+      billing_cycle: cycle ?? null,
+      asaas_payment_id: payment?.id ?? null,
+    }, { onConflict: 'user_id', ignoreDuplicates: true });
+    // Mesma conversão para a Meta, só na 1ª cobrança (renovações não reenviam).
+    if (!jaRegistrada) {
+      let phone: string | null = user?.user_metadata?.phone ?? null;
+      if (!phone && user?.email) {
+        const { data: lead2 } = await supabase.from('leads').select('phone').eq('email', String(user.email).toLowerCase()).maybeSingle();
+        phone = lead2?.phone ?? null;
+      }
+      await sendMetaSubscribe(user?.email ?? null, phone, userId, attr, value, payment?.id);
+    }
+  } catch (e) {
+    console.error('Erro ao registrar conversão do Google Ads:', e);
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
@@ -141,7 +241,11 @@ serve(async (req) => {
       return new Response(JSON.stringify({ message: 'Sem dados de cliente' }), { status: 200 })
     }
 
-    let userId = payment.externalReference
+    // regularize-subscription grava externalReference como "REG_<userId>" —
+    // sem tirar o prefixo, o pagamento da regularização nunca reativava a conta.
+    let userId = typeof payment.externalReference === 'string'
+      ? payment.externalReference.replace(/^REG_/, '')
+      : payment.externalReference
 
     if (!userId) {
       const customerResp = await fetch(`https://www.asaas.com/api/v3/customers/${payment.customer}`, {
@@ -173,6 +277,19 @@ serve(async (req) => {
       isCanceled = true;
     }
     if (event === 'PAYMENT_CONFIRMED' || event === 'PAYMENT_RECEIVED') newStatus = 'active'
+
+    // Uma cobrança ABANDONADA (ex.: Pix gerado e não pago, depois a pessoa pagou no
+    // cartão) vence/é apagada dias depois e não pode derrubar quem já pagou e ainda
+    // está dentro do período. Se o acesso está ativo e o período ainda não acabou,
+    // ignora vencida/apagada — a renovação que de fato falhar é rebaixada sozinha
+    // pelo SettingsContext assim que current_period_end passar.
+    if (event === 'PAYMENT_OVERDUE' || event === 'PAYMENT_DELETED') {
+      const { data: cur } = await supabase.from('user_entitlements')
+        .select('subscription_status, current_period_end').eq('user_id', userId).maybeSingle();
+      if (cur?.subscription_status === 'active' && cur.current_period_end && new Date(cur.current_period_end).getTime() > Date.now()) {
+        return new Response(JSON.stringify({ success: true, ignored: `${event} (acesso ainda dentro do período)` }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 })
+      }
+    }
 
     if (!newStatus && !isCanceled) {
       return new Response(JSON.stringify({ success: true, ignored: event }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 })
@@ -208,10 +325,22 @@ serve(async (req) => {
       updateData.current_period_end = new Date(Date.now() + PERIOD_DAYS[cycle] * 24 * 60 * 60 * 1000).toISOString();
     }
 
-    await supabase.from('user_entitlements').upsert({
+    const { error: entErr } = await supabase.from('user_entitlements').upsert({
       user_id: userId,
       ...updateData
     }, { onConflict: 'user_id' })
+    if (entErr) {
+      // Libera o id do evento pra o reenvio do Asaas ser processado de novo —
+      // senão o evento ficaria "já processado" sem o acesso ter sido liberado.
+      if (body.id) await supabase.from('asaas_webhook_events').delete().eq('event_id', body.id)
+      console.error('Erro ao gravar user_entitlements:', entErr)
+      return new Response(JSON.stringify({ error: entErr.message }), { status: 500 })
+    }
+
+    // 1ª cobrança confirmada: grava a conversão do Google Ads (idempotente por usuário).
+    if (newStatus === 'active') {
+      await registerAdsConversion(supabase, userId, payment, updateData.plan_id, updateData.billing_cycle)
+    }
 
     // Programa de indicação: se este usuário foi indicado por alguém, toda
     // mudança de status dele (voltou a pagar, ficou past_due, cancelou...)

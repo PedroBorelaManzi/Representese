@@ -18,7 +18,7 @@ export function RecursosBentoSection() {
             Menos retrabalho.<br />Mais tempo na rua vendendo.
           </h2>
           <p className="text-slate-500 font-medium max-w-xl mx-auto">
-            CRM, agenda, mapa, e-mail e faturamento integrados — para devolver horas do seu dia.
+            Clientes, pedidos, agenda, mapa e faturamento integrados — para devolver horas do seu dia.
           </p>
         </FadeUp>
 

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { trackAnonymousStep } from "../lib/adsFunnel";
+import { metaAddPaymentInfo, metaCompleteRegistration } from "../lib/metaPixel";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -14,6 +16,8 @@ import { supabase } from "../lib/supabase";
 import { posthog } from "../lib/posthog";
 import { useAuth } from "../contexts/AuthContext";
 import { loadLeadData, clearLeadData } from "../lib/leadStorage";
+import { getAttribution } from '../lib/attribution';
+import { PhoneField } from '../components/PhoneField';
 import { lookupCep } from "../lib/cepLookup";
 
 const plans = {
@@ -41,7 +45,7 @@ const plans = {
 };
 
 import {
-  isValidCPF, isValidCNPJ, isValidPhone,
+  isValidCPF, isValidCNPJ, isValidPhone, isValidWhatsApp,
   formatCpfCnpj, formatPhone, formatCardNumber, formatExpiry, formatCcv, formatCep,
   passwordStrength,
 } from '../lib/validators';
@@ -121,6 +125,8 @@ export default function Checkout() {
     cardNumber: "", expiry: "", ccv: "", holderName: ""
   });
   const [isLookingUpCep, setIsLookingUpCep] = useState(false);
+  // Rua/bairro/cidade/UF vêm do CEP e ficam recolhidos num resumo; só abrem se a busca falhar ou se a pessoa quiser editar.
+  const [editAddress, setEditAddress] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -157,11 +163,23 @@ export default function Checkout() {
   const docValid = isCpf ? isValidCPF(cleanCpfCnpj) : isValidCNPJ(cleanCpfCnpj);
 
   const isPersonalName = formData.name.trim().split(/\s+/).filter(w => w.length > 0).length >= 2;
-  const docNameMatch = isCpf ? (isPersonalName && !/ltda|s\/?a|eireli|me|epp|cnpj/i.test(formData.name)) : (formData.name.trim().length >= 3);
-  const phoneValid = isValidPhone(cleanPhone);
+  const docNameMatch = isCpf ? (isPersonalName && !/\b(ltda|s\/?a|eireli|me|epp|cnpj)\b/i.test(formData.name)) : (formData.name.trim().length >= 3);
+  const phoneValid = isValidWhatsApp(cleanPhone);
 
   const cleanCep = formData.cep.replace(/\D/g, '');
   const isAddressValid = cleanCep.length === 8 && formData.street.trim() && formData.addressNumber.trim() && formData.city.trim() && formData.state.trim();
+
+  // Por que o botão "Continuar" está travado — mostrado embaixo dele pra pessoa não ficar sem saber.
+  const step1Pendencias: string[] = [];
+  if (!formData.name.trim()) step1Pendencias.push('nome completo');
+  else if (isCpf && !docNameMatch) step1Pendencias.push('nome e sobrenome (como no documento)');
+  if (!formData.email.trim()) step1Pendencias.push('e-mail');
+  if (!formData.cpfCnpj) step1Pendencias.push('CPF ou CNPJ');
+  else if (!docValid) step1Pendencias.push(isCpf ? 'CPF válido (confira os números)' : 'CNPJ válido (confira os números)');
+  if (!phoneValid) step1Pendencias.push('WhatsApp com DDD e 9 dígitos');
+  if (!isAddressValid) step1Pendencias.push('CEP e número do endereço');
+  if (!user && !isPasswordValid) step1Pendencias.push('senha dentro das regras');
+  if (!aceitouTermos) step1Pendencias.push('aceite dos Termos');
 
   const isStep1Valid = formData.name && formData.email && formData.cpfCnpj && docValid && docNameMatch && formData.phone && phoneValid && isAddressValid && (user ? true : isPasswordValid) && aceitouTermos;
 
@@ -255,6 +273,8 @@ export default function Checkout() {
         return;
       }
       setFormErrors({});
+      trackAnonymousStep('checkout_step2');
+      metaAddPaymentInfo({ planId: selectedPlan.id, planName: selectedPlan.name, ciclo: billingCycle, value: finalPrice });
       setStep(2);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
@@ -276,6 +296,7 @@ export default function Checkout() {
       // — não precisa validar de novo aqui.
     }
     setLoading(true);
+    trackAnonymousStep('checkout_submit');
 
     try {
       let userId = user?.id;
@@ -290,6 +311,8 @@ export default function Checkout() {
               cpf_cnpj: formData.cpfCnpj,
               // Data/hora do aceite dos termos, para comprovar em contestação.
               termos_aceitos_em: new Date().toISOString(),
+              // Origem (anúncio/utm) — a Edge Function de webhook lê daqui ao confirmar o pagamento.
+              attribution: getAttribution() ?? undefined,
             }
           }
         });
@@ -315,6 +338,7 @@ export default function Checkout() {
         }
 
         userId = authData?.user?.id;
+        if (userId) metaCompleteRegistration(userId, { planId: selectedPlan.id, planName: selectedPlan.name, ciclo: billingCycle, value: finalPrice });
         clearLeadData();
       } else {
         const { error: updateError } = await supabase.auth.updateUser({
@@ -358,6 +382,7 @@ export default function Checkout() {
       if (error) throw error;
       if (data.success) {
         posthog.capture('signup_completed', { plan_id: selectedPlan.id, billing_cycle: billingCycle });
+        trackAnonymousStep('checkout_success');
 
         // Pix: a função devolve { pix: { qrcode, payload } }. Antes o front só
         // sabia ler invoiceUrl (que ela nunca retorna) e mandava a pessoa para
@@ -367,11 +392,19 @@ export default function Checkout() {
           return;
         }
 
-        toast.success("Pagamento processado!");
+        // Cartão: a confirmação vem do banco/Asaas alguns segundos depois — o
+        // acesso é liberado sozinho assim que o pagamento for identificado.
+        toast.success(paymentMethod === 'CREDIT_CARD'
+          ? "Pagamento enviado! Estamos confirmando e liberando seu acesso..."
+          : "Pagamento processado!");
         if (data.invoiceUrl) setTimeout(() => { window.location.href = data.invoiceUrl; }, 1500);
         // Quem acabou de se cadastrar já está autenticado pelo signUp: mandar
         // para /login obrigava a digitar a senha de novo logo após pagar.
-        else navigate("/dashboard");
+        else {
+          // O dashboard mostra "Aguarde um instante" (e não "escolha um plano") até o webhook liberar o acesso.
+          try { sessionStorage.setItem('rm_just_paid', String(Date.now())); } catch { /* ignora */ }
+          navigate("/dashboard");
+        }
       } else toast.error(data.message || "Erro no processamento");
     } catch (err: any) {
       toast.error(err.message || "Erro na comunicação");
@@ -605,16 +638,17 @@ export default function Checkout() {
                             className={cn(inputBase, formErrors.cpfCnpj ? inputErr : inputOk)} />
                         </div>
                         {formErrors.cpfCnpj && <p className="text-[12px] text-red-500 font-bold pt-1 animate-in fade-in slide-in-from-top-1">{formErrors.cpfCnpj}</p>}
+                        {!formErrors.cpfCnpj && (cleanCpfCnpj.length === 11 || cleanCpfCnpj.length === 14) && !docValid && <p className="text-[12px] text-red-500 font-bold pt-1">{cleanCpfCnpj.length === 11 ? 'CPF inválido. Confira os números.' : 'CNPJ inválido. Confira os números.'}</p>}
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[13px] font-bold text-slate-700">WhatsApp</label>
-                        <div className="relative">
-                          <Phone className="w-[18px] h-[18px] text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
-                          <input required type="tel" autoComplete="tel" value={formData.phone}
-                            onChange={(e) => { setFormData({ ...formData, phone: formatPhone(e.target.value) }); setFormErrors(prev => ({ ...prev, phone: '' })); }}
-                            placeholder="(00) 00000-0000"
-                            className={cn(inputBase, formErrors.phone ? inputErr : inputOk)} />
-                        </div>
+                        <PhoneField
+                          value={formData.phone}
+                          onChange={(v) => { setFormData({ ...formData, phone: v }); setFormErrors(prev => ({ ...prev, phone: '' })); }}
+                          hasError={!!formErrors.phone}
+                          iconClassName="pl-4"
+                          inputClassName={cn(inputBase, 'pl-12', formErrors.phone ? inputErr : inputOk)}
+                        />
                         {formErrors.phone && <p className="text-[12px] text-red-500 font-bold pt-1 animate-in fade-in slide-in-from-top-1">{formErrors.phone}</p>}
                       </div>
                     </div>
@@ -637,56 +671,70 @@ export default function Checkout() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-5">
-                      <div className="space-y-1.5">
-                        <label className="text-[13px] font-bold text-slate-700">Rua</label>
-                        <input required type="text" autoComplete="address-line1" value={formData.street}
-                          onChange={(e) => setFormData({ ...formData, street: e.target.value })}
-                          placeholder="Rua, avenida..."
-                          className={cn(inputBase.replace('pl-11', 'pl-4'), inputOk)} />
-                      </div>
-                      <div className="space-y-1.5 md:w-32">
-                        <label className="text-[13px] font-bold text-slate-700">Número</label>
-                        <input required type="text" value={formData.addressNumber}
-                          onChange={(e) => setFormData({ ...formData, addressNumber: e.target.value.slice(0, 10) })}
-                          placeholder="123"
-                          className={cn(inputBase.replace('pl-11', 'pl-4'), inputOk)} />
-                      </div>
+                    <div className="space-y-1.5 md:w-40">
+                      <label className="text-[13px] font-bold text-slate-700">Número</label>
+                      <input required type="text" value={formData.addressNumber}
+                        onChange={(e) => setFormData({ ...formData, addressNumber: e.target.value.slice(0, 10) })}
+                        placeholder="123"
+                        className={cn(inputBase.replace('pl-11', 'pl-4'), inputOk)} />
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      <div className="space-y-1.5">
-                        <label className="text-[13px] font-bold text-slate-700">Complemento (opcional)</label>
-                        <input type="text" value={formData.addressComplement}
-                          onChange={(e) => setFormData({ ...formData, addressComplement: e.target.value })}
-                          placeholder="Apto, bloco..."
-                          className={cn(inputBase.replace('pl-11', 'pl-4'), inputOk)} />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[13px] font-bold text-slate-700">Bairro</label>
-                        <input type="text" value={formData.neighborhood}
-                          onChange={(e) => setFormData({ ...formData, neighborhood: e.target.value })}
-                          placeholder="Bairro"
-                          className={cn(inputBase.replace('pl-11', 'pl-4'), inputOk)} />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-5">
-                      <div className="space-y-1.5">
-                        <label className="text-[13px] font-bold text-slate-700">Cidade</label>
-                        <input required type="text" autoComplete="address-level2" value={formData.city}
-                          onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                          placeholder="Cidade"
-                          className={cn(inputBase.replace('pl-11', 'pl-4'), inputOk)} />
-                      </div>
-                      <div className="space-y-1.5 md:w-24">
-                        <label className="text-[13px] font-bold text-slate-700">UF</label>
-                        <input required type="text" maxLength={2} autoComplete="address-level1" value={formData.state}
-                          onChange={(e) => setFormData({ ...formData, state: e.target.value.toUpperCase() })}
-                          placeholder="SP"
-                          className={cn(inputBase.replace('pl-11', 'pl-4'), inputOk, "uppercase")} />
-                      </div>
-                    </div>
+                    {(() => {
+                      const preenchido = !!(formData.street.trim() && formData.city.trim() && formData.state.trim());
+                      const mostrarCampos = editAddress || (cleanCep.length === 8 && !isLookingUpCep && !preenchido);
+                      if (preenchido && !mostrarCampos) {
+                        return (
+                          <div className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3 text-[13px] text-slate-600">
+                            <span>{formData.street}{formData.neighborhood ? `, ${formData.neighborhood}` : ''} — {formData.city}/{formData.state}</span>
+                            <button type="button" onClick={() => setEditAddress(true)} className="font-bold text-emerald-600 shrink-0">Editar</button>
+                          </div>
+                        );
+                      }
+                      if (!mostrarCampos) return null;
+                      return (
+                        <>
+                          <div className="space-y-1.5">
+                            <label className="text-[13px] font-bold text-slate-700">Rua</label>
+                            <input required type="text" autoComplete="address-line1" value={formData.street}
+                              onChange={(e) => setFormData({ ...formData, street: e.target.value })}
+                              placeholder="Rua, avenida..."
+                              className={cn(inputBase.replace('pl-11', 'pl-4'), inputOk)} />
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div className="space-y-1.5">
+                              <label className="text-[13px] font-bold text-slate-700">Complemento (opcional)</label>
+                              <input type="text" value={formData.addressComplement}
+                                onChange={(e) => setFormData({ ...formData, addressComplement: e.target.value })}
+                                placeholder="Apto, bloco..."
+                                className={cn(inputBase.replace('pl-11', 'pl-4'), inputOk)} />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-[13px] font-bold text-slate-700">Bairro</label>
+                              <input type="text" value={formData.neighborhood}
+                                onChange={(e) => setFormData({ ...formData, neighborhood: e.target.value })}
+                                placeholder="Bairro"
+                                className={cn(inputBase.replace('pl-11', 'pl-4'), inputOk)} />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-5">
+                            <div className="space-y-1.5">
+                              <label className="text-[13px] font-bold text-slate-700">Cidade</label>
+                              <input required type="text" autoComplete="address-level2" value={formData.city}
+                                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                                placeholder="Cidade"
+                                className={cn(inputBase.replace('pl-11', 'pl-4'), inputOk)} />
+                            </div>
+                            <div className="space-y-1.5 md:w-24">
+                              <label className="text-[13px] font-bold text-slate-700">UF</label>
+                              <input required type="text" maxLength={2} autoComplete="address-level1" value={formData.state}
+                                onChange={(e) => setFormData({ ...formData, state: e.target.value.toUpperCase() })}
+                                placeholder="SP"
+                                className={cn(inputBase.replace('pl-11', 'pl-4'), inputOk, "uppercase")} />
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
 
                   {/* Aceite registrado: é o que sustenta a cobrança recorrente
@@ -719,6 +767,9 @@ export default function Checkout() {
                   >
                     {isCheckingUniqueness ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Continuar para pagamento <ChevronRight className="w-5 h-5" /></>}
                   </button>
+                  {!isStep1Valid && step1Pendencias.length > 0 && (
+                    <p data-testid="step1-pendencias" className="text-center text-[12px] text-amber-600 font-bold">Falta: {step1Pendencias.join(', ')}.</p>
+                  )}
                 </motion.div>
               ) : (
                 <motion.div key="step2" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} className="space-y-6">

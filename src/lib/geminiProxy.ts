@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { apiUrl } from './apiBase';
+import { AiConsentDeniedError, requestAiConsent } from './aiConsent';
 
 interface GeminiProxyRequest {
   contents: Array<{
@@ -16,6 +17,8 @@ interface GeminiProxyRequest {
  * The API key never leaves the server.
  */
 export async function callGeminiProxy(request: GeminiProxyRequest, signal?: AbortSignal): Promise<string> {
+  // App Store 5.1.1/5.1.2: só envia dados à IA de terceiros depois da permissão explícita do usuário.
+  if (!(await requestAiConsent())) throw new AiConsentDeniedError();
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) {
     throw new Error("Usuario nao autenticado.");

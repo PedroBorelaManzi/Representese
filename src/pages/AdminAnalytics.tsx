@@ -1,9 +1,10 @@
 import React, { useState, lazy, Suspense } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
+import { segmentLabel } from '../lib/segments';
 import { useSettings } from '../contexts/SettingsContext';
 import { Navigate } from 'react-router-dom';
-import { BarChart3, Clock, LayoutDashboard, MousePointerClick, Search, ChevronDown, ChevronUp, User, Users, LineChart, Download, Building2, Phone, UserCog, Settings as SettingsIcon, X, Trash2, Mail, Loader2, ShieldAlert, Map as MapIcon } from 'lucide-react';
+import { BarChart3, Clock, LayoutDashboard, MousePointerClick, Search, ChevronDown, ChevronUp, User, Users, LineChart, Download, Building2, Phone, UserCog, Settings as SettingsIcon, X, Trash2, Mail, Loader2, ShieldAlert, Map as MapIcon, Filter, Instagram } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell
@@ -17,6 +18,19 @@ import UserDossier from '../components/admin/UserDossier';
 
 // Leaflet só carrega quando a aba Cobertura é aberta.
 const CoverageMap = lazy(() => import('../components/admin/CoverageMap'));
+const AdsFunnel = lazy(() => import('../components/admin/AdsFunnel'));
+const InstagramStats = lazy(() => import('../components/admin/InstagramStats'));
+
+const ABAS: { id: 'sistema' | 'landing' | 'leads' | 'usuarios' | 'ficha' | 'cobertura' | 'funil' | 'instagram'; label: string; Icon: React.ElementType; ativa: string }[] = [
+  { id: 'sistema', label: 'Sistema (Logados)', Icon: Users, ativa: 'bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:ring-emerald-500/30' },
+  { id: 'landing', label: 'Landing Page', Icon: LineChart, ativa: 'bg-indigo-50 text-indigo-700 ring-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-400 dark:ring-indigo-500/30' },
+  { id: 'leads', label: 'CRM & Leads', Icon: Building2, ativa: 'bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:ring-amber-500/30' },
+  { id: 'usuarios', label: 'Gerenciar Usuários', Icon: UserCog, ativa: 'bg-blue-50 text-blue-700 ring-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:ring-blue-500/30' },
+  { id: 'ficha', label: 'Ficha Completa', Icon: User, ativa: 'bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-200 dark:bg-fuchsia-500/10 dark:text-fuchsia-400 dark:ring-fuchsia-500/30' },
+  { id: 'cobertura', label: 'Cobertura', Icon: MapIcon, ativa: 'bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:ring-rose-500/30' },
+  { id: 'funil', label: 'Funil de anúncios', Icon: Filter, ativa: 'bg-teal-50 text-teal-700 ring-teal-200 dark:bg-teal-500/10 dark:text-teal-400 dark:ring-teal-500/30' },
+  { id: 'instagram', label: 'Instagram', Icon: Instagram, ativa: 'bg-pink-50 text-pink-700 ring-pink-200 dark:bg-pink-500/10 dark:text-pink-400 dark:ring-pink-500/30' },
+];
 
 const COLORS = [
   '#10b981', '#6366f1', '#f59e0b', '#ef4444', 
@@ -75,7 +89,7 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
   const [deletingUser, setDeletingUser] = useState(false);
   const queryClient = useQueryClient();
   const confirm = useConfirm();
-  const [activeTab, setActiveTab] = useState<'sistema' | 'landing' | 'leads' | 'usuarios' | 'ficha' | 'cobertura'>('sistema');
+  const [activeTab, setActiveTab] = useState<'sistema' | 'landing' | 'leads' | 'usuarios' | 'ficha' | 'cobertura' | 'funil' | 'instagram'>('sistema');
 
   // --- QUERY 1: Sistema (Usuários Logados) ---
   const { data, isLoading } = useQuery({
@@ -239,7 +253,7 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
       // reflete se o usuário realmente pagou. A fonte de verdade da assinatura é
       // user_entitlements, atualizada pelo webhook do Asaas em cada pagamento.
       const [{ data: leads, error: leadsError }, { data: entitlements, error: entError }] = await Promise.all([
-        supabase.from('user_settings').select('user_id, email, phone, created_at, is_admin, billing_cep, billing_street, billing_number, billing_complement, billing_neighborhood, billing_city, billing_state').order('created_at', { ascending: false }),
+        supabase.from('user_settings').select('user_id, email, phone, created_at, is_admin, billing_cep, billing_street, billing_number, billing_complement, billing_neighborhood, billing_city, billing_state, segments, segment_other').order('created_at', { ascending: false }),
         supabase.from('user_entitlements').select('user_id, subscription_status, plan_id'),
       ]);
       if (leadsError) throw leadsError;
@@ -453,99 +467,52 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
   return (
     <div className="w-full max-w-7xl mx-auto p-4 md:p-8 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white flex items-center gap-3">
-            <LayoutDashboard className="w-8 h-8 text-emerald-600" />
+            <span className="flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30">
+              <LayoutDashboard className="w-6 h-6 text-emerald-600" />
+            </span>
             Analytics Global
           </h1>
           <p className="text-zinc-500 mt-2">Métricas de comportamento de usuários e visitantes da página de vendas.</p>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-zinc-800 pb-px mb-6">
-        <button
-          onClick={() => setActiveTab('sistema')}
-          className={cn(
-            "px-6 py-3 font-semibold text-sm transition-all relative",
-            activeTab === 'sistema' ? "text-emerald-600" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
-          )}
-        >
-          <div className="flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            Sistema (Logados)
-          </div>
-          {activeTab === 'sistema' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600" />}
-        </button>
-        <button
-          onClick={() => setActiveTab('landing')}
-          className={cn(
-            "px-6 py-3 font-semibold text-sm transition-all relative",
-            activeTab === 'landing' ? "text-indigo-600" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
-          )}
-        >
-          <div className="flex items-center gap-2">
-            <LineChart className="w-4 h-4" />
-            Landing Page (Leads)
-          </div>
-          {activeTab === 'landing' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600" />}
-        </button>
-        <button
-          onClick={() => setActiveTab('leads')}
-          className={cn(
-            "px-6 py-3 font-semibold text-sm transition-all relative",
-            activeTab === 'leads' ? "text-amber-600" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
-          )}
-        >
-          <div className="flex items-center gap-2">
-            <Building2 className="w-4 h-4" />
-            CRM & Leads
-          </div>
-          {activeTab === 'leads' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600" />}
-        </button>
-        <button
-          onClick={() => setActiveTab('usuarios')}
-          className={cn(
-            "px-6 py-3 font-semibold text-sm transition-all relative",
-            activeTab === 'usuarios' ? "text-blue-600" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
-          )}
-        >
-          <div className="flex items-center gap-2">
-            <UserCog className="w-4 h-4" />
-            Gerenciar Usuários
-          </div>
-          {activeTab === 'usuarios' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />}
-        </button>
-        <button
-          onClick={() => setActiveTab('ficha')}
-          className={cn(
-            "px-6 py-3 font-semibold text-sm transition-all relative",
-            activeTab === 'ficha' ? "text-fuchsia-600" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
-          )}
-        >
-          <div className="flex items-center gap-2">
-            <User className="w-4 h-4" />
-            Ficha Completa
-          </div>
-          {activeTab === 'ficha' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-fuchsia-600" />}
-        </button>
-        <button
-          onClick={() => setActiveTab('cobertura')}
-          className={cn(
-            "px-6 py-3 font-semibold text-sm transition-all relative",
-            activeTab === 'cobertura' ? "text-rose-600" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
-          )}
-        >
-          <div className="flex items-center gap-2">
-            <MapIcon className="w-4 h-4" />
-            Cobertura
-          </div>
-          {activeTab === 'cobertura' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-rose-600" />}
-        </button>
+      {/* Abas */}
+      <div className="rounded-2xl border border-slate-200 dark:border-zinc-700/70 bg-white dark:bg-zinc-900 p-1.5 shadow-sm overflow-x-auto">
+        <div className="flex items-center gap-1 min-w-max" role="tablist">
+          {ABAS.map(({ id, label, Icon, ativa }) => (
+            <button
+              key={id}
+              role="tab"
+              aria-selected={activeTab === id}
+              onClick={() => setActiveTab(id)}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all whitespace-nowrap",
+                activeTab === id
+                  ? `${ativa} shadow-sm ring-1 ring-inset`
+                  : "text-slate-500 hover:text-slate-800 hover:bg-slate-50 dark:hover:text-zinc-200 dark:hover:bg-zinc-800/60"
+              )}
+            >
+              <Icon className="w-4 h-4" />
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {activeTab === 'ficha' && <UserDossier />}
+      {activeTab === 'instagram' && (
+        <Suspense fallback={<div className="py-20 text-center text-slate-400">Carregando Instagram…</div>}>
+          <InstagramStats />
+        </Suspense>
+      )}
+      {activeTab === 'funil' && (
+        <Suspense fallback={<div className="py-20 text-center text-slate-400">Carregando funil…</div>}>
+          <AdsFunnel />
+        </Suspense>
+      )}
       {activeTab === 'cobertura' && (
         <Suspense fallback={<div className="py-20 text-center text-slate-400">Carregando mapa…</div>}>
           <CoverageMap />
@@ -563,20 +530,24 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
         <>
           {/* Top Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800 flex flex-col justify-center">
+            <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-700/70 flex flex-col justify-center">
               <div className="flex items-center gap-3 mb-2">
-                <MousePointerClick className="w-5 h-5 text-emerald-600" />
-                <h3 className="text-sm font-medium text-zinc-500">Total de Eventos Capturados</h3>
+                <span className="flex items-center justify-center w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20">
+                  <MousePointerClick className="w-5 h-5 text-emerald-600" />
+                </span>
+                <h3 className="text-sm font-semibold text-zinc-500">Total de Eventos Capturados</h3>
               </div>
               <p className="text-4xl font-black text-zinc-900 dark:text-white tracking-tight">
                 {data?.totalEvents.toLocaleString()}
               </p>
             </div>
             
-            <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800 flex flex-col justify-center">
+            <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-700/70 flex flex-col justify-center">
               <div className="flex items-center gap-3 mb-2">
-                <Clock className="w-5 h-5 text-indigo-600" />
-                <h3 className="text-sm font-medium text-zinc-500">Tempo de Tela Acumulado (Todos)</h3>
+                <span className="flex items-center justify-center w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20">
+                  <Clock className="w-5 h-5 text-indigo-600" />
+                </span>
+                <h3 className="text-sm font-semibold text-zinc-500">Tempo de Tela Acumulado (Todos)</h3>
               </div>
               <p className="text-4xl font-black text-zinc-900 dark:text-white tracking-tight">
                 {formatTime(data?.totalTimeGlobal || 0)}
@@ -585,7 +556,7 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
           </div>
 
           {/* Gráfico Geral de Rotas */}
-          <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800">
+          <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-700/70">
              <div className="flex items-center gap-3 mb-6">
                 <BarChart3 className="w-6 h-6 text-zinc-900 dark:text-white" />
                 <h3 className="text-xl font-semibold text-zinc-900 dark:text-white">Tempo Geral por Seção (Top 10)</h3>
@@ -624,7 +595,7 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
           </div>
 
           {/* Análise por Usuário */}
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800 overflow-hidden flex flex-col min-h-[500px]">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-700/70 overflow-hidden flex flex-col min-h-[500px]">
             <div className="p-6 border-b border-slate-100 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <h3 className="text-xl font-semibold text-zinc-900 dark:text-white flex items-center gap-3">
                 <User className="w-5 h-5 text-indigo-500" />
@@ -652,7 +623,7 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
                     const isExpanded = expandedUser === userStats.userId;
                     
                     return (
-                      <div key={userStats.userId} className="border border-slate-100 dark:border-zinc-800/50 rounded-xl overflow-hidden transition-all duration-300">
+                      <div key={userStats.userId} className="border border-slate-200 dark:border-zinc-700/60 rounded-xl overflow-hidden transition-all duration-300">
                         <button 
                           onClick={() => setExpandedUser(isExpanded ? null : userStats.userId)}
                           className={cn(
@@ -746,28 +717,34 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
             {/* Top Cards Landing */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800 flex flex-col justify-center">
+              <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-700/70 flex flex-col justify-center">
                 <div className="flex items-center gap-3 mb-2">
-                  <Users className="w-5 h-5 text-indigo-600" />
-                  <h3 className="text-sm font-medium text-zinc-500">Visitantes Únicos (Sessões)</h3>
+                  <span className="flex items-center justify-center w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20">
+                    <Users className="w-5 h-5 text-indigo-600" />
+                  </span>
+                  <h3 className="text-sm font-semibold text-zinc-500">Visitantes Únicos (Sessões)</h3>
                 </div>
                 <p className="text-4xl font-black text-zinc-900 dark:text-white tracking-tight">
                   {landingData?.uniqueSessions.toLocaleString()}
                 </p>
               </div>
-              <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800 flex flex-col justify-center">
+              <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-700/70 flex flex-col justify-center">
                 <div className="flex items-center gap-3 mb-2">
-                  <MousePointerClick className="w-5 h-5 text-emerald-600" />
-                  <h3 className="text-sm font-medium text-zinc-500">Total de Interações</h3>
+                  <span className="flex items-center justify-center w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20">
+                    <MousePointerClick className="w-5 h-5 text-emerald-600" />
+                  </span>
+                  <h3 className="text-sm font-semibold text-zinc-500">Total de Interações</h3>
                 </div>
                 <p className="text-4xl font-black text-zinc-900 dark:text-white tracking-tight">
                   {landingData?.totalEvents.toLocaleString()}
                 </p>
               </div>
-              <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800 flex flex-col justify-center">
+              <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-700/70 flex flex-col justify-center">
                 <div className="flex items-center gap-3 mb-2">
-                  <Clock className="w-5 h-5 text-amber-500" />
-                  <h3 className="text-sm font-medium text-zinc-500">Tempo de Leitura Global</h3>
+                  <span className="flex items-center justify-center w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20">
+                    <Clock className="w-5 h-5 text-amber-500" />
+                  </span>
+                  <h3 className="text-sm font-semibold text-zinc-500">Tempo de Leitura Global</h3>
                 </div>
                 <p className="text-4xl font-black text-zinc-900 dark:text-white tracking-tight">
                   {formatTime(landingData?.totalTime || 0)}
@@ -776,7 +753,7 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
             </div>
 
             {/* Gráfico Geral de Funil da Landing Page */}
-            <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800 flex flex-col lg:flex-row items-center gap-8">
+            <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-700/70 flex flex-col lg:flex-row items-center gap-8">
               <div className="w-full lg:w-1/2 h-[400px]">
                  <div className="flex items-center gap-3 mb-6">
                   <LineChart className="w-6 h-6 text-zinc-900 dark:text-white" />
@@ -950,11 +927,13 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
                     <th className="px-6 py-4">E-mail</th>
                     <th className="px-6 py-4">WhatsApp</th>
                     <th className="px-6 py-4">Endereço</th>
+                    <th className="px-6 py-4">Mercado de atuação</th>
                     <th className="px-6 py-4">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-zinc-800">
                   {leadsData?.map(lead => {
+                    const areas = [...(lead.segments || []).map(segmentLabel), lead.segment_other && `Outro: ${lead.segment_other}`].filter(Boolean).join(', ');
                     const enderecoCompleto = [
                       lead.billing_street && `${lead.billing_street}, ${lead.billing_number || 'S/N'}`,
                       lead.billing_complement,
@@ -975,6 +954,9 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
                       </td>
                       <td className="px-6 py-4 text-slate-600 dark:text-zinc-300" title={enderecoCompleto || undefined}>
                         {cidadeUf || '-'}
+                      </td>
+                      <td className="px-6 py-4 text-slate-600 dark:text-zinc-300 max-w-[260px] truncate" title={areas || undefined}>
+                        {areas || '-'}
                       </td>
                       <td className="px-6 py-4">
                         <span className={cn(

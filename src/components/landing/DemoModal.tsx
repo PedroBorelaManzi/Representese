@@ -687,14 +687,14 @@ const SceneClosing = React.memo(function SceneClosing() {
         transition={{ duration: 0.5, delay: 0.9, ease: EASE }}
       >
         <Link
-          to="/register"
+          to="/planos"
           className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm transition-all shadow-xl shadow-emerald-600/25"
         >
-          Criar minha conta grátis
+          Ver planos e começar
           <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
         </Link>
         <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mt-4">
-          7 dias de garantia · Sem fidelidade
+          Sem fidelidade
         </p>
       </motion.div>
     </div>
@@ -707,7 +707,7 @@ const SCENES: Scene[] = [
     duration: 4800,
     eyebrow: "Painel unificado",
     title: "Todas as suas representadas num só painel",
-    subtitle: "Faturamento, pedidos e metas separados por empresa — sem planilha.",
+    subtitle: "Faturamento, pedidos e comissões separados por empresa — sem planilha.",
     Visual: SceneDashboard,
   },
   {
@@ -721,7 +721,7 @@ const SCENES: Scene[] = [
   {
     id: "crm",
     duration: 5000,
-    eyebrow: "CRM inteligente",
+    eyebrow: "Gestão de clientes",
     title: "Clientes organizados, com resumo da IA",
     subtitle: "Saiba quem reativar e o momento certo de cada contato.",
     Visual: SceneCRM,

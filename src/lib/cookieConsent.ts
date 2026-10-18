@@ -17,7 +17,8 @@
 
 import { Capacitor } from '@capacitor/core';
 
-export const CONSENT_VERSION = 1;
+/** 2 = pixel da Meta (Instagram/Facebook) entrou na categoria de análise. */
+export const CONSENT_VERSION = 2;
 
 const KEY = 'rm_cookie_consent';
 /** opt-out antigo por ?notrack=1 — continua sendo respeitado. */

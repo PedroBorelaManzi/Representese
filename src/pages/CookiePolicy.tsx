@@ -22,12 +22,16 @@ const PREFERENCIAS: Linha[] = [
 
 const ANALITICOS: Linha[] = [
   { nome: "ph_* / posthog", provedor: "PostHog", finalidade: "Métricas de uso do produto e eventos de navegação. Só com seu aceite.", duracao: "Até 12 meses" },
+  { nome: "_gcl_aw / _gcl_au", provedor: "Google Ads", finalidade: "Mede se um clique em anúncio do Google resultou em assinatura (conversão). Não usamos para remarketing. Esses cookies só são gravados com seu aceite.", duracao: "Até 90 dias" },
+  { nome: "_fbp / fbevents.js", provedor: "Meta (Instagram e Facebook)", finalidade: "Pixel da Meta: mede se um clique em anúncio ou link do Instagram/Facebook resultou em cadastro e assinatura. Só carrega depois do seu aceite. Enviamos apenas o nome do evento (visita, cadastro, checkout, assinatura) e o valor da assinatura — nunca e-mail, telefone ou nome. Sem remarketing.", duracao: "Até 90 dias" },
   { nome: "landing_session_id", provedor: "Represente-Se!", finalidade: "Identificador aleatório para não contar a mesma visita duas vezes.", duracao: "Persistente" },
   { nome: "user_events / landing_events", provedor: "Represente-Se! (Supabase)", finalidade: "Tempo em cada tela e seções vistas, para melhorar o app.", duracao: "Armazenado na conta" },
 ];
 
 const LEGITIMO: Linha[] = [
   { nome: "Sentry", provedor: "Sentry", finalidade: "Registra erros e falhas para corrigirmos rápido. Base legal: legítimo interesse (estabilidade e segurança).", duracao: "Até 90 dias" },
+  { nome: "Contagem anônima de visitas e etapas (anúncios)", provedor: "Represente-Se!", finalidade: "Se você chegar por um anúncio e ainda não tiver aceitado cookies de análise, registramos apenas que houve uma visita e quais etapas do caminho de contratação foram abertas (planos, cadastro, checkout, pagamento), junto com a origem e a campanha do anúncio, sem identificador, sem IP, sem e-mail ou telefone e sem ligar ao seu cadastro. Serve só para medir quantos cliques de anúncio chegam ao site. Base legal: legítimo interesse. Se você rejeitar os cookies, nada além disso é registrado.", duracao: "Dados agregados e anônimos" },
+  { nome: "Google Tag (modo restrito)", provedor: "Google", finalidade: "Antes de você decidir, a tag do Google Ads carrega sem cookies e sem identificadores, só para o Google confirmar que ela está instalada. O Google recebe os dados técnicos da conexão, como IP e navegador. Não há remarketing nem personalização de anúncios. Base legal: legítimo interesse.", duracao: "—" },
   { nome: "Vercel Speed Insights", provedor: "Vercel", finalidade: "Mede velocidade de carregamento. Anônimo e sem cookies.", duracao: "—" },
 ];
 

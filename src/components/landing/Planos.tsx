@@ -18,7 +18,7 @@ export function PlanosSection() {
             Planos que crescem com você.
           </h2>
           <p className="text-slate-500 font-medium max-w-xl mx-auto">
-            Seu plano acompanha o número de empresas que você representa — de 1 a ilimitadas. 7 dias de garantia, sem fidelidade.
+            Seu plano acompanha o número de empresas que você representa — de 1 a ilimitadas. Sem fidelidade.
           </p>
         </FadeUp>
 
@@ -118,12 +118,17 @@ export function PlanosSection() {
                       )}
                     </div>
                     <div className="flex items-end gap-1 mb-1">
+                      {annual && (
+                        <span className={cn("text-[15px] font-bold mb-2 mr-1", plan.popular ? "text-slate-300" : "text-slate-500")}>12x de</span>
+                      )}
                       <span className={cn("text-2xl font-black mb-1", plan.popular ? "text-white" : "text-slate-900")}>R$</span>
                       <span className={cn("text-5xl font-black tracking-tight", plan.popular ? "text-white" : "text-slate-900")}>{price}</span>
-                      <span className={cn("text-[14px] font-bold mb-2", plan.popular ? "text-slate-400" : "text-slate-500")}>/mês</span>
+                      {!annual && (
+                        <span className={cn("text-[14px] font-bold mb-2", plan.popular ? "text-slate-400" : "text-slate-500")}>/mês</span>
+                      )}
                     </div>
                     <p className={cn("text-[11px] font-medium mb-6 h-4", plan.popular ? "text-slate-500" : "text-slate-400")}>
-                      {annual ? "cobrado anualmente" : "no plano mensal"}
+                      {annual ? `sem juros no cartão · ou R$ ${Number(price) * 12} à vista` : "no plano mensal"}
                     </p>
 
                     <Link

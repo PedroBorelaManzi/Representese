@@ -6,10 +6,14 @@ import { Link, useNavigate, useSearchParams, Navigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
-import { isValidPhone, formatPhone } from "../lib/validators";
+import { isValidWhatsApp } from "../lib/validators";
+import { PhoneField } from "../components/PhoneField";
 import { cn } from "../lib/utils";
 import { usePageMeta } from "../hooks/usePageMeta";
 import { saveLeadData } from "../lib/leadStorage";
+import { getAttribution } from "../lib/attribution";
+import { trackLeadConversion } from "../lib/googleAds";
+import { metaLead } from "../lib/metaPixel";
 import { isIOSApp } from "../lib/iapPolicy";
 import { checkPassword, PASSWORD_MIN_LENGTH } from "../lib/passwordPolicy";
 
@@ -26,8 +30,8 @@ function PasswordRequirement({ label, met }: { label: string; met: boolean }) {
 
 export default function Register() {
   usePageMeta(
-    "Criar Conta Grátis",
-    "Cadastre-se gratuitamente no Represente-Se! e comece a organizar sua carteira de clientes como representante comercial.",
+    "Conheça os Planos",
+    "Deixe seu contato e veja os planos do Represente-Se!, o sistema para representante comercial: clientes, pedidos, agenda e comissões.",
     "/register"
   );
   const iosApp = isIOSApp();
@@ -54,12 +58,13 @@ export default function Register() {
   }
 
   const cleanPhone = phone.replace(/\D/g, "");
-  const isPhoneValid = isValidPhone(cleanPhone);
-  const showPhoneError = cleanPhone.length >= 10 && !isPhoneValid;
+  const isPhoneValid = isValidWhatsApp(cleanPhone);
+  // Apple (5.1.1(v), 12/10/2026): no app iOS o telefone não pode ser obrigatório.
+  const showPhoneError = cleanPhone.length >= 11 && !isPhoneValid;
   const passwordChecks = checkPassword(password);
   const isPasswordValid = Object.values(passwordChecks).every(Boolean);
   const isFormValid = iosApp
-    ? name.trim().length >= 3 && email.trim() && isPhoneValid && isPasswordValid && aceitouTermos
+    ? name.trim().length >= 3 && email.trim() && (cleanPhone.length === 0 || isPhoneValid) && isPasswordValid && aceitouTermos
     : name.trim().length >= 3 && email.trim() && isPhoneValid;
 
   // No iOS não existe o formulário de checkout do Asaas (CPF/CNPJ, endereço,
@@ -79,7 +84,7 @@ export default function Register() {
         options: {
           data: {
             full_name: name.trim(),
-            phone,
+            phone: cleanPhone ? phone : undefined,
             company: company.trim() || undefined,
             termos_aceitos_em: new Date().toISOString(),
           },
@@ -106,7 +111,7 @@ export default function Register() {
       return;
     }
 
-    if (!isValidPhone(cleanPhone)) {
+    if (!isValidWhatsApp(cleanPhone)) {
       toast.error("Informe um WhatsApp válido");
       return;
     }
@@ -119,14 +124,25 @@ export default function Register() {
         p_email: email.trim(),
         p_phone: phone,
         p_company: company.trim() || null,
+        p_attribution: getAttribution(),
       });
 
       if (error) throw error;
+      trackLeadConversion();
+      metaLead();
 
       // Pro Checkout reaproveitar (nome/e-mail/telefone), em vez de pedir
       // tudo de novo do zero minutos depois.
       saveLeadData({ name: name.trim(), email: email.trim(), phone, company: company.trim() || undefined, ref: refCode });
 
+      // Veio de um clique no plano em /planos: segue direto pro checkout dele.
+      const planParam = searchParams.get("plan")?.toLowerCase();
+      if (planParam && ["exclusivo", "profissional", "master"].includes(planParam)) {
+        const period = searchParams.get("period") === "ANNUAL" ? "ANNUAL" : "MONTHLY";
+        toast.success("Dados salvos! Agora é só finalizar.");
+        navigate(`/checkout?plan=${planParam}&period=${period}`);
+        return;
+      }
       toast.success("Agora escolha o seu plano!");
       navigate("/planos");
     } catch (err: any) {
@@ -137,24 +153,14 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 flex flex-col items-center justify-center p-4 selection:bg-emerald-100 selection:text-emerald-900 font-sans">
-      <Link to="/" className="absolute top-6 left-6 flex items-center gap-2 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors text-sm font-semibold group z-10">
+    <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 flex flex-col items-center justify-center px-4 pb-8 [padding-top:max(1rem,env(safe-area-inset-top))] selection:bg-emerald-100 selection:text-emerald-900 font-sans">
+      <Link to="/" className="absolute left-6 [top:max(1.5rem,calc(env(safe-area-inset-top)+0.75rem))] flex items-center gap-2 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors text-sm font-semibold group z-10">
         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
         Voltar para a página inicial
       </Link>
 
-      {/* Atalho discreto pra quem só quer ver os planos sem preencher o
-          cadastro — /planos já é uma rota pública, então isso não pula
-          nenhuma checagem, só evita esse formulário de captura de lead.
-          No iOS não existe: sem conta criada aqui, não tem como comprar
-          via IAP em /planos. */}
-      {!iosApp && (
-        <Link to="/planos" className="absolute top-6 right-6 text-slate-300 hover:text-slate-400 dark:text-zinc-700 dark:hover:text-zinc-500 transition-colors text-[11px] font-normal z-10">
-          pular
-        </Link>
-      )}
 
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md [padding-top:3.5rem]">
         <div className="flex justify-center mb-10">
           <Logo size="lg" showText />
         </div>
@@ -166,10 +172,10 @@ export default function Register() {
         >
           <div className="text-center space-y-2 mb-8">
             <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-              {iosApp ? "Crie sua conta" : "Ver planos disponíveis"}
+              Crie seu acesso
             </h1>
             <p className="text-sm text-slate-500 dark:text-zinc-400 font-medium">
-              {iosApp ? "Leva menos de um minuto. Depois é só escolher o plano." : "Deixe seu contato para liberar o acesso aos planos"}
+              {iosApp || !searchParams.get("plan") ? "Leva menos de um minuto. Depois é só escolher o plano." : "Leva menos de um minuto. Depois é só finalizar a assinatura."}
             </p>
           </div>
 
@@ -196,30 +202,26 @@ export default function Register() {
 
             <div className="space-y-1.5">
               <label htmlFor="register-phone" className="text-[13px] font-bold text-slate-700 dark:text-zinc-300 ml-1">
-                WhatsApp *
+                {iosApp ? "WhatsApp (opcional)" : "WhatsApp *"}
               </label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-emerald-500 transition-colors">
-                  <Phone className="w-5 h-5" />
-                </div>
-                <input
-                  id="register-phone"
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(formatPhone(e.target.value))}
-                  className={cn(
-                    "w-full pl-11 pr-4 py-3.5 bg-slate-50 dark:bg-zinc-950/50 border rounded-2xl text-sm font-medium focus:ring-2 outline-none transition-all dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-600",
-                    showPhoneError
-                      ? "border-red-400 focus:ring-red-500/20 focus:border-red-500"
-                      : "border-slate-200 dark:border-zinc-800 focus:ring-emerald-500/20 focus:border-emerald-500"
-                  )}
-                  placeholder="(00) 00000-0000"
-                  required
-                />
-              </div>
+              <PhoneField
+                id="register-phone"
+                value={phone}
+                onChange={setPhone}
+                hasError={showPhoneError}
+                required={!iosApp}
+                inputClassName={cn(
+                  "w-full pl-11 pr-4 py-3.5 bg-slate-50 dark:bg-zinc-950/50 border rounded-2xl text-sm font-medium focus:ring-2 outline-none transition-all dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-600",
+                  showPhoneError
+                    ? "border-red-400 focus:ring-red-500/20 focus:border-red-500"
+                    : "border-slate-200 dark:border-zinc-800 focus:ring-emerald-500/20 focus:border-emerald-500"
+                )}
+              />
+              <p className="text-[11px] text-slate-400 ml-1">Escolha o DDD na lista e digite o celular (9 dígitos, começando com 9).</p>
+              <p className="text-[11px] text-slate-400 ml-1">{iosApp ? "Se informar, usamos" : "Usamos"} seu WhatsApp para avisar quando o seu plano estiver perto de acabar e para enviar promoções e novidades do Represente-Se!.</p>
               {showPhoneError && (
                 <p className="text-[12px] text-red-500 font-bold pt-1 ml-1">
-                  Informe um WhatsApp válido, com DDD (ex: (11) 98765-4321)
+                  Esse número não parece válido. Confira o DDD e os 9 dígitos do celular (ex.: 98765-4321).
                 </p>
               )}
             </div>
@@ -325,6 +327,28 @@ export default function Register() {
                   </span>
                 </label>
               </>
+            )}
+
+            {!iosApp && (
+              <p className="px-1 text-[12px] text-slate-500 dark:text-zinc-500 leading-snug" data-testid="register-notice">
+                Ao continuar, você concorda com os{" "}
+                <a href="/terms" target="_blank" rel="noopener noreferrer" className="font-bold text-emerald-600 hover:underline">Termos de Serviço</a>{" "}
+                e a{" "}
+                <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-bold text-emerald-600 hover:underline">Política de Privacidade</a>
+                .
+              </p>
+            )}
+
+            {!isFormValid && (name || email || phone) && (
+              <p className="px-1 -mb-1 text-[12px] font-semibold text-amber-600 dark:text-amber-400 leading-snug" data-testid="register-pendencias">
+                Falta preencher: {[
+                  name.trim().length < 3 ? "nome completo" : null,
+                  !(iosApp && cleanPhone.length === 0) && !isPhoneValid ? "WhatsApp com DDD e 9 dígitos (ex.: (15) 99747-2785)" : null,
+                  !email.trim() ? "e-mail" : null,
+                  iosApp && !isPasswordValid ? "senha forte" : null,
+                  iosApp && !aceitouTermos ? "aceitar os termos" : null,
+                ].filter(Boolean).join(", ")}.
+              </p>
             )}
 
             <button

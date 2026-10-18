@@ -11,7 +11,7 @@ test.describe('Landing: seções, FAQ e planos', () => {
   });
 
   test('Deve renderizar todas as seções principais da landing', async ({ page }) => {
-    // Planos não fica na landing — fluxo de captura de leads manda pra /register → /planos.
+    // Planos não fica na landing — os botões levam direto pra /planos.
     await expect(page.locator('#diferencial')).toBeAttached({ timeout: 15000 });
     await expect(page.locator('#recursos')).toBeAttached();
     await expect(page.locator('#industrias')).toBeAttached();
@@ -34,8 +34,8 @@ test.describe('Landing: seções, FAQ e planos', () => {
       await expect(page.locator(`nav a[href="#${id}"]`)).toBeAttached();
       await expect(page.locator(`#${id}`)).toBeAttached();
     }
-    // "Planos" no nav manda direto pro cadastro (captura de leads antes do checkout)
-    await expect(page.locator('nav a[href="/register"]', { hasText: 'Planos' })).toBeAttached();
+    // "Planos" no nav manda direto pra página de planos (sem formulário de contato antes)
+    await expect(page.locator('nav a[href="/planos"]', { hasText: /^Planos$/ })).toBeAttached();
   });
 });
 
@@ -58,7 +58,13 @@ test.describe('Planos: toggle e checkout', () => {
     await expect(page.locator('text=147').first()).toBeVisible();
   });
 
-  test('CTA do plano leva ao checkout com plano e período na URL', async ({ page }) => {
+  test('CTA do plano sem cadastro leva ao /register com plano e período na URL', async ({ page }) => {
+    await page.locator('button', { hasText: 'Assinar agora' }).first().click();
+    await expect(page).toHaveURL(/\/register\?plan=\w+&period=(ANNUAL|MONTHLY)/);
+  });
+
+  test('CTA do plano com cadastro já feito leva ao checkout', async ({ page }) => {
+    await page.evaluate(() => localStorage.setItem('rm_lead_data', JSON.stringify({ name: 'Maria da Silva', email: 'maria@exemplo.com', phone: '(11) 98765-4321' })));
     await page.locator('button', { hasText: 'Assinar agora' }).first().click();
     await expect(page).toHaveURL(/\/checkout\?plan=\w+&period=(ANNUAL|MONTHLY)/);
   });

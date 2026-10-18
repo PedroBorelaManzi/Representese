@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 
-const DEFAULT_TITLE = "Represente-Se! — CRM para Representantes Comerciais";
+const DEFAULT_TITLE = "Sistema para Representantes Comerciais | Represente-Se!";
 const DEFAULT_DESCRIPTION =
-  "Representese: A revolução tecnológica para representantes comerciais. Domine sua carteira de clientes, automatize pedidos e vende mais com menos esforço.";
+  "Sistema para representante comercial: controle de pedidos, carteira de clientes, comissões e agenda de visitas num só app. Feito para quem representa várias marcas.";
 const SITE_URL = "https://www.representese.com";
 
 function setMetaContent(selector: string, content: string) {

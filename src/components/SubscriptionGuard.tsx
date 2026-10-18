@@ -1,21 +1,85 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSettings } from '../contexts/SettingsContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { ShieldAlert, CreditCard, ExternalLink, MessageCircle, Loader2, Sparkles, ArrowRight } from 'lucide-react';
+import { ShieldAlert, CreditCard, ExternalLink, MessageCircle, Loader2, Sparkles, ArrowRight, LogOut } from 'lucide-react';
 import { Logo } from './Logo';
 import { toast } from 'sonner';
-import { Link } from 'react-router-dom';
-import { isIOSApp, SITE_DOMAIN } from '../lib/iapPolicy';
+import { Link, useNavigate } from 'react-router-dom';
+import { isIOSApp } from '../lib/iapPolicy';
 import { openManageSubscriptions } from '../lib/iap';
 
 export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
-  const { settings, loading: settingsLoading } = useSettings();
-  const { user } = useAuth();
+  const { settings, loading: settingsLoading, refetchSettings } = useSettings();
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+  const [, setTick] = useState(0);
+
+  const blocked = settings.subscription_status === 'inactive'
+    || settings.subscription_status === 'past_due'
+    || settings.subscription_status === 'canceled';
+
+  // Quem acabou de pagar cai aqui antes de o webhook do Asaas gravar o status
+  // 'active'. Em vez de exigir recarregar a página, rechecamos sozinho (a cada 5s
+  // por até 5 min, e ao voltar para a aba) enquanto o acesso estiver bloqueado.
+  useEffect(() => {
+    if (settingsLoading || !blocked || !user) return;
+    const startedAt = Date.now();
+    const tick = async () => {
+      if (Date.now() - startedAt > 5 * 60 * 1000) return;
+      setTick((n) => n + 1); // reavalia a janela de "acabou de pagar"
+      const { data } = await supabase.from('user_entitlements')
+        .select('subscription_status').eq('user_id', user.id).maybeSingle();
+      // Só recarrega as configurações quando o status mudou de verdade — o
+      // refetch liga o loading e faria a tela piscar a cada checagem.
+      if (data && data.subscription_status !== settings.subscription_status) refetchSettings();
+    };
+    const interval = setInterval(tick, 5000);
+    const onVisible = () => { if (document.visibilityState === 'visible') tick(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [settingsLoading, blocked, user, settings.subscription_status, refetchSettings]);
+
+  // Quem acabou de pagar no checkout (flag gravada pelo Checkout) vê "configurando"
+  // em vez de "escolha um plano"/"pendência" enquanto o webhook ainda não gravou o status.
+  const justPaid = (() => {
+    try {
+      const t = Number(sessionStorage.getItem('rm_just_paid'));
+      return !!t && Date.now() - t < 5 * 60 * 1000;
+    } catch { return false; }
+  })();
+  useEffect(() => {
+    if (!blocked && !settingsLoading) { try { sessionStorage.removeItem('rm_just_paid'); } catch { /* ignora */ } }
+  }, [blocked, settingsLoading]);
 
   // Se estiver carregando, não bloqueia ainda para evitar flashes
   if (settingsLoading) return <>{children}</>;
+
+  if (blocked && justPaid) {
+    return (
+      <div data-testid="configurando-acesso" className="fixed inset-0 z-[9999] bg-slate-50 dark:bg-zinc-950 flex flex-col items-center justify-center p-6 text-center">
+        <div className="max-w-md w-full space-y-8">
+          <Logo size="lg" />
+          <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-8 rounded-[40px] space-y-6 shadow-xl">
+            <div className="w-20 h-20 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-3xl flex items-center justify-center mx-auto shadow-inner">
+              <Loader2 className="w-10 h-10 animate-spin" />
+            </div>
+            <div className="space-y-2">
+              <h1 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Aguarde um instante</h1>
+              <p className="text-sm font-medium text-slate-500 dark:text-slate-400 leading-relaxed">
+                Pagamento recebido! Estamos configurando o seu acesso. Isso leva só alguns segundos e a tela libera sozinha.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Se o status for 'past_due', mostramos a tela de bloqueio financeiro
   const isPastDue = settings.subscription_status === 'past_due' || settings.subscription_status === 'canceled';
@@ -62,6 +126,29 @@ export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Quem entrou com a conta errada (sem plano) precisa conseguir trocar de conta.
+  const handleSignOut = async () => {
+    if (isSigningOut) return;
+    setIsSigningOut(true);
+    try {
+      await signOut();
+    } finally {
+      navigate('/login', { replace: true });
+    }
+  };
+  const signOutButton = (
+    <button
+      type="button"
+      onClick={handleSignOut}
+      disabled={isSigningOut}
+      data-testid="guard-sair"
+      className="mx-auto flex items-center justify-center gap-2 text-[12px] font-bold text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors disabled:opacity-50"
+    >
+      {isSigningOut ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogOut className="w-3.5 h-3.5" />}
+      Sair e entrar com outra conta
+    </button>
+  );
+
   if (isPastDue || isLead) {
     const whatsappNumber = "5515997472785";
     const userEmail = user?.email || "não informado";
@@ -96,6 +183,10 @@ export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
                   <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
+              {user?.email && (
+                <p className="text-[11px] text-slate-400 dark:text-zinc-500 break-all">Conectado como {user.email}</p>
+              )}
+              {signOutButton}
             </div>
           </div>
         </div>
@@ -128,24 +219,28 @@ export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
               </p>
             </div>
 
-            {isIOSApp() && settings.subscription_provider === 'ios_iap' ? (
-              // Assinatura comprada por IAP: quem resolve pendência de
-              // pagamento é a Apple, não a gente — o caminho é abrir o
-              // gerenciamento nativo de assinaturas (App Store/Ajustes).
-              <button
-                onClick={() => openManageSubscriptions()}
-                className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-5 rounded-2xl font-black uppercase text-[11px] tracking-widest flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 transition-all shadow-xl"
-              >
-                <CreditCard className="w-4 h-4" />
-                Gerenciar Assinatura
-              </button>
-            ) : isIOSApp() ? (
-              // Assinatura Asaas (site/Android) sendo usada no app iOS — só
-              // dá pra regularizar por lá mesmo, não tem IAP pra isso.
-              <p className="text-sm font-bold text-slate-600 dark:text-zinc-300 leading-relaxed">
-                Regularize o pagamento em <span className="text-emerald-600 dark:text-emerald-400">{SITE_DOMAIN}</span> pelo
-                navegador. O acesso volta sozinho assim que a fatura for identificada.
-              </p>
+            {isIOSApp() ? (
+              // No app iOS a recompra é sempre por In-App Purchase: levamos a
+              // /planos (comprar ou restaurar). Quem assinou pela App Store
+              // também pode abrir o gerenciamento nativo de assinaturas.
+              <div className="space-y-3">
+                <Link
+                  to="/planos"
+                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-5 rounded-2xl font-black uppercase text-[11px] tracking-widest flex items-center justify-center gap-3 transition-all shadow-xl"
+                >
+                  Ver planos / Restaurar compras
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+                {settings.subscription_provider === 'ios_iap' && (
+                  <button
+                    onClick={() => openManageSubscriptions()}
+                    className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-4 rounded-2xl font-black uppercase text-[11px] tracking-widest flex items-center justify-center gap-3 transition-all"
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    Gerenciar Assinatura
+                  </button>
+                )}
+              </div>
             ) : (
               <div className="space-y-3">
                 <button
@@ -178,6 +273,7 @@ export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
             Assim que o pagamento da fatura for identificado, seu acesso será liberado automaticamente.
           </p>
+          {signOutButton}
         </div>
       </div>
     );

@@ -44,13 +44,13 @@ export function CtaFinalSection() {
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Link
-                  to="/register"
+                  to="/planos"
                   className="group flex items-center gap-2 px-10 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-[14px] transition-all shadow-[0_0_32px_rgba(16,185,129,0.35)] hover:-translate-y-0.5"
                 >
-                  Criar minha conta agora
+                  Ver planos e começar
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </Link>
-                <Link to="/register" className="px-10 py-4 rounded-2xl border border-white/15 bg-white/5 backdrop-blur text-white font-black text-[14px] transition-all hover:bg-white/10 hover:border-white/25">
+                <Link to="/planos" className="px-10 py-4 rounded-2xl border border-white/15 bg-white/5 backdrop-blur text-white font-black text-[14px] transition-all hover:bg-white/10 hover:border-white/25">
                   Ver planos
                 </Link>
               </div>
@@ -69,7 +69,7 @@ export function LandingFooter() {
   return (
     <footer className="bg-slate-50 border-t border-slate-200 text-slate-500 px-6 pt-16 pb-10">
       <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-12">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-10 mb-12">
           <div className="col-span-2 md:col-span-1">
             <Logo showText variant="light" />
             <p className="text-[13px] font-medium leading-relaxed mt-4 max-w-xs">
@@ -82,8 +82,22 @@ export function LandingFooter() {
               <li><a href="#diferencial" className="hover:text-emerald-600 transition-colors">Diferencial</a></li>
               <li><a href="#recursos" className="hover:text-emerald-600 transition-colors">Recursos</a></li>
               <li><a href="#industrias" className="hover:text-emerald-600 transition-colors">Setores</a></li>
-              <li><Link to="/register" className="hover:text-emerald-600 transition-colors">Planos</Link></li>
+              <li><Link to="/planos" className="hover:text-emerald-600 transition-colors">Planos</Link></li>
               <li><a href="#duvidas" className="hover:text-emerald-600 transition-colors">Dúvidas</a></li>
+            </ul>
+          </div>
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-widest text-slate-900 mb-4">Guias</p>
+            {/* Páginas estáticas de SEO (public/<slug>/index.html, geradas por scripts/gen-seo-pages.py):
+                <a> comum, não <Link>, porque não são rotas do app. */}
+            <ul className="space-y-2.5 text-[13px] font-medium">
+              <li><a href="/sistema-para-representante-comercial/" className="hover:text-emerald-600 transition-colors">Sistema para representante</a></li>
+              <li><a href="/app-para-representante-comercial/" className="hover:text-emerald-600 transition-colors">App para representante</a></li>
+              <li><a href="/controle-de-vendas-para-representante/" className="hover:text-emerald-600 transition-colors">Controle de vendas</a></li>
+              <li><a href="/controle-de-comissoes-representante-comercial/" className="hover:text-emerald-600 transition-colors">Controle de comissões</a></li>
+              <li><a href="/sistema-de-pedidos-para-representante/" className="hover:text-emerald-600 transition-colors">Sistema de pedidos</a></li>
+              <li><a href="/software-para-representante-comercial/" className="hover:text-emerald-600 transition-colors">Software para representante</a></li>
+              <li><a href="/gestao-de-representantes-comerciais/" className="hover:text-emerald-600 transition-colors">Gestão de representantes</a></li>
             </ul>
           </div>
           <div>

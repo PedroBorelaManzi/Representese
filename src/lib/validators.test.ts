@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  isValidCPF, isValidCNPJ, isValidPhone,
+  isValidCPF, isValidCNPJ, isValidPhone, isValidWhatsApp, splitPhone, DDD_LIST,
   formatCpfCnpj, formatPhone, formatCardNumber, formatExpiry, formatCep,
   passwordStrength,
 } from './validators';
@@ -98,5 +98,28 @@ describe('passwordStrength', () => {
     const s = passwordStrength('Senha123!');
     expect(s.score).toBe(4);
     expect(s.label).toBe('Excelente');
+  });
+});
+
+describe('WhatsApp e DDD', () => {
+  it('aceita DDD 99 (MA existe), mas rejeita número de dígitos repetidos', () => {
+    expect(isValidWhatsApp('(99) 98765-4321')).toBe(true);
+    expect(isValidWhatsApp('(99) 99999-9999')).toBe(false);
+    expect(isValidWhatsApp('(11) 98888-8888')).toBe(false);
+  });
+  it('rejeita DDD que não existe', () => {
+    expect(isValidWhatsApp('(10) 98765-4321')).toBe(false);
+    expect(isValidWhatsApp('(23) 98765-4321')).toBe(false);
+  });
+  it('exige celular (11 dígitos, 9 na frente)', () => {
+    expect(isValidWhatsApp('(11) 3456-7890')).toBe(false);
+  });
+  it('splitPhone separa DDD e número, inclusive com +55', () => {
+    expect(splitPhone('(11) 98765-4321')).toEqual({ ddd: '11', number: '987654321' });
+    expect(splitPhone('+55 21 98765-4321')).toEqual({ ddd: '21', number: '987654321' });
+    expect(splitPhone('987654321')).toEqual({ ddd: '', number: '987654321' });
+  });
+  it('lista de DDDs tem os 67 do Brasil', () => {
+    expect(DDD_LIST.length).toBe(67);
   });
 });
