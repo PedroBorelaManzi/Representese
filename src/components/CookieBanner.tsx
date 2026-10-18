@@ -50,7 +50,7 @@ export default function CookieBanner() {
       className="fixed inset-x-0 bottom-0 z-[9999] p-3"
       style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.75rem)', touchAction: 'manipulation' }}
     >
-      <div className="mx-auto max-w-2xl flex flex-col sm:flex-row sm:items-center gap-3 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 py-3 shadow-2xl shadow-slate-900/15">
+      <div className="mx-auto max-w-2xl flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 py-3 shadow-2xl shadow-slate-900/15">
         <p className="flex-1 text-[13px] leading-snug font-medium text-slate-600 dark:text-zinc-300">
           Usamos cookies para melhor funcionalidade do site e para promover uma melhor experiência ao usuário.{' '}
           <Link
@@ -61,14 +61,14 @@ export default function CookieBanner() {
             Saiba mais
           </Link>
         </p>
-        <div className="flex flex-col items-stretch sm:items-center gap-1 shrink-0">
+        <div className="flex flex-row sm:flex-col items-center justify-between sm:justify-center gap-3 sm:gap-1 shrink-0">
           <button
             type="button"
             onClick={() => {
               aceitarTudo();
               setVisivel(false);
             }}
-            className="min-h-[44px] px-8 rounded-xl bg-emerald-600 text-white text-xs font-black uppercase tracking-widest active:bg-emerald-700 transition-colors"
+            className="min-h-[44px] px-8 flex-1 sm:flex-none rounded-xl bg-emerald-600 text-white text-xs font-black uppercase tracking-widest active:bg-emerald-700 transition-colors"
           >
             Aceitar
           </button>
@@ -78,7 +78,7 @@ export default function CookieBanner() {
               recusarNaoEssenciais();
               setVisivel(false);
             }}
-            className="min-h-[44px] sm:min-h-[32px] px-2 text-[11px] font-medium text-slate-400 dark:text-zinc-500 underline underline-offset-2 hover:text-slate-500 dark:hover:text-zinc-400 transition-colors"
+            className="min-h-[44px] sm:min-h-[32px] px-2 shrink-0 text-[11px] font-medium text-slate-400 dark:text-zinc-500 underline underline-offset-2 hover:text-slate-500 dark:hover:text-zinc-400 transition-colors"
           >
             Continuar sem aceitar
           </button>

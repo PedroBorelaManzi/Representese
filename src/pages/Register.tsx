@@ -339,6 +339,18 @@ export default function Register() {
               </p>
             )}
 
+            {!isFormValid && (name || email || phone) && (
+              <p className="px-1 -mb-1 text-[12px] font-semibold text-amber-600 dark:text-amber-400 leading-snug" data-testid="register-pendencias">
+                Falta preencher: {[
+                  name.trim().length < 3 ? "nome completo" : null,
+                  !(iosApp && cleanPhone.length === 0) && !isPhoneValid ? "WhatsApp com DDD e 9 dígitos (ex.: (15) 99747-2785)" : null,
+                  !email.trim() ? "e-mail" : null,
+                  iosApp && !isPasswordValid ? "senha forte" : null,
+                  iosApp && !aceitouTermos ? "aceitar os termos" : null,
+                ].filter(Boolean).join(", ")}.
+              </p>
+            )}
+
             <button
               type="submit"
               disabled={isLoading || !isFormValid}

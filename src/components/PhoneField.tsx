@@ -29,6 +29,9 @@ export function PhoneField({ id, value, onChange, hasError, inputClassName, icon
 
   // Valor trocado de fora (ex.: Checkout preenchendo com o lead salvo).
   useEffect(() => {
+    // Só DDD escolhido e número ainda vazio: o valor de fora é '' mesmo, não é troca externa
+    // (sem isto o DDD recém-separado do que a pessoa digitou era apagado).
+    if (!value && !num) return;
     const atual = (ddd + num).replace(/\D/g, '');
     if (value.replace(/\D/g, '') !== atual) {
       const s = splitPhone(value);
@@ -54,10 +57,26 @@ export function PhoneField({ id, value, onChange, hasError, inputClassName, icon
       }
       digits = digits.slice(-9);
     }
-    // Celular sempre começa com 9: qualquer outro primeiro dígito é descartado.
-    if (digits.length > 0 && digits[0] !== '9') digits = '';
+    // Quem digita o DDD junto no campo do número ("15 99747-2785", "015 9…"):
+    // antes o 1º dígito (≠ 9) era descartado em silêncio e o número ficava sem DDD.
+    // Agora os 2 primeiros dígitos viram o DDD assim que formam um DDD válido.
+    digits = digits.replace(/^0+/, '');
+    let dddAtual = ddd;
+    if (digits.length > 0 && digits[0] !== '9') {
+      const prefixo = digits.slice(0, 2);
+      if (digits.length < 2) {
+        // pode ser o começo de um DDD: espera o 2º dígito
+      } else if (DDD_UF[prefixo]) {
+        setDdd(prefixo);
+        dddAtual = prefixo;
+        digits = digits.slice(2);
+        if (digits.length > 0 && digits[0] !== '9') digits = '';
+      } else {
+        digits = '';
+      }
+    }
     setNum(digits);
-    emitir(ddd, digits);
+    emitir(dddAtual, digits);
   };
 
   return (
