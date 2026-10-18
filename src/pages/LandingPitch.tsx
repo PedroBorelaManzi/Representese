@@ -214,7 +214,7 @@ export default function LandingPitch() {
             className="hero-anim text-lg sm:text-xl text-slate-500 font-medium leading-relaxed max-w-2xl mx-auto mb-10"
             style={{ animationDelay: "0.15s" }}
           >
-            Pedidos, faturamento e metas separados por representada.
+            Pedidos, faturamento e comissões separados por representada.
             Sistema completo para representantes: clientes, pedidos, comissões, agenda e IA — tudo num só app.
           </p>
 

@@ -707,7 +707,7 @@ const SCENES: Scene[] = [
     duration: 4800,
     eyebrow: "Painel unificado",
     title: "Todas as suas representadas num só painel",
-    subtitle: "Faturamento, pedidos e metas separados por empresa — sem planilha.",
+    subtitle: "Faturamento, pedidos e comissões separados por empresa — sem planilha.",
     Visual: SceneDashboard,
   },
   {
