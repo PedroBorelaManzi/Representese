@@ -4,6 +4,20 @@ import { reportException } from "./sentry";
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+// Sem essas duas vars o client é criado apontando pra "" (string vazia) e
+// toda chamada falha com um erro genérico de rede ("Load failed" no
+// WebKit/iOS, "Failed to fetch" no Chrome) sem pista nenhuma do motivo real —
+// já aconteceu em builds locais (iOS/Android) feitos sem o .env.local
+// preenchido (ver .env.example). Loga alto aqui pra não precisar descobrir
+// isso de novo via tentativa e erro.
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error(
+    "[supabase] VITE_SUPABASE_URL ou VITE_SUPABASE_ANON_KEY não configurados neste build — " +
+    "login/cadastro/qualquer chamada ao Supabase vai falhar com erro genérico de rede. " +
+    "Confira o .env.local (copie de .env.example) e rode npm run build de novo."
+  );
+}
+
 const customStorage = {
   getItem: (key: string): string | null => {
     return localStorage.getItem(key) || sessionStorage.getItem(key);
