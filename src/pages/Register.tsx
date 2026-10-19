@@ -380,6 +380,14 @@ export default function Register() {
           </Link>
         </p>
       </div>
+
+      {/* Atalho discreto pra ver os planos sem criar conta. */}
+      <Link
+        to="/planos"
+        className="fixed right-4 [bottom:max(0.75rem,env(safe-area-inset-bottom))] text-[11px] text-slate-400/60 dark:text-zinc-600 hover:text-slate-600 dark:hover:text-zinc-300 transition-colors"
+      >
+        pular para ver os planos
+      </Link>
     </div>
   );
 }
