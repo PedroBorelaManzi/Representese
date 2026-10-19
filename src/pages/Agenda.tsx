@@ -446,8 +446,8 @@ export default function Agenda() {
       />
 
       <div className="flex-1 flex flex-col gap-6 mt-4 min-h-0">
-        <div className="flex-1 bg-white dark:bg-zinc-950 rounded-[32px] border border-slate-200/80 dark:border-zinc-800/80 shadow-2xl flex flex-col min-h-[600px] relative overflow-hidden">
-          <div className="p-3 lg:p-4 border-b border-slate-300/60 dark:border-zinc-800 flex items-center justify-between bg-emerald-600/5 dark:bg-emerald-900/10">
+        <div className="flex-1 bg-white dark:bg-zinc-950 rounded-[32px] border border-slate-300 dark:border-zinc-700 shadow-2xl flex flex-col min-h-[600px] relative overflow-hidden">
+          <div className="p-3 lg:p-4 border-b border-slate-300 dark:border-zinc-700 flex items-center justify-between bg-emerald-600/5 dark:bg-emerald-900/10">
             <div className="flex items-center gap-3 lg:gap-4">
                <div className="flex items-center bg-white dark:bg-zinc-900 p-1 rounded-xl border border-slate-100 dark:border-zinc-800 shadow-sm">
                   <button onClick={() => setCurrentDate(new Date(currentDate.setMonth(currentDate.getMonth() - 1)))} className="p-1.5 lg:p-2 hover:bg-slate-50 dark:hover:bg-zinc-800 rounded-lg text-slate-400 transition-all active:scale-90"><ChevronLeft className="w-4 h-4" /></button>
@@ -468,13 +468,13 @@ export default function Agenda() {
 
           {/* Desktop View */}
           <div className="hidden md:flex flex-1 flex-col overflow-x-auto md:overflow-x-visible custom-scrollbar">
-            <div className="grid grid-cols-7 border-b border-slate-300/60 dark:border-zinc-800 bg-white dark:bg-zinc-900 sticky top-0 z-20 min-w-[1000px] md:min-w-0">
+            <div className="grid grid-cols-7 border-b border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 sticky top-0 z-20 min-w-[1000px] md:min-w-0">
               {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
-                <div key={day} className="py-2.5 text-center text-[10px] font-black text-slate-500 dark:text-zinc-400 uppercase tracking-[0.2em]">{day}</div>
+                <div key={day} className="py-2.5 text-center text-[10px] font-black text-slate-600 dark:text-zinc-300 uppercase tracking-[0.2em]">{day}</div>
               ))}
             </div>
 
-            <div className="grid grid-cols-7 flex-1 min-w-[1000px] md:min-w-0 divide-x divide-y divide-slate-300/70 dark:divide-zinc-800">
+            <div className="grid grid-cols-7 flex-1 min-w-[1000px] md:min-w-0 divide-x divide-y divide-slate-300 dark:divide-zinc-700">
               {daysArray.map((date, i) => {
                 const dateIso = date ? formatDateLocal(date) : null;
                 const isToday = dateIso === formatDateLocal(new Date());
@@ -500,8 +500,8 @@ export default function Agenda() {
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
                             <span className={cn(
-                              "text-xs font-black w-8 h-8 rounded-xl flex items-center justify-center transition-all",
-                              isToday ? "bg-emerald-600 text-white shadow-lg  dark:shadow-none" : "text-slate-400 dark:text-zinc-500 group-hover:text-emerald-600"
+                              "text-sm font-black w-8 h-8 rounded-xl flex items-center justify-center transition-all",
+                              isToday ? "bg-emerald-600 text-white shadow-lg  dark:shadow-none" : "text-slate-700 dark:text-zinc-200 group-hover:text-emerald-600"
                             )}>
                                 {date.getDate()}
                             </span>
