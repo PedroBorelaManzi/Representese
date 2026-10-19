@@ -692,8 +692,8 @@ export default function Dashboard() {
           {/* Previsão do tempo: hoje em destaque + faixa da mesma semana exibida na agenda abaixo */}
           <WeatherWidget days={weekDays} />
 
-          <div className="bg-white dark:bg-zinc-900 shadow-2xl border border-slate-200/80 dark:border-zinc-800/80 rounded-3xl overflow-hidden flex flex-col h-full min-h-[500px] md:min-h-0">
-          <div className="p-4 border-b border-slate-200 dark:border-zinc-800/80 flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50 dark:bg-zinc-950/40 z-40 gap-4">
+          <div className="bg-white dark:bg-zinc-900 shadow-2xl border border-slate-300 dark:border-zinc-700 rounded-3xl overflow-hidden flex flex-col h-full min-h-[500px] md:min-h-0">
+          <div className="p-4 border-b border-slate-300 dark:border-zinc-700 flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50 dark:bg-zinc-950/40 z-40 gap-4">
             <div className="flex items-center gap-4">
               <h2 className="text-sm font-black text-slate-800 dark:text-zinc-100 uppercase tracking-widest leading-none">
                 {/* Quarta-feira (meio da semana) define o mês dominante — evita mostrar
@@ -747,9 +747,9 @@ export default function Dashboard() {
                 usa a agenda compacta abaixo, senão viraria um grid rolando na horizontal. */}
             <div ref={calendarBodyRef} className="hidden xl:flex flex-1 min-h-0 overflow-auto custom-scrollbar">
               <div className="flex flex-col flex-1 min-w-[1000px] xl:min-w-0">
-                <div className="flex bg-slate-50/95 dark:bg-zinc-950/95 border-b border-slate-200 dark:border-zinc-800 sticky top-0 z-30 backdrop-blur-md">
-                  <div className="w-14 flex-shrink-0 sticky left-0 bg-slate-50 dark:bg-zinc-900 z-40 border-r border-slate-200 dark:border-zinc-800" />
-                  <div className="flex-1 grid grid-cols-7 divide-x divide-slate-300 dark:divide-zinc-800">
+                <div className="flex bg-slate-50/95 dark:bg-zinc-950/95 border-b border-slate-300 dark:border-zinc-700 sticky top-0 z-30 backdrop-blur-md">
+                  <div className="w-14 flex-shrink-0 sticky left-0 bg-slate-50 dark:bg-zinc-900 z-40 border-r border-slate-300 dark:border-zinc-700" />
+                  <div className="flex-1 grid grid-cols-7 divide-x divide-slate-300 dark:divide-zinc-700">
                     {weekDays.map((date, i) => {
                       const isToday = isSameDay(date, formatDateLocal(new Date()));
                       return (
@@ -762,7 +762,7 @@ export default function Dashboard() {
                           )}
                           onClick={() => setSelectedNoteDate(date)}
                         >
-                          <div className={cn("text-[6px] font-black uppercase tracking-widest", isToday ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400 dark:text-zinc-500")}>{date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}</div>
+                          <div className={cn("text-[6px] font-black uppercase tracking-widest", isToday ? "text-emerald-600 dark:text-emerald-400" : "text-slate-600 dark:text-zinc-300")}>{date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}</div>
                           <div className={cn("text-[10px] font-black", isToday ? "text-emerald-600 dark:text-emerald-400" : "text-slate-700 dark:text-zinc-100")}>{date.getDate()}</div>
 
                           { (holidays || []).filter(h => h && h.date === formatDateLocal(date)).map((h, idx) => (
@@ -778,18 +778,18 @@ export default function Dashboard() {
                 </div>
 
                 <div className="flex flex-1">
-                  <div className="w-14 flex flex-col bg-slate-50/50 dark:bg-zinc-950/40 border-r border-slate-200 dark:border-zinc-800 text-slate-400 flex-shrink-0 sticky left-0 z-30 shadow-sm">
+                  <div className="w-14 flex flex-col bg-slate-50/50 dark:bg-zinc-950/40 border-r border-slate-300 dark:border-zinc-700 text-slate-500 flex-shrink-0 sticky left-0 z-30 shadow-sm">
                     {HOURS.map(hour => (
                       <div
                         key={hour}
                         ref={hour === START_HOUR ? businessHourRef : undefined}
-                        className="h-[60px] text-[9px] font-black text-slate-400/80 dark:text-zinc-500 pr-2 pt-0.5 flex items-start justify-end tracking-tight border-b border-slate-200/40 dark:border-zinc-800/30"
+                        className="h-[60px] text-[9px] font-black text-slate-500 dark:text-zinc-400 pr-2 pt-0.5 flex items-start justify-end tracking-tight border-b border-slate-300/70 dark:border-zinc-700/70"
                       >
                         {String(hour).padStart(2, '0')}:00
                       </div>
                     ))}
                   </div>
-                  <div className="flex-1 grid grid-cols-7 divide-x divide-slate-300 dark:divide-zinc-800 relative bg-white dark:bg-zinc-900">
+                  <div className="flex-1 grid grid-cols-7 divide-x divide-slate-300 dark:divide-zinc-700 relative bg-white dark:bg-zinc-900">
                     {weekDays.map((date, dayIdx) => {
                       const dateStr = formatDateLocal(date);
                       const prevDateStr = formatDateLocal(new Date(date.getTime() - 86400000));
@@ -805,7 +805,7 @@ export default function Dashboard() {
                           )}
                         >
                           {HOURS.map(hour => (
-                            <div key={hour} className={cn("h-[60px] border-b border-slate-300/80 dark:border-zinc-800 cursor-pointer transition-colors", dragOverInfo?.dayIndex === dayIdx && dragOverInfo?.hour === hour ? "bg-emerald-500/10" : "hover:bg-slate-50/30")} onDragOver={(e) => onDragOver(e, dayIdx, hour)} onDrop={(e) => onDrop(e, date, hour)} onClick={() => openNewEventModal(date, hour)} />
+                            <div key={hour} className={cn("h-[60px] border-b border-slate-300 dark:border-zinc-700 cursor-pointer transition-colors", dragOverInfo?.dayIndex === dayIdx && dragOverInfo?.hour === hour ? "bg-emerald-500/10" : "hover:bg-slate-50/30")} onDragOver={(e) => onDragOver(e, dayIdx, hour)} onDrop={(e) => onDrop(e, date, hour)} onClick={() => openNewEventModal(date, hour)} />
                           ))}
                           <div className="absolute inset-0 pointer-events-none p-0.5">
                             {(events || []).map(event => {
