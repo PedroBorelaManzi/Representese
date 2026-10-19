@@ -3,7 +3,7 @@ import { Mail, Search, ChevronLeft, ChevronRight, Inbox, Send, Edit, Trash2, Plu
 import { cn } from "../lib/utils";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { getGoogleEmailAuthUrl, getMicrosoftEmailAuthUrl, fetchEmailsFromApi, sendEmailViaApi, EmailMessage, EmailProvider, downloadAttachmentFromApi, fetchGoogleContacts, GOOGLE_EMAIL_SCOPE } from "../lib/emailSync";
+import { getGoogleEmailAuthUrl, getMicrosoftEmailAuthUrl, fetchEmailsFromApi, sendEmailViaApi, EmailMessage, EmailProvider, downloadAttachmentFromApi, GOOGLE_EMAIL_SCOPE } from "../lib/emailSync";
 import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
 import { supabase } from "../lib/supabase";
@@ -172,22 +172,6 @@ export default function EmailClient() {
   }
 
   
-  // 3. Fetch Global Contacts
-  useEffect(() => {
-    if (selectedAccount && user && selectedAccount.provider === 'google') {
-      fetchGoogleContacts(user.id, selectedAccount.email).then(newContacts => {
-        if (newContacts.length > 0) {
-          setContacts(prev => {
-            const map = new Map<string, string>();
-            prev.forEach(c => map.set(c.email, c.name));
-            newContacts.forEach(c => map.set(c.email, c.name));
-            return Array.from(map.entries()).map(([email, name]) => ({ name, email }));
-          });
-        }
-      });
-    }
-  }, [selectedAccount, user]);
-
   // 2. Fetch Emails
   useEffect(() => {
     if (selectedAccount && user) {

@@ -35,9 +35,7 @@ export interface EmailMessage {
 export const GOOGLE_EMAIL_SCOPE = [
   'https://www.googleapis.com/auth/userinfo.email',
   'https://www.googleapis.com/auth/gmail.readonly',
-  'https://www.googleapis.com/auth/gmail.send',
-  'https://www.googleapis.com/auth/contacts.readonly',
-  'https://www.googleapis.com/auth/directory.readonly'
+  'https://www.googleapis.com/auth/gmail.send'
 ].join(' ');
 
 export function getGoogleEmailAuthUrl() {
@@ -354,45 +352,6 @@ export async function downloadAttachmentFromApi(userId: string, provider: EmailP
     } catch (e: any) { return { success: false, error: e.message }; }
   }
   return { success: false, error: "Provedor não suportado" };
-}
-
-// 6. CONTACTS
-export async function fetchGoogleContacts(userId: string, emailAccount?: string) {
-  const token = await getValidEmailToken(userId, 'google', emailAccount);
-  if (!token) return [];
-
-  try {
-    const contactsMap = new Map<string, string>();
-    const headers = { 'Authorization': `Bearer ${token}` };
-
-    // 1. Connections
-    try {
-      const resConn = await fetch('https://people.googleapis.com/v1/people/me/connections?personFields=names,emailAddresses&pageSize=500', { headers });
-      if (resConn.ok) {
-        const data = await resConn.json();
-        (data.connections || []).forEach((p: any) => {
-          const name = p.names?.[0]?.displayName;
-          const email = p.emailAddresses?.[0]?.value;
-          if (email) contactsMap.set(email, name || email);
-        });
-      }
-    } catch (e) {}
-
-    // 2. OtherContacts (Frequent)
-    try {
-      const resOther = await fetch('https://people.googleapis.com/v1/otherContacts?readMask=names,emailAddresses&pageSize=500', { headers });
-      if (resOther.ok) {
-        const data = await resOther.json();
-        (data.otherContacts || []).forEach((p: any) => {
-          const name = p.names?.[0]?.displayName;
-          const email = p.emailAddresses?.[0]?.value;
-          if (email) contactsMap.set(email, name || email);
-        });
-      }
-    } catch (e) {}
-
-    return Array.from(contactsMap.entries()).map(([email, name]) => ({ name, email }));
-  } catch (err) { return []; }
 }
 
 // HELPERS
