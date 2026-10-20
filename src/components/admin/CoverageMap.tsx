@@ -7,6 +7,7 @@ import 'leaflet/dist/leaflet.css';
 import 'react-leaflet-cluster/dist/assets/MarkerCluster.css';
 import 'react-leaflet-cluster/dist/assets/MarkerCluster.Default.css';
 import { supabase } from '../../lib/supabase';
+import { isHiddenAdminAccount } from '../../lib/adminHiddenAccounts';
 
 /* Mapa de cobertura — todos os representantes com localização num só lugar,
  * pra ver de bate-pronto onde a rede está e onde tem buraco. Lê a mesma RPC
@@ -59,7 +60,7 @@ export default function CoverageMap() {
     queryFn: async () => {
       const { data, error } = await supabase.rpc('admin_user_overview');
       if (error) throw error;
-      return (data || []) as Rep[];
+      return ((data || []) as Rep[]).filter((u) => !isHiddenAdminAccount(u.email));
     },
     staleTime: 60_000,
   });

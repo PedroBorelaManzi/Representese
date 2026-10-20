@@ -15,6 +15,7 @@ import { exportRawLeadsAsExcel, exportSubscriptionLeadsAsExcel } from '../lib/ra
 import { toast } from 'sonner';
 import { useConfirm } from '../components/ui';
 import UserDossier from '../components/admin/UserDossier';
+import { isHiddenAdminAccount } from '../lib/adminHiddenAccounts';
 
 // Leaflet só carrega quando a aba Cobertura é aberta.
 const CoverageMap = lazy(() => import('../components/admin/CoverageMap'));
@@ -340,7 +341,7 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
       const entByUser = new Map((entitlements || []).map((e) => [e.user_id, e]));
 
       return (profiles || [])
-        .filter((p) => !p.is_admin)
+        .filter((p) => !p.is_admin && !isHiddenAdminAccount(p.email))
         .map((p) => {
           const ent = entByUser.get(p.user_id);
           return {

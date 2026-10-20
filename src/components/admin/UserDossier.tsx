@@ -7,6 +7,7 @@ import {
 import { supabase } from '../../lib/supabase';
 import { cn } from '../../lib/utils';
 
+import { isHiddenAdminAccount } from '../../lib/adminHiddenAccounts';
 /* "Ficha Completa" do usuário — junta num só lugar tudo o que o sistema sabe
  * de cada conta, separado por tipo de dado. Lê a RPC admin_user_overview()
  * (SECURITY DEFINER, só responde pra admin). Dados de PostHog e Sentry entram
@@ -123,7 +124,7 @@ export default function UserDossier() {
     queryFn: async () => {
       const { data, error } = await supabase.rpc('admin_user_overview');
       if (error) throw error;
-      return (data || []) as Overview[];
+      return ((data || []) as Overview[]).filter((u) => !isHiddenAdminAccount(u.email));
     },
     staleTime: 60_000,
   });
