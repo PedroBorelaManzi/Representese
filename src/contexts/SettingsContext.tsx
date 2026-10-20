@@ -50,6 +50,8 @@ interface Settings {
    *  não tem outro jeito) ou abre o gerenciamento nativo de assinaturas. */
   subscription_provider?: 'asaas' | 'ios_iap';
   avatar_url?: string;
+  /** Logo da representação (data URL, redimensionada) — vai no cabeçalho do PDF do pedido. */
+  logo_url?: string | null;
   trial_ends_at?: string;
   current_period_end?: string;
   billing_cycle?: string;
@@ -100,6 +102,7 @@ const defaultSettings: Settings = {
   plan_id: 'exclusivo',
   subscription_provider: 'asaas',
   avatar_url: undefined,
+  logo_url: undefined,
   is_admin: false,
   phone: undefined,
   weather_city: undefined,
@@ -213,6 +216,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           plan_id: cached.plan_id || 'exclusivo',
           subscription_provider: cached.subscription_provider || 'asaas',
           avatar_url: cached.avatar_url,
+          logo_url: cached.logo_url,
           trial_ends_at: cached.trial_ends_at,
           current_period_end: cached.current_period_end,
           billing_cycle: cached.billing_cycle,
@@ -305,6 +309,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           plan_id: planId,
           subscription_provider: subscriptionProvider,
           avatar_url: finalAvatar,
+          logo_url: data.logo_url,
           trial_ends_at: entData?.trial_ends_at,
           current_period_end: entData?.current_period_end,
           billing_cycle: entData?.billing_cycle,

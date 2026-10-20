@@ -14,6 +14,8 @@ export interface OrderPdfData {
   orderNumber: string;
   date: string; // ISO
   sellerName?: string;
+  /** Logo da representação (data URL) — substitui a marca do app no cabeçalho. */
+  logoUrl?: string | null;
   company: string;
   client: { name: string; cnpj?: string | null; address?: string | null; phone?: string | null; email?: string | null };
   items: OrderPdfItem[];
@@ -67,6 +69,7 @@ export function buildOrderPdfHtml(o: OrderPdfData): string {
   body{font-family:-apple-system,"Segoe UI",Roboto,sans-serif;color:#0f172a;padding:44px;margin:0;background:#fff;font-size:13px}
   .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #10b981;padding-bottom:18px;margin-bottom:24px}
   .brand{font-size:24px;font-weight:900;letter-spacing:-.5px}.brand span{color:#10b981}
+  .logo{display:block;max-height:64px;max-width:220px;object-fit:contain}
   .doc{font-size:12px;color:#475569;font-weight:700;margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
   .meta{text-align:right;font-size:12px;color:#475569;font-weight:600;line-height:1.6}
   .parties{display:flex;gap:16px;margin-bottom:24px}
@@ -92,7 +95,7 @@ export function buildOrderPdfHtml(o: OrderPdfData): string {
   @media print { body{padding:24px} }
 </style></head><body>
   <div class="head">
-    <div><div class="brand">Represente<span>-Se!</span></div><div class="doc">Pedido de venda</div></div>
+    <div>${/^data:image\//.test(o.logoUrl || "") ? `<img class="logo" src="${esc(o.logoUrl)}" alt="">` : '<div class="brand">Represente<span>-Se!</span></div>'}<div class="doc">Pedido de venda</div></div>
     <div class="meta"><b>Nº ${esc(o.orderNumber)}</b><br>${date}${o.sellerName ? `<br>Representante: ${esc(o.sellerName)}` : ""}</div>
   </div>
   <div class="parties">

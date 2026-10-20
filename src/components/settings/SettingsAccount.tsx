@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, Plus } from 'lucide-react';
+import { Camera, Plus, ImagePlus, Trash2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { supabase } from '../../lib/supabase';
@@ -52,6 +52,43 @@ export const SettingsAccount = React.memo(function SettingsAccount() {
       };
       img.onerror = () => resolve(base64Str);
     });
+  };
+
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
+  /** Logo mantém a proporção (cabe em 480×240) e PNG, pra preservar fundo transparente. */
+  const resizeLogo = (src: string): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, 480 / img.width, 240 / img.height);
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return reject(new Error('canvas'));
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = () => reject(new Error('img'));
+      img.src = src;
+    });
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      try {
+        const logo = await resizeLogo(reader.result as string);
+        await updateSettings({ logo_url: logo });
+        toast.success('Logo salva! Ela aparece no PDF dos seus pedidos.');
+      } catch {
+        toast.error('Não consegui usar essa imagem. Tente um PNG ou JPG.');
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -141,6 +178,32 @@ export const SettingsAccount = React.memo(function SettingsAccount() {
             >
               Salvar
             </button>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Logo da sua representação</label>
+          <div className="flex items-center gap-4 bg-slate-50 dark:bg-zinc-950 border border-slate-100 dark:border-zinc-800 rounded-2xl p-4">
+            <div className="w-28 h-16 shrink-0 rounded-xl bg-white border border-slate-200 dark:border-zinc-700 flex items-center justify-center overflow-hidden">
+              {settings.logo_url ? (
+                <img src={settings.logo_url} alt="Logo" className="max-w-full max-h-full object-contain" />
+              ) : (
+                <ImagePlus className="w-6 h-6 text-slate-300" />
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-slate-500 dark:text-zinc-400 mb-2">Aparece no topo do PDF dos pedidos que você gerar.</p>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => logoInputRef.current?.click()} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95">
+                  {settings.logo_url ? 'Trocar logo' : 'Inserir logo'}
+                </button>
+                {settings.logo_url && (
+                  <button type="button" aria-label="Remover logo" onClick={() => updateSettings({ logo_url: null }).then(() => toast.success('Logo removida.'))} className="p-2 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              <input type="file" ref={logoInputRef} onChange={handleLogoUpload} className="hidden" accept="image/*" />
+            </div>
           </div>
         </div>
         <div className="space-y-2">
