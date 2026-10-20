@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Upload, Loader2, Trash2, Package, Hash, Percent, Tag, Users } from "lucide-react";
+import { Upload, Loader2, Trash2, Package, Hash, Percent, Tag, Users, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
@@ -55,6 +55,8 @@ export function CatalogoProdutos({ categoriaFiltro, categoriasDisponiveis }: Cat
     // sempre busca a versão atual ao abrir.
     refetchOnMount: "always",
   });
+
+  const comissaoPorProduto = settings?.commission_mode?.[categoriaFiltro] === "per_product";
 
   const itensDaEmpresa = useMemo(
     () => (categoriaFiltro ? items.filter((i) => i.category === categoriaFiltro) : items),
@@ -198,9 +200,9 @@ export function CatalogoProdutos({ categoriaFiltro, categoriasDisponiveis }: Cat
         </div>
       </div>
 
-      {settings?.commission_mode?.[categoriaFiltro] !== "per_product" && itensDaEmpresa.length > 0 && (
+      {!comissaoPorProduto && itensDaEmpresa.length > 0 && (
         <div className="rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-900/30 px-4 py-3 text-[11px] font-bold text-amber-700 dark:text-amber-400">
-          {categoriaFiltro} está com comissão fixa por empresa hoje — a comissão de cada produto do catálogo só entra na conta depois de ativar "Por produto" em Comissões → Configurar %.
+          {categoriaFiltro} usa comissão fixa por empresa, então a comissão por produto fica travada. Pra definir por produto, ative "Por produto" em Comissões → Configurar %.
         </div>
       )}
 
@@ -277,20 +279,32 @@ export function CatalogoProdutos({ categoriaFiltro, categoriasDisponiveis }: Cat
                       <Percent className="w-3 h-3 text-slate-300 shrink-0" />
                     </div>
                     <div className="col-span-1 flex items-center gap-1">
-                      <HideableCommissionField>
-                        {() => (
-                          <input
-                            type="number"
-                            step="0.5"
-                            min={0}
-                            max={100}
-                            defaultValue={item.commission_pct ?? ""}
-                            placeholder="—"
-                            onBlur={(e) => e.target.value !== String(item.commission_pct ?? "") && saveItemField(item, "commission_pct", e.target.value)}
-                            className={inputCls}
-                          />
-                        )}
-                      </HideableCommissionField>
+                      {comissaoPorProduto ? (
+                        <HideableCommissionField>
+                          {() => (
+                            <input
+                              type="number"
+                              step="0.5"
+                              min={0}
+                              max={100}
+                              defaultValue={item.commission_pct ?? ""}
+                              placeholder="—"
+                              onBlur={(e) => e.target.value !== String(item.commission_pct ?? "") && saveItemField(item, "commission_pct", e.target.value)}
+                              className={inputCls}
+                            />
+                          )}
+                        </HideableCommissionField>
+                      ) : (
+                        // Empresa em comissão fixa: o % é um só pra empresa inteira
+                        // (Comissões → Configurar %), então o campo do produto fica travado.
+                        <span
+                          title="Esta empresa usa comissão fixa. Pra definir por produto, ative “Por produto” em Comissões → Configurar %."
+                          className="flex items-center gap-1 text-[11px] font-bold text-slate-400 cursor-not-allowed select-none"
+                        >
+                          <Lock className="w-3 h-3" />
+                          {settings?.commissions?.[categoriaFiltro] != null ? `${settings.commissions[categoriaFiltro]}%` : "fixa"}
+                        </span>
+                      )}
                     </div>
                     <div className="col-span-1 flex items-center justify-end gap-1">
                       <button
