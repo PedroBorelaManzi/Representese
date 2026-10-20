@@ -46,6 +46,7 @@ import { isIOSApp } from "../lib/iapPolicy";
 import { EmptyState } from "../components/ui";
 import TourArrow from "../components/TourArrow";
 import { OrderDetailModal } from "../components/OrderDetailModal";
+import { NewOrderModal } from "../components/NewOrderModal";
 import { OrdersTable } from "../components/OrdersTable";
 import { OrderCard } from "../components/OrderCard";
 import { OrdersViewToggle } from "../components/OrdersViewToggle";
@@ -88,6 +89,7 @@ export default function EmpresasPage() {
   const isLimitExceeded = (settings.categories || []).length >= companyLimit;
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isImportReportOpen, setIsImportReportOpen] = useState(false);
+  const [isNewOrderOpen, setIsNewOrderOpen] = useState(false);
   const [newCat, setNewCat] = useState("");
   // CNPJ é opcional aqui: só quem preenche entra no registro global de
   // empresas representadas (represented_companies) e passa a poder receber
@@ -781,6 +783,11 @@ export default function EmpresasPage() {
               Importar Relatório
             </button>
 
+            <button onClick={() => setIsNewOrderOpen(true)} className="flex items-center gap-2 px-5 py-3 bg-white dark:bg-zinc-900 hover:bg-slate-50 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-800 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-sm active:scale-95 whitespace-nowrap">
+              <Plus className="w-4 h-4 text-emerald-600" />
+              Novo Pedido
+            </button>
+
             <button data-tour="enviar-pedidos" onClick={() => setIsUploadModalOpen(true)} className="flex items-center gap-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-lg shadow-emerald-600/25 active:scale-95 whitespace-nowrap">
               <Upload className="w-4 h-4" />
               Enviar Pedidos
@@ -1279,6 +1286,13 @@ export default function EmpresasPage() {
       </AnimatePresence>
 
       {tourTarget && <TourArrow targetId={tourTarget} label="Clique aqui" />}
+
+      <NewOrderModal
+        isOpen={isNewOrderOpen}
+        onClose={() => setIsNewOrderOpen(false)}
+        onCreated={loadOrders}
+        defaultCompany={selectedCategory !== "all" ? selectedCategory : undefined}
+      />
 
       <OrderDetailModal
         order={selectedOrder}

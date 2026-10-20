@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, FileText, Loader2, Truck, Hash, Receipt, CreditCard, CalendarDays, CalendarClock, StickyNote, Package, Scissors, Trash2 } from "lucide-react";
+import { X, FileText, FileDown, Loader2, Truck, Hash, Receipt, CreditCard, CalendarDays, CalendarClock, StickyNote, Package, Scissors, Trash2 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
@@ -9,6 +9,8 @@ import { CommissionValue } from "./CommissionValue";
 import { PdfViewerModal } from "./PdfViewerModal";
 import { NfCommissionStatusDot, type NfCommissionStatus } from "./NfCommissionStatusDot";
 import { OrderSplitPanel, valorDeQtd } from "./OrderSplitPanel";
+import { computeOrderTotals, itemTotal } from "../lib/orderBuilder";
+import { openSavedOrderPdf } from "../lib/orderPdfLoad";
 import type { Order, OrderInstallment, OrderItem } from "../types";
 
 interface OrderDetailModalProps {
@@ -100,8 +102,12 @@ export function OrderDetailModal({ order, isOpen, onClose, onUpdated, commission
   /** Soma real dos itens que sobraram e grava em `orders.value` — o UPDATE
    *  na coluna já dispara sozinho o trigger que recalcula as parcelas. */
   const recalcOrderValue = async () => {
-    const { data } = await supabase.from("order_items").select("total_value").eq("order_id", order.id);
-    const novoValor = (data || []).reduce((sum, r: any) => sum + (Number(r.total_value) || 0), 0);
+    const { data } = await supabase.from("order_items").select("total_value, quantity, unit_value, discount_pct").eq("order_id", order.id);
+    // Pedido do criador de pedidos: o valor inclui desconto geral, impostos e
+    // frete — recalcula com eles em vez de só somar os itens.
+    const novoValor = order.pricing
+      ? computeOrderTotals((data || []) as any[], order.pricing).total
+      : (data || []).reduce((sum, r: any) => sum + (Number(r.total_value) || 0), 0);
     const { error } = await supabase.from("orders").update({ value: novoValor }).eq("id", order.id);
     if (error) { toast.error("Erro ao recalcular o valor do pedido."); return; }
     onUpdated(order.id, { value: novoValor });
@@ -111,7 +117,7 @@ export function OrderDetailModal({ order, isOpen, onClose, onUpdated, commission
   const saveItemQuantity = async (item: OrderItem, rawQty: string) => {
     const qty = Math.max(1, Math.round(parseFloat(rawQty)) || 1);
     if (qty === item.quantity) return;
-    const novoTotal = item.unit_value != null ? item.unit_value * qty : valorDeQtd(item, qty);
+    const novoTotal = item.unit_value != null ? itemTotal({ quantity: qty, unit_value: item.unit_value, discount_pct: item.discount_pct }) : valorDeQtd(item, qty);
     const { error } = await supabase.from("order_items").update({ quantity: qty, total_value: novoTotal }).eq("id", item.id);
     if (error) { toast.error("Erro ao salvar a quantidade."); return; }
     setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, quantity: qty, total_value: novoTotal } : i)));
@@ -345,6 +351,19 @@ export function OrderDetailModal({ order, isOpen, onClose, onUpdated, commission
                   </table>
                 </div>
               </div>
+
+              {order.pricing && (
+                <button
+                  onClick={async () => {
+                    const r = await openSavedOrderPdf(order.id);
+                    if (r === "blocked") toast.error("O navegador bloqueou a janela do PDF. Permita pop-ups e tente de novo.");
+                    else if (r === "error") toast.error("Não consegui gerar o PDF.");
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all active:scale-95"
+                >
+                  <FileDown className="w-4 h-4" /> Baixar PDF do pedido
+                </button>
+              )}
 
               {order.file_path && (
                 <button onClick={openFile} className="w-full flex items-center justify-center gap-2 py-3.5 bg-slate-50 dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-2xl text-xs font-black text-slate-600 dark:text-zinc-300 uppercase tracking-widest transition-all">

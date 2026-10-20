@@ -59,6 +59,8 @@ export interface Order {
   payment_terms?: string | null;
   /** Observações livres do pedido — aparecem direto no card, sem abrir o pedido. */
   notes?: string | null;
+  /** Entradas de desconto/impostos/frete do criador de pedidos (src/lib/orderBuilder.ts). Null = pedido que não veio de lá. */
+  pricing?: import("../lib/orderBuilder").OrderPricing | null;
   client?: {
     id: string;
     name: string;
@@ -99,6 +101,8 @@ export interface OrderItem {
   quantity: number;
   unit_value?: number | null;
   total_value?: number | null;
+  /** Desconto % deste item (criador de pedidos). */
+  discount_pct?: number | null;
   order_date?: string;
   created_at?: string;
 }
