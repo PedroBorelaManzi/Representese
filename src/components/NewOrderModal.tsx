@@ -81,9 +81,51 @@ function AmountField({ label, value, mode, onValue, onMode }: {
   );
 }
 
+/** Campo com lista de sugestões (clique escolhe). Substitui <select> nativo,
+ *  que dentro do modal não deixava escolher o cliente. */
+function Combo<T>({ value, onChange, options, getLabel, onPick, placeholder, disabled, allowFree }: {
+  value: string; onChange: (v: string) => void; options: T[]; getLabel: (o: T) => string;
+  onPick: (o: T) => void; placeholder?: string; disabled?: boolean; allowFree?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const q = value.trim().toLowerCase();
+  const list = options.filter((o) => !q || getLabel(o).toLowerCase().includes(q)).slice(0, 50);
+  return (
+    <div className="relative">
+      <input
+        value={value}
+        disabled={disabled}
+        onChange={(e) => { onChange(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        placeholder={placeholder}
+        autoComplete="off"
+        className={inputCls}
+      />
+      {open && list.length > 0 && (
+        <ul className="absolute z-30 left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-xl">
+          {list.map((o, i) => (
+            <li key={i}>
+              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { onPick(o); setOpen(false); }}
+                className="w-full px-3 py-2 text-left text-sm text-slate-800 dark:text-zinc-100 hover:bg-emerald-50 dark:hover:bg-emerald-950/30">
+                {getLabel(o)}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {allowFree && open && list.length === 0 && q && (
+        <div className="absolute z-30 left-0 right-0 mt-1 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-xl px-3 py-2 text-xs text-slate-500">Nova condição: fica salva pras próximas vezes.</div>
+      )}
+    </div>
+  );
+}
+
+const DEFAULT_PAYMENT_TERMS = ["À vista", "7 dias", "14 dias", "21 dias", "28 dias", "30 dias", "45 dias", "60 dias", "15/30", "30/60", "15/30/45", "28/35/42", "30/60/90", "30/60/90/120"];
+
 export function NewOrderModal({ isOpen, onClose, onCreated, defaultCompany }: Props) {
   const { user } = useAuth();
-  const { settings } = useSettings();
+  const { settings, updateSettings } = useSettings();
   const queryClient = useQueryClient();
   const companies: string[] = settings.categories || [];
 
@@ -121,11 +163,12 @@ export function NewOrderModal({ isOpen, onClose, onCreated, defaultCompany }: Pr
     enabled: !!user && isOpen,
   });
 
+  const termOptions = useMemo(
+    () => [...(settings.custom_payment_terms || []), ...DEFAULT_PAYMENT_TERMS.filter((t) => !(settings.custom_payment_terms || []).includes(t))],
+    [settings.custom_payment_terms]
+  );
+
   const companyCatalog = useMemo(() => catalog.filter((c) => c.category === company), [catalog, company]);
-  const filteredClients = useMemo(() => {
-    const q = clientSearch.trim().toLowerCase();
-    return q ? clients.filter((c) => c.name.toLowerCase().includes(q)) : clients;
-  }, [clients, clientSearch]);
 
   const pricing: OrderPricing = {
     discount: { mode: discount.mode, value: parseNum(discount.value) },
@@ -209,6 +252,12 @@ export function NewOrderModal({ isOpen, onClose, onCreated, defaultCompany }: Pr
         await supabase.from("clients").update({ faturamento: ajustarFaturamento(c.faturamento, company, t.total) }).eq("id", clientId).eq("user_id", user.id);
       }
 
+      // Condição digitada que ainda não existe na lista fica salva pras próximas.
+      const termo = paymentTerms.trim();
+      if (termo && !termOptions.some((t) => t.toLowerCase() === termo.toLowerCase())) {
+        updateSettings({ custom_payment_terms: [termo, ...(settings.custom_payment_terms || [])].slice(0, 30) }).catch(() => {});
+      }
+
       queryClient.invalidateQueries({ queryKey: ["clients"] });
       posthog.capture("order_logged", { category: company, source: "builder" });
       onCreated?.();
@@ -255,14 +304,15 @@ export function NewOrderModal({ isOpen, onClose, onCreated, defaultCompany }: Pr
         <div className="grid sm:grid-cols-2 gap-4">
           <div>
             <label className={labelCls}>Cliente</label>
-            <div className="relative mb-1.5">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input value={clientSearch} onChange={(e) => setClientSearch(e.target.value)} placeholder="Buscar cliente…" className={cn(inputCls, "pl-9")} />
-            </div>
-            <select value={clientId} onChange={(e) => setClientId(e.target.value)} className={inputCls} size={filteredClients.length > 1 && clientSearch ? Math.min(5, filteredClients.length + 1) : 1}>
-              <option value="">Selecione…</option>
-              {filteredClients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            <Combo
+              value={clientSearch}
+              onChange={(v) => { setClientSearch(v); setClientId(""); }}
+              options={clients}
+              getLabel={(c) => c.name}
+              onPick={(c) => { setClientId(c.id); setClientSearch(c.name); }}
+              placeholder="Buscar e escolher o cliente…"
+            />
+            {clientId && <p className="text-[11px] text-emerald-600 mt-1.5 font-bold">Cliente selecionado ✓</p>}
           </div>
           <div>
             <label className={labelCls}>Empresa representada</label>
@@ -346,7 +396,10 @@ export function NewOrderModal({ isOpen, onClose, onCreated, defaultCompany }: Pr
         </div>
 
         <div className="grid sm:grid-cols-2 gap-4">
-          <div><label className={labelCls}>Condição de pagamento (opcional)</label><input value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} placeholder="Ex.: 30/60/90" className={inputCls} /></div>
+          <div>
+            <label className={labelCls}>Condição de pagamento (opcional)</label>
+            <Combo value={paymentTerms} onChange={setPaymentTerms} options={termOptions} getLabel={(t) => t} onPick={(t: string) => setPaymentTerms(t)} placeholder="Escolha ou digite (ex.: 30/60/90)" allowFree />
+          </div>
           <div><label className={labelCls}>Observações (opcional)</label><input value={notes} onChange={(e) => setNotes(e.target.value)} className={inputCls} /></div>
         </div>
 

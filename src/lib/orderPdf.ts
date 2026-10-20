@@ -72,9 +72,11 @@ export function buildOrderPdfHtml(o: OrderPdfData): string {
   .logo{display:block;max-height:64px;max-width:220px;object-fit:contain}
   .doc{font-size:12px;color:#475569;font-weight:700;margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
   .meta{text-align:right;font-size:12px;color:#475569;font-weight:600;line-height:1.6}
-  .parties{display:flex;gap:16px;margin-bottom:24px}
-  .box{flex:1;border:1px solid #e2e8f0;border-radius:14px;padding:14px 16px}
+  .parties{display:flex;align-items:flex-start;gap:16px;margin-bottom:24px}
+  .box{flex:1 1 0;border:1px solid #e2e8f0;border-radius:14px;padding:14px 16px}
   .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;font-weight:800;margin-bottom:6px}
+  .box.co{flex:0 0 auto;max-width:34%}
+  .box.co .n{margin-bottom:0}
   .box .n{font-size:15px;font-weight:800;margin-bottom:4px}
   .box .d{font-size:12px;color:#475569;line-height:1.5}
   table{width:100%;border-collapse:collapse}
@@ -96,10 +98,10 @@ export function buildOrderPdfHtml(o: OrderPdfData): string {
 </style></head><body>
   <div class="head">
     <div>${/^data:image\//.test(o.logoUrl || "") ? `<img class="logo" src="${esc(o.logoUrl)}" alt="">` : '<div class="brand">Represente<span>-Se!</span></div>'}<div class="doc">Pedido de venda</div></div>
-    <div class="meta"><b>Nº ${esc(o.orderNumber)}</b><br>${date}${o.sellerName ? `<br>Representante: ${esc(o.sellerName)}` : ""}</div>
+    <div class="meta"><b>Nº ${esc(o.orderNumber)}</b><br>${date}${o.sellerName ? `<br>Representante: <b>${esc(o.sellerName)}</b>` : ""}</div>
   </div>
   <div class="parties">
-    <div class="box"><div class="lbl">Empresa representada</div><div class="n">${esc(o.company)}</div></div>
+    <div class="box co"><div class="lbl">Representada</div><div class="n">${esc(o.company)}</div></div>
     <div class="box"><div class="lbl">Cliente</div><div class="n">${esc(o.client.name)}</div>
       <div class="d">${[o.client.cnpj ? `CNPJ ${esc(formatCnpj(o.client.cnpj))}` : "", o.client.address ? esc(o.client.address) : "", [o.client.phone, o.client.email].filter(Boolean).map(esc).join(" · ")].filter(Boolean).join("<br>")}</div>
     </div>

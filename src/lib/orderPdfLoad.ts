@@ -21,11 +21,15 @@ export async function openSavedOrderPdf(orderId: string): Promise<"ok" | "blocke
 
   const { data: cfg } = await supabase.from("user_settings").select("logo_url").eq("user_id", order.user_id).maybeSingle();
 
+  const { data: auth } = await supabase.auth.getUser();
+  const sellerName = (auth?.user?.user_metadata?.full_name as string | undefined) || undefined;
+
   const client = (Array.isArray(order.client) ? order.client[0] : order.client) as any;
   const ok = openOrderPdf({
     orderNumber: order.order_number || String(order.id).slice(0, 8).toUpperCase(),
     date: order.created_at,
     logoUrl: cfg?.logo_url,
+    sellerName,
     company: order.category,
     client: client || { name: "—" },
     items: (items || []) as any[],

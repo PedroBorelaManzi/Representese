@@ -52,6 +52,8 @@ interface Settings {
   avatar_url?: string;
   /** Logo da representação (data URL, redimensionada) — vai no cabeçalho do PDF do pedido. */
   logo_url?: string | null;
+  /** Condições de pagamento que o usuário digitou no Novo pedido — aparecem na lista nas próximas vezes. */
+  custom_payment_terms?: string[];
   trial_ends_at?: string;
   current_period_end?: string;
   billing_cycle?: string;
@@ -103,6 +105,7 @@ const defaultSettings: Settings = {
   subscription_provider: 'asaas',
   avatar_url: undefined,
   logo_url: undefined,
+  custom_payment_terms: [],
   is_admin: false,
   phone: undefined,
   weather_city: undefined,
@@ -217,6 +220,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           subscription_provider: cached.subscription_provider || 'asaas',
           avatar_url: cached.avatar_url,
           logo_url: cached.logo_url,
+          custom_payment_terms: cached.custom_payment_terms || [],
           trial_ends_at: cached.trial_ends_at,
           current_period_end: cached.current_period_end,
           billing_cycle: cached.billing_cycle,
@@ -310,6 +314,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           subscription_provider: subscriptionProvider,
           avatar_url: finalAvatar,
           logo_url: data.logo_url,
+          custom_payment_terms: Array.isArray(data.custom_payment_terms) ? data.custom_payment_terms : [],
           trial_ends_at: entData?.trial_ends_at,
           current_period_end: entData?.current_period_end,
           billing_cycle: entData?.billing_cycle,
