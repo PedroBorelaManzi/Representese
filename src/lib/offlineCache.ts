@@ -15,6 +15,9 @@ export const CacheKeys = {
   APPOINTMENTS: 'rm_cache_appointments',
   ALL_TIME_CATEGORIES: 'rm_cache_all_time_categories',
   ORDER_ITEMS: 'rm_cache_order_items',
+  /** Todos os produtos e parcelas de todos os pedidos (baixados na sincronização completa) — o detalhe do pedido abre offline com eles. */
+  ALL_ORDER_ITEMS: 'rm_cache_all_order_items',
+  ALL_ORDER_INSTALLMENTS: 'rm_cache_all_order_installments',
   /** Marca quando a sincronização completa (clientes, pedidos, agenda, feriados
    *  e arquivos) rodou pela última vez — TTL de 24h faz a chave "expirar"
    *  sozinha, sinalizando que já passou um dia e é hora de rodar de novo. */

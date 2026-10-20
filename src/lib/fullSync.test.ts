@@ -47,7 +47,7 @@ import { offlineCache, CacheKeys } from './offlineCache';
 
 // Builders pro chain do supabase-js usado em cada etapa.
 const chainSelectEq = (result: { data: any; error: any }) => ({
-  select: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve(result)) })),
+  select: vi.fn(() => ({ eq: vi.fn(() => ({ order: vi.fn(() => ({ range: vi.fn(() => Promise.resolve(result)) })) })) })),
 });
 const chainSelectEqMaybeSingle = (result: { data: any; error: any }) => ({
   select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn(() => Promise.resolve(result)) })) })),
@@ -59,6 +59,8 @@ function setupHappyPath() {
     if (table === 'clients') return chainSelectEq({ data: [{ id: 'c1', name: 'ACME', city: 'São Paulo', state: 'SP' }], error: null });
     if (table === 'appointments') return chainSelectEq({ data: [{ id: 'a1', title: 'Visita' }], error: null });
     if (table === 'orders') return chainSelectEq({ data: [{ id: 'o1', client_id: 'c1', file_path: 'u1/c1/nota.pdf' }], error: null });
+    if (table === 'order_items') return chainSelectEq({ data: [{ id: 'i1', order_id: 'o1' }], error: null });
+    if (table === 'order_installments') return chainSelectEq({ data: [{ id: 'p1', order_id: 'o1' }], error: null });
     throw new Error(`tabela inesperada: ${table}`);
   });
   fetchHolidaysMock.mockResolvedValue([{ name: 'Natal', date: '2026-12-25', type: 'nacional' }]);
@@ -146,6 +148,7 @@ describe('runFullSync', () => {
       if (table === 'user_settings') return chainSelectEqMaybeSingle({ data: { theme: 'dark' }, error: null });
       if (table === 'appointments') return chainSelectEq({ data: [{ id: 'a1' }], error: null });
       if (table === 'orders') return chainSelectEq({ data: [{ id: 'o1', client_id: 'c1' }], error: null });
+      if (table === 'order_items' || table === 'order_installments') return chainSelectEq({ data: [], error: null });
       throw new Error(`tabela inesperada: ${table}`);
     });
 
@@ -168,5 +171,66 @@ describe('runFullSync', () => {
     // Se tivesse rodado duas vezes, 'clients' apareceria 2x nas chamadas ao from().
     const clientCalls = fromMock.mock.calls.filter(([t]) => t === 'clients').length;
     expect(clientCalls).toBe(1);
+  });
+
+  it('devolve "complete" quando tudo chegou e baixa itens e parcelas dos pedidos', async () => {
+    setupHappyPath();
+    isNativePlatform.mockReturnValue(true);
+
+    const r = await runFullSync('u1');
+
+    expect(r).toBe('complete');
+    expect(offlineCache.get(CacheKeys.ALL_ORDER_ITEMS)).toEqual([{ id: 'i1', order_id: 'o1' }]);
+    expect(offlineCache.get(CacheKeys.ALL_ORDER_INSTALLMENTS)).toEqual([{ id: 'p1', order_id: 'o1' }]);
+  });
+
+  it('devolve "incomplete" se um arquivo falhar no download (retoma depois)', async () => {
+    setupHappyPath();
+    isNativePlatform.mockReturnValue(true);
+    getCachedFileUriMock.mockRejectedValueOnce(new Error('rede caiu'));
+
+    expect(await runFullSync('u1')).toBe('incomplete');
+  });
+
+  it('arquivo que não existe mais no Storage não deixa a sincronização incompleta', async () => {
+    setupHappyPath();
+    isNativePlatform.mockReturnValue(true);
+    createSignedUrlMock.mockResolvedValue({ data: null, error: { message: 'Object not found' } });
+
+    expect(await runFullSync('u1')).toBe('complete');
+  });
+
+  it('devolve "incomplete" se uma tabela falhar', async () => {
+    setupHappyPath();
+    fromMock.mockImplementation((table: string) => {
+      if (table === 'user_settings') return chainSelectEqMaybeSingle({ data: { theme: 'dark' }, error: null });
+      if (table === 'clients') return chainSelectEq({ data: null, error: new Error('falhou') });
+      return chainSelectEq({ data: [], error: null });
+    });
+
+    expect(await runFullSync('u1')).toBe('incomplete');
+  });
+
+  it('pagina tabelas com mais de 1000 linhas', async () => {
+    setupHappyPath();
+    const pagina1 = Array.from({ length: 1000 }, (_, i) => ({ id: `c${i}`, name: 'x' }));
+    const pagina2 = [{ id: 'c1000', name: 'y' }];
+    const range = vi.fn().mockResolvedValueOnce({ data: pagina1, error: null }).mockResolvedValueOnce({ data: pagina2, error: null });
+    const base = fromMock.getMockImplementation()!;
+    fromMock.mockImplementation((table: string) =>
+      table === 'clients' ? { select: () => ({ eq: () => ({ order: () => ({ range }) }) }) } : base(table)
+    );
+
+    await runFullSync('u1');
+
+    expect((offlineCache.get(CacheKeys.CLIENTS) as any[]).length).toBe(1001);
+  });
+
+  it('chamadas simultâneas: a segunda devolve "busy"', async () => {
+    setupHappyPath();
+    const p1 = runFullSync('u1');
+    const r2 = await runFullSync('u1');
+    expect(r2).toBe('busy');
+    await p1;
   });
 });

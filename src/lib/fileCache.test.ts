@@ -13,6 +13,7 @@ const stat = vi.fn();
 const getUri = vi.fn();
 const downloadFile = vi.fn();
 const deleteFile = vi.fn();
+const rename = vi.fn();
 const addListener = vi.fn().mockResolvedValue({ remove: vi.fn() });
 vi.mock('@capacitor/filesystem', () => ({
   Filesystem: {
@@ -20,6 +21,7 @@ vi.mock('@capacitor/filesystem', () => ({
     getUri: (a?: any) => getUri(a),
     downloadFile: (a?: any) => downloadFile(a),
     deleteFile: (a?: any) => deleteFile(a),
+    rename: (a?: any) => rename(a),
     addListener: (a?: any, b?: any) => addListener(a, b),
   },
   Directory: { Data: 'DATA' },
@@ -35,6 +37,8 @@ import {
 beforeEach(() => {
   vi.clearAllMocks();
   addListener.mockResolvedValue({ remove: vi.fn() });
+  deleteFile.mockResolvedValue({});
+  rename.mockResolvedValue({});
 });
 
 describe('getCachedUriSePresente', () => {
@@ -96,6 +100,9 @@ describe('getCachedFileUri', () => {
       expect.objectContaining({ url: 'https://signed.example/a.pdf', directory: 'DATA' })
     );
     expect(uri).toBe('converted:file:///cache/a.pdf');
+    // Baixa pra .part e só renomeia no fim (arquivo pela metade nunca vira "cache").
+    expect(downloadFile).toHaveBeenCalledWith(expect.objectContaining({ path: expect.stringMatching(/\.part$/) }));
+    expect(rename).toHaveBeenCalledWith(expect.objectContaining({ from: expect.stringMatching(/\.part$/), to: expect.not.stringMatching(/\.part$/) }));
   });
 });
 

@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, FileText, FileDown, Loader2, Truck, Hash, Receipt, CreditCard, CalendarDays, CalendarClock, StickyNote, Package, Scissors, Trash2 } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import { offlineCache, CacheKeys } from "../lib/offlineCache";
+import { getCachedUriSePresente, baixarParaCacheEmSegundoPlano } from "../lib/fileCache";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
 import { InlineEditField } from "./InlineEditField";
@@ -48,6 +50,14 @@ export function OrderDetailModal({ order, isOpen, onClose, onUpdated, commission
     let cancelled = false;
     setLoadingInstallments(true);
     (async () => {
+      // Sem internet: usa as parcelas baixadas na última sincronização.
+      if (!offlineCache.isOnline()) {
+        const todas = offlineCache.get<OrderInstallment[]>(CacheKeys.ALL_ORDER_INSTALLMENTS) || [];
+        if (cancelled) return;
+        setInstallments(todas.filter((i) => i.order_id === order.id).sort((a, b) => a.installment_number - b.installment_number));
+        setLoadingInstallments(false);
+        return;
+      }
       const { data } = await supabase
         .from("order_installments")
         .select("*")
@@ -68,6 +78,13 @@ export function OrderDetailModal({ order, isOpen, onClose, onUpdated, commission
     let cancelled = false;
     setLoadingItems(true);
     (async () => {
+      if (!offlineCache.isOnline()) {
+        const todos = offlineCache.get<OrderItem[]>(CacheKeys.ALL_ORDER_ITEMS) || [];
+        if (cancelled) return;
+        setItems(todos.filter((i) => i.order_id === order.id).sort((a, b) => a.product_name.localeCompare(b.product_name)));
+        setLoadingItems(false);
+        return;
+      }
       const { data } = await supabase
         .from("order_items")
         .select("*")
@@ -160,9 +177,15 @@ export function OrderDetailModal({ order, isOpen, onClose, onUpdated, commission
 
   const openFile = async () => {
     if (!order.file_path) return;
+    const nome = order.file_name || "pedido";
+    // Cópia já salva no aparelho (baixada na sincronização): abre na hora e funciona offline.
+    const local = await getCachedUriSePresente(order.file_path);
+    if (local) { setPdfPreview({ url: local, name: nome }); return; }
+    if (!offlineCache.isOnline()) { toast.error("Esta cópia ainda não foi baixada no aparelho. Conecte-se e sincronize para ter ela offline."); return; }
     const { data, error } = await supabase.storage.from("client_vault").createSignedUrl(order.file_path, 60 * 60);
     if (error || !data) { toast.error("Não foi possível abrir o arquivo."); return; }
-    setPdfPreview({ url: data.signedUrl, name: order.file_name || "pedido" });
+    setPdfPreview({ url: data.signedUrl, name: nome });
+    baixarParaCacheEmSegundoPlano(order.file_path, data.signedUrl);
   };
 
   const pct = Number(commissions[order.category] ?? 0);

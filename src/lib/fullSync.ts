@@ -4,7 +4,9 @@
 // agenda, feriados e, no app nativo, o conteúdo de cada PDF/arquivo) e
 // deixa salvo no aparelho — não é o usuário quem escolhe o que sincronizar
 // aqui (isso é só pra download avulso de um arquivo específico via
-// fileCache.ts). Roda no boot do app e sempre que a conexão volta.
+// fileCache.ts). Roda no boot do app e sempre que a conexão volta — mas só
+// conta como "feita" (uma vez por dia) quando chega a 100%: interrompida no
+// meio, retoma na próxima abertura pulando o que já foi baixado.
 import { Capacitor } from "@capacitor/core";
 import { supabase } from "./supabase";
 import { offlineCache, CacheKeys } from "./offlineCache";
@@ -14,6 +16,42 @@ import { listAllPaths, BUCKET as USER_FILES_BUCKET } from "./storageList";
 import type { Client, Order, Appointment } from "../types";
 
 const CLIENT_VAULT_BUCKET = "client_vault";
+
+/** Dados baixados valem 30 dias offline (o padrão do cache é 24h — sem isso,
+ *  quem passasse um dia sem abrir o app online perdia tudo offline). */
+const SYNC_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+/** O Supabase devolve no máximo 1000 linhas por consulta — acima disso é preciso paginar. */
+const PAGE_SIZE = 1000;
+const TABLE_TIMEOUT_MS = 60_000;
+const FILE_TIMEOUT_MS = 180_000;
+const FILE_CONCURRENCY = 3;
+
+export type FullSyncResult = "complete" | "incomplete" | "busy" | "offline";
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(`${label}: timeout`)), ms);
+    promise.then(
+      (v) => { clearTimeout(t); resolve(v); },
+      (e) => { clearTimeout(t); reject(e); }
+    );
+  });
+}
+
+/** Lê a tabela inteira, página a página (ordenada por id pra a paginação ser estável). */
+async function fetchAllRows<T>(
+  build: (from: number, to: number) => PromiseLike<{ data: any; error: any }>
+): Promise<T[]> {
+  const all: T[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await withTimeout(Promise.resolve(build(from, from + PAGE_SIZE - 1)), TABLE_TIMEOUT_MS, "tabela");
+    if (error) throw error;
+    const rows = (data || []) as T[];
+    all.push(...rows);
+    if (rows.length < PAGE_SIZE) break;
+  }
+  return all;
+}
 
 export interface FullSyncProgress {
   etapaIndex: number;
@@ -36,29 +74,40 @@ export function isFullSyncRunning(): boolean {
 async function syncUserSettings(userId: string): Promise<void> {
   const { data, error } = await supabase.from("user_settings").select("*").eq("user_id", userId).maybeSingle();
   if (error) throw error;
-  if (data) offlineCache.set(CacheKeys.USER_SETTINGS, data);
+  if (data) offlineCache.set(CacheKeys.USER_SETTINGS, data, SYNC_TTL_MS);
 }
 
 async function syncClients(userId: string): Promise<Client[]> {
-  const { data, error } = await supabase.from("clients").select("*").eq("user_id", userId);
-  if (error) throw error;
-  const clients = (data || []) as Client[];
-  offlineCache.set(CacheKeys.CLIENTS, clients);
+  const clients = await fetchAllRows<Client>((f, t) =>
+    supabase.from("clients").select("*").eq("user_id", userId).order("id").range(f, t)
+  );
+  offlineCache.set(CacheKeys.CLIENTS, clients, SYNC_TTL_MS);
   return clients;
 }
 
 async function syncAppointments(userId: string): Promise<void> {
-  const { data, error } = await supabase.from("appointments").select("*").eq("user_id", userId);
-  if (error) throw error;
-  offlineCache.set(CacheKeys.APPOINTMENTS, (data || []) as Appointment[]);
+  const appointments = await fetchAllRows<Appointment>((f, t) =>
+    supabase.from("appointments").select("*").eq("user_id", userId).order("id").range(f, t)
+  );
+  offlineCache.set(CacheKeys.APPOINTMENTS, appointments, SYNC_TTL_MS);
 }
 
 async function syncOrders(userId: string): Promise<Order[]> {
-  const { data, error } = await supabase.from("orders").select("*").eq("user_id", userId);
-  if (error) throw error;
-  const orders = (data || []) as Order[];
-  offlineCache.set(CacheKeys.ORDERS, orders);
+  const orders = await fetchAllRows<Order>((f, t) =>
+    supabase.from("orders").select("*").eq("user_id", userId).order("id").range(f, t)
+  );
+  offlineCache.set(CacheKeys.ORDERS, orders, SYNC_TTL_MS);
   return orders;
+}
+
+/** Produtos e parcelas de cada pedido — o detalhe do pedido abre offline com eles. */
+async function syncOrderDetails(userId: string): Promise<void> {
+  const [items, installments] = await Promise.all([
+    fetchAllRows<any>((f, t) => supabase.from("order_items").select("*").eq("user_id", userId).order("id").range(f, t)),
+    fetchAllRows<any>((f, t) => supabase.from("order_installments").select("*").eq("user_id", userId).order("id").range(f, t)),
+  ]);
+  offlineCache.set(CacheKeys.ALL_ORDER_ITEMS, items, SYNC_TTL_MS);
+  offlineCache.set(CacheKeys.ALL_ORDER_INSTALLMENTS, installments, SYNC_TTL_MS);
 }
 
 async function syncHolidays(clients: Client[]): Promise<void> {
@@ -84,46 +133,71 @@ async function syncFiles(
   userId: string,
   orders: Order[],
   onFileProgress?: (atual: number, total: number) => void
-): Promise<void> {
+): Promise<{ failed: number }> {
   const orderTargets = orders
     .filter((o) => !!o.file_path)
     .map((o) => ({ bucket: CLIENT_VAULT_BUCKET, path: o.file_path as string }));
 
+  let listFailed = 0;
   const generalPaths = await listAllPaths(USER_FILES_BUCKET, userId).catch((e) => {
     console.warn("fullSync: falha ao listar Arquivos gerais", e);
+    listFailed = 1;
     return [] as string[];
   });
   const generalTargets = generalPaths.map((p) => ({ bucket: USER_FILES_BUCKET, path: p }));
 
-  const targets = [...orderTargets, ...generalTargets];
+  // Dois pedidos podem apontar pro mesmo arquivo: baixa uma vez só.
+  const seen = new Set<string>();
+  const targets = [...orderTargets, ...generalTargets].filter((t) => {
+    const k = `${t.bucket}/${t.path}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+
   let done = 0;
+  let failed = listFailed;
+  let next = 0;
   onFileProgress?.(0, targets.length);
 
-  for (const t of targets) {
-    try {
-      const jaEmCache = await getCachedUriSePresente(t.path);
-      if (!jaEmCache) {
-        const { data, error } = await supabase.storage.from(t.bucket).createSignedUrl(t.path, 60 * 60);
-        if (!error && data?.signedUrl) {
-          await getCachedFileUri(t.path, data.signedUrl);
+  // Arquivo que não existe mais no Storage não é "falha": não adianta tentar
+  // de novo, e se contasse a sincronização nunca fecharia 100%.
+  const isMissing = (err: any) => /not.?found|does not exist|404/i.test(String(err?.message || err?.error || err || ""));
+
+  const worker = async () => {
+    while (next < targets.length) {
+      const t = targets[next++];
+      try {
+        const jaEmCache = await getCachedUriSePresente(t.path);
+        if (!jaEmCache) {
+          const { data, error } = await supabase.storage.from(t.bucket).createSignedUrl(t.path, 60 * 60);
+          if (error || !data?.signedUrl) {
+            if (!isMissing(error)) failed++;
+          } else {
+            await withTimeout(getCachedFileUri(t.path, data.signedUrl), FILE_TIMEOUT_MS, t.path);
+          }
         }
+      } catch (e) {
+        // Um arquivo com problema não trava os outros — mas a sincronização
+        // fica "incompleta" e retoma só o que faltou na próxima vez.
+        failed++;
+        console.warn("fullSync: falha ao cachear arquivo", t.path, e);
       }
-    } catch (e) {
-      // Um arquivo com problema não pode travar a sincronização dos outros.
-      console.warn("fullSync: falha ao cachear arquivo", t.path, e);
+      done++;
+      onFileProgress?.(done, targets.length);
     }
-    done++;
-    onFileProgress?.(done, targets.length);
-  }
+  };
+  await Promise.all(Array.from({ length: Math.min(FILE_CONCURRENCY, targets.length) }, worker));
+  return { failed };
 }
 
 /**
  * Roda a sincronização completa. Cada etapa é isolada: se uma falhar (ex.
  * feriados fora do ar), as outras seguem normalmente em vez de travar tudo.
  */
-export async function runFullSync(userId: string, onProgress?: (p: FullSyncProgress) => void): Promise<void> {
-  if (syncing) return;
-  if (!offlineCache.isOnline()) return;
+export async function runFullSync(userId: string, onProgress?: (p: FullSyncProgress) => void): Promise<FullSyncResult> {
+  if (syncing) return "busy";
+  if (!offlineCache.isOnline()) return "offline";
 
   syncing = true;
   const comArquivos = Capacitor.isNativePlatform();
@@ -131,34 +205,40 @@ export async function runFullSync(userId: string, onProgress?: (p: FullSyncProgr
   const report = (etapaIndex: number, etapaLabel: string, sub?: { atual: number; total: number }) =>
     onProgress?.({ etapaIndex, etapaTotal, etapaLabel, subAtual: sub?.atual, subTotal: sub?.total });
 
+  // Qualquer etapa que falhar deixa a sincronização "incompleta" — as demais
+  // seguem, mas o dia só conta como sincronizado quando tudo chegou.
+  let complete = true;
+  const guard = <T,>(label: string, fallback: T) => (e: unknown): T => {
+    complete = false;
+    console.warn(`fullSync: ${label} falhou`, e);
+    return fallback;
+  };
+
   try {
     report(1, "Configurações...");
-    await syncUserSettings(userId).catch((e) => console.warn("fullSync: user_settings falhou", e));
+    await syncUserSettings(userId).catch(guard("user_settings", undefined));
 
     report(2, "Clientes...");
-    const clients = await syncClients(userId).catch((e) => {
-      console.warn("fullSync: clientes falhou", e);
-      return [] as Client[];
-    });
+    const clients = await syncClients(userId).catch(guard("clientes", [] as Client[]));
 
     report(3, "Agenda...");
-    await syncAppointments(userId).catch((e) => console.warn("fullSync: agenda falhou", e));
+    await syncAppointments(userId).catch(guard("agenda", undefined));
 
     report(4, "Pedidos...");
-    const orders = await syncOrders(userId).catch((e) => {
-      console.warn("fullSync: pedidos falhou", e);
-      return [] as Order[];
-    });
+    const orders = await syncOrders(userId).catch(guard("pedidos", [] as Order[]));
+    await syncOrderDetails(userId).catch(guard("itens dos pedidos", undefined));
 
     report(5, "Feriados...");
-    await syncHolidays(clients).catch((e) => console.warn("fullSync: feriados falhou", e));
+    await syncHolidays(clients).catch(guard("feriados", undefined));
 
     if (comArquivos) {
       report(6, "Arquivos...", { atual: 0, total: 0 });
-      await syncFiles(userId, orders, (atual, total) => report(6, "Arquivos...", { atual, total })).catch((e) =>
-        console.warn("fullSync: arquivos falhou", e)
+      const r = await syncFiles(userId, orders, (atual, total) => report(6, "Arquivos...", { atual, total })).catch(
+        guard("arquivos", { failed: 0 })
       );
+      if (r.failed > 0) complete = false;
     }
+    return complete ? "complete" : "incomplete";
   } finally {
     syncing = false;
   }

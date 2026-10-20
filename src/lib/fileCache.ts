@@ -61,14 +61,20 @@ async function baixarNativo(
       })
     : null;
 
+  // Baixa pra um arquivo temporário e só renomeia no fim: se o app for fechado
+  // no meio, sobra um .part (ignorado e sobrescrito depois), nunca um arquivo
+  // pela metade que pareceria "já em cache" e abriria corrompido offline.
+  const tmp = `${path}.part`;
   try {
     await Filesystem.downloadFile({
       url,
-      path,
+      path: tmp,
       directory: CACHE_DIR,
       progress: !!onProgress,
       recursive: true,
     });
+    await Filesystem.deleteFile({ path, directory: CACHE_DIR }).catch(() => {});
+    await Filesystem.rename({ from: tmp, to: path, directory: CACHE_DIR, toDirectory: CACHE_DIR });
   } finally {
     await listener?.remove();
   }

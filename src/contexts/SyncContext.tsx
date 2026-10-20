@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef, ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { syncQueue } from '../lib/syncQueue';
-import { runFullSync, type FullSyncProgress } from '../lib/fullSync';
+import { runFullSync, type FullSyncProgress, type FullSyncResult } from '../lib/fullSync';
 import { offlineCache, CacheKeys } from '../lib/offlineCache';
 import { processPendingFileUploads, getPendingFileUploadCount } from '../lib/pendingFileUploads';
 import { logError } from '../lib/supabase';
@@ -80,33 +80,37 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     }
   }, [queryClient]);
 
-  // Baixa tudo (clientes, pedidos, agenda, feriados e, no app, o conteúdo dos
-  // arquivos) e deixa salvo no aparelho. Roda depois do flushQueue de
-  // propósito: primeiro sobe o que foi feito offline, só depois baixa o
-  // retrato completo — assim a cópia local reflete a MESMA alteração que
-  // acabou de subir, não uma versão anterior a ela.
+  // Baixa tudo (clientes, pedidos, agenda, feriados, itens/parcelas e, no app,
+  // o conteúdo de TODOS os arquivos) e deixa salvo no aparelho. Roda depois do
+  // flushQueue de propósito: primeiro sobe o que foi feito offline, só depois
+  // baixa o retrato completo — assim a cópia local reflete a MESMA alteração
+  // que acabou de subir, não uma versão anterior a ela.
   //
-  // Timeout de segurança: sem isso, uma requisição que nunca resolve nem
-  // rejeita (rede instável no meio de um download grande) deixava
-  // `fullSyncProgress` preso pra sempre — o indicador de sincronização
-  // nunca sumia. 90s é folgado pro pior caso (app nativo baixando arquivos).
-  const runFull = useCallback(async () => {
-    if (!user) return;
+  // Sem limite de tempo global: com muitos PDFs a baixa leva minutos, e o
+  // limite antigo (90s) abortava no meio e nunca marcava o dia como feito —
+  // daí a sincronização reiniciar a cada abertura do app. Cada arquivo e cada
+  // tabela têm o seu próprio limite (fullSync.ts), então nada fica preso.
+  //
+  // O dia só conta como sincronizado se chegou a 100% ("complete"). Se foi
+  // interrompida (app fechado, internet caiu), a marca não é gravada e a
+  // próxima abertura retoma de onde parou — arquivos já baixados são pulados.
+  const runFull = useCallback(async (): Promise<FullSyncResult> => {
+    if (!user) return 'offline';
+    let result: FullSyncResult = 'incomplete';
     try {
-      const timeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('full sync timeout')), 90_000)
-      );
-      await Promise.race([runFullSync(user.id, setFullSyncProgress), timeout]);
-      // Marca "sincronizado hoje" — a própria expiração do cache (24h) serve
-      // de contador: passado esse prazo, a chave some sozinha e o boot sabe
-      // que é hora de rodar de novo.
-      offlineCache.set(CacheKeys.LAST_FULL_SYNC, true, 24 * 60 * 60 * 1000);
+      result = await runFullSync(user.id, setFullSyncProgress);
+      if (result === 'complete') {
+        // A própria expiração do cache (24h) serve de contador: passado esse
+        // prazo, a chave some sozinha e o boot sabe que é hora de rodar de novo.
+        offlineCache.set(CacheKeys.LAST_FULL_SYNC, true, 24 * 60 * 60 * 1000);
+      }
     } catch (e) {
-      console.error('Erro (ou timeout) na sincronização completa:', e);
+      console.error('Erro na sincronização completa:', e);
       logError(e, 'SyncContext.runFull');
     } finally {
       setFullSyncProgress(null);
     }
+    return result;
   }, [user]);
 
   /** Só verdadeiro se já passou 1 dia (ou nunca rodou) desde a última sincronização completa — a regra é "uma vez por dia", sozinha; sincronizar de novo antes disso é só no clique manual (syncNow). */
@@ -118,8 +122,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   // ainda está rodando, sem tomar espaço.
   const runFullWithToast = useCallback(async () => {
     toast.loading('Sincronizando dados com a nuvem…', { id: 'auto-full-sync' });
-    await runFull();
-    toast.success('Sincronização concluída!', { id: 'auto-full-sync', duration: 2000 });
+    const result = await runFull();
+    if (result === 'complete') toast.success('Sincronização concluída!', { id: 'auto-full-sync', duration: 2000 });
+    else if (result === 'incomplete') toast.warning('Sincronização incompleta. Continuamos de onde parou na próxima vez que abrir o app.', { id: 'auto-full-sync', duration: 5000 });
+    else toast.dismiss('auto-full-sync');
   }, [runFull]);
 
   useEffect(() => {
@@ -216,9 +222,11 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       // 3. Sincronização completa sob demanda — clicar em "Sincronizar" força
       // a atualização geral (inclusive arquivos, no app) mesmo que a
       // automática do dia já tenha rodado.
-      await runFull();
+      const result = await runFull();
 
-      toast.success('Sincronização concluída com sucesso!', { id: 'sync-toast' });
+      if (result === 'complete') toast.success('Sincronização concluída com sucesso!', { id: 'sync-toast' });
+      else if (result === 'busy') toast.info('Já existe uma sincronização em andamento. Aguarde terminar.', { id: 'sync-toast' });
+      else toast.warning('Sincronização incompleta: alguns itens não baixaram. Toque em Sincronizar de novo.', { id: 'sync-toast' });
     } catch (e) {
       toast.error('Erro inesperado durante a sincronização.', { id: 'sync-toast' });
     } finally {
