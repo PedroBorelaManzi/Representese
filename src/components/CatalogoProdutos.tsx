@@ -50,6 +50,10 @@ export function CatalogoProdutos({ categoriaFiltro, categoriasDisponiveis }: Cat
       return (data as CatalogItem[]) || [];
     },
     enabled: !!user,
+    // O app guarda o cache entre sessões e nunca reatualiza sozinho; o catálogo
+    // também é alterado fora desta tela (Novo pedido cadastra produto), então
+    // sempre busca a versão atual ao abrir.
+    refetchOnMount: "always",
   });
 
   const itensDaEmpresa = useMemo(

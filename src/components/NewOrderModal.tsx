@@ -161,6 +161,7 @@ export function NewOrderModal({ isOpen, onClose, onCreated, defaultCompany }: Pr
       return (data as CatalogItem[]) || [];
     },
     enabled: !!user && isOpen,
+    refetchOnMount: "always",
   });
 
   const termOptions = useMemo(
@@ -240,10 +241,16 @@ export function NewOrderModal({ isOpen, onClose, onCreated, defaultCompany }: Pr
         if (!i.fromCatalog && !known.has(k) && !novos.has(k)) novos.set(k, i);
       });
       if (novos.size > 0) {
-        const { error: cErr } = await supabase.from("product_catalog").insert(
+        const { data: criados, error: cErr } = await supabase.from("product_catalog").insert(
           [...novos.values()].map((i) => ({ user_id: user.id, category: company, name: i.name, code: i.code, unit_type: "unidade", price: i.unit_value }))
-        );
-        if (cErr) console.warn("Não consegui cadastrar os produtos novos no catálogo:", cErr.message);
+        ).select();
+        if (cErr) {
+          console.warn("Não consegui cadastrar os produtos novos no catálogo:", cErr.message);
+          toast.error("Pedido salvo, mas não consegui cadastrar os produtos novos no catálogo.");
+        } else if (criados) {
+          // Entra direto no cache (que o app guarda entre sessões) pra aparecer no catálogo na hora.
+          queryClient.setQueryData<CatalogItem[]>(["product_catalog", user.id], (old) => [...(old || []), ...(criados as CatalogItem[])]);
+        }
         queryClient.invalidateQueries({ queryKey: ["product_catalog", user.id] });
       }
 
