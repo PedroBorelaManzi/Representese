@@ -141,6 +141,7 @@ export function NewOrderModal({ isOpen, onClose, onCreated, defaultCompany }: Pr
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [savedOrderId, setSavedOrderId] = useState<string | null>(null);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
 
   const { data: clients = [] } = useQuery({
     queryKey: ["order_builder_clients", user?.id],
@@ -281,9 +282,13 @@ export function NewOrderModal({ isOpen, onClose, onCreated, defaultCompany }: Pr
 
   const downloadPdf = async () => {
     if (!savedOrderId) return;
-    const r = await openSavedOrderPdf(savedOrderId);
-    if (r === "blocked") toast.error("O navegador bloqueou a janela do PDF. Permita pop-ups e tente de novo.");
-    else if (r === "error") toast.error("Não consegui gerar o PDF.");
+    setGeneratingPdf(true);
+    try {
+      const r = await openSavedOrderPdf(savedOrderId);
+      if (r === "error") toast.error("Não consegui gerar o PDF.");
+    } finally {
+      setGeneratingPdf(false);
+    }
   };
 
   if (savedOrderId) {
@@ -295,8 +300,9 @@ export function NewOrderModal({ isOpen, onClose, onCreated, defaultCompany }: Pr
             <p className="text-lg font-black text-slate-900 dark:text-zinc-100">{BRL(totals.total)}</p>
             <p className="text-sm text-slate-500 dark:text-zinc-400">O pedido já está salvo em Empresas &amp; Pedidos. O PDF pode ser baixado agora ou depois, abrindo o pedido.</p>
           </div>
-          <button onClick={downloadPdf} className="w-full flex items-center justify-center gap-2 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest active:scale-95 transition-all">
-            <FileDown className="w-4 h-4" /> Baixar PDF
+          <button disabled={generatingPdf} onClick={downloadPdf} className="w-full flex items-center justify-center gap-2 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest active:scale-95 transition-all disabled:opacity-60">
+            {generatingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
+            {generatingPdf ? "Gerando PDF..." : "Baixar PDF"}
           </button>
           <button onClick={close} className="text-xs font-bold text-slate-400 hover:text-slate-600">Fechar</button>
         </div>

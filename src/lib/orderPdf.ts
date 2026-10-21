@@ -1,7 +1,9 @@
-// PDF do pedido criado em "Novo pedido" — mesmo padrão dos extratos
-// (commissionsExport.ts): abre uma janela com HTML pronto e dispara a
-// impressão, de onde o usuário escolhe "Salvar como PDF". Gerado sempre a
-// partir dos dados salvos, então reflete edições feitas depois.
+// PDF do pedido criado em "Novo pedido". Gera o PDF de verdade no cliente
+// (html2canvas captura o layout + jsPDF monta o arquivo) e dispara o download
+// direto, sem abrir janela nova — window.open()/print() era bloqueado pelo
+// navegador como pop-up, principalmente no celular, e mesmo quando não
+// bloqueava dependia da pessoa escolher manualmente "Salvar como PDF" na
+// caixa de impressão (que no navegador mobile nem sempre tem essa opção).
 
 import { computeOrderTotals, itemTotal, type OrderPricing, type PricedItem } from "./orderBuilder";
 
@@ -34,7 +36,38 @@ function formatCnpj(raw?: string | null): string {
   return d.length === 14 ? d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5") : raw || "";
 }
 
-export function buildOrderPdfHtml(o: OrderPdfData): string {
+const PDF_STYLES = `
+  * { box-sizing: border-box; }
+  #order-pdf-root{font-family:-apple-system,"Segoe UI",Roboto,sans-serif;color:#0f172a;padding:44px;margin:0;background:#fff;font-size:13px;width:780px}
+  #order-pdf-root .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #10b981;padding-bottom:18px;margin-bottom:24px}
+  #order-pdf-root .brand{font-size:24px;font-weight:900;letter-spacing:-.5px}#order-pdf-root .brand span{color:#10b981}
+  #order-pdf-root .logo{display:block;max-height:64px;max-width:220px;object-fit:contain}
+  #order-pdf-root .doc{font-size:12px;color:#475569;font-weight:700;margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
+  #order-pdf-root .meta{text-align:right;font-size:12px;color:#475569;font-weight:600;line-height:1.6}
+  #order-pdf-root .parties{display:flex;align-items:flex-start;gap:16px;margin-bottom:24px}
+  #order-pdf-root .box{flex:1 1 0;border:1px solid #e2e8f0;border-radius:14px;padding:14px 16px}
+  #order-pdf-root .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;font-weight:800;margin-bottom:6px}
+  #order-pdf-root .box.co{flex:0 0 auto;max-width:34%}
+  #order-pdf-root .box.co .n{margin-bottom:0}
+  #order-pdf-root .box .n{font-size:15px;font-weight:800;margin-bottom:4px}
+  #order-pdf-root .box .d{font-size:12px;color:#475569;line-height:1.5}
+  #order-pdf-root table{width:100%;border-collapse:collapse}
+  #order-pdf-root th{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;font-weight:800;text-align:left;padding:8px 10px;border-bottom:2px solid #0f172a}
+  #order-pdf-root td{padding:10px;border-bottom:1px solid #e2e8f0;vertical-align:top}
+  #order-pdf-root th.r,#order-pdf-root td.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+  #order-pdf-root .center{text-align:center}#order-pdf-root .muted{color:#94a3b8}#order-pdf-root .strong{font-weight:800}
+  #order-pdf-root .sub{font-size:11px;color:#94a3b8;margin-top:2px}
+  #order-pdf-root .sum{width:300px;margin:20px 0 0 auto}
+  #order-pdf-root .sum td{border:none;padding:5px 10px}
+  #order-pdf-root .sum .neg td.num{color:#dc2626}
+  #order-pdf-root .sum .grand td{border-top:2px solid #0f172a;padding-top:12px;font-size:16px;font-weight:900}
+  #order-pdf-root .sum .grand td.num{color:#059669}
+  #order-pdf-root .info{margin-top:24px;font-size:12px;color:#475569;line-height:1.6}
+  #order-pdf-root .info b{color:#0f172a}
+  #order-pdf-root .foot{margin-top:36px;font-size:10.5px;color:#94a3b8;text-align:center;border-top:1px solid #e2e8f0;padding-top:14px}
+`;
+
+function buildOrderPdfBody(o: OrderPdfData): string {
   const t = computeOrderTotals(o.items, o.pricing);
   const hasItemDiscount = o.items.some((i) => (i.discount_pct || 0) > 0);
   const date = new Date(o.date).toLocaleDateString("pt-BR");
@@ -62,40 +95,7 @@ export function buildOrderPdfHtml(o: OrderPdfData): string {
     line("Total do pedido", BRL(t.total), "grand"),
   ].join("");
 
-  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
-<title>Pedido ${esc(o.orderNumber)} — ${esc(o.client.name)}</title>
-<style>
-  * { box-sizing: border-box; }
-  body{font-family:-apple-system,"Segoe UI",Roboto,sans-serif;color:#0f172a;padding:44px;margin:0;background:#fff;font-size:13px}
-  .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #10b981;padding-bottom:18px;margin-bottom:24px}
-  .brand{font-size:24px;font-weight:900;letter-spacing:-.5px}.brand span{color:#10b981}
-  .logo{display:block;max-height:64px;max-width:220px;object-fit:contain}
-  .doc{font-size:12px;color:#475569;font-weight:700;margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
-  .meta{text-align:right;font-size:12px;color:#475569;font-weight:600;line-height:1.6}
-  .parties{display:flex;align-items:flex-start;gap:16px;margin-bottom:24px}
-  .box{flex:1 1 0;border:1px solid #e2e8f0;border-radius:14px;padding:14px 16px}
-  .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;font-weight:800;margin-bottom:6px}
-  .box.co{flex:0 0 auto;max-width:34%}
-  .box.co .n{margin-bottom:0}
-  .box .n{font-size:15px;font-weight:800;margin-bottom:4px}
-  .box .d{font-size:12px;color:#475569;line-height:1.5}
-  table{width:100%;border-collapse:collapse}
-  th{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;font-weight:800;text-align:left;padding:8px 10px;border-bottom:2px solid #0f172a}
-  td{padding:10px;border-bottom:1px solid #e2e8f0;vertical-align:top}
-  th.r,td.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
-  .center{text-align:center}.muted{color:#94a3b8}.strong{font-weight:800}
-  .sub{font-size:11px;color:#94a3b8;margin-top:2px}
-  .sum{width:300px;margin:20px 0 0 auto}
-  .sum td{border:none;padding:5px 10px}
-  .sum .neg td.num{color:#dc2626}
-  .sum .grand td{border-top:2px solid #0f172a;padding-top:12px;font-size:16px;font-weight:900}
-  .sum .grand td.num{color:#059669}
-  .info{margin-top:24px;font-size:12px;color:#475569;line-height:1.6}
-  .info b{color:#0f172a}
-  .foot{margin-top:36px;font-size:10.5px;color:#94a3b8;text-align:center;border-top:1px solid #e2e8f0;padding-top:14px}
-  tr{page-break-inside:avoid}
-  @media print { body{padding:24px} }
-</style></head><body>
+  return `
   <div class="head">
     <div>${/^data:image\//.test(o.logoUrl || "") ? `<img class="logo" src="${esc(o.logoUrl)}" alt="">` : '<div class="brand">Represente<span>-Se!</span></div>'}<div class="doc">Pedido de venda</div></div>
     <div class="meta"><b>Nº ${esc(o.orderNumber)}</b><br>${date}${o.sellerName ? `<br>Representante: <b>${esc(o.sellerName)}</b>` : ""}</div>
@@ -112,16 +112,88 @@ export function buildOrderPdfHtml(o: OrderPdfData): string {
   </table>
   <table class="sum"><tbody>${totals}</tbody></table>
   ${o.paymentTerms || o.notes ? `<div class="info">${o.paymentTerms ? `<div><b>Condição de pagamento:</b> ${esc(o.paymentTerms)}</div>` : ""}${o.notes ? `<div><b>Observações:</b> ${esc(o.notes)}</div>` : ""}</div>` : ""}
-  <div class="foot">Gerado pelo Represente-Se! · www.representese.com</div>
-  <script>window.onload=()=>setTimeout(()=>window.print(),400)</script>
-</body></html>`;
+  <div class="foot">Gerado pelo Represente-Se! · www.representese.com</div>`;
 }
 
-/** Abre o PDF numa nova janela. Retorna false se o navegador bloqueou o pop-up. */
-export function openOrderPdf(data: OrderPdfData): boolean {
-  const win = window.open("", "_blank");
-  if (!win) return false;
-  win.document.write(buildOrderPdfHtml(data));
-  win.document.close();
-  return true;
+/** Espera imagens dentro do elemento carregarem (ex.: logo em base64) antes de
+ *  capturar — sem isso o html2canvas podia tirar a "foto" com a logo em branco. */
+function waitForImages(el: HTMLElement): Promise<void> {
+  const imgs = Array.from(el.querySelectorAll("img"));
+  if (imgs.length === 0) return Promise.resolve();
+  return Promise.all(
+    imgs.map((img) =>
+      img.complete
+        ? Promise.resolve()
+        : new Promise<void>((resolve) => {
+            img.onload = () => resolve();
+            img.onerror = () => resolve();
+            setTimeout(resolve, 2000);
+          })
+    )
+  ).then(() => undefined);
+}
+
+/**
+ * Gera o PDF do pedido e baixa direto — sem janela nova, sem depender de
+ * pop-up. Renderiza o layout fora da tela (mesma página, elemento escondido),
+ * captura com html2canvas e monta o PDF com jsPDF, paginando se o conteúdo
+ * passar de uma folha A4. Retorna false só se algo der errado na geração
+ * (não existe mais o caso "bloqueado pelo navegador").
+ */
+export async function downloadOrderPdf(data: OrderPdfData): Promise<boolean> {
+  let container: HTMLDivElement | null = null;
+  try {
+    const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([import("jspdf"), import("html2canvas")]);
+
+    const styleEl = document.createElement("style");
+    styleEl.textContent = PDF_STYLES;
+
+    container = document.createElement("div");
+    // Fora da tela, mas ainda no fluxo normal do layout (não display:none —
+    // html2canvas não renderiza elementos sem dimensão).
+    container.style.position = "fixed";
+    container.style.top = "0";
+    container.style.left = "-99999px";
+    container.style.zIndex = "-1";
+    container.id = "order-pdf-root";
+    container.innerHTML = buildOrderPdfBody(data);
+    container.appendChild(styleEl);
+    document.body.appendChild(container);
+
+    await waitForImages(container);
+
+    const canvas = await html2canvas(container, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
+
+    const pdf = new jsPDF({ unit: "pt", format: "a4" });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = pageWidth;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    const imgData = canvas.toDataURL("image/png");
+
+    if (imgHeight <= pageHeight) {
+      pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
+    } else {
+      // Conteúdo mais alto que uma página: fatia a MESMA imagem em pedaços de
+      // altura de página, desenhando cada fatia numa página nova (mesma
+      // técnica usada em qualquer export html2canvas+jsPDF multi-página).
+      let renderedHeight = 0;
+      let page = 0;
+      while (renderedHeight < imgHeight) {
+        if (page > 0) pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, -renderedHeight, imgWidth, imgHeight);
+        renderedHeight += pageHeight;
+        page++;
+      }
+    }
+
+    pdf.save(`pedido-${(data.orderNumber || "representese").replace(/[^a-zA-Z0-9-_]/g, "_")}.pdf`);
+    return true;
+  } catch (e) {
+    console.error("Erro ao gerar PDF do pedido:", e);
+    return false;
+  } finally {
+    container?.remove();
+  }
 }

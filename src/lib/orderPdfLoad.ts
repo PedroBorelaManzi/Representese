@@ -1,11 +1,11 @@
-// Carrega do banco tudo que o PDF do pedido precisa e abre a impressão.
+// Carrega do banco tudo que o PDF do pedido precisa e baixa o arquivo.
 // Separado de orderPdf.ts (puro, testável) porque aqui há acesso ao Supabase.
 
 import { supabase } from "./supabase";
-import { openOrderPdf } from "./orderPdf";
+import { downloadOrderPdf } from "./orderPdf";
 import type { OrderPricing } from "./orderBuilder";
 
-export async function openSavedOrderPdf(orderId: string): Promise<"ok" | "blocked" | "error"> {
+export async function openSavedOrderPdf(orderId: string): Promise<"ok" | "error"> {
   const { data: order, error } = await supabase
     .from("orders")
     .select("id, user_id, category, created_at, order_number, payment_terms, notes, pricing, client:clients(name, cnpj, address, phone, email)")
@@ -25,7 +25,7 @@ export async function openSavedOrderPdf(orderId: string): Promise<"ok" | "blocke
   const sellerName = (auth?.user?.user_metadata?.full_name as string | undefined) || undefined;
 
   const client = (Array.isArray(order.client) ? order.client[0] : order.client) as any;
-  const ok = openOrderPdf({
+  const ok = await downloadOrderPdf({
     orderNumber: order.order_number || String(order.id).slice(0, 8).toUpperCase(),
     date: order.created_at,
     logoUrl: cfg?.logo_url,
@@ -37,5 +37,5 @@ export async function openSavedOrderPdf(orderId: string): Promise<"ok" | "blocke
     paymentTerms: order.payment_terms,
     notes: order.notes,
   });
-  return ok ? "ok" : "blocked";
+  return ok ? "ok" : "error";
 }

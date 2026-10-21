@@ -44,6 +44,7 @@ export function OrderDetailModal({ order, isOpen, onClose, onUpdated, commission
   const [items, setItems] = useState<OrderItem[]>([]);
   const [loadingItems, setLoadingItems] = useState(false);
   const [splitting, setSplitting] = useState(false);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
 
   useEffect(() => {
     if (!isOpen || !order) { setInstallments([]); return; }
@@ -377,14 +378,20 @@ export function OrderDetailModal({ order, isOpen, onClose, onUpdated, commission
 
               {order.pricing && (
                 <button
+                  disabled={generatingPdf}
                   onClick={async () => {
-                    const r = await openSavedOrderPdf(order.id);
-                    if (r === "blocked") toast.error("O navegador bloqueou a janela do PDF. Permita pop-ups e tente de novo.");
-                    else if (r === "error") toast.error("Não consegui gerar o PDF.");
+                    setGeneratingPdf(true);
+                    try {
+                      const r = await openSavedOrderPdf(order.id);
+                      if (r === "error") toast.error("Não consegui gerar o PDF.");
+                    } finally {
+                      setGeneratingPdf(false);
+                    }
                   }}
-                  className="w-full flex items-center justify-center gap-2 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all active:scale-95"
+                  className="w-full flex items-center justify-center gap-2 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-60"
                 >
-                  <FileDown className="w-4 h-4" /> Baixar PDF do pedido
+                  {generatingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
+                  {generatingPdf ? "Gerando PDF..." : "Baixar PDF do pedido"}
                 </button>
               )}
 
