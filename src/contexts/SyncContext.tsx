@@ -26,6 +26,11 @@ interface SyncContextType {
   dismissSyncPrompt: () => void;
 }
 
+// Sobe este número quando uma versão precisa de uma sincronização completa nova
+// (ex.: 3 = gera os PDFs dos pedidos no aparelho): o aviso reaparece uma vez.
+const SYNC_SCHEMA = '3';
+const SYNC_SCHEMA_KEY = 'rm_sync_schema';
+
 const SyncContext = createContext<SyncContextType | undefined>(undefined);
 
 export function SyncProvider({ children }: { children: ReactNode }) {
@@ -112,6 +117,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         // A própria expiração do cache (24h) serve de contador: passado esse
         // prazo, a chave some sozinha e o boot sabe que é hora de rodar de novo.
         offlineCache.set(CacheKeys.LAST_FULL_SYNC, true, 24 * 60 * 60 * 1000);
+        try { localStorage.setItem(SYNC_SCHEMA_KEY, SYNC_SCHEMA); } catch { /* sem armazenamento: só pergunta de novo */ }
       }
     } catch (e) {
       console.error('Erro na sincronização completa:', e);
@@ -129,7 +135,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const offerSyncIfDue = useCallback(() => {
     if (promptDismissedRef.current) return;
     if (!navigator.onLine) return;
-    if (!offlineCache.get(CacheKeys.LAST_FULL_SYNC)) setSyncPromptVisible(true);
+    if (!offlineCache.get(CacheKeys.LAST_FULL_SYNC) || localStorage.getItem(SYNC_SCHEMA_KEY) !== SYNC_SCHEMA) setSyncPromptVisible(true);
   }, []);
 
   const acceptSyncPrompt = useCallback(() => {

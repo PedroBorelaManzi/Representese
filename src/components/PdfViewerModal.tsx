@@ -180,7 +180,11 @@ export function PdfViewerModal({ isOpen, onClose, url, fileName, onDownload }: P
           exit={{ opacity: 0, y: 20 }}
           className="relative z-10 flex flex-col h-full min-h-0"
         >
-          <div className="flex items-center justify-between gap-4 px-6 py-4 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800">
+          <div
+            className="flex items-center justify-between gap-4 px-6 pb-4 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800"
+            // Respeita a barra de status do iPhone (hora, sinal, bateria) — sem isso o cabeçalho ficava por baixo dela.
+            style={{ paddingTop: "max(1rem, env(safe-area-inset-top, 0px))" }}
+          >
             <div className="min-w-0">
               <p className="text-sm font-black text-slate-900 dark:text-zinc-100 truncate max-w-[50vw]">{fileName || "Documento"}</p>
               {numPages > 0 && (

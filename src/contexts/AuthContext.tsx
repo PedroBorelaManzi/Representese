@@ -7,6 +7,8 @@ import { offlineCache } from "../lib/offlineCache";
 import { trackSessionOpen } from "../lib/sessionTracking";
 import { releaseSessionSlot } from "../lib/sessionGate";
 import { iapLogIn, iapLogOut } from "../lib/iap";
+import { toast } from "sonner";
+import { rememberOfflineLogin } from "../lib/offlineLogin";
 
 type AuthContextType = {
   user: User | null;
@@ -17,6 +19,10 @@ type AuthContextType = {
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Verdadeiro quando o app está aberto com o usuário guardado no aparelho (sem
+// sessão do servidor) — acontece ao abrir/entrar sem internet.
+let offlineSessionActive = false;
 
 const saveOfflineUser = (user: User) => {
   const minimalUser = { id: user.id, email: user.email };
@@ -52,6 +58,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let idAtual: string | null = null;
     const aplicarSessao = (session: import('@supabase/supabase-js').Session | null) => {
       const novo = session?.user ?? null;
+      // Aberto offline com o usuário do aparelho: um "sem sessão" do servidor
+      // (token vencido, sem rede pra renovar) não pode derrubar a pessoa.
+      if (!novo && offlineSessionActive) { setLoading(false); return; }
       if (novo?.id === idAtual) {
         setLoading(false);
         return; // mesma conta (ou continua deslogado) — nada muda
@@ -75,18 +84,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     };
 
+    // Sem internet o token pode ter vencido e não dá pra renová-lo: em vez de
+    // jogar na tela de login, abre com o usuário que já entrou neste aparelho
+    // ("lembrar de mim"). Voltando a internet, pedimos o login de novo.
+    const abrirComUsuarioDoAparelho = (): boolean => {
+      if (navigator.onLine) return false;
+      try {
+        const raw = localStorage.getItem("rm_cached_user");
+        if (!raw) return false;
+        const cached = JSON.parse(raw);
+        if (!cached?.id || !cached?.email) return false;
+        offlineSessionActive = true;
+        idAtual = cached.id;
+        setUser(cached);
+        setLoading(false);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
     supabase.auth.getSession()
-      .then(({ data: { session } }) => aplicarSessao(session))
+      .then(({ data: { session } }) => {
+        if (!session && abrirComUsuarioDoAparelho()) return;
+        aplicarSessao(session);
+      })
       .catch((err) => {
         console.error("Erro ao carregar sessão:", err);
-        setLoading(false); // Destrava o loading
+        if (!abrirComUsuarioDoAparelho()) setLoading(false); // Destrava o loading
       });
+
+    const aoVoltarOnline = () => {
+      if (!offlineSessionActive) return;
+      setTimeout(async () => {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            offlineSessionActive = false;
+            idAtual = null; // força aplicarSessao a registrar a sessão real
+            aplicarSessao(session);
+          } else {
+            offlineSessionActive = false;
+            idAtual = null;
+            setUser(null);
+            toast.info("Conexão voltou. Entre de novo com sua senha para sincronizar os dados.");
+          }
+        } catch {
+          /* ainda sem rede de verdade: tenta no próximo evento */
+        }
+      }, 1500);
+    };
+    window.addEventListener("online", aoVoltarOnline);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       aplicarSessao(session);
     });
 
     return () => {
+      window.removeEventListener("online", aoVoltarOnline);
       if (subscription) subscription.unsubscribe();
     };
   }, []);
@@ -99,11 +154,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
     if (data?.user) {
       saveOfflineUser(data.user);
+      // Senha conferida pelo servidor: guarda a impressão dela no aparelho pra
+      // permitir entrar sem internet depois (ver lib/offlineLogin.ts).
+      void rememberOfflineLogin(data.user, pass);
     }
     return data;
   };
 
   const signInOffline = (cachedUser: any) => {
+    offlineSessionActive = true;
     setUser(cachedUser);
     setLoading(false);
   };
@@ -111,6 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     // Libera a vaga no teto global de sessões antes de derrubar o token.
     await releaseSessionSlot().catch(() => {});
+    offlineSessionActive = false;
     await supabase.auth.signOut();
     localStorage.removeItem("rm_cached_user");
     sessionStorage.removeItem("rm_cached_user");

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { verifyOfflineLogin, hasOfflineLogin } from "../lib/offlineLogin";
 import { 
   motion, 
   AnimatePresence,
@@ -201,6 +202,16 @@ export default function Login() {
     const isOnline = navigator.onLine;
     
     if (!isOnline) {
+      // 1) Credencial guardada no aparelho no último login online
+      const offlineUser = await verifyOfflineLogin(email, password);
+      if (offlineUser) {
+        signInOffline(offlineUser);
+        toast.success("Autenticado offline!");
+        navigate(destinoAposLogin, { replace: true });
+        setIsLoading(false);
+        return;
+      }
+      // 2) Caminho antigo, via biometria
       const cachedUserStr = localStorage.getItem("rm_cached_user") || sessionStorage.getItem("rm_cached_user");
       if (cachedUserStr) {
         const cachedUser = JSON.parse(cachedUserStr);
@@ -228,7 +239,9 @@ export default function Login() {
         }
       }
       
-      toast.error("Senha ou e-mail incorreto. Tente novamente.");
+      toast.error(hasOfflineLogin()
+        ? "Senha ou e-mail incorreto. Tente novamente."
+        : "Sem internet e este aparelho ainda não tem login salvo. Conecte-se uma vez para entrar.");
       setIsLoading(false);
       return;
     }
@@ -238,6 +251,16 @@ export default function Login() {
       toast.success("Bem-vindo de volta!");
       navigate(destinoAposLogin, { replace: true });
     } catch (error: any) {
+      // Sinal fraco: o aparelho "está online" mas a chamada não chegou. Tenta o login guardado.
+      if (!error?.status && /fetch|network|load failed|timeout/i.test(String(error?.message || ""))) {
+        const offlineUser = await verifyOfflineLogin(email, password);
+        if (offlineUser) {
+          signInOffline(offlineUser);
+          toast.success("Sem conexão com o servidor: entrou offline.");
+          navigate(destinoAposLogin, { replace: true });
+          return;
+        }
+      }
       console.error('Erro ao fazer login:', error);
       reportException(error, { tags: { origem: 'Login_handleLogin' } });
       toast.error(getFriendlyAuthErrorMessage(error));

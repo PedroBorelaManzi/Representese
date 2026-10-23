@@ -4,8 +4,8 @@ import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { persistQueryClient } from '@tanstack/react-query-persist-client';
+import { QueryClient } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { indexedDBPersister } from './lib/queryPersister';
 import { logError } from './lib/supabase';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -53,17 +53,21 @@ const queryClient = new QueryClient({
   },
 });
 
-persistQueryClient({
-  queryClient,
+// PersistQueryClientProvider (em vez de persistQueryClient solto): as telas só
+// montam as consultas DEPOIS de o cache salvo no aparelho ser restaurado. Antes,
+// a restauração (assíncrona) corria em paralelo com a primeira consulta, que
+// achava o cache vazio — online baixava tudo de novo, offline devolvia lista
+// vazia, e os dados só "apareciam" ~15s depois.
+const persistOptions = {
   persister: indexedDBPersister,
   maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
   dehydrateOptions: {
-    shouldDehydrateQuery: (query) => {
+    shouldDehydrateQuery: (query: { state: { status: string } }) => {
       // Cache everything successfully fetched to enable full offline support in IndexedDB
       return query.state.status === 'success';
     }
   }
-});
+};
 // Register Global Error Listeners for Telemetry
 if (typeof window !== 'undefined') {
   window.addEventListener('error', (event) => {
@@ -120,9 +124,9 @@ const ErrorFallback = () => (
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary fallback={<ErrorFallback />}>
-      <QueryClientProvider client={queryClient}>
+      <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
         <App />
-      </QueryClientProvider>
+      </PersistQueryClientProvider>
     </ErrorBoundary>
   </StrictMode>,
 );

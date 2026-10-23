@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
 import { computeClientAlerts, clientGroupKey, OrderLike, DismissalLike } from '../lib/clientAlerts';
-import { offlineCache } from '../lib/offlineCache';
+import { offlineCache, CacheKeys } from '../lib/offlineCache';
 import { Client, Alert } from '../types';
 
 export function useClients() {
@@ -25,7 +25,7 @@ export function useClients() {
       // persister do React Query já reidrata isso do IndexedDB no boot).
       // Sem esse corte, toda montagem da página (Mapa, CRM) offline disparava
       // uma chamada ao Supabase fadada a falhar antes de mostrar qualquer coisa.
-      if (!offlineCache.isOnline()) return cachedClients;
+      if (!offlineCache.isOnline()) return cachedClients.length ? cachedClients : (offlineCache.get<Client[]>(CacheKeys.CLIENTS) || []);
 
       let maxUpdatedAt = '1970-01-01T00:00:00.000Z';
       if (cachedClients.length > 0) {
