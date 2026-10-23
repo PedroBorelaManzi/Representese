@@ -110,6 +110,35 @@ async function syncOrderDetails(userId: string): Promise<void> {
   offlineCache.set(CacheKeys.ALL_ORDER_INSTALLMENTS, installments, SYNC_TTL_MS);
 }
 
+/**
+ * Gera (no aparelho) e guarda o PDF de cada pedido criado no app, pra abrir
+ * sem internet. Só no nativo. Falha aqui nunca deixa a sincronização
+ * "incompleta" — o PDF também é refeito na hora quando a pessoa abre o pedido.
+ */
+async function syncOrderPdfs(orders: Order[], clients: Client[]): Promise<void> {
+  const alvo = orders.filter((o) => o.pricing);
+  if (alvo.length === 0) return;
+  const { cacheOrderPdf } = await import("./orderPdfLoad");
+  const itens = offlineCache.get<any[]>(CacheKeys.ALL_ORDER_ITEMS) || [];
+  const porPedido = new Map<string, any[]>();
+  for (const i of itens) {
+    const l = porPedido.get(i.order_id);
+    if (l) l.push(i);
+    else porPedido.set(i.order_id, [i]);
+  }
+  const porCliente = new Map(clients.map((c) => [c.id, c]));
+  const logo = offlineCache.get<{ logo_url?: string | null }>(CacheKeys.USER_SETTINGS)?.logo_url;
+  for (const o of alvo) {
+    try {
+      await cacheOrderPdf(o, porCliente.get(o.client_id), porPedido.get(o.id) || [], logo);
+    } catch (e) {
+      console.warn("fullSync: PDF do pedido não gerado", o.id, e);
+    }
+    // respira entre um PDF e outro pra tela continuar respondendo
+    await new Promise((r) => setTimeout(r, 0));
+  }
+}
+
 async function syncHolidays(clients: Client[]): Promise<void> {
   const year = new Date().getFullYear();
   const locations = clients
@@ -227,6 +256,7 @@ export async function runFullSync(userId: string, onProgress?: (p: FullSyncProgr
     report(4, "Pedidos...");
     const orders = await syncOrders(userId).catch(guard("pedidos", [] as Order[]));
     await syncOrderDetails(userId).catch(guard("itens dos pedidos", undefined));
+    if (comArquivos) await syncOrderPdfs(orders, clients).catch((e) => console.warn("fullSync: PDFs dos pedidos", e));
 
     report(5, "Feriados...");
     await syncHolidays(clients).catch(guard("feriados", undefined));

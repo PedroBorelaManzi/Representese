@@ -1,9 +1,7 @@
-// PDF do pedido criado em "Novo pedido". Gera o PDF de verdade no cliente
-// (html2canvas captura o layout + jsPDF monta o arquivo) e dispara o download
-// direto, sem abrir janela nova — window.open()/print() era bloqueado pelo
-// navegador como pop-up, principalmente no celular, e mesmo quando não
-// bloqueava dependia da pessoa escolher manualmente "Salvar como PDF" na
-// caixa de impressão (que no navegador mobile nem sempre tem essa opção).
+// PDF do pedido criado em "Novo pedido". Desenhado direto com o jsPDF (texto e
+// linhas vetoriais), sem captura de tela: nada de html2canvas, canvas gigante
+// ou DOM escondido, que travavam o WebView do iOS. Gera um Blob; quem chama
+// decide se mostra, salva no aparelho ou compartilha (ver orderPdfStore.ts).
 
 import { computeOrderTotals, itemTotal, type OrderPricing, type PricedItem } from "./orderBuilder";
 
@@ -26,9 +24,8 @@ export interface OrderPdfData {
   notes?: string | null;
 }
 
-const BRL = (n: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0);
-const esc = (s: unknown) =>
-  String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+const BRL = (n: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0).replace(/ /g, " ");
 const pctLabel = (n: number) => `${String(Number(n.toFixed(2))).replace(".", ",")}%`;
 
 function formatCnpj(raw?: string | null): string {
@@ -36,164 +33,287 @@ function formatCnpj(raw?: string | null): string {
   return d.length === 14 ? d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5") : raw || "";
 }
 
-const PDF_STYLES = `
-  * { box-sizing: border-box; }
-  #order-pdf-root{font-family:-apple-system,"Segoe UI",Roboto,sans-serif;color:#0f172a;padding:44px;margin:0;background:#fff;font-size:13px;width:780px}
-  #order-pdf-root .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #10b981;padding-bottom:18px;margin-bottom:24px}
-  #order-pdf-root .brand{font-size:24px;font-weight:900;letter-spacing:-.5px}#order-pdf-root .brand span{color:#10b981}
-  #order-pdf-root .logo{display:block;max-height:64px;max-width:220px;object-fit:contain}
-  #order-pdf-root .doc{font-size:12px;color:#475569;font-weight:700;margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
-  #order-pdf-root .meta{text-align:right;font-size:12px;color:#475569;font-weight:600;line-height:1.6}
-  #order-pdf-root .parties{display:flex;align-items:flex-start;gap:16px;margin-bottom:24px}
-  #order-pdf-root .box{flex:1 1 0;border:1px solid #e2e8f0;border-radius:14px;padding:14px 16px}
-  #order-pdf-root .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;font-weight:800;margin-bottom:6px}
-  #order-pdf-root .box.co{flex:0 0 auto;max-width:34%}
-  #order-pdf-root .box.co .n{margin-bottom:0}
-  #order-pdf-root .box .n{font-size:15px;font-weight:800;margin-bottom:4px}
-  #order-pdf-root .box .d{font-size:12px;color:#475569;line-height:1.5}
-  #order-pdf-root table{width:100%;border-collapse:collapse}
-  #order-pdf-root th{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;font-weight:800;text-align:left;padding:8px 10px;border-bottom:2px solid #0f172a}
-  #order-pdf-root td{padding:10px;border-bottom:1px solid #e2e8f0;vertical-align:top}
-  #order-pdf-root th.r,#order-pdf-root td.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
-  #order-pdf-root .center{text-align:center}#order-pdf-root .muted{color:#94a3b8}#order-pdf-root .strong{font-weight:800}
-  #order-pdf-root .sub{font-size:11px;color:#94a3b8;margin-top:2px}
-  #order-pdf-root .sum{width:300px;margin:20px 0 0 auto}
-  #order-pdf-root .sum td{border:none;padding:5px 10px}
-  #order-pdf-root .sum .neg td.num{color:#dc2626}
-  #order-pdf-root .sum .grand td{border-top:2px solid #0f172a;padding-top:12px;font-size:16px;font-weight:900}
-  #order-pdf-root .sum .grand td.num{color:#059669}
-  #order-pdf-root .info{margin-top:24px;font-size:12px;color:#475569;line-height:1.6}
-  #order-pdf-root .info b{color:#0f172a}
-  #order-pdf-root .foot{margin-top:36px;font-size:10.5px;color:#94a3b8;text-align:center;border-top:1px solid #e2e8f0;padding-top:14px}
-`;
+// Helvetica padrão do PDF só tem o alfabeto latino (WinAnsi): troca o que fica
+// fora (sinal de menos, aspas curvas, espaços especiais) por equivalentes.
+const pdfText = (s: unknown) =>
+  String(s ?? "")
+    .replace(/−/g, "-")
+    .replace(/[‘’]/g, "'")
+    .replace(/[“”]/g, '"')
+    .replace(/[   ]/g, " ")
+    .replace(/[^\x09\x0a\x0d\x20-\x7e¡-ÿ–—•€]/g, "");
 
-function buildOrderPdfBody(o: OrderPdfData): string {
+const SLATE_900: [number, number, number] = [15, 23, 42];
+const SLATE_600: [number, number, number] = [71, 85, 105];
+const SLATE_400: [number, number, number] = [148, 163, 184];
+const SLATE_200: [number, number, number] = [226, 232, 240];
+const EMERALD: [number, number, number] = [16, 185, 129];
+const EMERALD_DARK: [number, number, number] = [5, 150, 105];
+const RED: [number, number, number] = [220, 38, 38];
+
+/** Converte a logo (qualquer formato que o WebView leia, ex.: webp) em PNG pro jsPDF. */
+function logoToPng(dataUrl: string): Promise<{ data: string; w: number; h: number } | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const timer = setTimeout(() => resolve(null), 3000);
+    img.onload = () => {
+      clearTimeout(timer);
+      try {
+        const w = img.naturalWidth || img.width;
+        const h = img.naturalHeight || img.height;
+        if (!w || !h) return resolve(null);
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return resolve(null);
+        ctx.drawImage(img, 0, 0);
+        resolve({ data: canvas.toDataURL("image/png"), w, h });
+      } catch {
+        resolve(null);
+      }
+    };
+    img.onerror = () => {
+      clearTimeout(timer);
+      resolve(null);
+    };
+    img.src = dataUrl;
+  });
+}
+
+/** Gera o PDF do pedido (A4, várias páginas se precisar) e devolve o arquivo. */
+export async function buildOrderPdf(o: OrderPdfData): Promise<Blob> {
+  const { default: JsPDF } = await import("jspdf");
+  const doc = new JsPDF({ unit: "pt", format: "a4", compress: true });
+  const PW = doc.internal.pageSize.getWidth();
+  const PH = doc.internal.pageSize.getHeight();
+  const M = 40;
+  const CW = PW - M * 2;
+  const BOTTOM = PH - 56; // reserva o rodapé
+
   const t = computeOrderTotals(o.items, o.pricing);
   const hasItemDiscount = o.items.some((i) => (i.discount_pct || 0) > 0);
   const date = new Date(o.date).toLocaleDateString("pt-BR");
 
-  const rows = o.items
-    .map(
-      (i, idx) => `<tr>
-        <td class="center muted">${idx + 1}</td>
-        <td>${esc(i.product_name)}${i.product_code ? `<div class="sub">Cód. ${esc(i.product_code)}</div>` : ""}</td>
-        <td class="num">${esc(i.quantity)}</td>
-        <td class="num">${BRL(Number(i.unit_value) || 0)}</td>
-        ${hasItemDiscount ? `<td class="num">${(i.discount_pct || 0) > 0 ? pctLabel(Number(i.discount_pct)) : "—"}</td>` : ""}
-        <td class="num strong">${BRL(itemTotal(i))}</td>
-      </tr>`
-    )
-    .join("");
+  const color = (c: [number, number, number]) => doc.setTextColor(c[0], c[1], c[2]);
+  const font = (bold: boolean, size: number) => {
+    doc.setFont("helvetica", bold ? "bold" : "normal");
+    doc.setFontSize(size);
+  };
+  const wrap = (text: string, width: number): string[] => doc.splitTextToSize(pdfText(text), width) as string[];
+  const hline = (y: number, w: number, c: [number, number, number], x = M, len = CW) => {
+    doc.setDrawColor(c[0], c[1], c[2]);
+    doc.setLineWidth(w);
+    doc.line(x, y, x + len, y);
+  };
 
-  const line = (label: string, value: string, cls = "") => `<tr class="${cls}"><td>${label}</td><td class="num">${value}</td></tr>`;
-  const mode = (a?: { mode: string; value: number } | null) => (a && a.mode === "pct" ? ` (${pctLabel(a.value)})` : "");
-  const totals = [
-    t.itemDiscounts > 0 || t.orderDiscount > 0 || t.tax > 0 || t.freight > 0 ? line("Subtotal", BRL(t.subtotal)) : "",
-    t.orderDiscount > 0 ? line(`Desconto${mode(o.pricing?.discount)}`, `− ${BRL(t.orderDiscount)}`, "neg") : "",
-    t.tax > 0 ? line(`Impostos${mode(o.pricing?.tax)}`, `+ ${BRL(t.tax)}`) : "",
-    t.freight > 0 ? line(`Frete${mode(o.pricing?.freight)}`, `+ ${BRL(t.freight)}`) : "",
-    line("Total do pedido", BRL(t.total), "grand"),
-  ].join("");
-
-  return `
-  <div class="head">
-    <div>${/^data:image\//.test(o.logoUrl || "") ? `<img class="logo" src="${esc(o.logoUrl)}" alt="">` : '<div class="brand">Represente<span>-Se!</span></div>'}<div class="doc">Pedido de venda</div></div>
-    <div class="meta"><b>Nº ${esc(o.orderNumber)}</b><br>${date}${o.sellerName ? `<br>Representante: <b>${esc(o.sellerName)}</b>` : ""}</div>
-  </div>
-  <div class="parties">
-    <div class="box co"><div class="lbl">Representada</div><div class="n">${esc(o.company)}</div></div>
-    <div class="box"><div class="lbl">Cliente</div><div class="n">${esc(o.client.name)}</div>
-      <div class="d">${[o.client.cnpj ? `CNPJ ${esc(formatCnpj(o.client.cnpj))}` : "", o.client.address ? esc(o.client.address) : "", [o.client.phone, o.client.email].filter(Boolean).map(esc).join(" · ")].filter(Boolean).join("<br>")}</div>
-    </div>
-  </div>
-  <table>
-    <thead><tr><th class="center" style="width:32px">#</th><th>Produto</th><th class="r">Qtd</th><th class="r">Preço un.</th>${hasItemDiscount ? '<th class="r">Desc.</th>' : ""}<th class="r">Total</th></tr></thead>
-    <tbody>${rows}</tbody>
-  </table>
-  <table class="sum"><tbody>${totals}</tbody></table>
-  ${o.paymentTerms || o.notes ? `<div class="info">${o.paymentTerms ? `<div><b>Condição de pagamento:</b> ${esc(o.paymentTerms)}</div>` : ""}${o.notes ? `<div><b>Observações:</b> ${esc(o.notes)}</div>` : ""}</div>` : ""}
-  <div class="foot">Gerado pelo Represente-Se! · www.representese.com</div>`;
-}
-
-/** Espera imagens dentro do elemento carregarem (ex.: logo em base64) antes de
- *  capturar — sem isso o html2canvas podia tirar a "foto" com a logo em branco. */
-function waitForImages(el: HTMLElement): Promise<void> {
-  const imgs = Array.from(el.querySelectorAll("img"));
-  if (imgs.length === 0) return Promise.resolve();
-  return Promise.all(
-    imgs.map((img) =>
-      img.complete
-        ? Promise.resolve()
-        : new Promise<void>((resolve) => {
-            img.onload = () => resolve();
-            img.onerror = () => resolve();
-            setTimeout(resolve, 2000);
-          })
-    )
-  ).then(() => undefined);
-}
-
-/**
- * Gera o PDF do pedido e baixa direto — sem janela nova, sem depender de
- * pop-up. Renderiza o layout fora da tela (mesma página, elemento escondido),
- * captura com html2canvas e monta o PDF com jsPDF, paginando se o conteúdo
- * passar de uma folha A4. Retorna false só se algo der errado na geração
- * (não existe mais o caso "bloqueado pelo navegador").
- */
-export async function downloadOrderPdf(data: OrderPdfData): Promise<boolean> {
-  let container: HTMLDivElement | null = null;
-  try {
-    const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([import("jspdf"), import("html2canvas")]);
-
-    const styleEl = document.createElement("style");
-    styleEl.textContent = PDF_STYLES;
-
-    container = document.createElement("div");
-    // Fora da tela, mas ainda no fluxo normal do layout (não display:none —
-    // html2canvas não renderiza elementos sem dimensão).
-    container.style.position = "fixed";
-    container.style.top = "0";
-    container.style.left = "-99999px";
-    container.style.zIndex = "-1";
-    container.id = "order-pdf-root";
-    container.innerHTML = buildOrderPdfBody(data);
-    container.appendChild(styleEl);
-    document.body.appendChild(container);
-
-    await waitForImages(container);
-
-    const canvas = await html2canvas(container, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
-
-    const pdf = new jsPDF({ unit: "pt", format: "a4" });
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const imgWidth = pageWidth;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-    const imgData = canvas.toDataURL("image/png");
-
-    if (imgHeight <= pageHeight) {
-      pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
-    } else {
-      // Conteúdo mais alto que uma página: fatia a MESMA imagem em pedaços de
-      // altura de página, desenhando cada fatia numa página nova (mesma
-      // técnica usada em qualquer export html2canvas+jsPDF multi-página).
-      let renderedHeight = 0;
-      let page = 0;
-      while (renderedHeight < imgHeight) {
-        if (page > 0) pdf.addPage();
-        pdf.addImage(imgData, "PNG", 0, -renderedHeight, imgWidth, imgHeight);
-        renderedHeight += pageHeight;
-        page++;
-      }
-    }
-
-    pdf.save(`pedido-${(data.orderNumber || "representese").replace(/[^a-zA-Z0-9-_]/g, "_")}.pdf`);
-    return true;
-  } catch (e) {
-    console.error("Erro ao gerar PDF do pedido:", e);
-    return false;
-  } finally {
-    container?.remove();
+  // ---- Cabeçalho ----
+  let y = M;
+  const logo = /^data:image\//.test(o.logoUrl || "") ? await logoToPng(o.logoUrl as string) : null;
+  let headH = 30;
+  if (logo) {
+    const maxH = 52;
+    const maxW = 170;
+    const k = Math.min(maxH / logo.h, maxW / logo.w);
+    const lw = logo.w * k;
+    const lh = logo.h * k;
+    doc.addImage(logo.data, "PNG", M, y, lw, lh);
+    headH = lh;
+  } else {
+    font(true, 22);
+    color(SLATE_900);
+    doc.text("Represente", M, y + 20);
+    const w1 = doc.getTextWidth("Represente");
+    color(EMERALD);
+    doc.text("-Se!", M + w1 + 0.5, y + 20);
   }
+  font(true, 9);
+  color(SLATE_600);
+  doc.text("PEDIDO DE VENDA", M, y + headH + 14);
+
+  const metaRight = M + CW;
+  font(true, 11);
+  color(SLATE_600);
+  doc.text(pdfText(`Nº ${o.orderNumber}`), metaRight, y + 12, { align: "right" });
+  font(false, 10);
+  doc.text(date, metaRight, y + 27, { align: "right" });
+  if (o.sellerName) {
+    const lines = wrap(`Representante: ${o.sellerName}`, 220);
+    doc.text(lines, metaRight, y + 41, { align: "right" });
+  }
+  y += headH + 26;
+  hline(y, 2.5, EMERALD);
+  y += 20;
+
+  // ---- Representada / Cliente ----
+  const coW = 150;
+  const gap = 12;
+  const clW = CW - coW - gap;
+  const pad = 10;
+  const coLines = wrap(o.company, coW - pad * 2);
+  const clInfo = [
+    o.client.cnpj ? `CNPJ ${formatCnpj(o.client.cnpj)}` : "",
+    o.client.address || "",
+    [o.client.phone, o.client.email].filter(Boolean).join(" • "),
+  ].filter(Boolean);
+  const clName = wrap(o.client.name, clW - pad * 2);
+  const clInfoLines = clInfo.flatMap((l) => wrap(l, clW - pad * 2));
+  const boxH = Math.max(
+    pad * 2 + 14 + coLines.length * 14,
+    pad * 2 + 14 + clName.length * 15 + clInfoLines.length * 12.5
+  );
+  doc.setDrawColor(SLATE_200[0], SLATE_200[1], SLATE_200[2]);
+  doc.setLineWidth(1);
+  doc.roundedRect(M, y, coW, boxH, 8, 8);
+  doc.roundedRect(M + coW + gap, y, clW, boxH, 8, 8);
+  font(true, 7.5);
+  color(SLATE_400);
+  doc.text("REPRESENTADA", M + pad, y + pad + 8);
+  doc.text("CLIENTE", M + coW + gap + pad, y + pad + 8);
+  font(true, 11);
+  color(SLATE_900);
+  doc.text(coLines, M + pad, y + pad + 24, { lineHeightFactor: 1.2 });
+  doc.text(clName, M + coW + gap + pad, y + pad + 24, { lineHeightFactor: 1.2 });
+  font(false, 9.5);
+  color(SLATE_600);
+  doc.text(clInfoLines, M + coW + gap + pad, y + pad + 24 + clName.length * 14 + 4, { lineHeightFactor: 1.3 });
+  y += boxH + 22;
+
+  // ---- Tabela de itens ----
+  const wQtd = 46;
+  const wUn = 78;
+  const wDesc = hasItemDiscount ? 48 : 0;
+  const wTot = 84;
+  const wIdx = 24;
+  const wProd = CW - wIdx - wQtd - wUn - wDesc - wTot;
+  const xQtd = M + wIdx + wProd + wQtd; // alinhamento à direita das colunas numéricas
+  const xUn = xQtd + wUn;
+  const xDesc = xUn + wDesc;
+  const xTot = M + CW;
+
+  const drawTableHeader = () => {
+    font(true, 7.5);
+    color(SLATE_400);
+    doc.text("#", M + wIdx / 2, y + 8, { align: "center" });
+    doc.text("PRODUTO", M + wIdx + 4, y + 8);
+    doc.text("QTD", xQtd, y + 8, { align: "right" });
+    doc.text("PREÇO UN.", xUn, y + 8, { align: "right" });
+    if (hasItemDiscount) doc.text("DESC.", xDesc, y + 8, { align: "right" });
+    doc.text("TOTAL", xTot, y + 8, { align: "right" });
+    hline(y + 14, 1.5, SLATE_900);
+    y += 14;
+  };
+
+  const newPage = () => {
+    doc.addPage();
+    y = M;
+  };
+
+  drawTableHeader();
+  o.items.forEach((i, idx) => {
+    font(true, 10);
+    const nameLines = wrap(i.product_name, wProd - 8);
+    const code = i.product_code ? `Cód. ${i.product_code}` : "";
+    const rowH = 10 + nameLines.length * 12 + (code ? 11 : 0);
+    if (y + rowH > BOTTOM) {
+      newPage();
+      drawTableHeader();
+    }
+    const base = y + 14;
+    font(false, 9);
+    color(SLATE_400);
+    doc.text(String(idx + 1), M + wIdx / 2, base, { align: "center" });
+    font(true, 10);
+    color(SLATE_900);
+    doc.text(nameLines, M + wIdx + 4, base, { lineHeightFactor: 1.2 });
+    if (code) {
+      font(false, 8);
+      color(SLATE_400);
+      doc.text(pdfText(code), M + wIdx + 4, base + nameLines.length * 12 - 1);
+    }
+    font(false, 10);
+    color(SLATE_900);
+    doc.text(pdfText(i.quantity), xQtd, base, { align: "right" });
+    doc.text(BRL(Number(i.unit_value) || 0), xUn, base, { align: "right" });
+    if (hasItemDiscount) doc.text((i.discount_pct || 0) > 0 ? pctLabel(Number(i.discount_pct)) : "-", xDesc, base, { align: "right" });
+    font(true, 10);
+    doc.text(BRL(itemTotal(i)), xTot, base, { align: "right" });
+    y += rowH;
+    hline(y, 0.6, SLATE_200);
+  });
+  y += 18;
+
+  // ---- Totais ----
+  const mode = (a?: { mode: string; value: number } | null) => (a && a.mode === "pct" ? ` (${pctLabel(a.value)})` : "");
+  const sumRows: { label: string; value: string; tone?: "neg" }[] = [];
+  if (t.itemDiscounts > 0 || t.orderDiscount > 0 || t.tax > 0 || t.freight > 0) sumRows.push({ label: "Subtotal", value: BRL(t.subtotal) });
+  if (t.orderDiscount > 0) sumRows.push({ label: `Desconto${mode(o.pricing?.discount)}`, value: `- ${BRL(t.orderDiscount)}`, tone: "neg" });
+  if (t.tax > 0) sumRows.push({ label: `Impostos${mode(o.pricing?.tax)}`, value: `+ ${BRL(t.tax)}` });
+  if (t.freight > 0) sumRows.push({ label: `Frete${mode(o.pricing?.freight)}`, value: `+ ${BRL(t.freight)}` });
+  const sumW = 240;
+  const sumX = M + CW - sumW;
+  if (y + sumRows.length * 18 + 44 > BOTTOM) newPage();
+  font(false, 10);
+  sumRows.forEach((r) => {
+    color(SLATE_600);
+    font(false, 10);
+    doc.text(pdfText(r.label), sumX, y);
+    if (r.tone === "neg") color(RED);
+    else color(SLATE_900);
+    doc.text(pdfText(r.value), M + CW, y, { align: "right" });
+    y += 18;
+  });
+  hline(y - 6, 1.5, SLATE_900, sumX, sumW);
+  y += 10;
+  font(true, 13);
+  color(SLATE_900);
+  doc.text("Total do pedido", sumX, y);
+  color(EMERALD_DARK);
+  doc.text(BRL(t.total), M + CW, y, { align: "right" });
+  y += 30;
+
+  // ---- Condição de pagamento / observações ----
+  const info: { label: string; text: string }[] = [];
+  if (o.paymentTerms) info.push({ label: "Condição de pagamento: ", text: o.paymentTerms });
+  if (o.notes) info.push({ label: "Observações: ", text: o.notes });
+  for (const it of info) {
+    font(true, 10);
+    const lw = doc.getTextWidth(it.label);
+    font(false, 10);
+    const lines = wrap(it.text, CW - lw);
+    // primeira linha segue o rótulo; o resto quebra em largura total
+    const first = lines[0] ?? "";
+    const rest = wrap(lines.slice(1).join(" "), CW);
+    const need = 14 + (lines.length > 1 ? rest.length * 13 : 0);
+    if (y + need > BOTTOM) newPage();
+    font(true, 10);
+    color(SLATE_900);
+    doc.text(pdfText(it.label), M, y);
+    font(false, 10);
+    color(SLATE_600);
+    doc.text(first, M + lw, y);
+    y += 14;
+    if (lines.length > 1) {
+      doc.text(rest, M, y, { lineHeightFactor: 1.3 });
+      y += rest.length * 13;
+    }
+    y += 4;
+  }
+
+  // ---- Rodapé em todas as páginas ----
+  const pages = doc.getNumberOfPages();
+  for (let p = 1; p <= pages; p++) {
+    doc.setPage(p);
+    hline(PH - 44, 0.6, SLATE_200);
+    font(false, 8);
+    color(SLATE_400);
+    doc.text("Gerado pelo Represente-Se! • www.representese.com", PW / 2, PH - 30, { align: "center" });
+    if (pages > 1) doc.text(`Página ${p} de ${pages}`, M + CW, PH - 30, { align: "right" });
+  }
+
+  return doc.output("blob");
+}
+
+export function orderPdfFileName(orderNumber: string): string {
+  return `pedido-${(orderNumber || "representese").replace(/[^a-zA-Z0-9-_]/g, "_")}.pdf`;
 }

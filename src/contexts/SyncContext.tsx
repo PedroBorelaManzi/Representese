@@ -18,6 +18,12 @@ interface SyncContextType {
   /** Progresso da sincronização completa (clientes, pedidos, agenda, feriados,
    *  arquivos) — null quando não está rodando. */
   fullSyncProgress: FullSyncProgress | null;
+  /** Verdadeiro quando a sincronização completa está atrasada (mais de 1 dia) e a pessoa ainda não respondeu ao aviso. */
+  syncPromptVisible: boolean;
+  /** "Sim": roda a sincronização completa agora, com barra de progresso. */
+  acceptSyncPrompt: () => void;
+  /** "Agora não": fecha o aviso e segue com o que está salvo no aparelho. */
+  dismissSyncPrompt: () => void;
 }
 
 const SyncContext = createContext<SyncContextType | undefined>(undefined);
@@ -29,6 +35,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const [deadLetterCount, setDeadLetterCount] = useState<number>(0);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [fullSyncProgress, setFullSyncProgress] = useState<FullSyncProgress | null>(null);
+  const [syncPromptVisible, setSyncPromptVisible] = useState(false);
+  // Quem disse "agora não" não é perguntado de novo até abrir o app outra vez.
+  const promptDismissedRef = useRef(false);
   const queryClient = useQueryClient();
   // Evita rodar a sincronização completa de novo no mesmo boot, e detecta
   // troca de usuário (logout/login) pra rodar de novo nesse caso.
@@ -113,20 +122,32 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     return result;
   }, [user]);
 
-  /** Só verdadeiro se já passou 1 dia (ou nunca rodou) desde a última sincronização completa — a regra é "uma vez por dia", sozinha; sincronizar de novo antes disso é só no clique manual (syncNow). */
-  const dueForDailySync = () => !offlineCache.get(CacheKeys.LAST_FULL_SYNC);
 
-  // Toast curto (aparece e some sozinho) pras sincronizações automáticas —
-  // não usa o banner fixo antigo, que ficava ocupando espaço da tela até
-  // terminar. O ícone de nuvem no cabeçalho (Layout.tsx) já mostra que
-  // ainda está rodando, sem tomar espaço.
-  const runFullWithToast = useCallback(async () => {
-    toast.loading('Sincronizando dados com a nuvem…', { id: 'auto-full-sync' });
-    const result = await runFull();
-    if (result === 'complete') toast.success('Sincronização concluída!', { id: 'auto-full-sync', duration: 2000 });
-    else if (result === 'incomplete') toast.warning('Sincronização incompleta. Continuamos de onde parou na próxima vez que abrir o app.', { id: 'auto-full-sync', duration: 5000 });
-    else toast.dismiss('auto-full-sync');
-  }, [runFull]);
+  // O app abre sempre com o que já está salvo no aparelho — a sincronização
+  // completa NUNCA começa sozinha (ela deixava o app preso logo na abertura).
+  // Se está atrasada, só aparece um aviso discreto perguntando se a pessoa quer.
+  const offerSyncIfDue = useCallback(() => {
+    if (promptDismissedRef.current) return;
+    if (!navigator.onLine) return;
+    if (!offlineCache.get(CacheKeys.LAST_FULL_SYNC)) setSyncPromptVisible(true);
+  }, []);
+
+  const acceptSyncPrompt = useCallback(() => {
+    setSyncPromptVisible(false);
+    void (async () => {
+      const result = await runFull();
+      // Telas abertas têm staleTime infinito: sem isto continuariam mostrando a cópia antiga.
+      if (result === 'complete' || result === 'incomplete') await queryClient.invalidateQueries();
+      if (result === 'complete') toast.success('Sincronização concluída!', { duration: 2000 });
+      else if (result === 'incomplete') toast.warning('Sincronização incompleta. Toque em Sincronizar para continuar de onde parou.', { duration: 5000 });
+      else if (result === 'offline') toast.error('Sem internet para sincronizar.');
+    })();
+  }, [runFull, queryClient]);
+
+  const dismissSyncPrompt = useCallback(() => {
+    promptDismissedRef.current = true;
+    setSyncPromptVisible(false);
+  }, []);
 
   useEffect(() => {
     updateStatus();
@@ -149,9 +170,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         // completa (runFull) é que segue a regra de 1x por dia; antes
         // disso ignorava o cache e baixava tudo de novo a cada handoff
         // de wifi/dados, daí a sensação de "sincroniza toda hora".
-        flushQueue().then(() => {
-          if (dueForDailySync()) runFullWithToast();
-        });
+        flushQueue().then(() => offerSyncIfDue());
       }, 2000);
     };
 
@@ -176,25 +195,17 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('sync-queue-updated', handleQueueUpdate);
     };
-  }, [flushQueue, runFullWithToast]);
+  }, [flushQueue, offerSyncIfDue]);
 
-  // Sincronização completa no boot: uma vez por usuário logado (não a cada
-  // re-render). Se trocar de usuário (logout/login) na mesma sessão do app,
-  // roda de novo pro usuário novo.
-  //
-  // Mas só dispara sozinha se já passou um dia desde a última vez — ela baixa
-  // TUDO (inclusive o conteúdo dos arquivos no app nativo), e repetir isso
-  // toda vez que o usuário simplesmente abre o app de novo no mesmo dia é
-  // desperdício de dados/bateria sem ganho nenhum. Quem quiser forçar antes
-  // do prazo usa o botão "Sincronizar" (syncNow), que ignora esse controle.
+  // No boot: não baixa nada. Só oferece a sincronização se já passou 1 dia
+  // desde a última completa. Troca de usuário (logout/login) oferece de novo.
   useEffect(() => {
-    if (!user || !navigator.onLine) return;
+    if (!user) { setSyncPromptVisible(false); return; }
     if (bootSyncedForUserRef.current === user.id) return;
     bootSyncedForUserRef.current = user.id;
-    if (!offlineCache.get(CacheKeys.LAST_FULL_SYNC)) {
-      runFullWithToast();
-    }
-  }, [user, runFullWithToast]);
+    promptDismissedRef.current = false;
+    offerSyncIfDue();
+  }, [user, offerSyncIfDue]);
 
   const syncNow = useCallback(async () => {
     if (!isOnline) {
@@ -237,8 +248,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   }, [isOnline, queryClient, runFull]);
 
   const contextValue = useMemo(
-    () => ({ isOnline, pendingCount, deadLetterCount, isSyncing, syncNow, fullSyncProgress }),
-    [isOnline, pendingCount, deadLetterCount, isSyncing, syncNow, fullSyncProgress]
+    () => ({ isOnline, pendingCount, deadLetterCount, isSyncing, syncNow, fullSyncProgress, syncPromptVisible, acceptSyncPrompt, dismissSyncPrompt }),
+    [isOnline, pendingCount, deadLetterCount, isSyncing, syncNow, fullSyncProgress, syncPromptVisible, acceptSyncPrompt, dismissSyncPrompt]
   );
 
   return (

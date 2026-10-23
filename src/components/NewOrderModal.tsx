@@ -10,7 +10,8 @@ import { useSettings } from "../contexts/SettingsContext";
 import { ajustarFaturamento } from "../lib/faturamento";
 import { chaveDoProduto } from "../lib/orderItems";
 import { clampPct, computeOrderTotals, itemTotal, type AmountInput, type AmountMode, type OrderPricing } from "../lib/orderBuilder";
-import { openSavedOrderPdf } from "../lib/orderPdfLoad";
+import { prepareOrderPdf, type OrderPdfView } from "../lib/orderPdfLoad";
+import { PdfViewerModal } from "./PdfViewerModal";
 import { cn } from "../lib/utils";
 import type { CatalogItem } from "../types";
 
@@ -133,6 +134,7 @@ export function NewOrderModal({ isOpen, onClose, onCreated, defaultCompany }: Pr
   const [clientSearch, setClientSearch] = useState("");
   const [company, setCompany] = useState(defaultCompany && companies.includes(defaultCompany) ? defaultCompany : "");
   const [rows, setRows] = useState<Row[]>([emptyRow(1)]);
+  const [generatedPdf, setGeneratedPdf] = useState<OrderPdfView | null>(null);
   const [openSuggest, setOpenSuggest] = useState<number | null>(null);
   const [discount, setDiscount] = useState({ value: "", mode: "pct" as AmountMode });
   const [tax, setTax] = useState({ value: "", mode: "pct" as AmountMode });
@@ -284,8 +286,9 @@ export function NewOrderModal({ isOpen, onClose, onCreated, defaultCompany }: Pr
     if (!savedOrderId) return;
     setGeneratingPdf(true);
     try {
-      const r = await openSavedOrderPdf(savedOrderId);
-      if (r === "error") toast.error("Não consegui gerar o PDF.");
+      const view = await prepareOrderPdf(savedOrderId);
+      if (!view) toast.error("Não consegui gerar o PDF.");
+      else setGeneratedPdf(view);
     } finally {
       setGeneratingPdf(false);
     }
@@ -293,6 +296,7 @@ export function NewOrderModal({ isOpen, onClose, onCreated, defaultCompany }: Pr
 
   if (savedOrderId) {
     return (
+      <>
       <Modal isOpen={isOpen} onClose={close} title="Pedido criado">
         <div className="p-6 flex flex-col items-center text-center gap-4">
           <CheckCircle2 className="w-14 h-14 text-emerald-500" />
@@ -302,11 +306,19 @@ export function NewOrderModal({ isOpen, onClose, onCreated, defaultCompany }: Pr
           </div>
           <button disabled={generatingPdf} onClick={downloadPdf} className="w-full flex items-center justify-center gap-2 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest active:scale-95 transition-all disabled:opacity-60">
             {generatingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
-            {generatingPdf ? "Gerando PDF..." : "Baixar PDF"}
+            {generatingPdf ? "Gerando PDF..." : "Ver / salvar PDF"}
           </button>
           <button onClick={close} className="text-xs font-bold text-slate-400 hover:text-slate-600">Fechar</button>
         </div>
       </Modal>
+      <PdfViewerModal
+        isOpen={!!generatedPdf}
+        onClose={() => { generatedPdf?.dispose(); setGeneratedPdf(null); }}
+        url={generatedPdf?.url ?? null}
+        fileName={generatedPdf?.fileName}
+        onDownload={() => { generatedPdf?.share().catch(() => toast.error("Não consegui abrir o compartilhamento.")); }}
+      />
+      </>
     );
   }
 

@@ -12,7 +12,7 @@ import { PdfViewerModal } from "./PdfViewerModal";
 import { NfCommissionStatusDot, type NfCommissionStatus } from "./NfCommissionStatusDot";
 import { OrderSplitPanel, valorDeQtd } from "./OrderSplitPanel";
 import { computeOrderTotals, itemTotal } from "../lib/orderBuilder";
-import { openSavedOrderPdf } from "../lib/orderPdfLoad";
+import { prepareOrderPdf, type OrderPdfView } from "../lib/orderPdfLoad";
 import type { Order, OrderInstallment, OrderItem } from "../types";
 
 interface OrderDetailModalProps {
@@ -45,6 +45,7 @@ export function OrderDetailModal({ order, isOpen, onClose, onUpdated, commission
   const [loadingItems, setLoadingItems] = useState(false);
   const [splitting, setSplitting] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [generatedPdf, setGeneratedPdf] = useState<OrderPdfView | null>(null);
 
   useEffect(() => {
     if (!isOpen || !order) { setInstallments([]); return; }
@@ -382,8 +383,9 @@ export function OrderDetailModal({ order, isOpen, onClose, onUpdated, commission
                   onClick={async () => {
                     setGeneratingPdf(true);
                     try {
-                      const r = await openSavedOrderPdf(order.id);
-                      if (r === "error") toast.error("Não consegui gerar o PDF.");
+                      const view = await prepareOrderPdf(order.id);
+                      if (!view) toast.error("Não consegui gerar o PDF. Se o pedido ainda não sincronizou, conecte-se à internet e tente de novo.");
+                      else setGeneratedPdf(view);
                     } finally {
                       setGeneratingPdf(false);
                     }
@@ -391,7 +393,7 @@ export function OrderDetailModal({ order, isOpen, onClose, onUpdated, commission
                   className="w-full flex items-center justify-center gap-2 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-60"
                 >
                   {generatingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
-                  {generatingPdf ? "Gerando PDF..." : "Baixar PDF do pedido"}
+                  {generatingPdf ? "Gerando PDF..." : "Ver / salvar PDF do pedido"}
                 </button>
               )}
 
@@ -406,6 +408,13 @@ export function OrderDetailModal({ order, isOpen, onClose, onUpdated, commission
       )}
 
       <PdfViewerModal isOpen={!!pdfPreview} onClose={() => setPdfPreview(null)} url={pdfPreview?.url ?? null} fileName={pdfPreview?.name} />
+      <PdfViewerModal
+        isOpen={!!generatedPdf}
+        onClose={() => { generatedPdf?.dispose(); setGeneratedPdf(null); }}
+        url={generatedPdf?.url ?? null}
+        fileName={generatedPdf?.fileName}
+        onDownload={() => { generatedPdf?.share().catch(() => toast.error("Não consegui abrir o compartilhamento.")); }}
+      />
     </AnimatePresence>
   );
 }
