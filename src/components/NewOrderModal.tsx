@@ -10,7 +10,7 @@ import { useSettings } from "../contexts/SettingsContext";
 import { ajustarFaturamento } from "../lib/faturamento";
 import { chaveDoProduto } from "../lib/orderItems";
 import { clampPct, computeOrderTotals, itemTotal, type AmountInput, type AmountMode, type OrderPricing } from "../lib/orderBuilder";
-import { prepareOrderPdf, type OrderPdfView } from "../lib/orderPdfLoad";
+import { prepareOrderPdf, refreshOrderPdf, type OrderPdfView } from "../lib/orderPdfLoad";
 import { PdfViewerModal } from "./PdfViewerModal";
 import { cn } from "../lib/utils";
 import type { CatalogItem } from "../types";
@@ -272,6 +272,7 @@ export function NewOrderModal({ isOpen, onClose, onCreated, defaultCompany }: Pr
       posthog.capture("order_logged", { category: company, source: "builder" });
       onCreated?.();
       setSavedOrderId(order.id);
+      void refreshOrderPdf(order.id); // já deixa o PDF guardado no aparelho
       toast.success("Pedido criado!");
     } catch (err) {
       // Pedido sem itens ficaria órfão e somaria valor sem produto nenhum.

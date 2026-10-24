@@ -12,7 +12,7 @@ import { PdfViewerModal } from "./PdfViewerModal";
 import { NfCommissionStatusDot, type NfCommissionStatus } from "./NfCommissionStatusDot";
 import { OrderSplitPanel, valorDeQtd } from "./OrderSplitPanel";
 import { computeOrderTotals, itemTotal } from "../lib/orderBuilder";
-import { prepareOrderPdf, type OrderPdfView } from "../lib/orderPdfLoad";
+import { prepareOrderPdf, refreshOrderPdf, type OrderPdfView } from "../lib/orderPdfLoad";
 import type { Order, OrderInstallment, OrderItem } from "../types";
 
 interface OrderDetailModalProps {
@@ -130,6 +130,7 @@ export function OrderDetailModal({ order, isOpen, onClose, onUpdated, commission
     const { error } = await supabase.from("orders").update({ value: novoValor }).eq("id", order.id);
     if (error) { toast.error("Erro ao recalcular o valor do pedido."); return; }
     onUpdated(order.id, { value: novoValor });
+    void refreshOrderPdf(order.id); // itens/valor mudaram: atualiza o PDF guardado
     await reloadInstallments();
   };
 
@@ -161,6 +162,7 @@ export function OrderDetailModal({ order, isOpen, onClose, onUpdated, commission
     const { error } = await supabase.from("orders").update(patch).eq("id", order.id);
     if (error) throw error;
     onUpdated(order.id, patch);
+    if (order.pricing) void refreshOrderPdf(order.id); // condição, observações, data...: atualiza o PDF guardado
     if (REGENERATING_FIELDS.has(field)) await reloadInstallments();
   };
 

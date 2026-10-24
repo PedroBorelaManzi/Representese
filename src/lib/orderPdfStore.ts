@@ -31,6 +31,18 @@ export async function saveOrderPdfLocal(orderId: string, blob: Blob): Promise<st
   return Capacitor.convertFileSrc(uri);
 }
 
+/** URI do PDF já guardado no aparelho (pronta pro visualizador), ou null se ainda não existe. */
+export async function getOrderPdfLocalUri(orderId: string): Promise<string | null> {
+  if (!Capacitor.isNativePlatform()) return null;
+  try {
+    await Filesystem.stat({ path: pathFor(orderId), directory: DIR });
+    const { uri } = await Filesystem.getUri({ path: pathFor(orderId), directory: DIR });
+    return Capacitor.convertFileSrc(uri);
+  } catch {
+    return null;
+  }
+}
+
 export async function hasOrderPdfLocal(orderId: string): Promise<boolean> {
   if (!Capacitor.isNativePlatform()) return false;
   try {
@@ -42,9 +54,9 @@ export async function hasOrderPdfLocal(orderId: string): Promise<boolean> {
 }
 
 /** Abre a folha de compartilhar do sistema (Salvar em Arquivos, WhatsApp, e-mail…) com o PDF. */
-export async function shareOrderPdf(orderId: string, blob: Blob, fileName: string): Promise<void> {
+export async function shareOrderPdf(orderId: string, blob: Blob | null, fileName: string): Promise<void> {
   if (!Capacitor.isNativePlatform()) {
-    await saveFile(blob, fileName, "application/pdf");
+    if (blob) await saveFile(blob, fileName, "application/pdf");
     return;
   }
   const { uri } = await Filesystem.getUri({ path: pathFor(orderId), directory: DIR });

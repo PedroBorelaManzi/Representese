@@ -8,7 +8,7 @@
 
 import { supabase } from "./supabase";
 import { buildOrderPdf, orderPdfFileName, type OrderPdfData } from "./orderPdf";
-import { saveOrderPdfLocal, shareOrderPdf } from "./orderPdfStore";
+import { saveOrderPdfLocal, shareOrderPdf, getOrderPdfLocalUri } from "./orderPdfStore";
 import { offlineCache, CacheKeys } from "./offlineCache";
 import type { OrderPricing } from "./orderBuilder";
 import type { Client, Order } from "../types";
@@ -99,8 +99,29 @@ export async function loadOrderPdfData(orderId: string): Promise<OrderPdfData | 
   return fromCache(orderId, sellerName);
 }
 
-/** Gera o PDF do pedido, guarda no aparelho e devolve a visualização. null = não deu. */
+/** Gera o PDF de novo e sobrescreve a cópia do aparelho — chamar quando o pedido muda. */
+export async function refreshOrderPdf(orderId: string): Promise<void> {
+  try {
+    const data = await loadOrderPdfData(orderId);
+    if (!data || data.items.length === 0) return;
+    await saveOrderPdfLocal(orderId, await buildOrderPdf(data));
+  } catch (e) {
+    console.warn("PDF do pedido: não foi possível atualizar a cópia local", e);
+  }
+}
+
+/**
+ * Abre o PDF do pedido. Se já está guardado no aparelho (gerado na criação, na
+ * edição ou na sincronização), abre direto — sem gerar nada, sem internet. Só
+ * gera na hora se por algum motivo ainda não existir.
+ */
 export async function prepareOrderPdf(orderId: string): Promise<OrderPdfView | null> {
+  const saved = await getOrderPdfLocalUri(orderId);
+  if (saved) {
+    const cached = (offlineCache.get<Order[]>(CacheKeys.ORDERS) || []).find((o) => o.id === orderId);
+    const fileName = orderPdfFileName(cached?.order_number || String(orderId).slice(0, 8).toUpperCase());
+    return { url: saved, fileName, share: () => shareOrderPdf(orderId, null, fileName), dispose: () => {} };
+  }
   const data = await loadOrderPdfData(orderId);
   if (!data || data.items.length === 0) return null;
   const blob = await buildOrderPdf(data);
