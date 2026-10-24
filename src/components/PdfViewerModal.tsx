@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from "react";
+import { Capacitor } from "@capacitor/core";
 import { X, Loader2, AlertTriangle, Download, ZoomIn, ZoomOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { loadPdfjs } from "../lib/pdfjsLoader";
@@ -183,7 +184,7 @@ export function PdfViewerModal({ isOpen, onClose, url, fileName, onDownload }: P
           <div
             className="flex items-center justify-between gap-4 px-6 pb-4 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800"
             // Respeita a barra de status do iPhone (hora, sinal, bateria) — sem isso o cabeçalho ficava por baixo dela.
-            style={{ paddingTop: "max(1rem, env(safe-area-inset-top, 0px))" }}
+            style={{ paddingTop: Capacitor.getPlatform() === "ios" ? "max(env(safe-area-inset-top, 0px), 3.25rem)" : "max(1rem, env(safe-area-inset-top, 0px))" }}
           >
             <div className="min-w-0">
               <p className="text-sm font-black text-slate-900 dark:text-zinc-100 truncate max-w-[50vw]">{fileName || "Documento"}</p>

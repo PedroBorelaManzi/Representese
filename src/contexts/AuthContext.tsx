@@ -8,7 +8,7 @@ import { trackSessionOpen } from "../lib/sessionTracking";
 import { releaseSessionSlot } from "../lib/sessionGate";
 import { iapLogIn, iapLogOut } from "../lib/iap";
 import { toast } from "sonner";
-import { rememberOfflineLogin } from "../lib/offlineLogin";
+import { rememberOfflineLogin, getSavedLogin } from "../lib/offlineLogin";
 
 type AuthContextType = {
   user: User | null;
@@ -23,6 +23,22 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // Verdadeiro quando o app está aberto com o usuário guardado no aparelho (sem
 // sessão do servidor) — acontece ao abrir/entrar sem internet.
 let offlineSessionActive = false;
+
+// Usuário da última sessão guardada no aparelho (a que o supabase-js grava).
+// Lido de forma síncrona no boot: o app abre na hora com ele, sem esperar o
+// supabase-js conferir/renovar o token — sem internet essa espera chegava a ~15s
+// (várias tentativas de renovar o token) e a tela ficava só girando.
+const readStoredUser = (): User | null => {
+  try {
+    const ref = new URL(import.meta.env.VITE_SUPABASE_URL as string).hostname.split(".")[0];
+    const key = `sb-${ref}-auth-token`;
+    const raw = localStorage.getItem(key) || sessionStorage.getItem(key);
+    const u = raw ? JSON.parse(raw)?.user : null;
+    return u?.id ? (u as User) : null;
+  } catch {
+    return null;
+  }
+};
 
 const saveOfflineUser = (user: User) => {
   const minimalUser = { id: user.id, email: user.email };
@@ -39,8 +55,9 @@ const saveOfflineUser = (user: User) => {
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [storedUser] = useState<User | null>(readStoredUser);
+  const [user, setUser] = useState<User | null>(storedUser);
+  const [loading, setLoading] = useState(!storedUser);
 
   useEffect(() => {
     // Liga o consentimento de cookies (gravado antes do login, sem user_id) à
@@ -66,6 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return; // mesma conta (ou continua deslogado) — nada muda
       }
       idAtual = novo?.id ?? null;
+      offlineSessionActive = false;
 
       if (novo) {
         saveOfflineUser(novo);
@@ -80,9 +98,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSentryUser(null);
         void iapLogOut();
       }
-      setUser(novo);
+      // Mesmo usuário que já abriu o app na hora: mantém a referência pra não
+      // reiniciar tudo que depende de `user`.
+      setUser((atual) => (atual && novo && atual.id === novo.id ? atual : novo));
       setLoading(false);
     };
+
+    if (storedUser && !navigator.onLine) offlineSessionActive = true;
 
     // Sem internet o token pode ter vencido e não dá pra renová-lo: em vez de
     // jogar na tela de login, abre com o usuário que já entrou neste aparelho
@@ -91,8 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (navigator.onLine) return false;
       try {
         const raw = localStorage.getItem("rm_cached_user");
-        if (!raw) return false;
-        const cached = JSON.parse(raw);
+        const cached = storedUser || (raw ? JSON.parse(raw) : null);
         if (!cached?.id || !cached?.email) return false;
         offlineSessionActive = true;
         idAtual = cached.id;
@@ -124,6 +145,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             idAtual = null; // força aplicarSessao a registrar a sessão real
             aplicarSessao(session);
           } else {
+            // Sem sessão do servidor: refaz o login sozinho com a senha guardada
+            // no Keychain (só no app). Se não houver, pede o login de novo.
+            const saved = await getSavedLogin();
+            if (saved) {
+              const { data, error } = await supabase.auth.signInWithPassword({ email: saved.email, password: saved.password });
+              if (!error && data.session) {
+                offlineSessionActive = false;
+                idAtual = null;
+                aplicarSessao(data.session);
+                return;
+              }
+            }
             offlineSessionActive = false;
             idAtual = null;
             setUser(null);

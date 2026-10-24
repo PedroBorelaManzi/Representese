@@ -220,33 +220,38 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     }
 
     setIsSyncing(true);
-    toast.loading('Sincronizando dados com a nuvem...', { id: 'sync-toast' });
+    // A barra de progresso aparece já no clique (antes só surgia quando o
+    // download começava, depois de subir a fila e atualizar as telas).
+    const etapa = (etapaLabel: string, etapaIndex: number) =>
+      setFullSyncProgress({ etapaIndex, etapaTotal: 6, etapaLabel });
+    etapa('Enviando alterações...', 1);
 
     try {
       // 1. Push PENDING offline mutations FIRST
       if (syncQueue.getPendingCount() > 0) {
         const { success, errors } = await syncQueue.processQueue();
         if (!success) {
-          toast.error(`Falha ao enviar dados locais: ${errors.length} erros.`, { id: 'sync-toast' });
+          toast.error(`Falha ao enviar dados locais: ${errors.length} erros.`);
           return;
         }
       }
       await processPendingFileUploads().catch((e) => console.warn('Erro ao subir arquivos pendentes:', e));
 
-      // 2. Pull / Refetch active queries (as inativas refazem ao serem montadas)
-      await queryClient.refetchQueries({ type: 'active' });
-
-      // 3. Sincronização completa sob demanda — clicar em "Sincronizar" força
-      // a atualização geral (inclusive arquivos, no app) mesmo que a
-      // automática do dia já tenha rodado.
+      // 2. Sincronização completa: baixa tudo pro aparelho (a barra segue o
+      // progresso real, inclusive dos arquivos e PDFs).
       const result = await runFull();
 
-      if (result === 'complete') toast.success('Sincronização concluída com sucesso!', { id: 'sync-toast' });
-      else if (result === 'busy') toast.info('Já existe uma sincronização em andamento. Aguarde terminar.', { id: 'sync-toast' });
-      else toast.warning('Sincronização incompleta: alguns itens não baixaram. Toque em Sincronizar de novo.', { id: 'sync-toast' });
+      // 3. Atualiza as telas abertas com o que acabou de baixar.
+      etapa('Atualizando telas...', 6);
+      await queryClient.invalidateQueries();
+
+      if (result === 'complete') toast.success('Sincronização concluída com sucesso!', { duration: 2000 });
+      else if (result === 'busy') toast.info('Já existe uma sincronização em andamento. Aguarde terminar.');
+      else toast.warning('Sincronização incompleta: alguns itens não baixaram. Toque em Sincronizar de novo.');
     } catch (e) {
-      toast.error('Erro inesperado durante a sincronização.', { id: 'sync-toast' });
+      toast.error('Erro inesperado durante a sincronização.');
     } finally {
+      setFullSyncProgress(null);
       setIsSyncing(false);
       updateStatus();
       window.dispatchEvent(new Event('sync-completed'));
