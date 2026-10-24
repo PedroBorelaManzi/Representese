@@ -18,8 +18,8 @@ android {
         applicationId "com.representese.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 232
-        versionName "2.32"
+        versionCode 233
+        versionName "2.33"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -39,7 +39,11 @@ android {
     }
     buildTypes {
         release {
-            minifyEnabled false
+            // R8: ofuscação/encolhimento (o Play Console cobra pelo menos 25% de
+            // otimização de código DEX). As regras de proguard-rules.pro mantêm
+            // o que o Capacitor e os plugins chamam por reflexão.
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             signingConfig hasKeystoreProperties ? signingConfigs.release : null
         }

@@ -13,6 +13,13 @@ const config: CapacitorConfig = {
     // WebView do jeito que estava e o teclado simplesmente cobrir por cima —
     // sem isso, um campo perto do rodapé (ex.: comentário, CNPJ no modal)
     // podia ficar tampado pelo teclado em alguns aparelhos/versões do Android.
+    // Android 15+ (SDK 35/36) desenha o app de ponta a ponta. O CSS do app já
+    // usa env(safe-area-inset-*) (viewport-fit=cover no index.html); "cover" aqui
+    // evita o "pulo" de layout no primeiro quadro.
+    SystemBars: {
+      insetsHandling: "css",
+      initialViewportFitValueHint: "cover"
+    },
     Keyboard: {
       resize: "body"
     }
