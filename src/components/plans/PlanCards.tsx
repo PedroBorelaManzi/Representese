@@ -4,6 +4,7 @@ import { ArrowRight, Check, Building2, Loader2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { plans } from '../../lib/plansData';
 import type { IosPlanPrices } from '../../lib/iap';
+import { store } from '../../lib/iapPolicy';
 
 interface PlanCardsProps {
   billingCycle: 'MONTHLY' | 'ANNUAL';
@@ -101,8 +102,8 @@ export function PlanCards({ billingCycle, currentSubscriptionPlan, onSubscribe, 
                 </div>
                 <p className={cn("text-[11px] font-medium mb-6 h-4", popular ? "text-slate-500" : "text-slate-400")}>
                   {annual
-                    ? (nativePerMonth ? `equivale a ${nativePerMonth}/mês · cobrado 1x por ano pela App Store` : "cobrado anualmente pela App Store")
-                    : "por mês, via App Store"}
+                    ? (nativePerMonth ? `equivale a ${nativePerMonth}/mês · cobrado 1x por ano pela ${store().name}` : `cobrado anualmente pela ${store().name}`)
+                    : `por mês, via ${store().name}`}
                 </p>
               </>
             ) : (

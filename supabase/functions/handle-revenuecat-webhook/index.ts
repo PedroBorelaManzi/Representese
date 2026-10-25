@@ -79,13 +79,17 @@ serve(async (req) => {
     const eventType: string = event.type || '';
     const productId: string = event.product_id || '';
 
-    // productId no formato "com.representese.app.<plano>.<monthly|annual>"
-    const planMatch = PLAN_IDS.find((p) => productId.includes(`.${p}.`));
-    const billingCycle = productId.includes('.annual') ? 'ANNUAL' : 'MONTHLY';
+    // iOS: productId "com.representese.app.<plano>.<monthly|annual>".
+    // Google Play: "<subscriptionId>:<basePlanId>", ex. "com.representese.app.master.sub:annual".
+    // Em ambos o nome do plano e "annual" aparecem no texto.
+    const planMatch = PLAN_IDS.find((p) => productId.includes(`.${p}.`) || productId.includes(`.${p}:`) || productId.endsWith(`.${p}`));
+    const billingCycle = /annual|anual|yearly/i.test(productId) ? 'ANNUAL' : 'MONTHLY';
+    // event.store: APP_STORE | PLAY_STORE (RevenueCat)
+    const provider = String(event.store || '').toUpperCase() === 'PLAY_STORE' ? 'play_iap' : 'ios_iap';
 
     const updateData: any = {
       updated_at: new Date().toISOString(),
-      subscription_provider: 'ios_iap',
+      subscription_provider: provider,
       iap_app_user_id: userId,
     };
 

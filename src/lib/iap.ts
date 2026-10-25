@@ -1,8 +1,8 @@
 import { Purchases } from '@revenuecat/purchases-capacitor';
 import type { PurchasesPackage } from '@revenuecat/purchases-capacitor';
 import { Browser } from '@capacitor/browser';
-import { isIOSApp } from './iapPolicy';
-import { IOS_OFFERING_IDS, IosOfferingId, REVENUECAT_IOS_API_KEY, isIosOfferingId } from './iosPlansData';
+import { isAndroidApp, isStoreApp, store } from './iapPolicy';
+import { IOS_OFFERING_IDS, IosOfferingId, REVENUECAT_IOS_API_KEY, REVENUECAT_ANDROID_API_KEY, isIosOfferingId } from './iosPlansData';
 
 let configured = false;
 
@@ -10,14 +10,15 @@ let configured = false;
 // AuthContext (login/sessão restaurada) — sem isso, `getOfferings`/
 // `purchasePackage` rejeitam com "not configured".
 export async function initPurchases(appUserID?: string): Promise<void> {
-  if (!isIOSApp() || configured) return;
-  if (!REVENUECAT_IOS_API_KEY) {
-    console.error('VITE_REVENUECAT_IOS_API_KEY ausente — IAP não vai funcionar.');
+  if (!isStoreApp() || configured) return;
+  const apiKey = isAndroidApp() ? REVENUECAT_ANDROID_API_KEY : REVENUECAT_IOS_API_KEY;
+  if (!apiKey) {
+    console.error(`VITE_REVENUECAT_${isAndroidApp() ? 'ANDROID' : 'IOS'}_API_KEY ausente — compra no app não vai funcionar.`);
     return;
   }
   configured = true;
   try {
-    await Purchases.configure({ apiKey: REVENUECAT_IOS_API_KEY, appUserID: appUserID ?? null });
+    await Purchases.configure({ apiKey, appUserID: appUserID ?? null });
   } catch (err) {
     configured = false;
     console.error('Erro ao configurar RevenueCat:', err);
@@ -28,7 +29,7 @@ export async function initPurchases(appUserID?: string): Promise<void> {
 // webhook (handle-revenuecat-webhook) não precisa de nenhum lookup por
 // e-mail pra saber de quem é a compra.
 export async function iapLogIn(userId: string): Promise<void> {
-  if (!isIOSApp()) return;
+  if (!isStoreApp()) return;
   if (!configured) await initPurchases(userId);
   try {
     await Purchases.logIn({ appUserID: userId });
@@ -38,7 +39,7 @@ export async function iapLogIn(userId: string): Promise<void> {
 }
 
 export async function iapLogOut(): Promise<void> {
-  if (!isIOSApp() || !configured) return;
+  if (!isStoreApp() || !configured) return;
   try {
     await Purchases.logOut();
   } catch {
@@ -81,7 +82,7 @@ function describeIapError(err: any): string {
 // de engolir: a Apple rejeitou a v1.78 por "erro ao carregar os produtos" e
 // sem esse motivo não dava pra diagnosticar.
 export async function loadIosPlanPrices(): Promise<IosPlanPricesResult> {
-  if (!isIOSApp()) return { prices: {} };
+  if (!isStoreApp()) return { prices: {} };
   let lastError = '';
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
@@ -134,7 +135,7 @@ export async function purchasePlan(planId: string, period: 'MONTHLY' | 'ANNUAL')
   try {
     const aPackage = await getPackage(planId, period);
     if (!aPackage) {
-      return { success: false, userCancelled: false, message: 'Plano indisponível na App Store no momento. Toque em "Tentar novamente" ou volte em instantes.' };
+      return { success: false, userCancelled: false, message: `Plano indisponível na ${store().name} no momento. Toque em "Tentar novamente" ou volte em instantes.` };
     }
     await Purchases.purchasePackage({ aPackage });
     // user_entitlements é atualizado pelo webhook do RevenueCat
@@ -159,6 +160,11 @@ export async function purchasePlan(planId: string, period: 'MONTHLY' | 'ANNUAL')
 // pelo webhook do RevenueCat, igual a uma compra.
 export async function redeemOfferCode(): Promise<PurchaseOutcome> {
   try {
+    if (isAndroidApp()) {
+      // Android não tem folha nativa: o resgate é feito na própria Play Store.
+      await Browser.open({ url: 'https://play.google.com/redeem' });
+      return { success: true, userCancelled: false };
+    }
     await Purchases.presentCodeRedemptionSheet();
     return { success: true, userCancelled: false };
   } catch (err: any) {
@@ -179,5 +185,9 @@ export async function restorePurchases(): Promise<PurchaseOutcome> {
 // caminho oficial é este link universal, que abre a tela nativa de
 // assinaturas do usuário (App Store ou Ajustes, dependendo da versão do iOS).
 export async function openManageSubscriptions(): Promise<void> {
-  await Browser.open({ url: 'https://apps.apple.com/account/subscriptions' });
+  await Browser.open({
+    url: isAndroidApp()
+      ? 'https://play.google.com/store/account/subscriptions?package=com.representese.app'
+      : 'https://apps.apple.com/account/subscriptions',
+  });
 }

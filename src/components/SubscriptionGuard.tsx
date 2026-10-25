@@ -6,7 +6,7 @@ import { ShieldAlert, CreditCard, ExternalLink, MessageCircle, Loader2, Sparkles
 import { Logo } from './Logo';
 import { toast } from 'sonner';
 import { Link, useNavigate } from 'react-router-dom';
-import { isIOSApp } from '../lib/iapPolicy';
+import { isStoreApp } from '../lib/iapPolicy';
 import { openManageSubscriptions } from '../lib/iap';
 
 export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
@@ -219,7 +219,7 @@ export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
               </p>
             </div>
 
-            {isIOSApp() ? (
+            {isStoreApp() ? (
               // No app iOS a recompra é sempre por In-App Purchase: levamos a
               // /planos (comprar ou restaurar). Quem assinou pela App Store
               // também pode abrir o gerenciamento nativo de assinaturas.
@@ -231,7 +231,7 @@ export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
                   Ver planos / Restaurar compras
                   <ArrowRight className="w-4 h-4" />
                 </Link>
-                {settings.subscription_provider === 'ios_iap' && (
+                {(settings.subscription_provider === 'ios_iap' || settings.subscription_provider === 'play_iap') && (
                   <button
                     onClick={() => openManageSubscriptions()}
                     className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-4 rounded-2xl font-black uppercase text-[11px] tracking-widest flex items-center justify-center gap-3 transition-all"

@@ -42,7 +42,7 @@ import { ajustarFaturamento } from "../lib/faturamento";
 import { salvarItensDoPedido } from "../lib/orderItems";
 import { lookupCnpj } from "../lib/cnpjLookup";
 import { findRepresentedCompany, createRepresentedCompany, linkRepToCompany } from "../lib/representedCompanies";
-import { isIOSApp } from "../lib/iapPolicy";
+import { isStoreApp } from "../lib/iapPolicy";
 import { EmptyState } from "../components/ui";
 import TourArrow from "../components/TourArrow";
 import { OrderDetailModal } from "../components/OrderDetailModal";
@@ -997,7 +997,7 @@ export default function EmpresasPage() {
                  </p>
                  <div className="space-y-3 pt-2">
                     <button
-                       onClick={() => { setShowUpsellModal(false); navigate(isIOSApp() ? '/planos' : '/dashboard/order-bump'); }}
+                       onClick={() => { setShowUpsellModal(false); navigate(isStoreApp() ? '/planos' : '/dashboard/order-bump'); }}
                        className="w-full py-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-[24px] font-black uppercase tracking-widest text-[10px] md:text-xs shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2"
                     >
                        <Sparkles className="w-4 h-4" /> Dê um Upgrade no seu Plano

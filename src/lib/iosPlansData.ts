@@ -18,3 +18,6 @@ export const isIosOfferingId = (id: string): id is IosOfferingId =>
 /** Chave pública do RevenueCat (equivalente a uma publishable key — segura
  *  pra expor no bundle do app). Configurada no dashboard do RevenueCat. */
 export const REVENUECAT_IOS_API_KEY = import.meta.env.VITE_REVENUECAT_IOS_API_KEY as string | undefined;
+
+/** Chave pública do RevenueCat do app Android (Google Play Billing). */
+export const REVENUECAT_ANDROID_API_KEY = import.meta.env.VITE_REVENUECAT_ANDROID_API_KEY as string | undefined;

@@ -4,7 +4,7 @@ import { useSettings } from '../contexts/SettingsContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
-import { isIOSApp, SITE_DOMAIN } from '../lib/iapPolicy';
+import { isStoreApp, SITE_DOMAIN } from '../lib/iapPolicy';
 
 const WARNING_WINDOW_DAYS = 15;
 
@@ -34,7 +34,7 @@ export default function RenewalBanner() {
   // aviso existe pra cobrir (isso só acontece no Asaas).
   const shouldShow =
     !dismissed &&
-    settings.subscription_provider !== 'ios_iap' &&
+    settings.subscription_provider !== 'ios_iap' && settings.subscription_provider !== 'play_iap' &&
     settings.subscription_status === 'active' &&
     isAnnualLike &&
     daysLeft !== null &&
@@ -104,7 +104,7 @@ export default function RenewalBanner() {
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        {isIOSApp() ? (
+        {isStoreApp() ? (
           <span className="text-xs font-bold text-amber-800/90 dark:text-amber-200/80">
             Renove em {SITE_DOMAIN}
           </span>

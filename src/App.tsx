@@ -13,7 +13,7 @@ import { SpeedInsights } from "@vercel/speed-insights/react";
 import { lazyWithRetry } from "./lib/lazyWithRetry";
 import { useTrackPageview } from "./hooks/useTrackPageview";
 import { applyTrackingOptOutFromUrl } from "./lib/trackingOptOut";
-import { isIOSApp } from "./lib/iapPolicy";
+import { isStoreApp } from "./lib/iapPolicy";
 
 function PageviewTracker() {
   useTrackPageview();
@@ -128,7 +128,7 @@ export default function App() {
               <Suspense fallback={<LoadingSpinner />}>
                 <Routes>
                   <Route path="/" element={<LandingOrRedirect />} />
-                  <Route path="/landing" element={isIOSApp() ? <Navigate to="/" replace /> : <Landing />} />
+                  <Route path="/landing" element={isStoreApp() ? <Navigate to="/" replace /> : <Landing />} />
                   <Route path='/login' element={<Login />} />
                   <Route path='/register' element={<Register />} />
                   <Route path='/recovery' element={<Recovery />} />
@@ -137,7 +137,7 @@ export default function App() {
                       endereço, cartão) — não existe no fluxo de IAP, então
                       continua fora do ar lá. /planos passou a vender de
                       verdade via In-App Purchase (App Store 3.1.1). */}
-                  <Route path='/checkout' element={isIOSApp() ? <Navigate to="/planos" replace /> : <Checkout />} />
+                  <Route path='/checkout' element={isStoreApp() ? <Navigate to="/planos" replace /> : <Checkout />} />
                   <Route path='/planos' element={<PlanosPage />} />
                   
                   {/* Protected Dashboard Routes */}
@@ -164,7 +164,7 @@ export default function App() {
                       <Route path="admin/analytics" element={<AdminAnalytics />} />
                       <Route path="admin/empresas" element={<AdminCompanies />} />
                     </Route>
-                    <Route path="order-bump" element={isIOSApp() ? <Navigate to="/dashboard" replace /> : <OrderBumpPage />} />
+                    <Route path="order-bump" element={isStoreApp() ? <Navigate to="/dashboard" replace /> : <OrderBumpPage />} />
                   </Route>
 
                   {/* Google OAuth Callback */}

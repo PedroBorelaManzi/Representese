@@ -48,7 +48,7 @@ interface Settings {
   /** 'asaas' (site/Android, padrão) ou 'ios_iap' (comprado via App Store) —
    *  decide se a UI de gerenciar/renovar assinatura manda pro site (Asaas
    *  não tem outro jeito) ou abre o gerenciamento nativo de assinaturas. */
-  subscription_provider?: 'asaas' | 'ios_iap';
+  subscription_provider?: 'asaas' | 'ios_iap' | 'play_iap';
   avatar_url?: string;
   /** Logo da representação (data URL, redimensionada) — vai no cabeçalho do PDF do pedido. */
   logo_url?: string | null;
@@ -269,7 +269,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
 
         let effectiveStatus: SubscriptionStatus = 'inactive';
         let planId = 'exclusivo';
-        let subscriptionProvider: 'asaas' | 'ios_iap' = 'asaas';
+        let subscriptionProvider: 'asaas' | 'ios_iap' | 'play_iap' = 'asaas';
 
         if (entError) {
           // Fallback to cache if network fails (Grace period)

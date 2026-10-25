@@ -23,7 +23,7 @@ import { metaAddToCart } from "../lib/metaPixel";
 import { plans } from "../lib/plansData";
 import { PlanCards } from "../components/plans/PlanCards";
 import { usePageMeta } from "../hooks/usePageMeta";
-import { isIOSApp } from "../lib/iapPolicy";
+import { isStoreApp, store } from "../lib/iapPolicy";
 import { supabase } from "../lib/supabase";
 import { loadLeadData } from "../lib/leadStorage";
 import { FunnelPoll } from "../components/FunnelPoll";
@@ -69,7 +69,7 @@ export default function Planos() {
   const { user, signOut } = useAuth();
   const { settings, refetchSettings } = useSettings();
   const navigate = useNavigate();
-  const iosApp = isIOSApp();
+  const iosApp = isStoreApp();
   const [iosPrices, setIosPrices] = useState<IosPlanPrices>({});
   const [iosLoadError, setIosLoadError] = useState<string | null>(null);
   const [iosLoading, setIosLoading] = useState(false);
@@ -102,13 +102,13 @@ export default function Planos() {
   const displayFaqItems = iosApp
     ? faqItems.map((item) =>
         item.q === "Como funciona o teste de 7 dias?"
-          ? { q: "Tem período de teste no app?", a: "A compra pela App Store é cobrada na hora, sem período de teste gratuito. Reembolsos seguem a política da Apple, solicitados diretamente com ela." }
+          ? { q: "Tem período de teste no app?", a: `A compra pela ${store().name} é cobrada na hora, sem período de teste gratuito. ${store().refund}` }
           : item
       )
     : faqItems;
   const displayTrustItems = iosApp
     ? [
-        { icon: ShieldCheck, title: "Compra segura", desc: "Processada e protegida pela própria App Store." },
+        { icon: ShieldCheck, title: "Compra segura", desc: `Processada e protegida pela própria ${store().name}.` },
         { icon: RefreshCw, title: "Sem fidelidade", desc: "Cancele quando quiser, sem multa." },
         { icon: CalendarClock, title: "Renovação automática", desc: "Cobrança recorrente conforme o plano, até você cancelar." },
       ]
@@ -321,7 +321,7 @@ export default function Planos() {
 
         {iosApp && iosLoadError && (
           <div role="alert" data-testid="ios-planos-erro" className="max-w-2xl mx-auto mb-6 rounded-2xl border border-amber-200 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-500/30 p-4 text-center">
-            <p className="text-sm font-bold text-amber-800 dark:text-amber-300">Não foi possível carregar os planos da App Store.</p>
+            <p className="text-sm font-bold text-amber-800 dark:text-amber-300">Não foi possível carregar os planos da {store().name}.</p>
             <p className="text-xs text-amber-700 dark:text-amber-400 mt-1 break-words">Detalhe: {iosLoadError}</p>
             <button
               onClick={() => void carregarPrecosIos()}
@@ -411,7 +411,7 @@ export default function Planos() {
           <div className="max-w-3xl mx-auto p-8 md:p-10 bg-white dark:bg-zinc-900 rounded-3xl border border-slate-100 dark:border-zinc-800 text-center">
             <h4 className="text-lg font-black text-slate-900 dark:text-zinc-100 mb-2">Já assina o Represente-Se!?</h4>
             <p className="text-slate-500 dark:text-zinc-400 font-medium mb-6 max-w-md mx-auto text-sm leading-relaxed">
-              Se você já comprou uma assinatura com este Apple ID, restaure sua compra. Para alterar ou cancelar, use o gerenciamento de assinaturas da App Store.
+              Se você já comprou uma assinatura com esta {store().account}, restaure sua compra. Para alterar ou cancelar, use o gerenciamento de assinaturas da {store().name}.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <button
@@ -429,7 +429,7 @@ export default function Planos() {
               </button>
             </div>
             <p className="mt-6 text-[11px] text-slate-400 dark:text-zinc-500 leading-relaxed max-w-md mx-auto">
-              A assinatura renova automaticamente (mensal ou anual, conforme o plano escolhido) até ser cancelada nos Ajustes da App Store, ao menos 24h antes do fim do período. O pagamento é cobrado na sua conta Apple.
+              A assinatura renova automaticamente (mensal ou anual, conforme o plano escolhido) até ser cancelada na {store().name} ({store().manage}), ao menos 24h antes do fim do período. O pagamento é cobrado na sua {store().account}.
             </p>
             <div className="mt-3 flex items-center justify-center gap-4 text-[11px] font-bold">
               <Link to="/terms" className="text-emerald-600 dark:text-emerald-400 underline">Termos de Uso</Link>
@@ -526,7 +526,7 @@ export default function Planos() {
                   data-testid="ios-assinar"
                   className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm disabled:opacity-50"
                 >
-                  Assinar com a Apple
+                  Assinar com {store().provider}
                 </button>
                 <button
                   onClick={resgatarCodigo}
@@ -536,7 +536,7 @@ export default function Planos() {
                   <Ticket className="w-4 h-4" /> Tenho um código
                 </button>
                 <p className="text-[11px] text-slate-400 text-center mt-3 leading-relaxed">
-                  O pagamento é feito com o cartão ou Apple Pay da sua conta Apple. A assinatura renova sozinha e pode ser cancelada quando quiser em Ajustes › Assinaturas.
+                  O pagamento é feito com {store().payment}. A assinatura renova sozinha e pode ser cancelada quando quiser em {store().manage}.
                 </p>
               </motion.div>
             </motion.div>

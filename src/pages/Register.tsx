@@ -14,7 +14,7 @@ import { saveLeadData } from "../lib/leadStorage";
 import { getAttribution } from "../lib/attribution";
 import { trackLeadConversion } from "../lib/googleAds";
 import { metaLead } from "../lib/metaPixel";
-import { isIOSApp } from "../lib/iapPolicy";
+import { isStoreApp } from "../lib/iapPolicy";
 import { checkPassword, PASSWORD_MIN_LENGTH } from "../lib/passwordPolicy";
 
 function PasswordRequirement({ label, met }: { label: string; met: boolean }) {
@@ -34,7 +34,7 @@ export default function Register() {
     "Deixe seu contato e veja os planos do Represente-Se!, o sistema para representante comercial: clientes, pedidos, agenda e comissões.",
     "/register"
   );
-  const iosApp = isIOSApp();
+  const iosApp = isStoreApp();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");

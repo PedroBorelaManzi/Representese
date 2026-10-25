@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
-import { isIOSApp } from '../../lib/iapPolicy';
+import { isStoreApp } from '../../lib/iapPolicy';
 
 interface ReferralRow {
   referred_user_id: string;
@@ -26,7 +26,7 @@ export const SettingsReferral = React.memo(function SettingsReferral() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [referrals, setReferrals] = useState<ReferralRow[]>([]);
-  const iosApp = isIOSApp();
+  const iosApp = isStoreApp();
 
   const isPayingSubscriber = settings.subscription_status === 'active' || settings.subscription_status === 'past_due';
 

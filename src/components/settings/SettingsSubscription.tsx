@@ -3,7 +3,7 @@ import { Trophy, Crown, Gem, CheckCircle2, Clock, TrendingUp, Building2, Map as 
 import { useSettings } from '../../contexts/SettingsContext';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../../lib/utils';
-import { isIOSApp, SITE_DOMAIN } from '../../lib/iapPolicy';
+import { isStoreApp, SITE_DOMAIN } from '../../lib/iapPolicy';
 import { openManageSubscriptions } from '../../lib/iap';
 
 interface SettingsSubscriptionProps {
@@ -51,12 +51,12 @@ export const SettingsSubscription = React.memo(function SettingsSubscription({ o
   const tierId = settings.plan_id ? (settings.plan_id === 'premium' ? 'profissional' : settings.plan_id) : 'exclusivo';
   const currentIndex = tierSequence.indexOf(tierId) !== -1 ? tierSequence.indexOf(tierId) : 0;
 
-  const iosApp = isIOSApp();
+  const iosApp = isStoreApp();
   // No iOS, só dá pra gerenciar/trocar de plano por aqui quando a
   // assinatura foi comprada via IAP — uma assinatura Asaas (feita pelo
   // site/Android) sendo usada dentro do app iOS só pode ser mexida no site,
   // não tem IAP pra ela. Fora do iOS, sempre dá pra gerenciar por aqui.
-  const canManageInApp = !iosApp || settings.subscription_provider === 'ios_iap';
+  const canManageInApp = !iosApp || settings.subscription_provider === 'ios_iap' || settings.subscription_provider === 'play_iap';
   // order-bump continua fora do ar no iOS (é a tela de upsell ligada ao
   // Asaas) — upgrade ali vira compra em /planos via IAP.
   const upgradeRoute = iosApp ? '/planos' : '/dashboard/order-bump';
