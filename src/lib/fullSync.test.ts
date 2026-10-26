@@ -28,6 +28,7 @@ vi.mock('./offlineStore', () => ({
   saveOffline: vi.fn(() => Promise.resolve()),
   OfflineKeys: { aiChats: (u: string) => `ai_${u}`, entregas: (u: string) => `ent_${u}`, companyReps: (u: string) => `rep_${u}` },
 }));
+vi.mock('./queryClient', () => ({ queryClient: { setQueryData: vi.fn(), prefetchQuery: vi.fn(() => Promise.resolve()) } }));
 vi.mock('./reportAnalytics', () => ({ fetchReportAnalytics: vi.fn(() => Promise.resolve({})) }));
 
 const fetchHolidaysMock = vi.fn();

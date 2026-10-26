@@ -5,6 +5,7 @@
 // uma música": fica guardado até a pessoa sair da conta ou apagar, e só é
 // trocado quando uma sincronização nova com internet traz dados atualizados.
 // localStorage (offlineCache) tem limite de ~5 MB, por isso estes dados vêm pra cá.
+import { Capacitor } from "@capacitor/core";
 import { getFromIndexedDB, saveToIndexedDB, removeFromIndexedDB } from "./storage";
 
 const PREFIX = "rm_offline_";
@@ -17,7 +18,9 @@ export const OfflineKeys = {
     `${PREFIX}emails_${userId}_${account}_${folder}_${category || "all"}`,
 };
 
+// Só nos aplicativos iOS/Android: no navegador sem internet nada funciona mesmo.
 export async function saveOffline<T>(key: string, data: T): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return;
   try {
     await saveToIndexedDB(key, { data, savedAt: Date.now() });
   } catch (e) {
@@ -26,6 +29,7 @@ export async function saveOffline<T>(key: string, data: T): Promise<void> {
 }
 
 export async function loadOffline<T>(key: string): Promise<{ data: T; savedAt: number } | null> {
+  if (!Capacitor.isNativePlatform()) return null;
   try {
     const rec = await getFromIndexedDB(key);
     return rec && "data" in rec ? (rec as { data: T; savedAt: number }) : null;

@@ -1,4 +1,4 @@
-import { queryClient } from './lib/queryClient';
+import { queryClient, CACHE_MAX_AGE_MS } from './lib/queryClient';
 import './polyfills';
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
@@ -52,7 +52,7 @@ if (typeof window !== 'undefined') {
 // vazia, e os dados só "apareciam" ~15s depois.
 const persistOptions = {
   persister: indexedDBPersister,
-  maxAge: 1000 * 60 * 60 * 24 * 365, // 1 ano: dados ficam no aparelho como "música baixada"
+  maxAge: CACHE_MAX_AGE_MS, // apps: 1 ano ("música baixada"); navegador: 7 dias
   dehydrateOptions: {
     shouldDehydrateQuery: (query: { state: { status: string } }) => {
       // Cache everything successfully fetched to enable full offline support in IndexedDB
