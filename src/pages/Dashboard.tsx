@@ -375,8 +375,9 @@ export default function Dashboard() {
     
     const silentSync = async () => {
       try {
-        const res = await syncGoogleEvents(user.id);
-        if (res.success) {
+        const res: any = await syncGoogleEvents(user.id);
+        // Só recarrega quando algo mudou — a sincronização automática é limitada a 1 a cada 10 min.
+        if (res.success && !res.skipped && res.count > 0) {
           refetch();
         }
       } catch (e) {
@@ -405,7 +406,7 @@ export default function Dashboard() {
     if (!user) return;
     setIsSyncing(true);
     const toastId = toast.loading("Sincronizando bidirecionalmente...");
-    const res = await syncGoogleEvents(user.id);
+    const res = await syncGoogleEvents(user.id, { force: true });
     if (res.success) {
       toast.success(res.message, { id: toastId });
       await refetch();

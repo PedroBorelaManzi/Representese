@@ -174,7 +174,7 @@ export default function Agenda() {
     if (!user) return;
     setIsSyncing(true);
     const toastId = toast.loading("Sincronizando com o Calendário Google...");
-    const res = await syncGoogleEvents(user.id);
+    const res = await syncGoogleEvents(user.id, { force: true });
     if (res.success) {
       toast.success(res.message, { id: toastId });
       await invalidateAgenda();

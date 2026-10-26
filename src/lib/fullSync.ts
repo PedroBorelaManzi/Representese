@@ -244,22 +244,37 @@ export async function runFullSync(userId: string, onProgress?: (p: FullSyncProgr
   };
 
   try {
-    report(1, "Configurações...");
-    await syncUserSettings(userId).catch(guard("user_settings", undefined));
+    // As etapas de dados não dependem umas das outras (só feriados precisa dos
+    // clientes e PDFs precisam dos itens), então rodam EM PARALELO — antes eram
+    // uma depois da outra e a soma das esperas deixava tudo lento.
+    let feitas = 0;
+    const concluiu = (label: string) => {
+      feitas++;
+      report(Math.min(feitas + 1, 5), label);
+    };
+    report(1, "Baixando dados...");
 
-    report(2, "Clientes...");
-    const clients = await syncClients(userId).catch(guard("clientes", [] as Client[]));
-
-    report(3, "Agenda...");
-    await syncAppointments(userId).catch(guard("agenda", undefined));
-
-    report(4, "Pedidos...");
-    const orders = await syncOrders(userId).catch(guard("pedidos", [] as Order[]));
-    await syncOrderDetails(userId).catch(guard("itens dos pedidos", undefined));
+    let clients: Client[] = [];
+    let orders: Order[] = [];
+    await Promise.all([
+      syncUserSettings(userId).catch(guard("user_settings", undefined)).then(() => concluiu("Configurações...")),
+      (async () => {
+        clients = await syncClients(userId).catch(guard("clientes", [] as Client[]));
+        concluiu("Clientes...");
+        await syncHolidays(clients).catch(guard("feriados", undefined));
+        concluiu("Feriados...");
+      })(),
+      syncAppointments(userId).catch(guard("agenda", undefined)).then(() => concluiu("Agenda...")),
+      (async () => {
+        const [pedidos] = await Promise.all([
+          syncOrders(userId).catch(guard("pedidos", [] as Order[])),
+          syncOrderDetails(userId).catch(guard("itens dos pedidos", undefined)),
+        ]);
+        orders = pedidos;
+        concluiu("Pedidos...");
+      })(),
+    ]);
     if (comArquivos) await syncOrderPdfs(orders, clients).catch((e) => console.warn("fullSync: PDFs dos pedidos", e));
-
-    report(5, "Feriados...");
-    await syncHolidays(clients).catch(guard("feriados", undefined));
 
     if (comArquivos) {
       report(6, "Arquivos...", { atual: 0, total: 0 });

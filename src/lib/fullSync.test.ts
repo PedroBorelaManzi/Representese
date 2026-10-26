@@ -103,7 +103,7 @@ describe('runFullSync', () => {
     expect(getCachedFileUriMock).not.toHaveBeenCalled();
   });
 
-  it('reporta progresso em ordem, com etapaTotal 5 na web', async () => {
+  it('reporta progresso crescente, com etapaTotal 5 na web', async () => {
     setupHappyPath();
     isNativePlatform.mockReturnValue(false);
     const onProgress = vi.fn();
@@ -111,7 +111,10 @@ describe('runFullSync', () => {
     await runFullSync('u1', onProgress);
 
     const etapas = onProgress.mock.calls.map(([p]) => p.etapaIndex);
-    expect(etapas).toEqual([1, 2, 3, 4, 5]);
+    // As etapas de dados rodam em paralelo: o índice só cresce e termina na última etapa.
+    expect(etapas[0]).toBe(1);
+    expect(etapas).toEqual([...etapas].sort((a, b) => a - b));
+    expect(Math.max(...etapas)).toBe(5);
     expect(onProgress.mock.calls[0][0].etapaTotal).toBe(5);
   });
 

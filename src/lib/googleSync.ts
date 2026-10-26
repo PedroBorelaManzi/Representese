@@ -79,7 +79,35 @@ async function proxyGoogleRequest(action: string, payload: any) {
   return response.json();
 }
 
-export async function syncGoogleEvents(userId: string) {
+// Intervalo mínimo entre sincronizações AUTOMÁTICAS (abrir o painel, voltar pra
+// aba). O botão "Sincronizar" passa `force: true` e ignora isso. Antes, cada
+// foco/visibilidade da janela disparava a sincronização inteira de novo.
+const AUTO_SYNC_MIN_INTERVAL_MS = 10 * 60 * 1000;
+const UPSERT_CHUNK = 200;
+const IN_CHUNK = 100;
+const emAndamento = new Map<string, Promise<any>>();
+
+const lastSyncKey = (userId: string) => `rm_gcal_last_sync_${userId}`;
+function lerUltimaSync(userId: string): number {
+  try { return Number(localStorage.getItem(lastSyncKey(userId)) || 0); } catch { return 0; }
+}
+function gravarUltimaSync(userId: string) {
+  try { localStorage.setItem(lastSyncKey(userId), String(Date.now())); } catch { /* sem armazenamento: só sincroniza mais vezes */ }
+}
+
+export async function syncGoogleEvents(userId: string, opts: { force?: boolean } = {}) {
+  // Duas chamadas ao mesmo tempo (ex.: abrir o painel + focar a janela) viram uma só.
+  const jaRodando = emAndamento.get(userId);
+  if (jaRodando) return jaRodando;
+  if (!opts.force && Date.now() - lerUltimaSync(userId) < AUTO_SYNC_MIN_INTERVAL_MS) {
+    return { success: true, count: 0, skipped: true, message: 'Agenda já sincronizada há pouco.' };
+  }
+  const p = executarSyncGoogle(userId).finally(() => emAndamento.delete(userId));
+  emAndamento.set(userId, p);
+  return p;
+}
+
+async function executarSyncGoogle(userId: string) {
   try {
     const integration = await checkGoogleIntegration(userId);
     if (!integration.isConnected) {
@@ -106,26 +134,33 @@ export async function syncGoogleEvents(userId: string) {
     const data = res.data;
     const googleEvents = data?.items || [];
 
+    if (googleEvents.length === 0) {
+      gravarUltimaSync(userId);
+      return { success: true, count: 0, message: 'Nenhum evento encontrado no seu Google Agenda (últimos 60 dias).' };
+    }
+
     const { data: allClients } = await supabase
       .from('clients')
       .select('id, name')
       .eq('user_id', userId);
 
-    
-    if (googleEvents.length === 0) {
-      return { success: true, count: 0, message: 'Nenhum evento encontrado no seu Google Agenda (últimos 60 dias).' };
+    // O que já existe aqui, pra gravar só o que é novo ou mudou (em blocos, em
+    // vez de 1 requisição por evento — eram ~300 de uma vez a cada abertura).
+    const googleEventIds = googleEvents.map((e: any) => e.id).filter(Boolean) as string[];
+    const existentes = new Map<string, { id: string; google_event_id: string; client_id: string | null; title: string | null; date: string | null; time: string | null }>();
+    for (let i = 0; i < googleEventIds.length; i += IN_CHUNK) {
+      const { data: parte } = await supabase
+        .from('appointments')
+        .select('id, google_event_id, client_id, title, date, time')
+        .in('google_event_id', googleEventIds.slice(i, i + IN_CHUNK))
+        .eq('user_id', userId);
+      (parte || []).forEach((a: any) => existentes.set(a.google_event_id, a));
     }
 
-    const googleEventIds = googleEvents.map((e) => e.id).filter(Boolean);
-    const { data: existingAppts } = await supabase
-      .from('appointments')
-      .select('id, google_event_id, client_id')
-      .in('google_event_id', googleEventIds)
-      .eq('user_id', userId);
+    const alteradas: any[] = [];
+    for (const gevent of googleEvents) {
+      if (!gevent.start?.dateTime && !gevent.start?.date) continue;
 
-    const syncResults = await Promise.all(googleEvents.map(async (gevent: any) => {
-      if (!gevent.start?.dateTime && !gevent.start?.date) return null;
-      
       let dateStr = '';
       let timeStr = '';
 
@@ -156,60 +191,57 @@ export async function syncGoogleEvents(userId: string) {
         timeStr = "";
       }
 
-      
-      let extractedClientId = null;
+      let extractedClientId: string | null = null;
       if (gevent.description && gevent.description.includes('Cliente: ')) {
         const lines = gevent.description.split('\n');
         const clientLine = lines.find((l: string) => l.startsWith('Cliente: '));
         if (clientLine) {
           const clientName = clientLine.replace('Cliente: ', '').trim();
           const matchedClient = allClients?.find((c: any) => c.name === clientName);
-          if (matchedClient) {
-            extractedClientId = matchedClient.id;
-          }
+          if (matchedClient) extractedClientId = matchedClient.id;
         }
       }
 
+      const existente = existentes.get(gevent.id);
+      const clientId = !extractedClientId && existente?.client_id ? existente.client_id : extractedClientId;
+      const title = gevent.summary || 'Evento do Google';
+
+      const igual =
+        existente &&
+        (existente.title || '') === title &&
+        (existente.date || '') === dateStr &&
+        (existente.time || '') === timeStr &&
+        (existente.client_id || null) === (clientId || null);
+      if (igual) continue;
+
+      alteradas.push({
+        user_id: userId,
+        title,
+        date: dateStr,
+        time: timeStr,
+        client_id: clientId,
+        google_event_id: gevent.id,
+        updated_at: new Date().toISOString(),
+      });
+    }
+
+    for (let i = 0; i < alteradas.length; i += UPSERT_CHUNK) {
       const { error } = await supabase
         .from('appointments')
-        .upsert({
-          user_id: userId,
-          title: gevent.summary || 'Evento do Google',
-          date: dateStr,
-          time: timeStr,
-          client_id: (() => {
-            const existingAppt = existingAppts?.find((a) => a.google_event_id === gevent.id);
-            if (!extractedClientId && existingAppt && existingAppt.client_id) {
-                return existingAppt.client_id;
-            }
-            return extractedClientId;
-          })(),
-          google_event_id: gevent.id,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'google_event_id' });
-
+        .upsert(alteradas.slice(i, i + UPSERT_CHUNK), { onConflict: 'google_event_id' });
       if (error) {
-        console.error('Erro ao salvar evento:', gevent.summary, error);
-        return null;
+        console.error('Erro ao salvar eventos do Google:', error);
+        return { success: false, message: 'Não foi possível salvar os eventos do Google Agenda.' };
       }
-      return gevent.summary || 'Evento';
-    }));
+    }
 
-    const successfulSyncs = syncResults.filter(Boolean);
-    
-    const totalSynced = successfulSyncs.length;
-    const titles = successfulSyncs.slice(0, 3).join(', ');
-    const more = successfulSyncs.length > 3 ? ` e mais ${successfulSyncs.length - 3}...` : '';
-    
-    let msg = totalSynced > 0 
-        ? `Sucesso! ${successfulSyncs.length} baixados .` 
-        : 'Sincronização concluída. Tudo já estava atualizado.';
+    gravarUltimaSync(userId);
+    const totalSynced = alteradas.length;
+    const msg = totalSynced > 0
+      ? `Sucesso! ${totalSynced} evento${totalSynced > 1 ? 's' : ''} novo${totalSynced > 1 ? 's' : ''} ou atualizado${totalSynced > 1 ? 's' : ''}.`
+      : 'Sincronização concluída. Tudo já estava atualizado.';
 
-    return { 
-      success: true, 
-      count: totalSynced,
-      message: msg 
-    };
+    return { success: true, count: totalSynced, message: msg };
 
   } catch (error: any) {
     console.error('Erro técnico:', error);
