@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSettings } from '../contexts/SettingsContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { ShieldAlert, CreditCard, ExternalLink, MessageCircle, Loader2, Sparkles, ArrowRight, LogOut } from 'lucide-react';
+import { CreditCard, ExternalLink, MessageCircle, Loader2, Sparkles, ArrowRight, LogOut, Clock, RefreshCw, Users, FileText, CalendarCheck, WifiOff, ShieldCheck } from 'lucide-react';
 import { Logo } from './Logo';
 import { toast } from 'sonner';
 import { Link, useNavigate } from 'react-router-dom';
@@ -81,11 +81,19 @@ export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Se o status for 'past_due', mostramos a tela de bloqueio financeiro
-  const isPastDue = settings.subscription_status === 'past_due' || settings.subscription_status === 'canceled';
-  
-  // Se for 'inactive', é um lead novo que ainda não escolheu o plano
-  const isLead = settings.subscription_status === 'inactive';
+  // Quem nunca teve plano (plan_id 'none') é um lead novo; quem já teve e
+  // perdeu o acesso vê uma tela de "reativar", e quem está com pagamento
+  // atrasado (past_due) vê a de pendência — três situações, três telas.
+  const hasHadPlan = !!settings.plan_id && settings.plan_id !== 'none';
+  const isLead = settings.subscription_status === 'inactive' && !hasHadPlan;
+  const isPastDue = settings.subscription_status === 'past_due';
+  const isEnded = !isLead && !isPastDue; // canceled, ou inactive de quem já teve plano
+  const firstName = String(user?.user_metadata?.full_name || '').trim().split(/\s+/)[0] || '';
+  const planNames: Record<string, string> = { exclusivo: 'Acesso Exclusivo', profissional: 'Acesso Profissional', master: 'Acesso Master' };
+  const planName = planNames[settings.plan_id] || '';
+  const fimPeriodo = settings.current_period_end
+    ? new Date(settings.current_period_end).toLocaleDateString('pt-BR')
+    : null;
 
   const handleRegularize = async () => {
     if (!user) return;
@@ -149,44 +157,77 @@ export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
     </button>
   );
 
-  if (isPastDue || isLead) {
+  if (isPastDue || isLead || isEnded) {
     const whatsappNumber = "5515997472785";
     const userEmail = user?.email || "não informado";
     
-    // UI Amigável para LEADS novos (inactive)
+    // UI Amigável para LEADS novos (conta criada, nunca assinou)
     if (isLead) {
+      const beneficios = [
+        { icon: Users, texto: 'Clientes, contatos e histórico de compras num só lugar' },
+        { icon: FileText, texto: 'Pedidos com catálogo e PDF na hora' },
+        { icon: CalendarCheck, texto: 'Agenda de visitas com avisos de retorno' },
+        { icon: WifiOff, texto: 'Funciona também sem internet' },
+      ];
       return (
-        <div className="fixed inset-0 z-[9999] bg-slate-50 dark:bg-zinc-950 flex flex-col items-center justify-center p-6 text-center">
-          <div className="max-w-md w-full space-y-8 relative z-10">
-            <Logo size="lg" />
-            
-            <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-8 rounded-[40px] space-y-6 shadow-xl">
-              <div className="w-20 h-20 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-3xl flex items-center justify-center mx-auto shadow-inner">
-                <Sparkles className="w-10 h-10" />
-              </div>
-              
-              <div className="space-y-2">
-                <h1 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Quase lá!</h1>
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-400 leading-relaxed">
-                  Sua conta foi criada com sucesso. Para começar a usar o sistema e gerenciar suas representações, você precisa escolher um plano.
-                </p>
-              </div>
+        <div data-testid="guard-lead" className="fixed inset-0 z-[9999] bg-slate-50 dark:bg-zinc-950 overflow-y-auto">
+          <div className="min-h-full flex flex-col items-center justify-center p-6 text-center">
+            <div className="max-w-md w-full space-y-6 relative z-10">
+              <Logo size="lg" />
 
-              <div className="pt-2">
-                {/* /planos agora compra de verdade no iOS via In-App
-                    Purchase — não tem mais motivo pra mandar pro site. */}
-                <Link
-                  to="/planos"
-                  className="w-full bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white py-5 rounded-2xl font-black uppercase text-[12px] tracking-widest flex items-center justify-center gap-3 transition-all shadow-xl shadow-emerald-600/20"
+              <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-8 rounded-[40px] space-y-6 shadow-xl">
+                <div className="w-20 h-20 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-3xl flex items-center justify-center mx-auto shadow-inner">
+                  <Sparkles className="w-10 h-10" />
+                </div>
+
+                <div className="space-y-2">
+                  <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                    {firstName ? `${firstName}, sua conta está pronta!` : 'Sua conta está pronta!'}
+                  </h1>
+                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400 leading-relaxed">
+                    Falta só escolher o plano para liberar o sistema. Seus dados de cadastro já estão salvos.
+                  </p>
+                </div>
+
+                <ul className="text-left space-y-3">
+                  {beneficios.map(({ icon: Icon, texto }) => (
+                    <li key={texto} className="flex items-start gap-3 text-[13px] font-semibold text-slate-700 dark:text-zinc-300">
+                      <span className="mt-0.5 w-7 h-7 shrink-0 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                        <Icon className="w-4 h-4" />
+                      </span>
+                      {texto}
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="pt-1 space-y-2">
+                  {/* /planos compra de verdade no iOS/Android via In-App
+                      Purchase — não tem mais motivo pra mandar pro site. */}
+                  <Link
+                    to="/planos"
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white py-5 rounded-2xl font-black uppercase text-[12px] tracking-widest flex items-center justify-center gap-3 transition-all shadow-xl shadow-emerald-600/20"
+                  >
+                    Escolher meu plano
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                  {!isStoreApp() && (
+                    <p className="text-[11px] font-semibold text-slate-400 dark:text-zinc-500">7 dias para testar antes da primeira cobrança. Cancele quando quiser.</p>
+                  )}
+                </div>
+
+                <button
+                  className="w-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 py-3 rounded-xl font-bold text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-emerald-500/20 transition-all"
+                  onClick={() => window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Olá! Criei minha conta no Represente-Se! e tenho uma dúvida sobre os planos. Meu e-mail é: ${userEmail}`)}`, '_blank')}
                 >
-                  Ver Planos Disponíveis
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
+                  <MessageCircle className="w-3.5 h-3.5" />
+                  Tirar dúvidas no WhatsApp
+                </button>
+
+                {user?.email && (
+                  <p className="text-[11px] text-slate-400 dark:text-zinc-500 break-all">Conectado como {user.email}</p>
+                )}
+                {signOutButton}
               </div>
-              {user?.email && (
-                <p className="text-[11px] text-slate-400 dark:text-zinc-500 break-all">Conectado como {user.email}</p>
-              )}
-              {signOutButton}
             </div>
           </div>
         </div>
@@ -194,28 +235,40 @@ export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
     }
 
     // UI de Bloqueio para INADIMPLENTES (past_due)
-    const whatsappMessage = encodeURIComponent(`Olá! Estou com uma pendência no meu acesso ao Representese e gostaria de regularizar. Meu e-mail é: ${userEmail}`);
+    const whatsappMessage = encodeURIComponent(`Olá! ${isPastDue ? 'Estou com uma pendência no pagamento do meu acesso ao Represente-Se! e gostaria de regularizar.' : 'Minha assinatura do Represente-Se! terminou e gostaria de reativar.'} Meu e-mail é: ${userEmail}`);
     const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${whatsappMessage}`;
 
-    return (
-      <div className="fixed inset-0 z-[9999] bg-white dark:bg-zinc-950 flex flex-col items-center justify-center p-6 text-center">
-        <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20 dark:opacity-10">
-          <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-red-400 rounded-full blur-[120px]" />
-          <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-amber-400 rounded-full blur-[120px]" />
-        </div>
+    // Pagamento atrasado: tom de aviso (âmbar), dados seguros, foco em regularizar.
+    // Assinatura encerrada: tom neutro, foco em reativar.
+    const Icone = isPastDue ? Clock : RefreshCw;
+    const titulo = isPastDue ? 'Pagamento pendente' : 'Sua assinatura terminou';
+    const texto = isPastDue
+      ? `Não conseguimos confirmar o pagamento${planName ? ` do plano ${planName}` : ' da sua assinatura'}${fimPeriodo ? ` (vencimento em ${fimPeriodo})` : ''}. Assim que for regularizado, o acesso volta na hora.`
+      : `${planName ? `O plano ${planName} não está mais ativo` : 'Sua assinatura não está mais ativa'}${fimPeriodo ? ` desde ${fimPeriodo}` : ''}. Para voltar a usar o sistema, é só reativar.`;
+    const tom = isPastDue
+      ? { card: 'bg-amber-50 dark:bg-amber-500/10 border-amber-100 dark:border-amber-500/20 shadow-amber-500/10', icone: 'bg-amber-500 shadow-amber-500/30' }
+      : { card: 'bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 shadow-slate-500/10', icone: 'bg-slate-700 shadow-slate-500/30' };
 
-        <div className="max-w-md w-full space-y-8 relative z-10">
+    return (
+      <div data-testid={isPastDue ? 'guard-pendente' : 'guard-encerrada'} className="fixed inset-0 z-[9999] bg-white dark:bg-zinc-950 overflow-y-auto">
+        <div className="min-h-full flex flex-col items-center justify-center p-6 text-center">
+        <div className="max-w-md w-full space-y-6 relative z-10">
           <Logo size="lg" />
-          
-          <div className="bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 p-8 rounded-[40px] space-y-6 shadow-2xl shadow-red-500/10">
-            <div className="w-20 h-20 bg-red-500 text-white rounded-3xl flex items-center justify-center mx-auto shadow-lg shadow-red-500/30">
-              <ShieldAlert className="w-10 h-10" />
+
+          <div className={`${tom.card} border p-8 rounded-[40px] space-y-6 shadow-2xl`}>
+            <div className={`w-20 h-20 ${tom.icone} text-white rounded-3xl flex items-center justify-center mx-auto shadow-lg`}>
+              <Icone className="w-10 h-10" />
             </div>
-            
+
             <div className="space-y-2">
-              <h1 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Acesso Suspenso</h1>
-              <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] leading-relaxed">
-                Identificamos uma pendência no seu pagamento recorrente. Seus dados estão salvos e seguros, mas o acesso ao painel foi temporariamente bloqueado.
+              <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">{titulo}</h1>
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-400 leading-relaxed">{texto}</p>
+            </div>
+
+            <div className="flex items-start gap-2.5 text-left bg-white/70 dark:bg-white/5 rounded-2xl p-4">
+              <ShieldCheck className="w-4 h-4 mt-0.5 shrink-0 text-emerald-600" />
+              <p className="text-[12px] font-semibold text-slate-600 dark:text-zinc-300 leading-relaxed">
+                Seus clientes, pedidos e anotações estão guardados e seguros. Nada foi apagado.
               </p>
             </div>
 
@@ -228,7 +281,7 @@ export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
                   to="/planos"
                   className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-5 rounded-2xl font-black uppercase text-[11px] tracking-widest flex items-center justify-center gap-3 transition-all shadow-xl"
                 >
-                  Ver planos / Restaurar compras
+                  {isPastDue ? 'Regularizar / Restaurar compras' : 'Reativar / Restaurar compras'}
                   <ArrowRight className="w-4 h-4" />
                 </Link>
                 {(settings.subscription_provider === 'ios_iap' || settings.subscription_provider === 'play_iap') && (
@@ -243,6 +296,15 @@ export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
               </div>
             ) : (
               <div className="space-y-3">
+                {isEnded ? (
+                  <Link
+                    to="/planos"
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-5 rounded-2xl font-black uppercase text-[11px] tracking-widest flex items-center justify-center gap-3 transition-all shadow-xl"
+                  >
+                    Reativar assinatura
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                ) : (
                 <button
                   onClick={handleRegularize}
                   disabled={isGeneratingLink}
@@ -253,27 +315,31 @@ export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
                   ) : (
                     <>
                       <CreditCard className="w-4 h-4" />
-                      Regularizar Agora
+                      {isPastDue ? 'Regularizar agora' : 'Reativar assinatura'}
                       <ExternalLink className="w-3.5 h-3.5 opacity-50" />
                     </>
                   )}
                 </button>
+                )}
 
                 <button
                   className="w-full bg-emerald-500/10 text-emerald-600 py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-emerald-500/20 transition-all"
                   onClick={() => window.open(whatsappUrl, '_blank')}
                 >
                   <MessageCircle className="w-3.5 h-3.5" />
-                  Falar com Suporte (WhatsApp)
+                  Falar com o suporte no WhatsApp
                 </button>
               </div>
             )}
           </div>
 
-          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-            Assim que o pagamento da fatura for identificado, seu acesso será liberado automaticamente.
-          </p>
+          {isPastDue && (
+            <p className="text-[11px] font-semibold text-slate-400 leading-relaxed">
+              Assim que o pagamento da fatura for identificado, seu acesso será liberado automaticamente.
+            </p>
+          )}
           {signOutButton}
+        </div>
         </div>
       </div>
     );

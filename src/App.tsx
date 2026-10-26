@@ -67,6 +67,7 @@ const PrivacyPolicy = lazyWithRetry(() => import("./pages/PrivacyPolicy"));
 const TermsOfService = lazyWithRetry(() => import("./pages/TermsOfService"));
 const DataDeletion = lazyWithRetry(() => import("./pages/DataDeletion"));
 const CookiePolicy = lazyWithRetry(() => import("./pages/CookiePolicy"));
+const EmailCancelado = lazyWithRetry(() => import("./pages/EmailCancelado"));
 const AdminAnalytics = lazyWithRetry(() => import("./pages/AdminAnalytics"));
 const AdminCompanies = lazyWithRetry(() => import("./pages/AdminCompanies"));
 
@@ -182,6 +183,7 @@ export default function App() {
                   <Route path="/terms" element={<TermsOfService />} />
                   <Route path="/exclusao-de-dados" element={<DataDeletion />} />
                   <Route path="/cookies" element={<CookiePolicy />} />
+                  <Route path="/email-cancelado" element={<EmailCancelado />} />
 
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>

@@ -1,0 +1,5 @@
+-- Aplicada em produção via MCP apply_migration em 2026-10-26 (nome: email_nurture_leads).
+-- Sequência de e-mails (função nurture-leads) para contas que não assinaram:
+-- tabelas de log e descadastro, função de candidatos e novo padrão das colunas legadas
+-- de user_settings ('Sem plano' / 'inactive' em vez de 'Acesso Exclusivo' / 'active').
+-- O corpo completo está no histórico de migrations do projeto Supabase.
