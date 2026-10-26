@@ -26,11 +26,13 @@ import {
   FileSpreadsheet,
   BarChart3,
   PackageSearch,
-  Truck
+  Truck,
+  Lock
 } from 'lucide-react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
+import { planBloqueiaRota } from '../lib/planAccess';
 import { useSync } from '../contexts/SyncContext';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -387,6 +389,7 @@ export default function Layout() {
                             isActive ? "text-emerald-700 dark:text-emerald-400" : "text-slate-400 group-hover:text-emerald-600"
                           )} />
                           <span className="text-[13px] uppercase tracking-tight">{item.label}</span>
+                          {planBloqueiaRota(settings.plan_id, item.path) && <Lock className="w-3.5 h-3.5 ml-auto text-slate-300 dark:text-zinc-600" aria-label="Disponível a partir do plano Profissional" />}
                         </Link>
                       );
                     })}

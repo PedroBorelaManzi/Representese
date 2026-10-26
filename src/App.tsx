@@ -42,6 +42,7 @@ const Recovery = lazyWithRetry(() => import('./pages/Recovery'));
 const OrderIntake = lazyWithRetry(() => import('./pages/OrderIntake'));
 const Checkout = lazyWithRetry(() => import('./pages/Checkout'));
 const OrderBumpPage = lazyWithRetry(() => import("./pages/OrderBump"));
+import { PlanGate } from "./components/PlanGate";
 const Dashboard = lazyWithRetry(() => import("./pages/Dashboard"));
 const MapPage = lazyWithRetry(() => import("./pages/Map"));
 const LinksPage = lazyWithRetry(() => import("./pages/Links"));
@@ -158,15 +159,15 @@ export default function App() {
                       <Route path="clientes/:id/editar" element={<ClientEditPage />} />
                       <Route path="empresas" element={<EmpresasPage />} />
                       <Route path="entregas" element={<EntregasPage />} />
-                      <Route path="produtos" element={<ProdutosPage />} />
+                      <Route path="produtos" element={<PlanGate><ProdutosPage /></PlanGate>} />
                       <Route path="agenda" element={<AgendaPage />} />
-                      <Route path="email" element={<EmailClient />} />
+                      <Route path="email" element={<PlanGate><EmailClient /></PlanGate>} />
                       <Route path="pedidos" element={<PedidosPage />} />
-                      <Route path="comissoes" element={<ComissoesPage />} />
-                      <Route path="ranking" element={<RankingPage />} />
+                      <Route path="comissoes" element={<PlanGate><ComissoesPage /></PlanGate>} />
+                      <Route path="ranking" element={<PlanGate><RankingPage /></PlanGate>} />
                       <Route path="assistente" element={<AssistenteIA />} />
                       <Route path="arquivos" element={<ArquivosPage />} />
-                      <Route path="relatorios" element={<ReportsPage />} />
+                      <Route path="relatorios" element={<PlanGate><ReportsPage /></PlanGate>} />
                       <Route path="suporte-admin" element={<AdminSupportPage />} />
                       <Route path="admin/analytics" element={<AdminAnalytics />} />
                       <Route path="admin/empresas" element={<AdminCompanies />} />
