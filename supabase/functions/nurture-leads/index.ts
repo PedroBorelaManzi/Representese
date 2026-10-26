@@ -309,6 +309,11 @@ serve(async (req) => {
     return new Response(JSON.stringify({ success: false }), { status: 500 })
   }
 
+  // Teto de frequência: ninguém recebe dois e-mails em menos de 20h (a campanha da Black Friday
+  // tem prioridade e já gravou o log acima; os lembretes comuns é que ficam para depois).
+  const { data: recentes } = await admin.from('email_nurture_log').select('email').neq('step', ADMIN_STEP.id).gte('sent_at', new Date(Date.now() - 20 * HOUR).toISOString())
+  const recentSet = new Set((recentes || []).map((r: { email: string }) => r.email))
+
   const { data: logs } = await admin.from('email_nurture_log').select('email, step')
   const done = new Set((logs || []).map((l: { email: string; step: string }) => `${l.email}|${l.step}`))
   const now = Date.now()
@@ -324,7 +329,7 @@ serve(async (req) => {
 
     // Um e-mail por conta por rodada: o passo mais novo cuja janela está aberta.
     const step = [...STEPS].reverse().find((s) => age >= s.from && age < s.to)
-    if (!step || done.has(`${c.email}|${step.id}`)) continue
+    if (!step || done.has(`${c.email}|${step.id}`) || recentSet.has(c.email)) continue
     // Respeita um intervalo mínimo de 24h desde o último e-mail enviado a esta conta.
     if (step.id !== 'h1') {
       const { data: prev } = await admin.from('email_nurture_log').select('sent_at').eq('email', c.email).neq('step', ADMIN_STEP.id).order('sent_at', { ascending: false }).limit(1)
@@ -348,7 +353,7 @@ serve(async (req) => {
   const { data: leadsList } = await admin.rpc('lead_candidates')
   for (const l of (leadsList || []) as { email: string; name: string; created_at: string }[]) {
     const age = now - new Date(l.created_at).getTime()
-    if (age < HOUR || age > 120 * DAY || done.has(`${l.email}|lead1`) || done.has(`${l.email}|bf1`)) continue
+    if (age < HOUR || age > 120 * DAY || done.has(`${l.email}|lead1`) || done.has(`${l.email}|bf1`) || recentSet.has(l.email)) continue
     const unsubUrl = `${SUPABASE_URL}/functions/v1/nurture-leads?unsub=${encodeURIComponent(l.email)}&t=${await sign(secret, l.email)}`
     const { subject, html } = template('lead1', l.name.trim().split(/\s+/)[0] || '', unsubUrl)
     const { error: logErr } = await admin.from('email_nurture_log').insert({ email: l.email, step: 'lead1' })
