@@ -20,10 +20,10 @@ import type { Client, Order, Appointment } from "../types";
 
 const CLIENT_VAULT_BUCKET = "client_vault";
 
-/** Dados baixados ficam salvos por 1 ano no aparelho (na prática, até a próxima
+/** Dados baixados ficam salvos por 5 anos no aparelho (na prática, até a próxima
  *  sincronização trocá-los): o app funciona como "música baixada" — quem passa
  *  semanas sem internet continua vendo tudo da última vez que sincronizou. */
-const SYNC_TTL_MS = 365 * 24 * 60 * 60 * 1000;
+const SYNC_TTL_MS = 5 * 365 * 24 * 60 * 60 * 1000;
 /** O Supabase devolve no máximo 1000 linhas por consulta — acima disso é preciso paginar. */
 const PAGE_SIZE = 1000;
 const TABLE_TIMEOUT_MS = 60_000;
