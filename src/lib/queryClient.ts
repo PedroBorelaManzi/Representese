@@ -6,7 +6,7 @@ export const queryClient = new QueryClient({
     queries: {
       refetchOnWindowFocus: false,
       staleTime: Infinity, // Disabled auto fetching (Manual Sync only)
-      gcTime: 1000 * 60 * 60 * 24 * 7,
+      gcTime: 1000 * 60 * 60 * 24 * 365, // precisa ser >= maxAge do persister (main.tsx), senão a consulta some do cache salvo
     },
   },
 });

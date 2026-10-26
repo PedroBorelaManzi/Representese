@@ -1,3 +1,4 @@
+import { loadOffline, saveOffline, OfflineKeys } from "../lib/offlineStore";
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Mail, Search, ChevronLeft, ChevronRight, Inbox, Send, Edit, Trash2, Plus, Sparkles, AlertCircle, ArrowLeft, Star, Reply, Forward, X, Minimize2, Maximize2, Loader2, RefreshCw, Clock, Info, ShieldAlert, Layers, Bookmark, Users, Zap, Paperclip, Download, FileText, ChevronDown } from "lucide-react";
 import { cn } from "../lib/utils";
@@ -215,8 +216,24 @@ export default function EmailClient() {
     
     setIsLoading(true);
     setErrorStatus(null);
+    const activeCategory = currentFolder === 'inbox' ? currentCategory : "";
+    // Cópia permanente no aparelho da 1ª página de cada pasta/categoria: sem
+    // internet (ou se a busca falhar) a pessoa lê os e-mails da última vez.
+    const cacheKey = OfflineKeys.emails(user.id, selectedAccount.email, currentFolder, activeCategory);
+    const usarCopiaSalva = async (): Promise<boolean> => {
+      if (pageToken || searchQuery) return false;
+      const salvo = await loadOffline<EmailMessage[]>(cacheKey);
+      if (!salvo) return false;
+      setEmails(salvo.data);
+      setNextPageToken(null);
+      return true;
+    };
     try {
-      const activeCategory = currentFolder === 'inbox' ? currentCategory : "";
+      if (!navigator.onLine) {
+        if (await usarCopiaSalva()) { setIsLoading(false); return; }
+        setErrorStatus("Sem internet e nenhum e-mail salvo neste aparelho ainda. Abra esta pasta uma vez com internet.");
+        return;
+      }
       const result = await fetchEmailsFromApi(user.id, selectedAccount.provider, currentFolder, pageToken, activeCategory, selectedAccount.email, searchQuery);
       
       if (result.success) {
@@ -230,6 +247,7 @@ export default function EmailClient() {
           });
         } else {
           setEmails(newEmails);
+          if (!searchQuery) void saveOffline(cacheKey, newEmails);
         }
         
         setContacts(prev => {
@@ -256,11 +274,11 @@ export default function EmailClient() {
         });
 
         setNextPageToken(result.nextPageToken || null);
-      } else {
+      } else if (!(await usarCopiaSalva())) {
         setErrorStatus(result.error || "Erro ao carregar mensagens.");
       }
     } catch (err: any) {
-      setErrorStatus(err.message || "Falha na conexão.");
+      if (!(await usarCopiaSalva())) setErrorStatus(err.message || "Falha na conexão.");
     } finally {
       setIsLoading(false);
     }

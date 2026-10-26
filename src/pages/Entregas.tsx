@@ -1,3 +1,4 @@
+import { loadOffline, saveOffline, OfflineKeys } from "../lib/offlineStore";
 import React, { useEffect, useMemo, useState } from "react";
 import { Search, Truck, Loader2, Settings2, Check, Clock, PackageCheck, PackageX, CalendarClock } from "lucide-react";
 import { cn } from "../lib/utils";
@@ -76,12 +77,26 @@ export default function EntregasPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const { data } = await supabase
+      // Sem internet (ou se a consulta falhar) abre a cópia salva da última sincronização.
+      const doAparelho = async () => {
+        const salvo = await loadOffline<Order[]>(OfflineKeys.entregas(user!.id));
+        if (salvo) setOrders(salvo.data);
+      };
+      if (!navigator.onLine) {
+        await doAparelho();
+        return;
+      }
+      const { data, error } = await supabase
         .from("orders")
         .select("*, client:clients(id, name, cnpj, city, state)")
         .eq("user_id", user?.id)
         .order("created_at", { ascending: false });
-      setOrders((data as Order[]) || []);
+      if (error || !data) {
+        await doAparelho();
+        return;
+      }
+      setOrders(data as Order[]);
+      void saveOffline(OfflineKeys.entregas(user!.id), data);
     } finally {
       setLoading(false);
     }

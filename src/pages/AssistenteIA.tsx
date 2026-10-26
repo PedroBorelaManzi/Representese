@@ -1,3 +1,4 @@
+import { loadOffline, saveOffline, OfflineKeys } from "../lib/offlineStore";
 import { isIOSApp } from "../lib/iapPolicy";
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -139,14 +140,23 @@ export default function AssistenteIA() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data, error } = await supabase
-        .from("ai_chats")
-        .select("id, role, content, created_at")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: true });
-      if (!error && data) {
-        setMessages(data.map(msg => ({ role: msg.role as "user" | "assistant", content: msg.content })));
+      const mostrar = (rows: any[]) =>
+        setMessages(rows.map(msg => ({ role: msg.role as "user" | "assistant", content: msg.content })));
+      if (navigator.onLine) {
+        const { data, error } = await supabase
+          .from("ai_chats")
+          .select("id, role, content, created_at")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: true });
+        if (!error && data) {
+          mostrar(data);
+          void saveOffline(OfflineKeys.aiChats(user.id), data);
+          return;
+        }
       }
+      // Sem internet: mostra a conversa salva no aparelho (somente leitura).
+      const salvo = await loadOffline<any[]>(OfflineKeys.aiChats(user.id));
+      if (salvo) mostrar(salvo.data);
     })();
   }, [user]);
 

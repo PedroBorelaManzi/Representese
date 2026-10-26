@@ -52,7 +52,7 @@ if (typeof window !== 'undefined') {
 // vazia, e os dados só "apareciam" ~15s depois.
 const persistOptions = {
   persister: indexedDBPersister,
-  maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+  maxAge: 1000 * 60 * 60 * 24 * 365, // 1 ano: dados ficam no aparelho como "música baixada"
   dehydrateOptions: {
     shouldDehydrateQuery: (query: { state: { status: string } }) => {
       // Cache everything successfully fetched to enable full offline support in IndexedDB

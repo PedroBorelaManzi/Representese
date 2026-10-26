@@ -14,13 +14,16 @@ import { fetchHolidays } from "./holidayService";
 import { getCachedUriSePresente, getCachedFileUri } from "./fileCache";
 import { listAllPaths, BUCKET as USER_FILES_BUCKET } from "./storageList";
 import { queryClient } from "./queryClient";
+import { saveOffline, OfflineKeys } from "./offlineStore";
+import { fetchReportAnalytics } from "./reportAnalytics";
 import type { Client, Order, Appointment } from "../types";
 
 const CLIENT_VAULT_BUCKET = "client_vault";
 
-/** Dados baixados valem 30 dias offline (o padrão do cache é 24h — sem isso,
- *  quem passasse um dia sem abrir o app online perdia tudo offline). */
-const SYNC_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+/** Dados baixados ficam salvos por 1 ano no aparelho (na prática, até a próxima
+ *  sincronização trocá-los): o app funciona como "música baixada" — quem passa
+ *  semanas sem internet continua vendo tudo da última vez que sincronizou. */
+const SYNC_TTL_MS = 365 * 24 * 60 * 60 * 1000;
 /** O Supabase devolve no máximo 1000 linhas por consulta — acima disso é preciso paginar. */
 const PAGE_SIZE = 1000;
 const TABLE_TIMEOUT_MS = 60_000;
@@ -177,6 +180,52 @@ async function syncExtras(userId: string): Promise<void> {
   );
 }
 
+/**
+ * Conversa inteira com o Assistente, lista de entregas (pedidos + cliente) e
+ * vínculo das empresas: cópia permanente pra essas telas abrirem sem internet.
+ */
+async function syncOfflineExtras(userId: string, orders: Order[], clients: Client[]): Promise<void> {
+  const [chats, reps] = await Promise.all([
+    fetchAllRows<any>((f, t) =>
+      supabase.from("ai_chats").select("id, role, content, created_at").eq("user_id", userId).order("created_at", { ascending: true }).range(f, t)
+    ),
+    fetchAllRows<any>((f, t) => supabase.from("company_reps").select("category_name").eq("user_id", userId).range(f, t)),
+  ]);
+  await saveOffline(OfflineKeys.aiChats(userId), chats);
+  await saveOffline(OfflineKeys.companyReps(userId), reps);
+
+  // Mesmo formato da consulta da tela de Entregas (pedido + cliente resumido).
+  const porCliente = new Map(clients.map((c) => [c.id, c]));
+  const entregas = [...orders]
+    .sort((a: any, b: any) => String(b.created_at || "").localeCompare(String(a.created_at || "")))
+    .map((o: any) => {
+      const c: any = porCliente.get(o.client_id);
+      return { ...o, client: c ? { id: c.id, name: c.name, cnpj: c.cnpj, city: c.city, state: c.state } : null };
+    });
+  await saveOffline(OfflineKeys.entregas(userId), entregas);
+}
+
+/** Relatórios dos últimos meses já calculados e guardados (mesma chave da tela de Relatórios). */
+async function syncReports(userId: string): Promise<void> {
+  const settings = offlineCache.get<any>(CacheKeys.USER_SETTINGS) || {};
+  const now = new Date();
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const year = d.getFullYear();
+    const month = d.getMonth() + 1;
+    await queryClient.prefetchQuery({
+      queryKey: ["reportAnalytics", "v3", userId, year, month],
+      queryFn: () =>
+        fetchReportAnalytics(userId, year, month, settings.commissions || {}, {
+          alertaDays: settings.alerta_days || 30,
+          criticoDays: settings.critico_days || 45,
+          inativoDays: settings.inativo_days || 90,
+        }),
+      staleTime: 0,
+    });
+  }
+}
+
 async function syncHolidays(clients: Client[]): Promise<void> {
   const year = new Date().getFullYear();
   const locations = clients
@@ -313,6 +362,9 @@ export async function runFullSync(userId: string, onProgress?: (p: FullSyncProgr
         concluiu("Pedidos...");
       })(),
     ]);
+    await syncOfflineExtras(userId, orders, clients).catch(guard("assistente e entregas", undefined));
+    if (comArquivos) await import("./mapTileCache").then((m) => m.prefetchTilesForClients(clients)).catch((e) => console.warn("fullSync: mapa", e));
+    await syncReports(userId).catch((e) => console.warn("fullSync: relatórios", e));
     if (comArquivos) await syncOrderPdfs(orders, clients).catch((e) => console.warn("fullSync: PDFs dos pedidos", e));
 
     if (comArquivos) {

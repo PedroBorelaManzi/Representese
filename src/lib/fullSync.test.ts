@@ -24,6 +24,12 @@ vi.mock('./supabase', () => ({
   },
 }));
 
+vi.mock('./offlineStore', () => ({
+  saveOffline: vi.fn(() => Promise.resolve()),
+  OfflineKeys: { aiChats: (u: string) => `ai_${u}`, entregas: (u: string) => `ent_${u}`, companyReps: (u: string) => `rep_${u}` },
+}));
+vi.mock('./reportAnalytics', () => ({ fetchReportAnalytics: vi.fn(() => Promise.resolve({})) }));
+
 const fetchHolidaysMock = vi.fn();
 vi.mock('./holidayService', () => ({
   fetchHolidays: (...args: any[]) => fetchHolidaysMock(...args),
@@ -65,6 +71,8 @@ function setupHappyPath() {
     if (table === 'orders') return chainSelectEq({ data: [{ id: 'o1', client_id: 'c1', file_path: 'u1/c1/nota.pdf' }], error: null });
     if (table === 'order_items') return chainSelectEq({ data: [{ id: 'i1', order_id: 'o1' }], error: null });
     if (table === 'order_installments') return chainSelectEq({ data: [{ id: 'p1', order_id: 'o1' }], error: null });
+    if (table === 'ai_chats') return chainSelectEq({ data: [], error: null });
+    if (table === 'company_reps') return { select: vi.fn(() => ({ eq: vi.fn(() => ({ range: vi.fn(() => Promise.resolve({ data: [], error: null })) })) })) };
     throw new Error(`tabela inesperada: ${table}`);
   });
   fetchHolidaysMock.mockResolvedValue([{ name: 'Natal', date: '2026-12-25', type: 'nacional' }]);

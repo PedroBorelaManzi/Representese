@@ -1,3 +1,4 @@
+import { loadOffline, saveOffline, OfflineKeys } from "../lib/offlineStore";
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { HideableCommissionField } from "../components/HideableCommissionField";
@@ -106,10 +107,17 @@ export default function EmpresasPage() {
   useEffect(() => {
     if (!user?.id) return;
     let cancelled = false;
-    supabase.from("company_reps").select("category_name").eq("user_id", user.id).then(({ data, error }) => {
-      if (cancelled || error || !data) return;
-      setEmailActiveCats(new Set(data.map((r: { category_name: string }) => (r.category_name || "").trim().toUpperCase())));
-    });
+    const aplicar = (rows: { category_name: string }[]) =>
+      setEmailActiveCats(new Set(rows.map((r) => (r.category_name || "").trim().toUpperCase())));
+    if (!navigator.onLine) {
+      loadOffline<{ category_name: string }[]>(OfflineKeys.companyReps(user.id)).then((s) => { if (!cancelled && s) aplicar(s.data); });
+    } else {
+      supabase.from("company_reps").select("category_name").eq("user_id", user.id).then(({ data, error }) => {
+        if (cancelled || error || !data) return;
+        aplicar(data);
+        void saveOffline(OfflineKeys.companyReps(user.id), data);
+      });
+    }
     return () => { cancelled = true; };
   }, [user?.id, settings.categories]);
   const [managingCompany, setManagingCompany] = useState<string | null>(null);
