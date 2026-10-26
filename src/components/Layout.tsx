@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { STARTUP_DEFER_MS } from "../lib/startupDefer";
 import { 
   LayoutDashboard, 
   Users, 
@@ -197,9 +198,12 @@ export default function Layout() {
       }
     };
 
-    runChecks();
+    // Primeira checagem só depois que o Início já abriu e ficou utilizável:
+    // ela baixa clientes, pedidos e compromissos de novo, e rodar junto com o
+    // boot deixava o app do celular travado.
+    const first = setTimeout(runChecks, STARTUP_DEFER_MS);
     const interval = setInterval(runChecks, 2 * 60 * 1000);
-    return () => clearInterval(interval);
+    return () => { clearTimeout(first); clearInterval(interval); };
   }, [user]);
 
   // Menu agrupado pelo fluxo de trabalho do representante:

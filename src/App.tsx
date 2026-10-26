@@ -1,3 +1,4 @@
+import { STARTUP_DEFER_MS } from "./lib/startupDefer";
 import React, { Suspense, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Capacitor } from "@capacitor/core";
@@ -106,7 +107,12 @@ export default function App() {
     applyTrackingOptOutFromUrl();
     // Import dinâmico: NotificationService puxa @capacitor/local-notifications,
     // que não faz nada no site e só pesa o bundle de entrada.
-    void import('./services/NotificationService').then((m) => m.NotificationService.initialize());
+    // Adiado: agendar lembretes consulta o banco e varre pedidos/clientes, e no
+    // celular isso competia com a abertura do Início e deixava o app travado.
+    const t = setTimeout(() => {
+      void import('./services/NotificationService').then((m) => m.NotificationService.initialize());
+    }, STARTUP_DEFER_MS);
+    return () => clearTimeout(t);
   }, []);
   return (
     <AuthProvider>

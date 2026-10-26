@@ -1,3 +1,4 @@
+import { STARTUP_DEFER_MS } from "../lib/startupDefer";
 import React, { useState, useEffect, useMemo } from "react";
 import { Plus, ChevronLeft, ChevronRight, Clock, Home, Loader2, Globe, RefreshCw, Calendar, LayoutDashboard } from "lucide-react";
 import { supabase, logAudit } from "../lib/supabase";
@@ -141,7 +142,8 @@ export default function Dashboard() {
       offlineCache.set(CacheKeys.ALL_TIME_CATEGORIES, resolvedCats, TTL_OFFLINE);
       if (userSettings) offlineCache.set(CacheKeys.USER_SETTINGS, userSettings, TTL_OFFLINE);
 
-      scheduleLocalNotifications(appList);
+      // Adiado pra não disputar a thread com a abertura do Início (celular).
+      setTimeout(() => { void scheduleLocalNotifications(appList); }, STARTUP_DEFER_MS);
 
       return {
         googleConnected: isGoogleConnected,
