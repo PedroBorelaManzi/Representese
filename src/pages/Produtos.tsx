@@ -5,8 +5,10 @@ import {
 } from "recharts";
 import {
   PackageSearch, ChevronLeft, ChevronRight, Boxes, Building2, Layers,
-  Search, X, ArrowUpDown, DollarSign, ShoppingBag, TrendingUp, Percent, Tags,
+  Search, X, ArrowUpDown, DollarSign, ShoppingBag, TrendingUp, Percent, Tags, Lock,
 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { planBloqueiaRota } from "../lib/planAccess";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { supabase } from "../lib/supabase";
@@ -65,6 +67,8 @@ function labelDoPeriodo(tipo: PeriodoTipo, refDate: Date): string {
 export default function ProdutosPage() {
   const { user } = useAuth();
   const { settings, updateSettings } = useSettings();
+  // Exclusivo vê o catálogo, mas a análise de vendas por produto fica borrada.
+  const analiseBloqueada = planBloqueiaRota(settings.plan_id, "/dashboard/produtos/analise");
 
   const [periodo, setPeriodo] = useState<PeriodoTipo>("mes");
   const [refDate, setRefDate] = useState(() => new Date());
@@ -362,7 +366,18 @@ export default function ProdutosPage() {
           description="Assim que um pedido com produtos identificáveis for lançado (pelo painel ou pelo link de enviar pedido), eles aparecem aqui — quantas peças de cada, separado por representada."
         />
       ) : (
-        <>
+        <div className="relative">
+          {analiseBloqueada && (
+            <div className="absolute inset-x-0 top-24 z-10 flex justify-center px-4" data-testid="produtos-analise-bloqueada">
+              <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-xl p-6 max-w-sm text-center space-y-3">
+                <div className="w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center mx-auto"><Lock className="w-5 h-5 text-emerald-600" /></div>
+                <p className="text-sm font-black text-slate-900 dark:text-white">Análise de vendas por produto</p>
+                <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">Disponível a partir do plano Profissional. O catálogo de produtos continua liberado.</p>
+                <Link to="/planos" className="inline-block px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-wide">Ver planos</Link>
+              </div>
+            </div>
+          )}
+          <div className={analiseBloqueada ? "blur-md select-none pointer-events-none opacity-70" : ""} aria-hidden={analiseBloqueada} inert={analiseBloqueada || undefined}>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <KpiCard icon={Boxes} label="Unidades vendidas" value={numero(kpis.totalUnidades)} accent="emerald" />
             <KpiCard icon={DollarSign} label="Receita em produtos" value={brl(kpis.totalReceita)} accent="sky" />
@@ -532,7 +547,8 @@ export default function ProdutosPage() {
               </div>
             </div>
           )}
-        </>
+          </div>
+        </div>
       )}
         </>
       )}

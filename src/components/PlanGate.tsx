@@ -18,7 +18,7 @@ export function PlanGate({ children }: { children: React.ReactElement }) {
       </div>
       <h1 className="text-xl font-black text-slate-900 dark:text-white">Disponível a partir do plano Profissional</h1>
       <p className="text-sm text-slate-500 dark:text-zinc-400 leading-relaxed">
-        Relatórios, comissões, análise de produtos, ranking e e-mails fazem parte do plano Profissional.
+        Relatórios e ranking fazem parte do plano Profissional.
         Seus clientes, pedidos, agenda e mapa continuam funcionando normalmente.
       </p>
       <Link to="/planos" className="inline-block px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-black uppercase tracking-wide">

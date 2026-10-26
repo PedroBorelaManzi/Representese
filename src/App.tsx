@@ -159,11 +159,11 @@ export default function App() {
                       <Route path="clientes/:id/editar" element={<ClientEditPage />} />
                       <Route path="empresas" element={<EmpresasPage />} />
                       <Route path="entregas" element={<EntregasPage />} />
-                      <Route path="produtos" element={<PlanGate><ProdutosPage /></PlanGate>} />
+                      <Route path="produtos" element={<ProdutosPage />} />
                       <Route path="agenda" element={<AgendaPage />} />
-                      <Route path="email" element={<PlanGate><EmailClient /></PlanGate>} />
+                      <Route path="email" element={<EmailClient />} />
                       <Route path="pedidos" element={<PedidosPage />} />
-                      <Route path="comissoes" element={<PlanGate><ComissoesPage /></PlanGate>} />
+                      <Route path="comissoes" element={<ComissoesPage />} />
                       <Route path="ranking" element={<PlanGate><RankingPage /></PlanGate>} />
                       <Route path="assistente" element={<AssistenteIA />} />
                       <Route path="arquivos" element={<ArquivosPage />} />
