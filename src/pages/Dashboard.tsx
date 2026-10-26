@@ -39,6 +39,9 @@ const formatDateLocal = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
+// Vale enquanto o app/aba estiver aberto: o Início atualiza uma vez por abertura.
+let inicioAtualizadoNestaAbertura = false;
+
 export default function Dashboard() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -156,7 +159,12 @@ export default function Dashboard() {
     },
     enabled: !!user && offlineCache.isOnline(),
     staleTime: 60 * 60 * 1000, // 1h: o salvo no aparelho vale até sincronizar
+    // Mostra o salvo na hora e, uma vez a cada abertura do app, atualiza por trás.
+    refetchOnMount: () => (inicioAtualizadoNestaAbertura ? true : 'always'),
   });
+  useEffect(() => {
+    if (dashboardData) inicioAtualizadoNestaAbertura = true;
+  }, [dashboardData]);
 
   // Só para o passo "Importe suas planilhas" do checklist de primeiros
   // passos — lista raso (limit 1) no bucket de arquivos do usuário, ignorando
