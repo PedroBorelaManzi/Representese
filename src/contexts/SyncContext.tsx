@@ -28,7 +28,7 @@ interface SyncContextType {
 
 // Sobe este número quando uma versão precisa de uma sincronização completa nova
 // (ex.: 3 = gera os PDFs dos pedidos no aparelho): o aviso reaparece uma vez.
-const SYNC_SCHEMA = '3';
+const SYNC_SCHEMA = '4';
 const SYNC_SCHEMA_KEY = 'rm_sync_schema';
 
 const SyncContext = createContext<SyncContextType | undefined>(undefined);

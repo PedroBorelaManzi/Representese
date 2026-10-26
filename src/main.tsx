@@ -1,3 +1,4 @@
+import { queryClient } from './lib/queryClient';
 import './polyfills';
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
@@ -43,15 +44,6 @@ if (typeof window !== 'undefined') {
   }
 }
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      refetchOnWindowFocus: false,
-      staleTime: Infinity, // Disabled auto fetching (Manual Sync only)
-      gcTime: 1000 * 60 * 60 * 24 * 7,
-    },
-  },
-});
 
 // PersistQueryClientProvider (em vez de persistQueryClient solto): as telas só
 // montam as consultas DEPOIS de o cache salvo no aparelho ser restaurado. Antes,

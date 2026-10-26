@@ -58,6 +58,10 @@ function setupHappyPath() {
     if (table === 'user_settings') return chainSelectEqMaybeSingle({ data: { theme: 'dark' }, error: null });
     if (table === 'clients') return chainSelectEq({ data: [{ id: 'c1', name: 'ACME', city: 'São Paulo', state: 'SP' }], error: null });
     if (table === 'appointments') return chainSelectEq({ data: [{ id: 'a1', title: 'Visita' }], error: null });
+    if (table === 'product_catalog') return chainSelectEq({ data: [{ id: 'p1', name: 'Produto', category: 'ACME' }], error: null });
+    if (table === 'client_product_settings') return chainSelectEq({ data: [], error: null });
+    if (table === 'daily_notes') return chainSelectEq({ data: [{ date: '2026-10-26', content: 'nota' }], error: null });
+    if (table === 'alert_dismissals') return chainSelectEq({ data: [], error: null });
     if (table === 'orders') return chainSelectEq({ data: [{ id: 'o1', client_id: 'c1', file_path: 'u1/c1/nota.pdf' }], error: null });
     if (table === 'order_items') return chainSelectEq({ data: [{ id: 'i1', order_id: 'o1' }], error: null });
     if (table === 'order_installments') return chainSelectEq({ data: [{ id: 'p1', order_id: 'o1' }], error: null });

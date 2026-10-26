@@ -13,6 +13,7 @@ import { offlineCache, CacheKeys } from "./offlineCache";
 import { fetchHolidays } from "./holidayService";
 import { getCachedUriSePresente, getCachedFileUri } from "./fileCache";
 import { listAllPaths, BUCKET as USER_FILES_BUCKET } from "./storageList";
+import { queryClient } from "./queryClient";
 import type { Client, Order, Appointment } from "../types";
 
 const CLIENT_VAULT_BUCKET = "client_vault";
@@ -137,6 +138,43 @@ async function syncOrderPdfs(orders: Order[], clients: Client[]): Promise<void> 
     // respira entre um PDF e outro pra tela continuar respondendo
     await new Promise((r) => setTimeout(r, 0));
   }
+}
+
+
+/**
+ * Catálogo de produtos, exceções por cliente, anotações do dia e avisos
+ * dispensados: entram no cache das telas (mesmas chaves das consultas delas)
+ * pra abrirem e funcionarem sem internet — inclusive criar pedido com o
+ * catálogo — mesmo que a pessoa nunca tenha aberto essas telas antes.
+ */
+async function syncExtras(userId: string): Promise<void> {
+  const [catalog, overrides, notes, dismissals] = await Promise.all([
+    fetchAllRows<any>((f, t) => supabase.from("product_catalog").select("*").eq("user_id", userId).order("name").range(f, t)),
+    fetchAllRows<any>((f, t) => supabase.from("client_product_settings").select("product_key, category").eq("user_id", userId).order("id").range(f, t)),
+    fetchAllRows<any>((f, t) => supabase.from("daily_notes").select("date, content").eq("user_id", userId).order("date").range(f, t)),
+    fetchAllRows<any>((f, t) => supabase.from("alert_dismissals").select("client_name_key, company, last_order_at").eq("user_id", userId).order("client_name_key").range(f, t)),
+  ]);
+
+  queryClient.setQueryData(["product_catalog", userId], catalog);
+
+  const porCategoria = new Map<string, string[]>();
+  for (const o of overrides) {
+    const l = porCategoria.get(o.category);
+    if (l) l.push(o.product_key);
+    else porCategoria.set(o.category, [o.product_key]);
+  }
+  const categorias = new Set<string>(catalog.map((c: any) => c.category).filter(Boolean));
+  porCategoria.forEach((_, c) => categorias.add(c));
+  categorias.forEach((c) => queryClient.setQueryData(["client_product_settings_counts", userId, c], porCategoria.get(c) || []));
+
+  for (const n of notes) {
+    offlineCache.set(`rm_cache_daily_notes_${userId}_${n.date}`, n.content || "", SYNC_TTL_MS);
+  }
+
+  queryClient.setQueryData(
+    ["clients", userId, "alert_dismissals"],
+    dismissals.map((d: any) => ({ clientNameKey: d.client_name_key, company: d.company, lastOrderAt: d.last_order_at }))
+  );
 }
 
 async function syncHolidays(clients: Client[]): Promise<void> {
@@ -265,6 +303,7 @@ export async function runFullSync(userId: string, onProgress?: (p: FullSyncProgr
         concluiu("Feriados...");
       })(),
       syncAppointments(userId).catch(guard("agenda", undefined)).then(() => concluiu("Agenda...")),
+      syncExtras(userId).catch(guard("catálogo e anotações", undefined)).then(() => concluiu("Catálogo e anotações...")),
       (async () => {
         const [pedidos] = await Promise.all([
           syncOrders(userId).catch(guard("pedidos", [] as Order[])),
