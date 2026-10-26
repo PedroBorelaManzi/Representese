@@ -86,12 +86,23 @@ export default function EntregasPage() {
         await doAparelho();
         return;
       }
-      const { data, error } = await supabase
-        .from("orders")
-        .select("*, client:clients(id, name, cnpj, city, state)")
-        .eq("user_id", user?.id)
-        .order("created_at", { ascending: false });
-      if (error || !data) {
+      // O Supabase devolve no máximo 1000 linhas por consulta: pagina até acabar.
+      const PAGINA = 1000;
+      const data: any[] = [];
+      let falhou = false;
+      for (let from = 0; ; from += PAGINA) {
+        const { data: lote, error } = await supabase
+          .from("orders")
+          .select("*, client:clients(id, name, cnpj, city, state)")
+          .eq("user_id", user?.id)
+          .order("created_at", { ascending: false })
+          .order("id")
+          .range(from, from + PAGINA - 1);
+        if (error || !lote) { falhou = true; break; }
+        data.push(...lote);
+        if (lote.length < PAGINA) break;
+      }
+      if (falhou) {
         await doAparelho();
         return;
       }

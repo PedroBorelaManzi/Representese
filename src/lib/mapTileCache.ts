@@ -16,7 +16,7 @@ const DB_VERSION = 1;
 // Teto de tiles guardados — cada um tem uns 10-30KB, então isso fica na casa
 // de poucas dezenas de MB no pior caso. Sem teto, meses de uso do mapa
 // acumulariam um cache sem limite no aparelho do usuário.
-const MAX_TILES = 6000;
+const MAX_TILES = 3000;
 // Checar o total a cada gravação exigiria contar todas as chaves toda vez
 // (caro — um único pan/zoom já desenha dezenas de tiles de uma vez). Em vez
 // disso, cada gravação tem uma chance pequena de disparar a poda.
@@ -111,49 +111,4 @@ async function prune(): Promise<void> {
   } catch {
     // Poda é só limpeza — falhar aqui não pode afetar o mapa.
   }
-}
-
-const TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
-const PREFETCH_ZOOMS = [11, 13];
-/** Teto por sincronização: a política de uso do OpenStreetMap desencoraja download em massa. */
-const PREFETCH_MAX = 400;
-const PREFETCH_CONCURRENCY = 2;
-
-function tileXY(lat: number, lng: number, z: number): { x: number; y: number } {
-  const n = 2 ** z;
-  const x = Math.floor(((lng + 180) / 360) * n);
-  const rad = (lat * Math.PI) / 180;
-  const y = Math.floor(((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * n);
-  return { x, y };
-}
-
-/**
- * Baixa de antemão os quadradinhos do mapa onde há clientes (visão da região e
- * da rua), pra o Mapa mostrar ruas sem internet. Mesma URL que a camada do Mapa
- * usa (subdomínio "a"), então o que for guardado aqui é reaproveitado por ela.
- */
-export async function prefetchTilesForClients(clients: { lat?: number | null; lng?: number | null }[]): Promise<void> {
-  const urls = new Set<string>();
-  for (const c of clients) {
-    if (typeof c.lat !== "number" || typeof c.lng !== "number") continue;
-    for (const z of PREFETCH_ZOOMS) {
-      const { x, y } = tileXY(c.lat, c.lng, z);
-      urls.add(TILE_URL.replace("{s}", "a").replace("{z}", String(z)).replace("{x}", String(x)).replace("{y}", String(y)));
-    }
-  }
-  const lista = Array.from(urls).slice(0, PREFETCH_MAX);
-  let next = 0;
-  const worker = async () => {
-    while (next < lista.length) {
-      const url = lista[next++];
-      try {
-        if (await getCachedTile(url)) continue;
-        const res = await fetch(url);
-        if (res.ok) await cacheTile(url, await res.blob());
-      } catch {
-        // Tile que não baixou só não fica disponível offline — não é erro da sincronização.
-      }
-    }
-  };
-  await Promise.all(Array.from({ length: PREFETCH_CONCURRENCY }, worker));
 }

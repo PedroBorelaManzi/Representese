@@ -363,7 +363,6 @@ export async function runFullSync(userId: string, onProgress?: (p: FullSyncProgr
       })(),
     ]);
     await syncOfflineExtras(userId, orders, clients).catch(guard("assistente e entregas", undefined));
-    if (comArquivos) await import("./mapTileCache").then((m) => m.prefetchTilesForClients(clients)).catch((e) => console.warn("fullSync: mapa", e));
     await syncReports(userId).catch((e) => console.warn("fullSync: relatórios", e));
     if (comArquivos) await syncOrderPdfs(orders, clients).catch((e) => console.warn("fullSync: PDFs dos pedidos", e));
 
