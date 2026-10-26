@@ -87,7 +87,7 @@ export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
   const hasHadPlan = !!settings.plan_id && settings.plan_id !== 'none';
   const isLead = settings.subscription_status === 'inactive' && !hasHadPlan;
   const isPastDue = settings.subscription_status === 'past_due';
-  const isEnded = !isLead && !isPastDue; // canceled, ou inactive de quem já teve plano
+  const isEnded = blocked && !isLead && !isPastDue; // canceled, ou inactive de quem já teve plano
   const firstName = String(user?.user_metadata?.full_name || '').trim().split(/\s+/)[0] || '';
   const planNames: Record<string, string> = { exclusivo: 'Acesso Exclusivo', profissional: 'Acesso Profissional', master: 'Acesso Master' };
   const planName = planNames[settings.plan_id] || '';
