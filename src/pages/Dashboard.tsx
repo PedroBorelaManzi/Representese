@@ -155,7 +155,7 @@ export default function Dashboard() {
       };
     },
     enabled: !!user && offlineCache.isOnline(),
-    staleTime: 5 * 60 * 1000,
+    staleTime: 60 * 60 * 1000, // 1h: o salvo no aparelho vale até sincronizar
   });
 
   // Só para o passo "Importe suas planilhas" do checklist de primeiros
@@ -169,7 +169,7 @@ export default function Dashboard() {
       return (data || []).some((f) => f.name !== ".keep");
     },
     enabled: !!user && offlineCache.isOnline(),
-    staleTime: 5 * 60 * 1000,
+    staleTime: 60 * 60 * 1000, // 1h: o salvo no aparelho vale até sincronizar
   });
 
   // Sync state with React Query Data

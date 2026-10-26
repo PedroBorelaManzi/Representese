@@ -715,7 +715,7 @@ export default function ReportsPage() {
         inativoDays: settings.inativo_days || 90,
       }),
     enabled: !!user && !settingsLoading,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 60 * 60 * 1000,
   });
 
   const handleExport = async (format: 'excel' | 'csv') => {

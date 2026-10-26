@@ -11,7 +11,7 @@ export function useWeatherForecast(lat?: number, lng?: number) {
     queryKey: ['weather', lat, lng],
     queryFn: ({ signal }) => fetchWeather(lat!, lng!, signal),
     enabled: typeof lat === 'number' && typeof lng === 'number',
-    staleTime: 30 * 60 * 1000,
+    staleTime: 60 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
     retry: 1,
   });

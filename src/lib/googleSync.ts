@@ -82,7 +82,7 @@ async function proxyGoogleRequest(action: string, payload: any) {
 // Intervalo mínimo entre sincronizações AUTOMÁTICAS (abrir o painel, voltar pra
 // aba). O botão "Sincronizar" passa `force: true` e ignora isso. Antes, cada
 // foco/visibilidade da janela disparava a sincronização inteira de novo.
-const AUTO_SYNC_MIN_INTERVAL_MS = 10 * 60 * 1000;
+const AUTO_SYNC_MIN_INTERVAL_MS = 60 * 60 * 1000;
 const UPSERT_CHUNK = 200;
 const IN_CHUNK = 100;
 const emAndamento = new Map<string, Promise<any>>();

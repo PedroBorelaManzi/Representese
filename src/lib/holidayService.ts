@@ -106,7 +106,7 @@ export async function fetchHolidays(year: number, locations: { city: string; sta
   }
 
   // Online com retrato recente das mesmas cidades: usa na hora (a Edge Function
-  // levava ~2s a cada abertura) e só atualiza em segundo plano depois de 6h.
+  // levava ~2s a cada abertura) e só atualiza em segundo plano depois de 7 dias.
   const sig = locations.map((l) => `${(l.city || "").trim()}|${(l.state || "").trim()}`).sort().join(";");
   const metaKey = `${holidaysCacheKey(year)}_meta`;
   const cachedNow = offlineCache.get<Holiday[]>(holidaysCacheKey(year));
@@ -121,7 +121,7 @@ export async function fetchHolidays(year: number, locations: { city: string; sta
   return fetchHolidaysFresh(year, locations, sig, metaKey);
 }
 
-const HOLIDAYS_REVALIDATE_MS = 6 * 60 * 60 * 1000;
+const HOLIDAYS_REVALIDATE_MS = 7 * 24 * 60 * 60 * 1000;
 
 async function fetchHolidaysFresh(
   year: number,
