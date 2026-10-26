@@ -20,7 +20,8 @@ const WHATSAPP = 'https://wa.me/5515997472785'
 
 // Black Friday: cupom BLACK30 (30%), aplicado sozinho no checkout, expira no servidor em 31/10 23:59 (Brasília).
 const BF_END = Date.UTC(2026, 10, 1, 2, 59, 59)
-const BF_LAST_DAY_START = Date.UTC(2026, 10, 31, 3, 0, 0)
+const BF_48_START = Date.UTC(2026, 9, 30, 3, 0, 0) // 30/10 00:00 Brasília: restam ~48h
+const BF_LAST_DAY_START = Date.UTC(2026, 10, 31, 3, 0, 0) // 31/10 00:00 Brasília: restam ~24h
 const bfAtivo = () => Date.now() < BF_END
 
 const HOUR = 3600_000
@@ -84,9 +85,9 @@ const li = (t: string) => `<p style="margin:0 0 10px 0;">${t}</p>`
 const button = (href: string, label: string) =>
   `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:26px 0;"><tr><td style="background:#059669;border-radius:8px;"><a href="${href}" style="display:inline-block;padding:16px 30px;color:#ffffff;text-decoration:none;font-weight:900;font-size:14px;letter-spacing:0.8px;text-transform:uppercase;">${label}</a></td></tr></table>`
 
-const bfBox = (ultimoDia = false) => bfAtivo()
+const bfBox = (ultimoDia = false, horas?: 48 | 24) => bfAtivo()
   ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:6px 0 24px 0;"><tr><td style="background:#0f172a;border-radius:10px;padding:20px 22px;">
-      <div style="font-size:12px;font-weight:800;letter-spacing:2px;color:#fbbf24;text-transform:uppercase;">${ultimoDia ? 'Último dia' : 'Black Friday'}</div>
+      <div style="font-size:12px;font-weight:800;letter-spacing:2px;color:#fbbf24;text-transform:uppercase;">${horas ? `Últimas ${horas} horas` : ultimoDia ? 'Último dia' : 'Black Friday'}</div>
       <div style="font-size:22px;font-weight:900;color:#ffffff;line-height:1.25;margin:6px 0 8px 0;">30% de desconto em qualquer plano</div>
       <div style="font-size:14px;color:#cbd5e1;line-height:1.6;">Cupom <strong style="color:#6ee7b7;">BLACK30</strong>, aplicado sozinho no checkout.<br/><strong style="color:#ffffff;">Válido somente no site</strong> (representese.com), não vale dentro do aplicativo.<br/>${ultimoDia ? 'Sai do ar <strong style="color:#ffffff;">hoje, às 23h59</strong>.' : 'Vale só até <strong style="color:#ffffff;">31/10, às 23h59</strong>.'}</div>
     </td></tr></table>`
@@ -104,8 +105,10 @@ function template(step: string, firstName: string, unsubUrl: string): { subject:
   const L = (body: string, pre: string) => layout(body, unsubUrl, pre)
 
   // Black Friday: envio único a quem ainda não assinou (conta sem plano ou só contato) e lembrete do último dia.
-  if (step === 'bf1_conta' || step === 'bf1_lead' || step === 'bflast_conta' || step === 'bflast_lead') {
+  if (/^(bf1|bf48|bflast)_(conta|lead)$/.test(step)) {
     const ultimo = step.startsWith('bflast')
+    const h48 = step.startsWith('bf48')
+    const horas = ultimo ? 24 : h48 ? 48 : undefined
     const conta = step.endsWith('_conta')
     const link = conta ? `${SITE}/login` : `${SITE}/planos`
     const abertura = conta
@@ -113,14 +116,18 @@ function template(step: string, firstName: string, unsubUrl: string): { subject:
       : `${oi ? nome + ', você' : 'Você'} deixou seus dados no Represente-Se!, mas ainda não começou.`
     return {
       subject: ultimo
-        ? `${oi ? nome + ', o' : 'O'} cupom BLACK30 expira hoje ⚠️`
-        : `${oi ? nome + ', 30' : '30'}% OFF só até 31/10 🔥`,
+        ? `${oi ? nome + ', 24' : '24'} horas: o cupom BLACK30 expira hoje ⏰`
+        : h48
+          ? `${oi ? nome + ', últimas' : 'Últimas'} 48 horas de Black Friday ⏳`
+          : `${oi ? nome + ', 30' : '30'}% OFF só até 31/10 🔥`,
       html: L(
-        p(`<strong>${ultimo ? 'Hoje é o último dia.' : 'A Black Friday chegou para quem representa.'}</strong>`) +
+        p(`<strong>${ultimo ? 'Hoje é o último dia: restam 24 horas.' : h48 ? 'Restam 48 horas para a Black Friday acabar.' : 'A Black Friday chegou para quem representa.'}</strong>`) +
         p(abertura) +
-        bfBox(ultimo) +
+        bfBox(ultimo, horas) +
         p(ultimo
           ? 'Depois das 23h59 de hoje o cupom sai do ar e o preço volta ao normal. Não vai ter prorrogação.'
+          : h48
+          ? 'No sábado, 31/10, às 23h59, o cupom BLACK30 sai do ar. Daqui até lá você assina qualquer plano com <strong>30% de desconto</strong>: o Exclusivo, por exemplo, sai por <strong>R$ 67,90</strong> em vez de R$ 97.'
           : 'Até 31/10 você assina qualquer plano com <strong>30% de desconto</strong>. A mensalidade do plano Exclusivo, por exemplo, sai por <strong>R$ 67,90</strong> em vez de R$ 97.') +
         p('É assim:') +
         li('<strong>01.</strong> ' + (conta ? 'Entra na sua conta' : 'Cria sua conta em 1 minuto')) +
@@ -129,10 +136,10 @@ function template(step: string, firstName: string, unsubUrl: string): { subject:
         p('<br/><strong>Importante:</strong> o cupom vale <strong>somente pelo site representese.com</strong>. Dentro do aplicativo o preço é o da loja e o cupom não funciona. Se você baixou o app, abra o link deste e-mail no navegador para assinar com o desconto.') +
         p('E você ainda tem <strong>7 dias de garantia</strong>: se não gostar, devolvemos 100% do valor. Com o sistema você:') +
         BF_LINES +
-        button(link, ultimo ? 'Garantir 30% OFF agora' : 'Quero meus 30% OFF') +
+        button(link, ultimo ? 'Garantir 30% OFF agora' : h48 ? 'Aproveitar os 30% OFF' : 'Quero meus 30% OFF') +
         p('<strong>Depois de 31/10 o cupom sai do ar.</strong> Se ficar com dúvida, responde este e-mail ou chama no <a href="' + WHATSAPP + '" style="color:#059669;font-weight:700;">WhatsApp</a>. Eu mesmo atendo.') +
         p('Pedro,<br/>fundador do Represente-Se!'),
-        ultimo ? 'O cupom BLACK30 sai do ar hoje às 23h59.' : 'Cupom BLACK30 aplicado sozinho no checkout.'),
+        ultimo ? 'Restam 24 horas: o cupom BLACK30 sai do ar hoje às 23h59.' : h48 ? 'Restam 48 horas para usar o cupom BLACK30.' : 'Cupom BLACK30 aplicado sozinho no checkout.'),
     }
   }
 
@@ -255,7 +262,7 @@ serve(async (req) => {
   if (body.preview) {
     const to = String(body.preview)
     const unsubUrl = `${SUPABASE_URL}/functions/v1/nurture-leads?unsub=${encodeURIComponent(to)}&t=${await sign(secret, to)}`
-    for (const st of ['bf1_conta', 'bf1_lead', 'bflast_conta', 'h1']) {
+    for (const st of ['bf48_conta', 'bf48_lead', 'bflast_conta', 'bflast_lead']) {
       const { subject, html } = template(st, 'Pedro', unsubUrl)
       await send({ from: FROM, to, reply_to: 'contato@representese.com', subject: `[PRÉVIA] ${subject}`, html })
     }
@@ -264,8 +271,9 @@ serve(async (req) => {
 
   // Envio em massa controlado (Black Friday): {"blast":"bf1"} manda uma vez para todo mundo que ainda não assinou.
   // O lembrete "bflast" sai sozinho no último dia da campanha, para quem ainda não assinou.
-  const autoLast = Date.now() >= BF_LAST_DAY_START && Date.now() < BF_END
-  const blastStep = body.blast === 'bf1' || body.blast === 'bf2' ? body.blast : autoLast ? 'bflast' : null
+  const nowMs = Date.now()
+  const autoStep = nowMs >= BF_LAST_DAY_START && nowMs < BF_END ? 'bflast' : nowMs >= BF_48_START && nowMs < BF_LAST_DAY_START ? 'bf48' : null
+  const blastStep = body.blast === 'bf1' || body.blast === 'bf2' ? body.blast : autoStep
   if (blastStep) {
     const { data: logsB } = await admin.from('email_nurture_log').select('email, step').eq('step', blastStep)
     const doneB = new Set((logsB || []).map((l: { email: string }) => l.email))
