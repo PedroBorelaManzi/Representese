@@ -121,7 +121,7 @@ function template(step: string, firstName: string, unsubUrl: string): { subject:
         li('<strong>01.</strong> ' + (conta ? 'Entra na sua conta' : 'Cria sua conta em 1 minuto')) +
         li('<strong>02.</strong> Escolhe o plano') +
         li('<strong>03.</strong> O desconto já vem aplicado no pagamento') +
-        p('<br/>E você ainda tem <strong>7 dias para testar</strong> antes da primeira cobrança:') +
+        p('<br/>E você ainda tem <strong>7 dias de garantia</strong>: se não gostar, devolvemos 100% do valor. Com o sistema você:') +
         BF_LINES +
         button(link, ultimo ? 'Garantir 30% OFF agora' : 'Quero meus 30% OFF') +
         p('<strong>Depois de 31/10 o cupom sai do ar.</strong> Se ficar com dúvida, responde este e-mail ou chama no <a href="' + WHATSAPP + '" style="color:#059669;font-weight:700;">WhatsApp</a>. Eu mesmo atendo.') +
@@ -141,7 +141,7 @@ function template(step: string, firstName: string, unsubUrl: string): { subject:
         li('✅ Cria pedidos com catálogo e gera o PDF na hora') +
         li('✅ Agenda visitas e recebe aviso de retorno') +
         li('✅ Usa até sem internet') +
-        p('<strong>Você tem 7 dias para testar antes da primeira cobrança.</strong> Sem fidelidade: cancela quando quiser.') +
+        p('<strong>7 dias de garantia:</strong> se não gostar, devolvemos 100% do valor. Sem fidelidade.') +
         bfBox() +
         button(`${SITE}/login`, 'Entrar e escolher meu plano') +
         p('Leva menos de 2 minutos.') +
@@ -162,8 +162,8 @@ function template(step: string, firstName: string, unsubUrl: string): { subject:
         p('<strong>Pilar 03: Agenda</strong><br/>Visitas marcadas e aviso de retorno para ninguém ficar para trás.') +
         p('<strong>Pilar 04: Faturamento</strong><br/>Quanto você vendeu e quanto tem de comissão, por empresa representada.') +
         bfBox() +
-        button(`${SITE}/login`, 'Quero testar 7 dias') +
-        p('<strong>7 dias para testar antes da primeira cobrança.</strong> Se não fizer sentido para você, cancela e pronto.') +
+        button(`${SITE}/login`, 'Quero começar agora') +
+        p('<strong>7 dias de garantia:</strong> se não fizer sentido para você, devolvemos 100% do valor.') +
         button(`${SITE}/login`, 'Escolher meu plano') +
         p('Ficou com dúvida? Responde este e-mail ou chama no <a href="' + WHATSAPP + '" style="color:#059669;font-weight:700;">WhatsApp</a>.') +
         p('Equipe Represente-Se!'),
@@ -199,12 +199,12 @@ function template(step: string, firstName: string, unsubUrl: string): { subject:
       li('✅ Clientes, pedidos e visitas num lugar só') +
       li('✅ Pedido com catálogo e PDF na hora, até sem internet') +
       li('✅ Avisos de retorno e faturamento por empresa representada') +
-      p('<strong>7 dias para testar antes da primeira cobrança.</strong> Sem fidelidade.') +
+      p('<strong>7 dias de garantia:</strong> se não gostar, devolvemos 100% do valor. Sem fidelidade.') +
       bfBox() +
       button(`${SITE}/planos`, 'Conhecer os planos') +
       p('Prefere conversar antes? Responde este e-mail ou chama no <a href="' + WHATSAPP + '" style="color:#059669;font-weight:700;">WhatsApp</a>. Eu mesmo atendo.') +
       p('Pedro,<br/>fundador do Represente-Se!'),
-      'Seus 7 dias de teste estão esperando.'),
+      '7 dias de garantia: se não gostar, devolvemos 100%.'),
   }
 }
 
@@ -334,7 +334,7 @@ serve(async (req) => {
   const { data: leadsList } = await admin.rpc('lead_candidates')
   for (const l of (leadsList || []) as { email: string; name: string; created_at: string }[]) {
     const age = now - new Date(l.created_at).getTime()
-    if (age < HOUR || age > 120 * DAY || done.has(`${l.email}|lead1`)) continue
+    if (age < HOUR || age > 120 * DAY || done.has(`${l.email}|lead1`) || done.has(`${l.email}|bf1`)) continue
     const unsubUrl = `${SUPABASE_URL}/functions/v1/nurture-leads?unsub=${encodeURIComponent(l.email)}&t=${await sign(secret, l.email)}`
     const { subject, html } = template('lead1', l.name.trim().split(/\s+/)[0] || '', unsubUrl)
     const { error: logErr } = await admin.from('email_nurture_log').insert({ email: l.email, step: 'lead1' })

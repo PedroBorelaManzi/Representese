@@ -211,7 +211,7 @@ export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
                     <ArrowRight className="w-4 h-4" />
                   </Link>
                   {!isStoreApp() && (
-                    <p className="text-[11px] font-semibold text-slate-400 dark:text-zinc-500">7 dias para testar antes da primeira cobrança. Cancele quando quiser.</p>
+                    <p className="text-[11px] font-semibold text-slate-400 dark:text-zinc-500">7 dias de garantia: se não gostar, devolvemos 100% do valor.</p>
                   )}
                 </div>
 
