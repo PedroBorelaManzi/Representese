@@ -18,6 +18,11 @@ const SITE = 'https://www.representese.com'
 const ADMIN_TO = 'pedroborelamanzi@gmail.com'
 const WHATSAPP = 'https://wa.me/5515997472785'
 
+// Black Friday: cupom BLACK30 (30%), aplicado sozinho no checkout, expira no servidor em 31/10 23:59 (Brasília).
+const BF_END = Date.UTC(2026, 10, 1, 2, 59, 59)
+const BF_LAST_DAY_START = Date.UTC(2026, 10, 31, 3, 0, 0)
+const bfAtivo = () => Date.now() < BF_END
+
 const HOUR = 3600_000
 const DAY = 24 * HOUR
 
@@ -74,10 +79,56 @@ const li = (t: string) => `<p style="margin:0 0 10px 0;">${t}</p>`
 const button = (href: string, label: string) =>
   `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:26px 0;"><tr><td style="background:#059669;border-radius:8px;"><a href="${href}" style="display:inline-block;padding:16px 30px;color:#ffffff;text-decoration:none;font-weight:900;font-size:14px;letter-spacing:0.8px;text-transform:uppercase;">${label}</a></td></tr></table>`
 
+const bfBox = (ultimoDia = false) => bfAtivo()
+  ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:6px 0 24px 0;"><tr><td style="background:#0f172a;border-radius:10px;padding:20px 22px;">
+      <div style="font-size:12px;font-weight:800;letter-spacing:2px;color:#fbbf24;text-transform:uppercase;">${ultimoDia ? 'Último dia' : 'Black Friday'}</div>
+      <div style="font-size:22px;font-weight:900;color:#ffffff;line-height:1.25;margin:6px 0 8px 0;">30% de desconto em qualquer plano</div>
+      <div style="font-size:14px;color:#cbd5e1;line-height:1.6;">Cupom <strong style="color:#6ee7b7;">BLACK30</strong>, aplicado sozinho no checkout.<br/>${ultimoDia ? 'Sai do ar <strong style="color:#ffffff;">hoje, às 23h59</strong>.' : 'Vale só até <strong style="color:#ffffff;">31/10, às 23h59</strong>.'}</div>
+    </td></tr></table>`
+  : ''
+
+const BF_LINES =
+  li('✅ Cadastra seus clientes e vê quem está há dias sem comprar') +
+  li('✅ Cria pedidos com catálogo e gera o PDF na hora') +
+  li('✅ Agenda visitas e recebe aviso de retorno') +
+  li('✅ Usa até sem internet')
+
 function template(step: string, firstName: string, unsubUrl: string): { subject: string; html: string } {
   const nome = firstName ? esc(firstName) : ''
   const oi = nome ? `${nome}, ` : ''
   const L = (body: string, pre: string) => layout(body, unsubUrl, pre)
+
+  // Black Friday: envio único a quem ainda não assinou (conta sem plano ou só contato) e lembrete do último dia.
+  if (step === 'bf1_conta' || step === 'bf1_lead' || step === 'bflast_conta' || step === 'bflast_lead') {
+    const ultimo = step.startsWith('bflast')
+    const conta = step.endsWith('_conta')
+    const link = conta ? `${SITE}/login` : `${SITE}/planos`
+    const abertura = conta
+      ? `${oi ? nome + ', sua' : 'Sua'} conta no Represente-Se! está pronta, mas ainda sem plano.`
+      : `${oi ? nome + ', você' : 'Você'} deixou seus dados no Represente-Se!, mas ainda não começou.`
+    return {
+      subject: ultimo
+        ? `${oi ? nome + ', o' : 'O'} cupom BLACK30 expira hoje ⚠️`
+        : `${oi ? nome + ', 30' : '30'}% OFF só até 31/10 🔥`,
+      html: L(
+        p(`<strong>${ultimo ? 'Hoje é o último dia.' : 'A Black Friday chegou para quem representa.'}</strong>`) +
+        p(abertura) +
+        bfBox(ultimo) +
+        p(ultimo
+          ? 'Depois das 23h59 de hoje o cupom sai do ar e o preço volta ao normal. Não vai ter prorrogação.'
+          : 'Até 31/10 você assina qualquer plano com <strong>30% de desconto</strong>. A mensalidade do plano Exclusivo, por exemplo, sai por <strong>R$ 67,90</strong> em vez de R$ 97.') +
+        p('É assim:') +
+        li('<strong>01.</strong> ' + (conta ? 'Entra na sua conta' : 'Cria sua conta em 1 minuto')) +
+        li('<strong>02.</strong> Escolhe o plano') +
+        li('<strong>03.</strong> O desconto já vem aplicado no pagamento') +
+        p('<br/>E você ainda tem <strong>7 dias para testar</strong> antes da primeira cobrança:') +
+        BF_LINES +
+        button(link, ultimo ? 'Garantir 30% OFF agora' : 'Quero meus 30% OFF') +
+        p('<strong>Depois de 31/10 o cupom sai do ar.</strong> Se ficar com dúvida, responde este e-mail ou chama no <a href="' + WHATSAPP + '" style="color:#059669;font-weight:700;">WhatsApp</a>. Eu mesmo atendo.') +
+        p('Pedro,<br/>fundador do Represente-Se!'),
+        ultimo ? 'O cupom BLACK30 sai do ar hoje às 23h59.' : 'Cupom BLACK30 aplicado sozinho no checkout.'),
+    }
+  }
 
   if (step === 'h1') {
     return {
@@ -91,6 +142,7 @@ function template(step: string, firstName: string, unsubUrl: string): { subject:
         li('✅ Agenda visitas e recebe aviso de retorno') +
         li('✅ Usa até sem internet') +
         p('<strong>Você tem 7 dias para testar antes da primeira cobrança.</strong> Sem fidelidade: cancela quando quiser.') +
+        bfBox() +
         button(`${SITE}/login`, 'Entrar e escolher meu plano') +
         p('Leva menos de 2 minutos.') +
         p('Equipe Represente-Se!'),
@@ -109,6 +161,7 @@ function template(step: string, firstName: string, unsubUrl: string): { subject:
         p('<strong>Pilar 02: Pedidos</strong><br/>Pedido com catálogo e PDF pronto na frente do cliente, até sem internet.') +
         p('<strong>Pilar 03: Agenda</strong><br/>Visitas marcadas e aviso de retorno para ninguém ficar para trás.') +
         p('<strong>Pilar 04: Faturamento</strong><br/>Quanto você vendeu e quanto tem de comissão, por empresa representada.') +
+        bfBox() +
         button(`${SITE}/login`, 'Quero testar 7 dias') +
         p('<strong>7 dias para testar antes da primeira cobrança.</strong> Se não fizer sentido para você, cancela e pronto.') +
         button(`${SITE}/login`, 'Escolher meu plano') +
@@ -129,6 +182,7 @@ function template(step: string, firstName: string, unsubUrl: string): { subject:
         li('Não achou o plano certo para o seu caso?') +
         li('Teve algum problema na hora de assinar?') +
         p('Me responde este e-mail ou me chama no WhatsApp. <strong>Eu mesmo te atendo</strong> e deixo tudo pronto com você.') +
+        bfBox() +
         button(WHATSAPP, 'Falar com o Pedro no WhatsApp') +
         p('Pedro,<br/>fundador do Represente-Se!'),
         'Aconteceu alguma coisa? Eu mesmo te ajudo.'),
@@ -146,6 +200,7 @@ function template(step: string, firstName: string, unsubUrl: string): { subject:
       li('✅ Pedido com catálogo e PDF na hora, até sem internet') +
       li('✅ Avisos de retorno e faturamento por empresa representada') +
       p('<strong>7 dias para testar antes da primeira cobrança.</strong> Sem fidelidade.') +
+      bfBox() +
       button(`${SITE}/planos`, 'Conhecer os planos') +
       p('Prefere conversar antes? Responde este e-mail ou chama no <a href="' + WHATSAPP + '" style="color:#059669;font-weight:700;">WhatsApp</a>. Eu mesmo atendo.') +
       p('Pedro,<br/>fundador do Represente-Se!'),
@@ -190,15 +245,48 @@ serve(async (req) => {
   if (!RESEND_API_KEY) return new Response(JSON.stringify({ success: false, message: 'RESEND_API_KEY ausente.' }), { status: 500 })
 
   // Prévia: manda os 4 modelos só para o endereço informado (não toca em ninguém mais).
-  const body = await req.json().catch(() => ({})) as { preview?: string }
+  const body = await req.json().catch(() => ({})) as { preview?: string; blast?: string }
   if (body.preview) {
     const to = String(body.preview)
     const unsubUrl = `${SUPABASE_URL}/functions/v1/nurture-leads?unsub=${encodeURIComponent(to)}&t=${await sign(secret, to)}`
-    for (const st of ['h1', 'd2', 'd7', 'lead1']) {
+    for (const st of ['bf1_conta', 'bf1_lead', 'bflast_conta', 'h1']) {
       const { subject, html } = template(st, 'Pedro', unsubUrl)
       await send({ from: FROM, to, reply_to: 'contato@representese.com', subject: `[PRÉVIA] ${subject}`, html })
     }
     return new Response(JSON.stringify({ success: true, preview: to }), { headers: { 'Content-Type': 'application/json' } })
+  }
+
+  // Envio em massa controlado (Black Friday): {"blast":"bf1"} manda uma vez para todo mundo que ainda não assinou.
+  // O lembrete "bflast" sai sozinho no último dia da campanha, para quem ainda não assinou.
+  const autoLast = Date.now() >= BF_LAST_DAY_START && Date.now() < BF_END
+  const blastStep = body.blast === 'bf1' ? 'bf1' : autoLast ? 'bflast' : null
+  if (blastStep) {
+    const { data: logsB } = await admin.from('email_nurture_log').select('email, step').eq('step', blastStep)
+    const doneB = new Set((logsB || []).map((l: { email: string }) => l.email))
+    const { data: contas } = await admin.rpc('nurture_candidates')
+    const { data: leads } = await admin.rpc('lead_candidates')
+    const alvo = [
+      ...((contas || []) as { email: string; name: string; user_id: string }[]).map((c) => ({ ...c, tipo: 'conta' as const })),
+      ...((leads || []) as { email: string; name: string }[]).map((l) => ({ ...l, user_id: null as string | null, tipo: 'lead' as const })),
+    ]
+    const enviados: string[] = []
+    for (const a of alvo) {
+      if (doneB.has(a.email)) continue
+      const unsubUrl = `${SUPABASE_URL}/functions/v1/nurture-leads?unsub=${encodeURIComponent(a.email)}&t=${await sign(secret, a.email)}`
+      const { subject, html } = template(`${blastStep}_${a.tipo}`, (a.name || '').trim().split(/\s+/)[0] || '', unsubUrl)
+      const { error: logErr } = await admin.from('email_nurture_log').insert({ email: a.email, user_id: a.user_id, step: blastStep })
+      if (logErr) continue
+      const ok = await send({
+        from: FROM, to: a.email, reply_to: 'contato@representese.com', subject, html,
+        headers: { 'List-Unsubscribe': `<${unsubUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' },
+      })
+      if (ok) enviados.push(a.email)
+      else await admin.from('email_nurture_log').delete().eq('email', a.email).eq('step', blastStep)
+      await new Promise((r) => setTimeout(r, 600)) // respeita o limite de 2 envios/s do Resend
+    }
+    if (body.blast === 'bf1') {
+      return new Response(JSON.stringify({ success: true, blast: blastStep, enviados }), { headers: { 'Content-Type': 'application/json' } })
+    }
   }
 
   const { data: cands, error } = await admin.rpc('nurture_candidates')

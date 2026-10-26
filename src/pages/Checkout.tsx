@@ -67,6 +67,9 @@ const inputBase = "w-full rounded-2xl border bg-slate-50 pl-11 pr-4 py-3.5 text-
 const inputOk = "border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white";
 const inputErr = "border-red-400 bg-red-50/40 text-red-900 focus:ring-4 focus:ring-red-500/10";
 
+/** Cupom da campanha Black Friday (expira sozinho no servidor). */
+const CUPOM_BLACK_FRIDAY = 'BLACK30';
+
 export default function Checkout() {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
@@ -100,9 +103,13 @@ export default function Checkout() {
   // vez, e só se ainda não tiver cupom nenhum digitado/aplicado.
   useEffect(() => {
     const refCode = searchParams.get('ref') || leadData?.ref;
-    if (!refCode || couponCode || appliedCoupon) return;
-    setCouponCode(refCode.toUpperCase());
-    handleApplyCoupon(refCode);
+    if (couponCode || appliedCoupon) return;
+    // Black Friday: quem chega pelo site (ou pelo link ?cupom=) já entra com o
+    // cupom aplicado. O servidor confere validade e prazo; depois de 31/10 o
+    // cupom expira sozinho e o tratamento silencioso abaixo apenas não aplica nada.
+    const code = refCode || searchParams.get('cupom') || CUPOM_BLACK_FRIDAY;
+    setCouponCode(code.toUpperCase());
+    handleApplyCoupon(code, !refCode && !searchParams.get("cupom"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -211,7 +218,7 @@ export default function Checkout() {
   const pixDiscount = paymentMethod === 'PIX' ? (priceAfterCoupon * 5) / 100 : 0;
   const finalPrice = priceAfterCoupon - pixDiscount;
 
-  const handleApplyCoupon = async (codeOverride?: string) => {
+  const handleApplyCoupon = async (codeOverride?: string, silent = false) => {
     const codeUpper = (codeOverride ?? couponCode).trim().toUpperCase();
     if (!codeUpper) return;
     setIsApplyingCoupon(true);
@@ -220,11 +227,12 @@ export default function Checkout() {
         body: { code: codeUpper, planId: selectedPlan.id }
       });
       if (error || !data?.valid) {
-        toast.error(data?.message || "Cupom inválido");
+        if (!silent) toast.error(data?.message || "Cupom inválido");
+        else setCouponCode("");
         setAppliedCoupon(null);
       } else {
         setAppliedCoupon({ code: codeUpper, discount: data.discount_percent });
-        toast.success("Cupom aplicado!");
+        toast.success(silent ? `Black Friday: ${data.discount_percent}% de desconto aplicado!` : "Cupom aplicado!");
       }
     } catch {
       toast.error("Erro ao validar cupom. Tente novamente.");

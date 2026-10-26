@@ -58,6 +58,9 @@ const trustItems = [
   { icon: CalendarClock, title: "Cobrança só após o teste", desc: "Após os 7 dias, a renovação é automática conforme o plano." },
 ];
 
+/** 31/10/2026 23:59:59 em Brasília (mesmo prazo do cupom BLACK30). */
+const BLACK_FRIDAY_FIM = Date.UTC(2026, 10, 1, 2, 59, 59);
+
 export default function Planos() {
   usePageMeta(
     "Planos e Preços",
@@ -241,6 +244,15 @@ export default function Planos() {
       </header>
 
       <div className="max-w-6xl mx-auto px-4 py-10 lg:px-8 lg:py-14">
+
+        {/* Black Friday: o cupom BLACK30 entra sozinho no checkout e o servidor o
+            expira em 31/10 (23:59, Brasília). Só no site: nas lojas o preço é o da loja. */}
+        {!isStoreApp() && Date.now() < BLACK_FRIDAY_FIM && (
+          <div data-testid="banner-black-friday" className="mb-8 rounded-2xl bg-slate-900 text-white px-5 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-center sm:text-left">
+            <p className="text-[14px] font-black tracking-tight">Black Friday: <span className="text-emerald-400">30% de desconto</span> em qualquer plano</p>
+            <p className="text-[12px] font-semibold text-slate-300">Cupom BLACK30 aplicado no checkout. Só até 31/10.</p>
+          </div>
+        )}
 
         {/* Upsell para quem já é Profissional */}
         {isProfissional && (
