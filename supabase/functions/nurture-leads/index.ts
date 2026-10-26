@@ -50,7 +50,7 @@ function layout(body: string, unsubUrl: string): string {
     ${body}
     <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 28px 0 14px 0;" />
     <p style="font-size: 11px; color: #94a3b8; line-height: 1.6; margin: 0;">
-      Você recebeu este e-mail porque criou uma conta no Represente-Se!.
+      Você recebeu este e-mail porque deixou seus dados ou criou uma conta no Represente-Se!.
       <a href="${unsubUrl}" style="color: #94a3b8;">Parar de receber estes e-mails</a>.
     </p>
   </div>`
@@ -61,6 +61,23 @@ const button = (href: string, label: string) =>
 
 function template(step: string, firstName: string, unsubUrl: string): { subject: string; html: string } {
   const oi = firstName ? `Oi, ${esc(firstName)}!` : 'Olá!'
+  if (step === 'lead1') {
+    return {
+      subject: 'Você deixou seu contato no Represente-Se!',
+      html: layout(`
+        <p style="font-size: 15px; line-height: 1.6;">${oi}</p>
+        <p style="font-size: 15px; line-height: 1.6;">Você deixou seus dados no Represente-Se!, o sistema para representantes comerciais, mas não chegou a criar a conta. Aconteceu alguma coisa ou ficou alguma dúvida?</p>
+        <ul style="font-size: 15px; line-height: 1.8; padding-left: 20px;">
+          <li>clientes, pedidos e visitas num lugar só;</li>
+          <li>pedidos com catálogo e PDF na hora, até sem internet;</li>
+          <li>avisos de retorno e acompanhamento de faturamento por empresa.</li>
+        </ul>
+        <p style="font-size: 15px; line-height: 1.6;">Você tem 7 dias para testar antes da primeira cobrança.</p>
+        ${button(`${SITE}/planos`, 'Conhecer os planos')}
+        <p style="font-size: 14px; line-height: 1.6; color: #475569;">Prefere conversar? Responda este e-mail ou chame no <a href="${WHATSAPP}" style="color: #059669;">WhatsApp</a>. Eu mesmo atendo.</p>
+        <p style="font-size: 14px; line-height: 1.6; color: #475569;">Pedro, Represente-Se!</p>`, unsubUrl),
+    }
+  }
   if (step === 'h1') {
     return {
       subject: 'Sua conta está pronta, falta só escolher o plano',
@@ -175,6 +192,23 @@ serve(async (req) => {
     })
     if (ok) sent.push(`${c.email}:${step.id}`)
     else await admin.from('email_nurture_log').delete().eq('email', c.email).eq('step', step.id)
+  }
+
+  // Contatos que deixaram os dados no site mas não criaram conta: um único e-mail de retomada.
+  const { data: leadsList } = await admin.rpc('lead_candidates')
+  for (const l of (leadsList || []) as { email: string; name: string; created_at: string }[]) {
+    const age = now - new Date(l.created_at).getTime()
+    if (age < HOUR || age > 120 * DAY || done.has(`${l.email}|lead1`)) continue
+    const unsubUrl = `${SUPABASE_URL}/functions/v1/nurture-leads?unsub=${encodeURIComponent(l.email)}&t=${await sign(secret, l.email)}`
+    const { subject, html } = template('lead1', l.name.trim().split(/\s+/)[0] || '', unsubUrl)
+    const { error: logErr } = await admin.from('email_nurture_log').insert({ email: l.email, step: 'lead1' })
+    if (logErr) continue
+    const ok = await send({
+      from: FROM, to: l.email, reply_to: 'contato@representese.com', subject, html,
+      headers: { 'List-Unsubscribe': `<${unsubUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' },
+    })
+    if (ok) sent.push(`${l.email}:lead1`)
+    else await admin.from('email_nurture_log').delete().eq('email', l.email).eq('step', 'lead1')
   }
 
   // Aviso ao dono: contas que passaram de 24h sem assinar.
