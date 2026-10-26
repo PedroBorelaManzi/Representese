@@ -54,9 +54,14 @@ function layout(body: string, unsubUrl: string, preheader = ''): string {
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#e8edf2;padding:24px 12px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
     <tr><td align="center">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#f7f7f5;border-radius:6px;overflow:hidden;">
-        <tr><td style="background:#064e3b;padding:34px 28px 30px 28px;">
-          <div style="font-size:30px;font-weight:900;letter-spacing:-0.5px;color:#ffffff;line-height:1.1;">Represente-Se!</div>
-          <div style="font-size:12px;font-weight:700;letter-spacing:2.5px;color:#6ee7b7;margin-top:8px;text-transform:uppercase;">O sistema do representante comercial</div>
+        <tr><td style="background:#064e3b;padding:28px 28px 26px 28px;">
+          <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+            <td style="padding-right:16px;"><img src="${SITE}/icon-192.png" width="64" height="64" alt="Represente-Se!" style="display:block;border-radius:14px;background:#ffffff;" /></td>
+            <td>
+              <div style="font-size:28px;font-weight:900;letter-spacing:-0.5px;color:#ffffff;line-height:1.1;">Represente-Se!</div>
+              <div style="font-size:11px;font-weight:700;letter-spacing:2.2px;color:#6ee7b7;margin-top:7px;text-transform:uppercase;">O sistema do representante comercial</div>
+            </td>
+          </tr></table>
         </td></tr>
         <tr><td style="padding:30px 28px 8px 28px;color:#0f172a;font-size:16px;line-height:1.65;">
           ${body}
@@ -83,7 +88,7 @@ const bfBox = (ultimoDia = false) => bfAtivo()
   ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:6px 0 24px 0;"><tr><td style="background:#0f172a;border-radius:10px;padding:20px 22px;">
       <div style="font-size:12px;font-weight:800;letter-spacing:2px;color:#fbbf24;text-transform:uppercase;">${ultimoDia ? 'Último dia' : 'Black Friday'}</div>
       <div style="font-size:22px;font-weight:900;color:#ffffff;line-height:1.25;margin:6px 0 8px 0;">30% de desconto em qualquer plano</div>
-      <div style="font-size:14px;color:#cbd5e1;line-height:1.6;">Cupom <strong style="color:#6ee7b7;">BLACK30</strong>, aplicado sozinho no checkout.<br/>${ultimoDia ? 'Sai do ar <strong style="color:#ffffff;">hoje, às 23h59</strong>.' : 'Vale só até <strong style="color:#ffffff;">31/10, às 23h59</strong>.'}</div>
+      <div style="font-size:14px;color:#cbd5e1;line-height:1.6;">Cupom <strong style="color:#6ee7b7;">BLACK30</strong>, aplicado sozinho no checkout.<br/><strong style="color:#ffffff;">Válido somente no site</strong> (representese.com), não vale dentro do aplicativo.<br/>${ultimoDia ? 'Sai do ar <strong style="color:#ffffff;">hoje, às 23h59</strong>.' : 'Vale só até <strong style="color:#ffffff;">31/10, às 23h59</strong>.'}</div>
     </td></tr></table>`
   : ''
 
@@ -121,7 +126,8 @@ function template(step: string, firstName: string, unsubUrl: string): { subject:
         li('<strong>01.</strong> ' + (conta ? 'Entra na sua conta' : 'Cria sua conta em 1 minuto')) +
         li('<strong>02.</strong> Escolhe o plano') +
         li('<strong>03.</strong> O desconto já vem aplicado no pagamento') +
-        p('<br/>E você ainda tem <strong>7 dias de garantia</strong>: se não gostar, devolvemos 100% do valor. Com o sistema você:') +
+        p('<br/><strong>Importante:</strong> o cupom vale <strong>somente pelo site representese.com</strong>. Dentro do aplicativo o preço é o da loja e o cupom não funciona. Se você baixou o app, abra o link deste e-mail no navegador para assinar com o desconto.') +
+        p('E você ainda tem <strong>7 dias de garantia</strong>: se não gostar, devolvemos 100% do valor. Com o sistema você:') +
         BF_LINES +
         button(link, ultimo ? 'Garantir 30% OFF agora' : 'Quero meus 30% OFF') +
         p('<strong>Depois de 31/10 o cupom sai do ar.</strong> Se ficar com dúvida, responde este e-mail ou chama no <a href="' + WHATSAPP + '" style="color:#059669;font-weight:700;">WhatsApp</a>. Eu mesmo atendo.') +
@@ -259,7 +265,7 @@ serve(async (req) => {
   // Envio em massa controlado (Black Friday): {"blast":"bf1"} manda uma vez para todo mundo que ainda não assinou.
   // O lembrete "bflast" sai sozinho no último dia da campanha, para quem ainda não assinou.
   const autoLast = Date.now() >= BF_LAST_DAY_START && Date.now() < BF_END
-  const blastStep = body.blast === 'bf1' ? 'bf1' : autoLast ? 'bflast' : null
+  const blastStep = body.blast === 'bf1' || body.blast === 'bf2' ? body.blast : autoLast ? 'bflast' : null
   if (blastStep) {
     const { data: logsB } = await admin.from('email_nurture_log').select('email, step').eq('step', blastStep)
     const doneB = new Set((logsB || []).map((l: { email: string }) => l.email))
@@ -273,7 +279,7 @@ serve(async (req) => {
     for (const a of alvo) {
       if (doneB.has(a.email)) continue
       const unsubUrl = `${SUPABASE_URL}/functions/v1/nurture-leads?unsub=${encodeURIComponent(a.email)}&t=${await sign(secret, a.email)}`
-      const { subject, html } = template(`${blastStep}_${a.tipo}`, (a.name || '').trim().split(/\s+/)[0] || '', unsubUrl)
+      const { subject, html } = template(`${blastStep === 'bf2' ? 'bf1' : blastStep}_${a.tipo}`, (a.name || '').trim().split(/\s+/)[0] || '', unsubUrl)
       const { error: logErr } = await admin.from('email_nurture_log').insert({ email: a.email, user_id: a.user_id, step: blastStep })
       if (logErr) continue
       const ok = await send({
@@ -284,7 +290,7 @@ serve(async (req) => {
       else await admin.from('email_nurture_log').delete().eq('email', a.email).eq('step', blastStep)
       await new Promise((r) => setTimeout(r, 600)) // respeita o limite de 2 envios/s do Resend
     }
-    if (body.blast === 'bf1') {
+    if (body.blast === 'bf1' || body.blast === 'bf2') {
       return new Response(JSON.stringify({ success: true, blast: blastStep, enviados }), { headers: { 'Content-Type': 'application/json' } })
     }
   }
