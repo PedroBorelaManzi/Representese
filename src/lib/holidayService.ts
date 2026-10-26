@@ -105,6 +105,30 @@ export async function fetchHolidays(year: number, locations: { city: string; sta
     if (cached) return cached;
   }
 
+  // Online com retrato recente das mesmas cidades: usa na hora (a Edge Function
+  // levava ~2s a cada abertura) e só atualiza em segundo plano depois de 6h.
+  const sig = locations.map((l) => `${(l.city || "").trim()}|${(l.state || "").trim()}`).sort().join(";");
+  const metaKey = `${holidaysCacheKey(year)}_meta`;
+  const cachedNow = offlineCache.get<Holiday[]>(holidaysCacheKey(year));
+  const meta = offlineCache.get<{ sig: string; at: number }>(metaKey);
+  if (cachedNow && meta && meta.sig === sig) {
+    if (Date.now() - meta.at > HOLIDAYS_REVALIDATE_MS) {
+      void fetchHolidaysFresh(year, locations, sig, metaKey).catch(() => {});
+    }
+    return cachedNow;
+  }
+
+  return fetchHolidaysFresh(year, locations, sig, metaKey);
+}
+
+const HOLIDAYS_REVALIDATE_MS = 6 * 60 * 60 * 1000;
+
+async function fetchHolidaysFresh(
+  year: number,
+  locations: { city: string; state?: string }[],
+  sig: string,
+  metaKey: string
+): Promise<Holiday[]> {
   try {
     const response = await fetch(`${SUPABASE_URL}/functions/v1/get-holidays`, {
       method: 'POST',
@@ -121,6 +145,7 @@ export async function fetchHolidays(year: number, locations: { city: string; sta
     const data = await response.json();
     const holidays = Array.isArray(data) ? data : [];
     offlineCache.set(holidaysCacheKey(year), holidays, 30 * 24 * 60 * 60 * 1000);
+    offlineCache.set(metaKey, { sig, at: Date.now() }, 30 * 24 * 60 * 60 * 1000);
     return holidays;
   } catch (error) {
     console.error('Error fetching holidays from edge function:', error);
