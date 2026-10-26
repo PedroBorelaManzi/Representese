@@ -43,77 +43,113 @@ async function sign(secret: string, email: string): Promise<string> {
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!))
 
-function layout(body: string, unsubUrl: string): string {
+function layout(body: string, unsubUrl: string, preheader = ''): string {
   return `
-  <div style="font-family: -apple-system, Segoe UI, Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; color: #0f172a;">
-    <h2 style="color: #059669; font-weight: 900; margin: 0 0 20px 0; font-size: 22px;">Represente-Se!</h2>
-    ${body}
-    <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 28px 0 14px 0;" />
-    <p style="font-size: 11px; color: #94a3b8; line-height: 1.6; margin: 0;">
-      Você recebeu este e-mail porque deixou seus dados ou criou uma conta no Represente-Se!.
-      <a href="${unsubUrl}" style="color: #94a3b8;">Parar de receber estes e-mails</a>.
-    </p>
-  </div>`
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#f1f5f9;">${esc(preheader)}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#e8edf2;padding:24px 12px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#f7f7f5;border-radius:6px;overflow:hidden;">
+        <tr><td style="background:#064e3b;padding:34px 28px 30px 28px;">
+          <div style="font-size:30px;font-weight:900;letter-spacing:-0.5px;color:#ffffff;line-height:1.1;">Represente-Se!</div>
+          <div style="font-size:12px;font-weight:700;letter-spacing:2.5px;color:#6ee7b7;margin-top:8px;text-transform:uppercase;">O sistema do representante comercial</div>
+        </td></tr>
+        <tr><td style="padding:30px 28px 8px 28px;color:#0f172a;font-size:16px;line-height:1.65;">
+          ${body}
+        </td></tr>
+        <tr><td style="padding:8px 28px 30px 28px;">
+          <hr style="border:0;border-top:1px solid #e2e8f0;margin:0 0 16px 0;" />
+          <p style="font-size:11px;color:#94a3b8;line-height:1.7;margin:0;">
+            Você recebeu este e-mail porque deixou seus dados ou criou uma conta no Represente-Se!.
+            Pode responder esta mensagem: a gente lê.<br/>
+            <a href="${unsubUrl}" style="color:#94a3b8;">Parar de receber estes e-mails</a>
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>`
 }
 
+const p = (t: string) => `<p style="margin:0 0 18px 0;">${t}</p>`
+const li = (t: string) => `<p style="margin:0 0 10px 0;">${t}</p>`
 const button = (href: string, label: string) =>
-  `<p style="margin: 24px 0;"><a href="${href}" style="display: inline-block; background: #059669; color: #ffffff; text-decoration: none; font-weight: 800; font-size: 14px; padding: 14px 28px; border-radius: 12px;">${label}</a></p>`
+  `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:26px 0;"><tr><td style="background:#059669;border-radius:8px;"><a href="${href}" style="display:inline-block;padding:16px 30px;color:#ffffff;text-decoration:none;font-weight:900;font-size:14px;letter-spacing:0.8px;text-transform:uppercase;">${label}</a></td></tr></table>`
 
 function template(step: string, firstName: string, unsubUrl: string): { subject: string; html: string } {
-  const oi = firstName ? `Oi, ${esc(firstName)}!` : 'Olá!'
-  if (step === 'lead1') {
-    return {
-      subject: 'Você deixou seu contato no Represente-Se!',
-      html: layout(`
-        <p style="font-size: 15px; line-height: 1.6;">${oi}</p>
-        <p style="font-size: 15px; line-height: 1.6;">Você deixou seus dados no Represente-Se!, o sistema para representantes comerciais, mas não chegou a criar a conta. Aconteceu alguma coisa ou ficou alguma dúvida?</p>
-        <ul style="font-size: 15px; line-height: 1.8; padding-left: 20px;">
-          <li>clientes, pedidos e visitas num lugar só;</li>
-          <li>pedidos com catálogo e PDF na hora, até sem internet;</li>
-          <li>avisos de retorno e acompanhamento de faturamento por empresa.</li>
-        </ul>
-        <p style="font-size: 15px; line-height: 1.6;">Você tem 7 dias para testar antes da primeira cobrança.</p>
-        ${button(`${SITE}/planos`, 'Conhecer os planos')}
-        <p style="font-size: 14px; line-height: 1.6; color: #475569;">Prefere conversar? Responda este e-mail ou chame no <a href="${WHATSAPP}" style="color: #059669;">WhatsApp</a>. Eu mesmo atendo.</p>
-        <p style="font-size: 14px; line-height: 1.6; color: #475569;">Pedro, Represente-Se!</p>`, unsubUrl),
-    }
-  }
+  const nome = firstName ? esc(firstName) : ''
+  const oi = nome ? `${nome}, ` : ''
+  const L = (body: string, pre: string) => layout(body, unsubUrl, pre)
+
   if (step === 'h1') {
     return {
-      subject: 'Sua conta está pronta, falta só escolher o plano',
-      html: layout(`
-        <p style="font-size: 15px; line-height: 1.6;">${oi}</p>
-        <p style="font-size: 15px; line-height: 1.6;">Sua conta no Represente-Se! foi criada. Falta só um passo para começar a organizar seus clientes, pedidos e visitas num lugar só: escolher o plano.</p>
-        <p style="font-size: 15px; line-height: 1.6;">Entre na sua conta e toque em <strong>Ver planos</strong>. Leva menos de 2 minutos.</p>
-        ${button(`${SITE}/login`, 'Entrar e escolher meu plano')}
-        <p style="font-size: 14px; line-height: 1.6; color: #475569;">Ficou com alguma dúvida? É só responder este e-mail.</p>`, unsubUrl),
+      subject: 'Sua conta está pronta ✅',
+      html: L(
+        p(`<strong>${oi ? oi + 'sua' : 'Sua'} conta no Represente-Se! está criada.</strong>`) +
+        p('Falta só <strong>escolher o plano</strong> para liberar o sistema.') +
+        p('Com ele você:') +
+        li('✅ Cadastra seus clientes e vê quem está há dias sem comprar') +
+        li('✅ Cria pedidos com catálogo e gera o PDF na hora') +
+        li('✅ Agenda visitas e recebe aviso de retorno') +
+        li('✅ Usa até sem internet') +
+        p('<strong>Você tem 7 dias para testar antes da primeira cobrança.</strong> Sem fidelidade: cancela quando quiser.') +
+        button(`${SITE}/login`, 'Entrar e escolher meu plano') +
+        p('Leva menos de 2 minutos.') +
+        p('Equipe Represente-Se!'),
+        'Falta um passo para liberar o sistema.'),
     }
   }
+
   if (step === 'd2') {
     return {
-      subject: 'Como representantes estão usando o Represente-Se!',
-      html: layout(`
-        <p style="font-size: 15px; line-height: 1.6;">${oi}</p>
-        <p style="font-size: 15px; line-height: 1.6;">Em poucos minutos você já consegue:</p>
-        <ul style="font-size: 15px; line-height: 1.8; padding-left: 20px;">
-          <li>cadastrar seus clientes e ver quem está sem comprar;</li>
-          <li>criar pedidos com o catálogo e gerar o PDF na hora, até sem internet;</li>
-          <li>agendar visitas e receber avisos de retorno;</li>
-          <li>acompanhar faturamento e comissão por empresa representada.</li>
-        </ul>
-        <p style="font-size: 15px; line-height: 1.6;">Você tem 7 dias para testar antes da primeira cobrança.</p>
-        ${button(`${SITE}/login`, 'Escolher meu plano')}
-        <p style="font-size: 14px; line-height: 1.6; color: #475569;">Quer ajuda para começar? Responda este e-mail ou chame no <a href="${WHATSAPP}" style="color: #059669;">WhatsApp</a>.</p>`, unsubUrl),
+      subject: 'Quanto custa um cliente esquecido? 📍',
+      html: L(
+        p(`<strong>${oi ? oi + 'todo' : 'Todo'} representante já perdeu um pedido por esquecer de voltar num cliente.</strong>`) +
+        p('Não é falta de vontade. É cabeça cheia, caderno perdido e planilha desatualizada.') +
+        p('O Represente-Se! foi feito para isso não acontecer. São 4 pilares:') +
+        p('<strong>Pilar 01: Clientes</strong><br/>Todos os contatos e o histórico de compras num lugar só. Você vê na hora quem sumiu.') +
+        p('<strong>Pilar 02: Pedidos</strong><br/>Pedido com catálogo e PDF pronto na frente do cliente, até sem internet.') +
+        p('<strong>Pilar 03: Agenda</strong><br/>Visitas marcadas e aviso de retorno para ninguém ficar para trás.') +
+        p('<strong>Pilar 04: Faturamento</strong><br/>Quanto você vendeu e quanto tem de comissão, por empresa representada.') +
+        button(`${SITE}/login`, 'Quero testar 7 dias') +
+        p('<strong>7 dias para testar antes da primeira cobrança.</strong> Se não fizer sentido para você, cancela e pronto.') +
+        button(`${SITE}/login`, 'Escolher meu plano') +
+        p('Ficou com dúvida? Responde este e-mail ou chama no <a href="' + WHATSAPP + '" style="color:#059669;font-weight:700;">WhatsApp</a>.') +
+        p('Equipe Represente-Se!'),
+        'Os 4 pilares que impedem você de perder venda.'),
     }
   }
+
+  if (step === 'd7') {
+    return {
+      subject: `${oi ? nome + ', jogo' : 'Jogo'} rápido 👋`,
+      html: L(
+        p(`<strong>${oi ? nome + ', jogo' : 'Jogo'} rápido.</strong>`) +
+        p('Faz uma semana que você criou sua conta no Represente-Se! e ainda não escolheu um plano.') +
+        p('Eu quero entender: <strong>aconteceu alguma coisa?</strong>') +
+        li('Ficou alguma dúvida sobre como funciona?') +
+        li('Não achou o plano certo para o seu caso?') +
+        li('Teve algum problema na hora de assinar?') +
+        p('Me responde este e-mail ou me chama no WhatsApp. <strong>Eu mesmo te atendo</strong> e deixo tudo pronto com você.') +
+        button(WHATSAPP, 'Falar com o Pedro no WhatsApp') +
+        p('Pedro,<br/>fundador do Represente-Se!'),
+        'Aconteceu alguma coisa? Eu mesmo te ajudo.'),
+    }
+  }
+
+  // lead1: deixou o contato no site e não criou a conta
   return {
-    subject: 'Posso te ajudar a começar?',
-    html: layout(`
-      <p style="font-size: 15px; line-height: 1.6;">${oi}</p>
-      <p style="font-size: 15px; line-height: 1.6;">Vi que você criou sua conta no Represente-Se! mas ainda não escolheu um plano. Aconteceu alguma coisa, ou ficou alguma dúvida sobre como funciona?</p>
-      <p style="font-size: 15px; line-height: 1.6;">Me responda este e-mail ou me chame no WhatsApp. Eu mesmo te ajudo a deixar tudo pronto.</p>
-      ${button(WHATSAPP, 'Falar no WhatsApp')}
-      <p style="font-size: 14px; line-height: 1.6; color: #475569;">Pedro, Represente-Se!</p>`, unsubUrl),
+    subject: `${oi ? nome + ', você' : 'Você'} deixou seu contato aqui 👀`,
+    html: L(
+      p(`<strong>${oi ? nome + ', você' : 'Você'} deixou seus dados no Represente-Se!, mas não chegou a criar a conta.</strong>`) +
+      p('Aconteceu alguma coisa? Às vezes é só a correria do dia a dia, e está tudo bem.') +
+      p('Quando você tiver 2 minutos, é isto que está esperando por você:') +
+      li('✅ Clientes, pedidos e visitas num lugar só') +
+      li('✅ Pedido com catálogo e PDF na hora, até sem internet') +
+      li('✅ Avisos de retorno e faturamento por empresa representada') +
+      p('<strong>7 dias para testar antes da primeira cobrança.</strong> Sem fidelidade.') +
+      button(`${SITE}/planos`, 'Conhecer os planos') +
+      p('Prefere conversar antes? Responde este e-mail ou chama no <a href="' + WHATSAPP + '" style="color:#059669;font-weight:700;">WhatsApp</a>. Eu mesmo atendo.') +
+      p('Pedro,<br/>fundador do Represente-Se!'),
+      'Seus 7 dias de teste estão esperando.'),
   }
 }
 
@@ -152,6 +188,18 @@ serve(async (req) => {
     return new Response(JSON.stringify({ success: false, message: 'Não autorizado.' }), { status: 401 })
   }
   if (!RESEND_API_KEY) return new Response(JSON.stringify({ success: false, message: 'RESEND_API_KEY ausente.' }), { status: 500 })
+
+  // Prévia: manda os 4 modelos só para o endereço informado (não toca em ninguém mais).
+  const body = await req.json().catch(() => ({})) as { preview?: string }
+  if (body.preview) {
+    const to = String(body.preview)
+    const unsubUrl = `${SUPABASE_URL}/functions/v1/nurture-leads?unsub=${encodeURIComponent(to)}&t=${await sign(secret, to)}`
+    for (const st of ['h1', 'd2', 'd7', 'lead1']) {
+      const { subject, html } = template(st, 'Pedro', unsubUrl)
+      await send({ from: FROM, to, reply_to: 'contato@representese.com', subject: `[PRÉVIA] ${subject}`, html })
+    }
+    return new Response(JSON.stringify({ success: true, preview: to }), { headers: { 'Content-Type': 'application/json' } })
+  }
 
   const { data: cands, error } = await admin.rpc('nurture_candidates')
   if (error) {
