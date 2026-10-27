@@ -11,6 +11,8 @@ interface PdfViewerModalProps {
   isOpen: boolean;
   onClose: () => void;
   url: string | null;
+  /** Bytes do PDF já em memória (preferido no app: não depende de URL nem de fetch). */
+  data?: Uint8Array | null;
   fileName?: string;
   /** Caminho do arquivo no Storage — com ele, no app, o PDF é lido do cache local direto pelo plugin de arquivos. */
   storagePath?: string;
@@ -31,7 +33,7 @@ const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 4;
 const PASSO_ZOOM = 0.25;
 
-export function PdfViewerModal({ isOpen, onClose, url, fileName, storagePath, onDownload }: PdfViewerModalProps) {
+export function PdfViewerModal({ isOpen, onClose, url, data, fileName, storagePath, onDownload }: PdfViewerModalProps) {
   const [pdf, setPdf] = useState<any>(null);
   const [numPages, setNumPages] = useState(0);
   const [pageSize, setPageSize] = useState<{ width: number; height: number } | null>(null);
@@ -59,7 +61,7 @@ export function PdfViewerModal({ isOpen, onClose, url, fileName, storagePath, on
   // páginas que precisa), então nem o carregamento inicial baixa o arquivo
   // inteiro de uma vez, mesmo para PDFs grandes.
   useEffect(() => {
-    if (!isOpen || !url) return;
+    if (!isOpen || (!url && !data)) return;
     let cancelled = false;
     setLoading(true);
     setError(false);
@@ -75,7 +77,7 @@ export function PdfViewerModal({ isOpen, onClose, url, fileName, storagePath, on
         // o pdfjs lê por requisições parciais dentro do worker, e o WKWebView do
         // iOS pode não atender isso para arquivo local. Nesse caso lemos os
         // bytes aqui e entregamos prontos.
-        const ehLocal = Capacitor.isNativePlatform() && !/^https?:\/\/(?!localhost)/i.test(url);
+        const ehLocal = !!url && Capacitor.isNativePlatform() && !/^https?:\/\/(?!localhost)/i.test(url);
         const lerBytes = async () => {
           let bytes: Uint8Array;
           const falhas: string[] = [];
@@ -109,9 +111,10 @@ export function PdfViewerModal({ isOpen, onClose, url, fileName, storagePath, on
         const tentativas: Array<() => Promise<any>> = [];
         const abrir = async (legacy: boolean, porBytes: boolean) => {
           const pdfjs = await loadPdfjs(legacy);
-          return pdfjs.getDocument(porBytes ? { data: await lerBytes() } : { url }).promise;
+          // slice(): o pdfjs entrega os bytes ao worker (transferência) e esvazia o buffer original.
+          return pdfjs.getDocument(data ? { data: data.slice() } : porBytes ? { data: await lerBytes() } : { url: url as string }).promise;
         };
-        if (!ehLocal) tentativas.push(() => abrir(false, false));
+        if (!ehLocal && !data) tentativas.push(() => abrir(false, false));
         tentativas.push(() => abrir(false, true));
         tentativas.push(() => abrir(true, true));
         let doc: any;
@@ -148,7 +151,7 @@ export function PdfViewerModal({ isOpen, onClose, url, fileName, storagePath, on
     return () => {
       cancelled = true;
     };
-  }, [isOpen, url]);
+  }, [isOpen, url, data]);
 
   useEffect(() => {
     if (!isOpen) return;

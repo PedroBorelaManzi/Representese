@@ -44,7 +44,8 @@ import { useConfirm } from "../components/ui";
 import { useModalEsc } from "../hooks/useModalEsc";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 import { useClients } from "../hooks/useClients";
-import { getCachedUriSePresente, getCachedFileUri, baixarParaCacheEmSegundoPlano, compartilharArquivoDoCache } from "../lib/fileCache";
+import { getCachedUriSePresente, obterBytesArquivo } from "../lib/fileCache";
+import { saveFile } from "../lib/saveFile";
 import { ajustarFaturamento } from "../lib/faturamento";
 import { saveFileToIndexedDB } from "../lib/storage";
 import { queuePendingFileUpload } from "../lib/pendingFileUploads";
@@ -92,7 +93,7 @@ export default function ClientDetails() {
   const [uploadCategory, setUploadCategory] = useState(draft.category || "");
   const [isFollowupModalOpen, setIsFollowupModalOpen] = useState(false);
   const [followupStatus, setFollowupStatus] = useState<ClientFollowupStatus | null>(null);
-  const [pdfPreview, setPdfPreview] = useState<{ url: string; name: string; path?: string } | null>(null);
+  const [pdfPreview, setPdfPreview] = useState<{ url: string; name: string; path?: string; data?: Uint8Array } | null>(null);
 
   const initializedRef = useRef(false);
 
@@ -309,22 +310,22 @@ export default function ClientDetails() {
   // Arquivos.tsx: no app, salva no armazenamento do próprio app (funciona
   // offline depois); no site, mantém o download tradicional do navegador.
   const handleDownload = async (fileName: string, filePath: string) => {
+    if (!filePath) {
+      toast.error("Este pedido não tem cópia (PDF) anexada.");
+      return;
+    }
     if (Capacitor.isNativePlatform()) {
-      if (await getCachedUriSePresente(filePath)) {
-        toast.success(`${fileName} já está salvo no app.`);
-        void compartilharArquivoDoCache(filePath, fileName);
-        return;
-      }
       const toastId = toast.loading(`Baixando ${fileName}...`);
       try {
-        const { data, error } = await supabase.storage.from('client_vault').createSignedUrl(filePath, 60 * 60);
-        if (error || !data?.signedUrl) throw error || new Error("Arquivo não encontrado.");
-        await getCachedFileUri(filePath, data.signedUrl);
+        // Garante a cópia dentro do app (offline) e abre a folha "Salvar em
+        // Arquivos / enviar" só com ESTE arquivo.
+        const bytes = await obterBytesArquivo('client_vault', filePath);
         setCachedPaths((prev) => new Set(prev).add(filePath));
-        toast.success(`${fileName} salvo no app — abre offline e sem baixar de novo.`, { id: toastId });
-        void compartilharArquivoDoCache(filePath, fileName);
-      } catch (err) {
-        toast.error("Erro ao baixar arquivo.", { id: toastId });
+        toast.dismiss(toastId);
+        await saveFile(new Blob([bytes], { type: "application/pdf" }), fileName, "application/pdf");
+      } catch (err: any) {
+        console.error("Erro ao baixar arquivo:", err);
+        toast.error(`Erro ao baixar arquivo: ${err?.message || err}`, { id: toastId, duration: 8000 });
       }
       return;
     }
@@ -350,43 +351,21 @@ export default function ClientDetails() {
   // Abre PDFs no visualizador interno — renderiza só as páginas próximas da
   // área visível, então o scroll continua leve mesmo em documentos grandes.
   const handleOpenPdf = async (fileName: string, filePath: string) => {
+    if (!filePath) {
+      toast.error("Este pedido não tem cópia (PDF) anexada.");
+      return;
+    }
+    const toastId = toast.loading(`Abrindo ${fileName}...`);
     try {
-      // Já salvo no aparelho: abre na hora, sem pedir nada pro Supabase — mesmo
-      // ganho já aplicado em Arquivos.tsx, que esse fluxo de anexos do cliente
-      // ainda não tinha (toda abertura esperava um round-trip de rede mesmo com
-      // o arquivo 100% em cache local).
-      const emCache = await getCachedUriSePresente(filePath);
-      if (emCache) {
-        setPdfPreview({ url: emCache, name: fileName, path: filePath });
-        return;
-      }
-
-      let { data, error } = await supabase.storage
-        .from('client_vault')
-        .createSignedUrl(filePath, 60 * 60);
-
-      if (error || !data?.signedUrl) throw error || new Error("Arquivo não encontrado.");
-
-      if (Capacitor.isNativePlatform()) {
-        // No app, baixa primeiro (pelo lado nativo, sem CORS) e abre da cópia
-        // local: ler da rede pelo WebView falha no iOS ("Load failed").
-        const toastId = toast.loading(`Baixando ${fileName}...`);
-        try {
-          const local = await getCachedFileUri(filePath, data.signedUrl);
-          setCachedPaths((prev) => new Set(prev).add(filePath));
-          toast.dismiss(toastId);
-          setPdfPreview({ url: local, name: fileName, path: filePath });
-        } catch (e) {
-          toast.error("Não foi possível baixar o arquivo.", { id: toastId });
-        }
-        return;
-      }
-      setPdfPreview({ url: data.signedUrl, name: fileName, path: filePath });
-      baixarParaCacheEmSegundoPlano(filePath, data.signedUrl, () =>
-        setCachedPaths((prev) => new Set(prev).add(filePath))
-      );
-    } catch (err) {
-      toast.error("Erro ao abrir arquivo.");
+      // Bytes direto (cópia salva no app ou download autenticado) — não depende
+      // de URL/fetch do WebView, que falhava no iOS com "Load failed".
+      const bytes = await obterBytesArquivo('client_vault', filePath);
+      setCachedPaths((prev) => new Set(prev).add(filePath));
+      toast.dismiss(toastId);
+      setPdfPreview({ url: "", name: fileName, path: filePath, data: bytes });
+    } catch (err: any) {
+      console.error("Erro ao abrir arquivo:", err);
+      toast.error(`Erro ao abrir arquivo: ${err?.message || err}`, { id: toastId, duration: 8000 });
     }
   };
 
@@ -1049,6 +1028,7 @@ export default function ClientDetails() {
         isOpen={!!pdfPreview}
         onClose={() => setPdfPreview(null)}
         url={pdfPreview?.url ?? null}
+        data={pdfPreview?.data ?? null}
         fileName={pdfPreview?.name}
         storagePath={pdfPreview?.path}
         onDownload={() => pdfPreview && handleDownload(pdfPreview.name, pdfPreview.path || files.find(f => f.file_name === pdfPreview.name)?.file_path || "")}

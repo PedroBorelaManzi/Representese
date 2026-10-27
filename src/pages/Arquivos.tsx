@@ -34,8 +34,9 @@ import {
   evictCachedFile,
   getCachedUriSePresente,
   baixarParaCacheEmSegundoPlano,
-  compartilharArquivoDoCache,
+  obterBytesArquivo,
 } from "../lib/fileCache";
+import { saveFile } from "../lib/saveFile";
 import { Capacitor } from "@capacitor/core";
 import { toast } from "sonner";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -91,7 +92,7 @@ export default function Arquivos() {
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [dragActive, setDragActive] = useState(false);
-  const [pdfPreview, setPdfPreview] = useState<{ url: string; name: string; path?: string } | null>(null);
+  const [pdfPreview, setPdfPreview] = useState<{ url: string; name: string; path?: string; data?: Uint8Array } | null>(null);
   const [imagePreview, setImagePreview] = useState<{ url: string; name: string } | null>(null);
   // Progresso de download/abertura — arquivos grandes (catálogos de dezenas de
   // MB) levavam muito tempo sem nenhum sinal de quanto faltava.
@@ -261,6 +262,22 @@ export default function Arquivos() {
     const isImage = IMAGE_EXT.test(name);
     const storagePath = `${prefix}/${name}`;
 
+    // PDF no app: bytes direto (cópia salva ou download autenticado) — a URL +
+    // fetch do WebView falhava no iOS com "Load failed".
+    if (isPdf && Capacitor.isNativePlatform()) {
+      const toastId = toast.loading(`Abrindo ${name}...`);
+      try {
+        const bytes = await obterBytesArquivo(BUCKET, storagePath);
+        setCachedNames((prev) => new Set(prev).add(name));
+        toast.dismiss(toastId);
+        setPdfPreview({ url: "", name, path: storagePath, data: bytes });
+      } catch (e: any) {
+        console.error("Erro ao abrir arquivo:", e);
+        toast.error(`Erro ao abrir arquivo: ${e?.message || e}`, { id: toastId, duration: 8000 });
+      }
+      return;
+    }
+
     // Já salvo no aparelho: abre na hora, sem pedir nada pro Supabase. Checar
     // isso antes de criar a URL assinada é o que importa aqui — senão toda
     // abertura esperava um round-trip de rede mesmo quando o arquivo já
@@ -346,24 +363,16 @@ export default function Arquivos() {
     const storagePath = `${prefix}/${name}`;
 
     if (Capacitor.isNativePlatform()) {
-      if (await getCachedUriSePresente(storagePath)) {
-        toast.success(`${name} já está salvo no app.`);
-        void compartilharArquivoDoCache(storagePath, name);
-        return;
-      }
       setProgresso({ nome: name, percentual: 0 });
       try {
-        const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(storagePath, 60 * 60);
-        if (error || !data?.signedUrl) throw error || new Error("URL assinada indisponível");
-        await getCachedFileUri(storagePath, data.signedUrl, (p) =>
-          setProgresso({ nome: name, percentual: p.percentual })
-        );
+        // Bytes pela API autenticada (guarda cópia offline no app) e folha
+        // "Salvar em Arquivos / enviar" só com este arquivo.
+        const bytes = await obterBytesArquivo(BUCKET, storagePath);
         setCachedNames((prev) => new Set(prev).add(name));
-        toast.success(`${name} salvo no app — abre offline e sem baixar de novo.`);
-        void compartilharArquivoDoCache(storagePath, name);
-      } catch (e) {
+        await saveFile(new Blob([bytes]), name);
+      } catch (e: any) {
         console.error("Erro ao baixar arquivo:", e);
-        toast.error("Erro ao baixar arquivo.");
+        toast.error(`Erro ao baixar arquivo: ${e?.message || e}`, { duration: 8000 });
       } finally {
         setProgresso(null);
       }
@@ -653,6 +662,7 @@ export default function Arquivos() {
         isOpen={!!pdfPreview}
         onClose={() => setPdfPreview(null)}
         url={pdfPreview?.url ?? null}
+        data={pdfPreview?.data ?? null}
         fileName={pdfPreview?.name}
         storagePath={pdfPreview?.path}
         onDownload={() => pdfPreview && handleDownload(pdfPreview.name)}

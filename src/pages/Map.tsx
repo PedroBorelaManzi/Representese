@@ -17,7 +17,8 @@ import { syncQueue } from "../lib/syncQueue";
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from "sonner";
 import { offlineCache, CacheKeys } from "../lib/offlineCache";
-import { getCachedUriSePresente, getCachedFileUri, compartilharArquivoDoCache } from "../lib/fileCache";
+import { obterBytesArquivo } from "../lib/fileCache";
+import { saveFile } from "../lib/saveFile";
 import { createOfflineTileLayer } from "../lib/offlineTileLayer";
 import { lookupCnpj } from "../lib/cnpjLookup";
 import { getHighPrecisionCoordinates } from "../lib/geminiGeocoding";
@@ -330,20 +331,13 @@ export default function Map() {
   // depois) — o mesmo padrão usado em Arquivos.tsx e ClientDetails.tsx.
   const handleDownload = async (fileName: string, filePath: string) => {
     if (Capacitor.isNativePlatform()) {
-      if (await getCachedUriSePresente(filePath)) {
-        toast.success(`${fileName} já está salvo no app.`);
-        void compartilharArquivoDoCache(filePath, fileName);
-        return;
-      }
       const toastId = toast.loading(`Baixando ${fileName}...`);
       try {
-        const { data, error } = await supabase.storage.from('client_vault').createSignedUrl(filePath, 60 * 60);
-        if (error || !data?.signedUrl) throw error || new Error("Arquivo não encontrado.");
-        await getCachedFileUri(filePath, data.signedUrl);
-        toast.success(`${fileName} salvo no app — abre offline e sem baixar de novo.`, { id: toastId });
-        void compartilharArquivoDoCache(filePath, fileName);
-      } catch (err) {
-        toast.error("Erro ao baixar arquivo.", { id: toastId });
+        const bytes = await obterBytesArquivo('client_vault', filePath);
+        toast.dismiss(toastId);
+        await saveFile(new Blob([bytes], { type: "application/pdf" }), fileName, "application/pdf");
+      } catch (err: any) {
+        toast.error(`Erro ao baixar arquivo: ${err?.message || err}`, { id: toastId, duration: 8000 });
       }
       return;
     }

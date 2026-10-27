@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, FileText, FileDown, Loader2, Truck, Hash, Receipt, CreditCard, CalendarDays, CalendarClock, StickyNote, Package, Scissors, Trash2 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { offlineCache, CacheKeys } from "../lib/offlineCache";
-import { getCachedUriSePresente, baixarParaCacheEmSegundoPlano } from "../lib/fileCache";
+import { obterBytesArquivo } from "../lib/fileCache";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
 import { InlineEditField } from "./InlineEditField";
@@ -40,7 +40,7 @@ const toDateInputValue = (v: string | null | undefined) => (v ? String(v).match(
 export function OrderDetailModal({ order, isOpen, onClose, onUpdated, commissions, onOrderCreated }: OrderDetailModalProps) {
   const [installments, setInstallments] = useState<OrderInstallment[]>([]);
   const [loadingInstallments, setLoadingInstallments] = useState(false);
-  const [pdfPreview, setPdfPreview] = useState<{ url: string; name: string } | null>(null);
+  const [pdfPreview, setPdfPreview] = useState<{ url: string; name: string; data?: Uint8Array } | null>(null);
   const [items, setItems] = useState<OrderItem[]>([]);
   const [loadingItems, setLoadingItems] = useState(false);
   const [splitting, setSplitting] = useState(false);
@@ -182,14 +182,14 @@ export function OrderDetailModal({ order, isOpen, onClose, onUpdated, commission
   const openFile = async () => {
     if (!order.file_path) return;
     const nome = order.file_name || "pedido";
-    // Cópia já salva no aparelho (baixada na sincronização): abre na hora e funciona offline.
-    const local = await getCachedUriSePresente(order.file_path);
-    if (local) { setPdfPreview({ url: local, name: nome }); return; }
-    if (!offlineCache.isOnline()) { toast.error("Esta cópia ainda não foi baixada no aparelho. Conecte-se e sincronize para ter ela offline."); return; }
-    const { data, error } = await supabase.storage.from("client_vault").createSignedUrl(order.file_path, 60 * 60);
-    if (error || !data) { toast.error("Não foi possível abrir o arquivo."); return; }
-    setPdfPreview({ url: data.signedUrl, name: nome });
-    baixarParaCacheEmSegundoPlano(order.file_path, data.signedUrl);
+    try {
+      // Cópia salva no aparelho (baixada na sincronização) abre na hora e offline;
+      // se não houver, baixa pela API autenticada e guarda.
+      const bytes = await obterBytesArquivo("client_vault", order.file_path);
+      setPdfPreview({ url: "", name: nome, data: bytes });
+    } catch (e: any) {
+      toast.error(`Não foi possível abrir o arquivo: ${e?.message || e}`, { duration: 8000 });
+    }
   };
 
   const pct = Number(commissions[order.category] ?? 0);
@@ -409,7 +409,7 @@ export function OrderDetailModal({ order, isOpen, onClose, onUpdated, commission
         </div>
       )}
 
-      <PdfViewerModal isOpen={!!pdfPreview} onClose={() => setPdfPreview(null)} url={pdfPreview?.url ?? null} fileName={pdfPreview?.name} storagePath={order.file_path || undefined} />
+      <PdfViewerModal isOpen={!!pdfPreview} onClose={() => setPdfPreview(null)} url={pdfPreview?.url ?? null} data={pdfPreview?.data ?? null} fileName={pdfPreview?.name} storagePath={order.file_path || undefined} />
       <PdfViewerModal
         isOpen={!!generatedPdf}
         onClose={() => { generatedPdf?.dispose(); setGeneratedPdf(null); }}

@@ -1,6 +1,7 @@
 import { Capacitor } from "@capacitor/core";
 import { Filesystem, Directory } from "@capacitor/filesystem";
 import { Share } from "@capacitor/share";
+import { supabase } from "./supabase";
 
 // Armazenamento privado do app (Directory.Data) — não exige nenhuma permissão
 // de armazenamento no Android e sobrevive entre sessões, então um arquivo já
@@ -291,4 +292,60 @@ export async function descreverCache(storagePath: string): Promise<string> {
   } catch (e: any) {
     return `ausente (${e?.message || e})`;
   }
+}
+
+function bytesParaBase64(bytes: Uint8Array): string {
+  let bin = "";
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(bin);
+}
+
+const temCabecalhoPdf = (b: Uint8Array) => b.length > 4 && b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46;
+
+/**
+ * Entrega os BYTES do arquivo do Storage, do jeito mais confiável possível:
+ * 1) cópia salva no app (lida pelo plugin de arquivos, que não depende de URL);
+ * 2) senão, baixa pela API autenticada do Supabase (a mesma que todo o resto do
+ *    app usa — a URL assinada + fetch/pdf.js falhava no iOS com "Load failed")
+ *    e guarda a cópia para abrir offline da próxima vez.
+ * Erros vêm com o motivo real, para aparecer na tela em vez de "erro genérico".
+ */
+export async function obterBytesArquivo(bucket: string, storagePath: string): Promise<Uint8Array> {
+  if (!storagePath?.trim()) throw new Error("Este item não tem arquivo anexado.");
+  const pdf = ehPdf(storagePath);
+  const nativo = Capacitor.isNativePlatform();
+
+  if (nativo) {
+    try {
+      const salvo = await lerBytesDoCache(storagePath);
+      if (salvo.length > 8 && (!pdf || temCabecalhoPdf(salvo))) return salvo;
+    } catch {
+      // cópia ausente ou ilegível — baixa de novo abaixo
+    }
+  }
+
+  const { data, error } = await supabase.storage.from(bucket).download(storagePath);
+  if (error || !data) {
+    throw new Error(`não foi possível baixar (${(error as any)?.message || (error as any)?.error || "sem resposta"})`);
+  }
+  const bytes = new Uint8Array(await data.arrayBuffer());
+  if (bytes.length < 8) throw new Error(`arquivo vazio (${bytes.length} bytes)`);
+  if (pdf && !temCabecalhoPdf(bytes)) throw new Error("o servidor não devolveu um PDF válido");
+
+  if (nativo) {
+    try {
+      await Filesystem.writeFile({
+        path: localFileName(storagePath),
+        directory: CACHE_DIR,
+        data: bytesParaBase64(bytes),
+        recursive: true,
+      });
+    } catch (e) {
+      console.warn("Não foi possível guardar a cópia offline:", e);
+    }
+  }
+  return bytes;
 }
