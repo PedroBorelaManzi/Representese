@@ -350,6 +350,52 @@ export default function ClientDetails() {
 
   // Abre PDFs no visualizador interno — renderiza só as páginas próximas da
   // área visível, então o scroll continua leve mesmo em documentos grandes.
+  // Pedido importado de relatório não tem PDF anexado: monta uma FICHA com os
+  // dados que o sistema já tem (número, empresa, cliente, data, valor), no mesmo
+  // layout dos pedidos feitos no app — o olhinho e o baixar passam a funcionar
+  // para qualquer pedido, offline, sem depender de arquivo no Storage.
+  const gerarFichaPedido = async (file: Order) => {
+    const { buildOrderPdf, orderPdfFileName } = await import("../lib/orderPdf");
+    const numero = (file as any).order_number || String(file.id).slice(0, 8).toUpperCase();
+    const valor = Number(file.value) || 0;
+    const blob = await buildOrderPdf({
+      orderNumber: numero,
+      date: file.created_at || new Date().toISOString(),
+      company: file.category || "Geral",
+      client: {
+        name: client?.name || "—",
+        cnpj: client?.cnpj,
+        address: client?.address,
+        phone: client?.phone,
+        email: client?.email,
+      },
+      items: [{ product_name: `Pedido ${numero} (importado de relatório)`, quantity: 1, unit_value: valor } as any],
+      paymentTerms: (file as any).payment_terms,
+      notes: (file as any).notes || "Ficha gerada a partir dos dados do pedido importado. Não há PDF original anexado a este pedido.",
+    });
+    return { bytes: new Uint8Array(await blob.arrayBuffer()), blob, nome: orderPdfFileName(numero) };
+  };
+
+  const handleOpenFicha = async (file: Order) => {
+    try {
+      const { bytes, nome } = await gerarFichaPedido(file);
+      setPdfPreview({ url: "", name: nome, data: bytes });
+    } catch (err: any) {
+      console.error("Erro ao gerar ficha do pedido:", err);
+      toast.error(`Não foi possível gerar a ficha: ${err?.message || err}`, { duration: 8000 });
+    }
+  };
+
+  const handleDownloadFicha = async (file: Order) => {
+    try {
+      const { blob, nome } = await gerarFichaPedido(file);
+      await saveFile(blob, nome, "application/pdf");
+    } catch (err: any) {
+      console.error("Erro ao salvar ficha do pedido:", err);
+      toast.error(`Não foi possível salvar a ficha: ${err?.message || err}`, { duration: 8000 });
+    }
+  };
+
   const handleOpenPdf = async (fileName: string, filePath: string) => {
     if (!filePath) {
       toast.error("Este pedido não tem cópia (PDF) anexada.");
@@ -883,7 +929,10 @@ export default function ClientDetails() {
 {file.file_path ? (
                              <button onClick={() => handleDownload(file.file_name || "", file.file_path || "")} className="p-3 bg-white dark:bg-zinc-800 text-slate-400 hover:text-emerald-600 rounded-xl shadow-sm border border-slate-100 dark:border-zinc-800"><Download className="w-4 h-4" /></button>
                            ) : (
-                             <span title="Este pedido veio de uma planilha/relatório importado e não tem cópia (PDF) anexada." className="px-3 py-2 text-[8px] font-black text-slate-400 uppercase tracking-widest">Sem cópia anexada</span>
+                             <>
+                               <button onClick={() => handleOpenFicha(file)} title="Ver ficha do pedido (gerada com os dados importados)" className="p-3 bg-white dark:bg-zinc-800 text-slate-400 hover:text-emerald-600 rounded-xl shadow-sm border border-slate-100 dark:border-zinc-800"><Eye className="w-4 h-4" /></button>
+                               <button onClick={() => handleDownloadFicha(file)} title="Baixar ficha do pedido" className="p-3 bg-white dark:bg-zinc-800 text-slate-400 hover:text-emerald-600 rounded-xl shadow-sm border border-slate-100 dark:border-zinc-800"><Download className="w-4 h-4" /></button>
+                             </>
                            )}
                            <button onClick={() => handleFileDelete(file.id, file.file_path || "")} className="p-3 bg-white dark:bg-zinc-800 text-slate-400 hover:text-red-500 rounded-xl shadow-sm border border-slate-100 dark:border-zinc-800"><Trash2 className="w-4 h-4" /></button>
                         </div>
