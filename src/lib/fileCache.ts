@@ -22,6 +22,24 @@ function localFileName(storagePath: string): string {
   return `${CACHE_SUBDIR}/${safe}`;
 }
 
+/**
+ * PDF em cache começa com "%PDF-"? O download nativo grava o corpo da resposta
+ * mesmo quando o servidor devolve erro (JSON/HTML), e esse arquivo falso ficava
+ * "salvo no app" para sempre — o visualizador nunca conseguia abrir. Só checa
+ * quando conseguimos ler o começo; qualquer falha de leitura conta como válido.
+ */
+async function pdfEmCacheEhValido(path: string): Promise<boolean> {
+  try {
+    const { data } = await Filesystem.readFile({ path, directory: CACHE_DIR, offset: 0, length: 8 });
+    const bin = atob(typeof data === "string" ? data : "");
+    return bin.startsWith("%PDF");
+  } catch {
+    return true;
+  }
+}
+
+const ehPdf = (storagePath: string) => /\.pdf$/i.test(storagePath);
+
 /** Já existe em cache local? Devolve a URI pronta pro WebView, ou null. */
 async function uriEmCache(path: string): Promise<string | null> {
   try {
@@ -75,6 +93,10 @@ async function baixarNativo(
     });
     await Filesystem.deleteFile({ path, directory: CACHE_DIR }).catch(() => {});
     await Filesystem.rename({ from: tmp, to: path, directory: CACHE_DIR, toDirectory: CACHE_DIR });
+    if (ehPdf(path) && !(await pdfEmCacheEhValido(path))) {
+      await Filesystem.deleteFile({ path, directory: CACHE_DIR }).catch(() => {});
+      throw new Error("O servidor não devolveu um PDF válido.");
+    }
   } finally {
     await listener?.remove();
   }
@@ -118,7 +140,7 @@ export async function getCachedFileUri(
 
   const path = localFileName(storagePath);
 
-  const emCache = await uriEmCache(path);
+  const emCache = await uriEmCacheValido(path);
   if (emCache) {
     // Já está no dispositivo: avisa como concluído pra barra não ficar parada.
     onProgress?.({ baixado: 1, total: 1, percentual: 100 });
@@ -134,7 +156,17 @@ export async function getCachedFileUri(
 /** Já está salvo no dispositivo? Devolve a URI local, ou null se ainda não. */
 export async function getCachedUriSePresente(storagePath: string): Promise<string | null> {
   if (!Capacitor.isNativePlatform()) return null;
-  return uriEmCache(localFileName(storagePath));
+  return uriEmCacheValido(localFileName(storagePath));
+}
+
+/** Como uriEmCache, mas descarta (apaga) PDF salvo corrompido para forçar novo download. */
+async function uriEmCacheValido(path: string): Promise<string | null> {
+  const uri = await uriEmCache(path);
+  if (uri && ehPdf(path) && !(await pdfEmCacheEhValido(path))) {
+    await Filesystem.deleteFile({ path, directory: CACHE_DIR }).catch(() => {});
+    return null;
+  }
+  return uri;
 }
 
 /**
@@ -157,7 +189,7 @@ export function baixarParaCacheEmSegundoPlano(
   const path = localFileName(storagePath);
   void (async () => {
     try {
-      if (await uriEmCache(path)) { onComplete?.(); return; }
+      if (await uriEmCacheValido(path)) { onComplete?.(); return; }
       await baixarNativo(signedUrl, path);
       onComplete?.();
     } catch (e) {
