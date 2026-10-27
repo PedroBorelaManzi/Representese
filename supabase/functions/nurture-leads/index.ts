@@ -19,9 +19,6 @@ const ADMIN_TO = 'pedroborelamanzi@gmail.com'
 const WHATSAPP = 'https://wa.me/5515997472785'
 
 // Black Friday: preços promocionais na própria tabela (49,90/79,90/99,90), sem cupom. As datas abaixo só agendam os lembretes automáticos.
-const BF_END = Date.UTC(2026, 10, 1, 2, 59, 59)
-const BF_48_START = Date.UTC(2026, 9, 30, 3, 0, 0) // 30/10 00:00 Brasília: restam ~48h
-const BF_LAST_DAY_START = Date.UTC(2026, 10, 31, 3, 0, 0) // 31/10 00:00 Brasília: restam ~24h
 // Os preços promocionais de Black Friday são os da tabela (sem cupom); o aviso nos e-mails vai até o fim de novembro.
 const OFERTA_FIM = Date.UTC(2026, 11, 1, 2, 59, 59)
 const bfAtivo = () => Date.now() < OFERTA_FIM
@@ -268,8 +265,9 @@ serve(async (req) => {
 
   // Envio em massa controlado (Black Friday): {"blast":"bf1"} manda uma vez para todo mundo que ainda não assinou.
   // O lembrete "bflast" sai sozinho no último dia da campanha, para quem ainda não assinou.
-  const nowMs = Date.now()
-  const autoStep = nowMs >= BF_LAST_DAY_START && nowMs < BF_END ? 'bflast' : nowMs >= BF_48_START && nowMs < BF_LAST_DAY_START ? 'bf48' : null
+  // Lembretes automáticos de 30/10 (bf48) e 31/10 (bflast) CANCELADOS a pedido do Pedro (26/10): os preços novos não têm data de término.
+  // Só sai blast manual ({"blast":"bf1"|"bf2"}).
+  const autoStep: 'bf48' | 'bflast' | null = null
   const blastStep = body.blast === 'bf1' || body.blast === 'bf2' ? body.blast : autoStep
   if (blastStep) {
     const { data: logsB } = await admin.from('email_nurture_log').select('email, step').eq('step', blastStep)
