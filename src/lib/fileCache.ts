@@ -1,7 +1,6 @@
 import { Capacitor } from "@capacitor/core";
 import { Filesystem, Directory } from "@capacitor/filesystem";
 import { Share } from "@capacitor/share";
-import { supabase } from "./supabase";
 
 // Armazenamento privado do app (Directory.Data) — não exige nenhuma permissão
 // de armazenamento no Android e sobrevive entre sessões, então um arquivo já
@@ -327,6 +326,7 @@ export async function obterBytesArquivo(bucket: string, storagePath: string): Pr
     }
   }
 
+  const { supabase } = await import("./supabase");
   const { data, error } = await supabase.storage.from(bucket).download(storagePath);
   if (error || !data) {
     throw new Error(`não foi possível baixar (${(error as any)?.message || (error as any)?.error || "sem resposta"})`);
