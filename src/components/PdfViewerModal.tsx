@@ -67,7 +67,29 @@ export function PdfViewerModal({ isOpen, onClose, url, fileName, onDownload }: P
     (async () => {
       try {
         const pdfjs = await loadPdfjs();
-        const doc = await pdfjs.getDocument({ url }).promise;
+        // Arquivo salvo no aparelho (capacitor://… / http://localhost/_capacitor_file_…):
+        // o pdfjs lê por requisições parciais dentro do worker, e o WKWebView do
+        // iOS não atende isso para arquivo local — dava "Não foi possível abrir".
+        // Nesse caso lemos os bytes aqui e entregamos prontos. Se a URL de rede
+        // falhar do mesmo jeito, também tentamos pelos bytes como último recurso.
+        const ehLocal = Capacitor.isNativePlatform() && !/^https?:\/\/(?!localhost)/i.test(url);
+        const lerBytes = async () => {
+          const res = await fetch(url);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return new Uint8Array(await res.arrayBuffer());
+        };
+        let doc;
+        if (ehLocal) {
+          doc = await pdfjs.getDocument({ data: await lerBytes() }).promise;
+        } else {
+          try {
+            doc = await pdfjs.getDocument({ url }).promise;
+          } catch (primeiroErro) {
+            if (cancelled) return;
+            console.warn("pdfjs por URL falhou, tentando pelos bytes:", primeiroErro);
+            doc = await pdfjs.getDocument({ data: await lerBytes() }).promise;
+          }
+        }
         if (cancelled) return;
         const firstPage = await doc.getPage(1);
         if (cancelled) return;

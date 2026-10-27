@@ -122,7 +122,7 @@ export default function App() {
       {/* mobileOffset em todos os lados: no mobile o Sonner põe `width:100%` +
           `left/right:16px`, o que estoura 16px pra fora da tela e faz o WebView
           do iOS encolher a página inteira (proporções erradas). */}
-      <Toaster position="top-right" expand={false} richColors mobileOffset={{ left: 12, right: 12, top: 12, bottom: 12 }} />
+      <Toaster position="top-right" expand={false} richColors mobileOffset={{ left: 12, right: 12, top: Capacitor.getPlatform() === "ios" ? "calc(max(env(safe-area-inset-top, 0px), 3.25rem) + 4px)" : "calc(env(safe-area-inset-top, 0px) + 12px)", bottom: 12 }} />
       <BrowserRouter>
         <SyncProvider>
           <SettingsProvider>
