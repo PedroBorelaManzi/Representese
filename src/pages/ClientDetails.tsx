@@ -898,10 +898,14 @@ export default function ClientDetails() {
                         </div>
 
                         <div className="flex items-center gap-2 hover-reveal">
-                           {isPdf && (
+                           {isPdf && file.file_path && (
                              <button onClick={() => handleOpenPdf(file.file_name || "", file.file_path || "")} className="p-3 bg-white dark:bg-zinc-800 text-slate-400 hover:text-emerald-600 rounded-xl shadow-sm border border-slate-100 dark:border-zinc-800"><Eye className="w-4 h-4" /></button>
                            )}
-                           <button onClick={() => handleDownload(file.file_name || "", file.file_path || "")} className="p-3 bg-white dark:bg-zinc-800 text-slate-400 hover:text-emerald-600 rounded-xl shadow-sm border border-slate-100 dark:border-zinc-800"><Download className="w-4 h-4" /></button>
+{file.file_path ? (
+                             <button onClick={() => handleDownload(file.file_name || "", file.file_path || "")} className="p-3 bg-white dark:bg-zinc-800 text-slate-400 hover:text-emerald-600 rounded-xl shadow-sm border border-slate-100 dark:border-zinc-800"><Download className="w-4 h-4" /></button>
+                           ) : (
+                             <span title="Este pedido veio de uma planilha/relatório importado e não tem cópia (PDF) anexada." className="px-3 py-2 text-[8px] font-black text-slate-400 uppercase tracking-widest">Sem cópia anexada</span>
+                           )}
                            <button onClick={() => handleFileDelete(file.id, file.file_path || "")} className="p-3 bg-white dark:bg-zinc-800 text-slate-400 hover:text-red-500 rounded-xl shadow-sm border border-slate-100 dark:border-zinc-800"><Trash2 className="w-4 h-4" /></button>
                         </div>
                       </div>
