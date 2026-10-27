@@ -72,8 +72,9 @@ Se a pessoa parecer pronta para comprar, ajude com o próximo passo (link do pla
 
 app.post('/api/re', async (req, res) => {
   try {
-    const key = process.env.GEMINI_API_KEY;
-    if (!key) return res.status(503).json({ error: 'indisponível' });
+    const claudeKey = process.env.ANTHROPIC_API_KEY;
+    const geminiKey = process.env.GEMINI_API_KEY;
+    if (!claudeKey && !geminiKey) return res.status(503).json({ error: 'indisponível' });
 
     const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'anon').split(',')[0].trim();
     if (!(await allowed(ip))) return res.status(429).json({ error: 'muitas mensagens' });
@@ -83,28 +84,55 @@ app.post('/api/re', async (req, res) => {
       .filter((m: any) => m && (m.role === 'user' || m.role === 'model') && typeof m.text === 'string' && m.text.trim())
       .map((m: any) => ({ role: m.role as 'user' | 'model', text: String(m.text).slice(0, MAX_CHARS) }))
       .slice(-MAX_MESSAGES);
-    // O Gemini exige que a conversa comece por "user" e termine em "user".
+    // A conversa precisa começar e terminar em "user".
     while (msgs.length && msgs[0].role !== 'user') msgs.shift();
     if (!msgs.length || msgs[msgs.length - 1].role !== 'user') return res.status(400).json({ error: 'mensagem inválida' });
 
-    const genAI = new GoogleGenerativeAI(key);
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash',
-      systemInstruction: SYSTEM_PROMPT,
-      generationConfig: { maxOutputTokens: 450, temperature: 0.5, thinkingConfig: { thinkingBudget: 0 } } as any,
-    });
-
-    let result: any;
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      try {
-        result = await model.generateContent({ contents: msgs.map((m: any) => ({ role: m.role, parts: [{ text: m.text }] })) });
-        break;
-      } catch (e: any) {
-        if (attempt === 2 || !/\b(503|429|500)\b/.test(String(e?.message || e))) throw e;
-        await new Promise((r) => setTimeout(r, 600));
+    let reply = '';
+    if (claudeKey) {
+      // Claude Haiku (preferido quando há chave). Chamada direta à API de mensagens, sem SDK.
+      for (let attempt = 1; attempt <= 2 && !reply; attempt++) {
+        const r = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-api-key': claudeKey, 'anthropic-version': '2023-06-01' },
+          body: JSON.stringify({
+            model: process.env.RE_CLAUDE_MODEL || 'claude-haiku-5-5',
+            max_tokens: 450,
+            temperature: 0.5,
+            system: SYSTEM_PROMPT,
+            messages: msgs.map((m: any) => ({ role: m.role === 'model' ? 'assistant' : 'user', content: m.text })),
+          }),
+        });
+        if (r.ok) {
+          const j: any = await r.json();
+          reply = String(j?.content?.find((c: any) => c.type === 'text')?.text || '').trim();
+        } else if (attempt === 2 || ![429, 500, 529].includes(r.status)) {
+          console.error('Re: Claude respondeu', r.status, (await r.text()).slice(0, 200));
+          break;
+        } else {
+          await new Promise((x) => setTimeout(x, 600));
+        }
       }
     }
-    const reply = String(result?.response?.text?.() || '').trim();
+    if (!reply && geminiKey) {
+      const genAI = new GoogleGenerativeAI(geminiKey);
+      const model = genAI.getGenerativeModel({
+        model: 'gemini-2.5-flash',
+        systemInstruction: SYSTEM_PROMPT,
+        generationConfig: { maxOutputTokens: 450, temperature: 0.5, thinkingConfig: { thinkingBudget: 0 } } as any,
+      });
+      let result: any;
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          result = await model.generateContent({ contents: msgs.map((m: any) => ({ role: m.role, parts: [{ text: m.text }] })) });
+          break;
+        } catch (e: any) {
+          if (attempt === 2 || !/\b(503|429|500)\b/.test(String(e?.message || e))) throw e;
+          await new Promise((r) => setTimeout(r, 600));
+        }
+      }
+      reply = String(result?.response?.text?.() || '').trim();
+    }
     if (!reply) return res.status(502).json({ error: 'sem resposta' });
     return res.status(200).json({ reply });
   } catch (e: any) {
