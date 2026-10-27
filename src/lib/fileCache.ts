@@ -221,11 +221,33 @@ export async function evictCachedFile(storagePath: string): Promise<void> {
 export async function lerBytesDeUrlLocal(url: string): Promise<Uint8Array> {
   const marca = "/_capacitor_file_";
   const i = url.indexOf(marca);
-  const caminho = i >= 0 ? "file://" + decodeURI(url.slice(i + marca.length)) : url;
-  const { data } = await Filesystem.readFile({ path: caminho });
-  if (typeof data !== "string") {
-    return new Uint8Array(await (data as Blob).arrayBuffer());
+  const caminho = i >= 0 ? decodeURI(url.slice(i + marca.length)) : url;
+  const tentativas: Array<() => Promise<{ data: any }>> = [
+    () => Filesystem.readFile({ path: "file://" + caminho }),
+  ];
+  // Segunda chance: caminho relativo à pasta de dados do app (file_cache/… ou
+  // order_pdfs/…), que é onde o app guarda tudo.
+  const rel = caminho.match(/((?:file_cache|order_pdfs)\/[^?#]+)$/);
+  if (rel) tentativas.push(() => Filesystem.readFile({ path: rel[1], directory: CACHE_DIR }));
+  let ultimo: any;
+  for (const t of tentativas) {
+    try {
+      return dadosParaBytes((await t()).data);
+    } catch (e) {
+      ultimo = e;
+    }
   }
+  throw ultimo;
+}
+
+/** Lê o arquivo salvo no cache do app pelo caminho do Storage (o mais direto, sem URL no meio). */
+export async function lerBytesDoCache(storagePath: string): Promise<Uint8Array> {
+  const { data } = await Filesystem.readFile({ path: localFileName(storagePath), directory: CACHE_DIR });
+  return dadosParaBytes(data);
+}
+
+function dadosParaBytes(data: any): Uint8Array {
+  if (typeof data !== "string") throw new Error("leitura devolveu formato inesperado");
   const bin = atob(data);
   const bytes = new Uint8Array(bin.length);
   for (let k = 0; k < bin.length; k++) bytes[k] = bin.charCodeAt(k);
@@ -239,8 +261,15 @@ export async function lerBytesDeUrlLocal(url: string): Promise<Uint8Array> {
  * arquivo para fora quando ele quiser.
  */
 export async function compartilharArquivoDoCache(storagePath: string, nome: string): Promise<void> {
-  if (!Capacitor.isNativePlatform()) return;
+  if (!Capacitor.isNativePlatform() || !storagePath) return;
   const path = localFileName(storagePath);
+  // Só compartilha se ESSE arquivo existir — com caminho vazio/errado o
+  // sistema acabava oferecendo a pasta inteira de arquivos salvos.
+  try {
+    await Filesystem.stat({ path, directory: CACHE_DIR });
+  } catch {
+    return;
+  }
   const { uri } = await Filesystem.getUri({ path, directory: CACHE_DIR });
   try {
     await Share.share({ title: nome, files: [uri], dialogTitle: "Salvar ou enviar arquivo" });

@@ -92,7 +92,7 @@ export default function ClientDetails() {
   const [uploadCategory, setUploadCategory] = useState(draft.category || "");
   const [isFollowupModalOpen, setIsFollowupModalOpen] = useState(false);
   const [followupStatus, setFollowupStatus] = useState<ClientFollowupStatus | null>(null);
-  const [pdfPreview, setPdfPreview] = useState<{ url: string; name: string } | null>(null);
+  const [pdfPreview, setPdfPreview] = useState<{ url: string; name: string; path?: string } | null>(null);
 
   const initializedRef = useRef(false);
 
@@ -357,7 +357,7 @@ export default function ClientDetails() {
       // o arquivo 100% em cache local).
       const emCache = await getCachedUriSePresente(filePath);
       if (emCache) {
-        setPdfPreview({ url: emCache, name: fileName });
+        setPdfPreview({ url: emCache, name: fileName, path: filePath });
         return;
       }
 
@@ -367,7 +367,21 @@ export default function ClientDetails() {
 
       if (error || !data?.signedUrl) throw error || new Error("Arquivo não encontrado.");
 
-      setPdfPreview({ url: data.signedUrl, name: fileName });
+      if (Capacitor.isNativePlatform()) {
+        // No app, baixa primeiro (pelo lado nativo, sem CORS) e abre da cópia
+        // local: ler da rede pelo WebView falha no iOS ("Load failed").
+        const toastId = toast.loading(`Baixando ${fileName}...`);
+        try {
+          const local = await getCachedFileUri(filePath, data.signedUrl);
+          setCachedPaths((prev) => new Set(prev).add(filePath));
+          toast.dismiss(toastId);
+          setPdfPreview({ url: local, name: fileName, path: filePath });
+        } catch (e) {
+          toast.error("Não foi possível baixar o arquivo.", { id: toastId });
+        }
+        return;
+      }
+      setPdfPreview({ url: data.signedUrl, name: fileName, path: filePath });
       baixarParaCacheEmSegundoPlano(filePath, data.signedUrl, () =>
         setCachedPaths((prev) => new Set(prev).add(filePath))
       );
@@ -1032,7 +1046,8 @@ export default function ClientDetails() {
         onClose={() => setPdfPreview(null)}
         url={pdfPreview?.url ?? null}
         fileName={pdfPreview?.name}
-        onDownload={() => pdfPreview && handleDownload(pdfPreview.name, files.find(f => f.file_name === pdfPreview.name)?.file_path || "")}
+        storagePath={pdfPreview?.path}
+        onDownload={() => pdfPreview && handleDownload(pdfPreview.name, pdfPreview.path || files.find(f => f.file_name === pdfPreview.name)?.file_path || "")}
       />
     </div>
   );

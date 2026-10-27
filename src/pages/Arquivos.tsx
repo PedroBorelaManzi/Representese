@@ -91,7 +91,7 @@ export default function Arquivos() {
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [dragActive, setDragActive] = useState(false);
-  const [pdfPreview, setPdfPreview] = useState<{ url: string; name: string } | null>(null);
+  const [pdfPreview, setPdfPreview] = useState<{ url: string; name: string; path?: string } | null>(null);
   const [imagePreview, setImagePreview] = useState<{ url: string; name: string } | null>(null);
   // Progresso de download/abertura — arquivos grandes (catálogos de dezenas de
   // MB) levavam muito tempo sem nenhum sinal de quanto faltava.
@@ -268,7 +268,7 @@ export default function Arquivos() {
     if (isPdf || isImage) {
       const emCache = await getCachedUriSePresente(storagePath);
       if (emCache) {
-        if (isPdf) setPdfPreview({ url: emCache, name });
+        if (isPdf) setPdfPreview({ url: emCache, name, path: storagePath });
         else setImagePreview({ url: emCache, name });
         return;
       }
@@ -299,6 +299,20 @@ export default function Arquivos() {
       // vez de esperar o arquivo inteiro (num catálogo de dezenas de MB a
       // diferença é enorme). A cópia local desce por trás para a próxima
       // abertura ser instantânea e funcionar offline.
+      if (Capacitor.isNativePlatform()) {
+        // No app, baixa primeiro (pelo lado nativo, sem CORS) e abre da cópia
+        // local: ler da rede pelo WebView falha no iOS ("Load failed").
+        const toastId = toast.loading(`Baixando ${name}...`);
+        try {
+          const local = await getCachedFileUri(storagePath, data.signedUrl);
+          setCachedNames((prev) => new Set(prev).add(name));
+          toast.dismiss(toastId);
+          setPdfPreview({ url: local, name, path: storagePath });
+        } catch (e) {
+          toast.error("Não foi possível baixar o arquivo.", { id: toastId });
+        }
+        return;
+      }
       setPdfPreview({ url: data.signedUrl, name });
       baixarParaCacheEmSegundoPlano(storagePath, data.signedUrl, () =>
         setCachedNames((prev) => new Set(prev).add(name))
@@ -640,6 +654,7 @@ export default function Arquivos() {
         onClose={() => setPdfPreview(null)}
         url={pdfPreview?.url ?? null}
         fileName={pdfPreview?.name}
+        storagePath={pdfPreview?.path}
         onDownload={() => pdfPreview && handleDownload(pdfPreview.name)}
       />
 

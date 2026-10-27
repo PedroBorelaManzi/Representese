@@ -3,7 +3,7 @@ import { Capacitor } from "@capacitor/core";
 import { X, Loader2, AlertTriangle, Download, ZoomIn, ZoomOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { loadPdfjs } from "../lib/pdfjsLoader";
-import { lerBytesDeUrlLocal } from "../lib/fileCache";
+import { lerBytesDeUrlLocal, lerBytesDoCache } from "../lib/fileCache";
 import { useFecharComBotaoVoltar } from "../lib/backOverlays";
 import { useModalEsc } from "../hooks/useModalEsc";
 
@@ -12,6 +12,8 @@ interface PdfViewerModalProps {
   onClose: () => void;
   url: string | null;
   fileName?: string;
+  /** Caminho do arquivo no Storage — com ele, no app, o PDF é lido do cache local direto pelo plugin de arquivos. */
+  storagePath?: string;
   onDownload?: () => void;
 }
 
@@ -29,7 +31,7 @@ const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 4;
 const PASSO_ZOOM = 0.25;
 
-export function PdfViewerModal({ isOpen, onClose, url, fileName, onDownload }: PdfViewerModalProps) {
+export function PdfViewerModal({ isOpen, onClose, url, fileName, storagePath, onDownload }: PdfViewerModalProps) {
   const [pdf, setPdf] = useState<any>(null);
   const [numPages, setNumPages] = useState(0);
   const [pageSize, setPageSize] = useState<{ width: number; height: number } | null>(null);
@@ -76,22 +78,28 @@ export function PdfViewerModal({ isOpen, onClose, url, fileName, onDownload }: P
         const ehLocal = Capacitor.isNativePlatform() && !/^https?:\/\/(?!localhost)/i.test(url);
         const lerBytes = async () => {
           let bytes: Uint8Array;
-          if (ehLocal) {
-            // Direto pelo plugin de arquivos: o fetch do WebView falha no iOS
-            // ("TypeError: Load failed") para arquivo salvo no aparelho.
+          const falhas: string[] = [];
+          const ler = async (): Promise<Uint8Array> => {
+            if (ehLocal || storagePath) {
+              // Pelo plugin de arquivos, nunca pelo fetch do WebView: no iOS o
+              // fetch de arquivo salvo dá "TypeError: Load failed".
+              if (storagePath && Capacitor.isNativePlatform()) {
+                try { return await lerBytesDoCache(storagePath); } catch (e: any) { falhas.push(`cache: ${e?.message || e}`); }
+              }
+              if (ehLocal) {
+                try { return await lerBytesDeUrlLocal(url); } catch (e: any) { falhas.push(`arquivo: ${e?.message || e}`); }
+              }
+            }
             try {
-              bytes = await lerBytesDeUrlLocal(url);
-            } catch (e) {
-              console.warn("readFile falhou, tentando fetch:", e);
               const res = await fetch(url);
               if (!res.ok) throw new Error(`HTTP ${res.status}`);
-              bytes = new Uint8Array(await res.arrayBuffer());
+              return new Uint8Array(await res.arrayBuffer());
+            } catch (e: any) {
+              falhas.push(`rede: ${e?.message || e}`);
+              throw new Error(falhas.join(" | "));
             }
-          } else {
-            const res = await fetch(url);
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            bytes = new Uint8Array(await res.arrayBuffer());
-          }
+          };
+          bytes = await ler();
           if (bytes.length < 8) throw new Error(`arquivo vazio (${bytes.length} bytes)`);
           return bytes;
         };
