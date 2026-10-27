@@ -40,6 +40,9 @@ export function PdfViewerModal({ isOpen, onClose, url, data, fileName, storagePa
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [erro, setErro] = useState("");
+  // Último recurso: se o leitor próprio (pdf.js) falhar, mostra o PDF no leitor
+  // nativo do aparelho (iframe com blob), que o iOS/Android sabem abrir.
+  const [urlReserva, setUrlReserva] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -66,6 +69,7 @@ export function PdfViewerModal({ isOpen, onClose, url, data, fileName, storagePa
     setLoading(true);
     setError(false);
     setErro("");
+    setUrlReserva(null);
     setPdf(null);
     setNumPages(0);
     setZoom(1);
@@ -129,7 +133,17 @@ export function PdfViewerModal({ isOpen, onClose, url, data, fileName, storagePa
             if (cancelled) return;
           }
         }
-        if (!doc) throw ultimoErro;
+        if (!doc) {
+          try {
+            const bytesReserva = data ?? await lerBytes();
+            if (cancelled) return;
+            setUrlReserva(URL.createObjectURL(new Blob([bytesReserva.slice()], { type: "application/pdf" })));
+            setErro(`${ultimoErro?.name || "Erro"}: ${ultimoErro?.message || ultimoErro}`);
+            return;
+          } catch {
+            throw ultimoErro;
+          }
+        }
         if (cancelled) return;
         const firstPage = await doc.getPage(1);
         if (cancelled) return;
@@ -322,6 +336,8 @@ export function PdfViewerModal({ isOpen, onClose, url, data, fileName, storagePa
                 <Loader2 className="w-8 h-8 animate-spin text-white/60" />
                 <p className="text-[10px] font-black uppercase tracking-widest text-white/60">Abrindo documento...</p>
               </div>
+            ) : urlReserva ? (
+              <iframe src={urlReserva} title={fileName || "PDF"} className="w-full h-full border-0 bg-white" />
             ) : error ? (
               <div className="h-full flex flex-col items-center justify-center gap-3 text-center px-6">
                 <AlertTriangle className="w-8 h-8 text-amber-500" />
