@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { UserCog, Eye, Trash2 } from "lucide-react";
 import { InlineEditField } from "./InlineEditField";
 import { NfCommissionStatusDot, type NfCommissionStatus } from "./NfCommissionStatusDot";
+import { openOrderCopy } from "../lib/openOrderCopy";
 import { cn } from "../lib/utils";
 
 type SaveField = (order: any, field: string) => (value: string) => Promise<void> | void;
@@ -72,7 +73,14 @@ export function OrdersTable({ orders, onSelectOrder, saveField, emptyLabel = "Ne
               orders.map((order) => {
                 const quem = digitadoPor(order);
                 return (
-                  <tr key={order.id} className="hover:bg-slate-50/70 dark:hover:bg-zinc-800/30 transition-colors">
+                  <tr
+                    key={order.id}
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest("a,button,input,textarea,select,[contenteditable],[role=button]")) return;
+                      onSelectOrder(order);
+                    }}
+                    className="cursor-pointer hover:bg-slate-50/70 dark:hover:bg-zinc-800/30 transition-colors"
+                  >
                     <td className={TD}>
                       <span className="inline-block px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-[10px] font-black uppercase tracking-wide whitespace-nowrap">
                         {order.category || "—"}
@@ -89,12 +97,12 @@ export function OrdersTable({ orders, onSelectOrder, saveField, emptyLabel = "Ne
                     </td>
                     <td className={TD}>
                       <button
-                        onClick={() => onSelectOrder(order)}
-                        title="Ver detalhes do pedido"
+                        onClick={() => openOrderCopy(order)}
+                        title="Abrir a cópia do pedido"
                         className="flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-lg font-black text-slate-900 dark:text-zinc-100 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
                       >
                         <Eye className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        {order.order_number || "Ver pedido"}
+                        {order.order_number || "Ver cópia"}
                       </button>
                     </td>
                     <td className={TD}>

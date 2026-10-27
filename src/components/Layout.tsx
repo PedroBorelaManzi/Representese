@@ -50,6 +50,7 @@ import { toast } from 'sonner';
 import { UpdateNudge } from './UpdateNudge';
 import RenewalBanner from './RenewalBanner';
 import SyncPrompt from './SyncPrompt';
+import OrderCopyHost from './OrderCopyHost';
 
 const SettingsModal = React.lazy(() => import('./SettingsModal'));
 const OnboardingModal = React.lazy(() => import('./OnboardingModal'));
@@ -655,6 +656,7 @@ export default function Layout() {
                   <ErrorBoundary resetKey={location.pathname}>
                     <Outlet />
                   </ErrorBoundary>
+                  <OrderCopyHost />
                 </motion.div>
               </AnimatePresence>
             </div>

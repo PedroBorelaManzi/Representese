@@ -3,6 +3,7 @@ import { UserCog, Eye, ArrowUpRight, Trash2 } from "lucide-react";
 import { InlineEditField } from "./InlineEditField";
 import { brl } from "../lib/format";
 import { cn } from "../lib/utils";
+import { openOrderCopy } from "../lib/openOrderCopy";
 
 type SaveField = (order: any, field: string) => (value: string) => Promise<void> | void;
 
@@ -20,7 +21,13 @@ export function OrderCard({
   onDelete?: (order: any) => void;
 }) {
   return (
-    <div className="bg-white dark:bg-zinc-900 p-6 md:p-9 rounded-[32px] md:rounded-[45px] border border-slate-100 dark:border-zinc-800 hover:border-slate-200 dark:hover:border-zinc-700 hover:shadow-xl transition-all group relative overflow-hidden active:scale-[0.98]">
+    <div
+      onClick={(e) => {
+        // Clicar no card abre o relatório do pedido; botões, links e campos editáveis seguem com a função deles.
+        if ((e.target as HTMLElement).closest("a,button,input,textarea,select,[contenteditable],[role=button]")) return;
+        onSelectOrder(order);
+      }}
+      className="cursor-pointer bg-white dark:bg-zinc-900 p-6 md:p-9 rounded-[32px] md:rounded-[45px] border border-slate-100 dark:border-zinc-800 hover:border-slate-200 dark:hover:border-zinc-700 hover:shadow-xl transition-all group relative overflow-hidden active:scale-[0.98]">
       <div className="flex justify-between items-start mb-4 md:mb-6 relative z-10">
         <div>
           <span className="text-[7px] md:text-[8px] font-black text-slate-400 dark:text-zinc-600 uppercase tracking-[0.2em] mb-1 block">Processamento</span>
@@ -36,11 +43,9 @@ export function OrderCard({
 
       <div className="relative z-10 mb-6 md:mb-8">
         <p className="text-[7px] md:text-[8px] font-black text-emerald-400 uppercase tracking-widest leading-none mb-2">Cliente Adquirente</p>
-        <Link to={"/dashboard/clientes/" + order.client_id} className="block">
-          <h4 className="text-sm md:text-base font-black uppercase text-slate-900 dark:text-zinc-100 truncate hover:text-emerald-600 transition-colors leading-tight">
-            {order.client?.name || "Cliente Desconhecido"}
-          </h4>
-        </Link>
+        <h4 className="text-sm md:text-base font-black uppercase text-slate-900 dark:text-zinc-100 truncate leading-tight">
+          {order.client?.name || "Cliente Desconhecido"}
+        </h4>
         {order.intake_link_label && (
           <span title={`Enviado pelo link "${order.intake_link_label}"`} className="mt-2 flex items-center gap-1 w-fit px-2 py-0.5 bg-cyan-50 dark:bg-cyan-500/10 border border-cyan-100 dark:border-cyan-900/40 rounded-lg text-[7px] font-black text-cyan-600 uppercase tracking-widest">
             <UserCog className="w-2.5 h-2.5" /> {order.intake_link_label}
@@ -53,7 +58,7 @@ export function OrderCard({
           {order.category}
         </span>
         <div className="flex items-center gap-2">
-          <button onClick={() => onSelectOrder(order)} className="p-2 md:p-3 bg-slate-50 dark:bg-zinc-800 rounded-xl md:rounded-2xl hover:bg-emerald-50 transition-colors" title="Ver detalhes do pedido">
+          <button onClick={() => openOrderCopy(order)} className="p-2 md:p-3 bg-slate-50 dark:bg-zinc-800 rounded-xl md:rounded-2xl hover:bg-emerald-50 transition-colors" title="Abrir a cópia do pedido" aria-label="Abrir a cópia do pedido">
             <Eye className="w-4 h-4 md:w-5 md:h-5 text-slate-400 hover:text-emerald-600 transition-colors" />
           </button>
           {onDelete && (
@@ -61,7 +66,7 @@ export function OrderCard({
               <Trash2 className="w-4 h-4 md:w-5 md:h-5 text-slate-400 hover:text-red-500 transition-colors" />
             </button>
           )}
-          <Link to={"/dashboard/clientes/" + order.client_id} className="p-2 md:p-3 bg-slate-50 dark:bg-zinc-800 rounded-xl md:rounded-2xl hover:bg-emerald-50 transition-colors group/arrow">
+          <Link to={"/dashboard/clientes/" + order.client_id} title="Ir para o cliente" aria-label="Ir para o cliente" className="p-2 md:p-3 bg-slate-50 dark:bg-zinc-800 rounded-xl md:rounded-2xl hover:bg-emerald-50 transition-colors group/arrow">
             <ArrowUpRight className="w-4 h-4 md:w-5 md:h-5 text-slate-400 group-hover/arrow:text-emerald-600 transition-colors" />
           </Link>
         </div>

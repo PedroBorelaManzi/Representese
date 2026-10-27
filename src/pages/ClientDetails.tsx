@@ -355,38 +355,8 @@ export default function ClientDetails() {
   // layout dos pedidos feitos no app — o olhinho e o baixar passam a funcionar
   // para qualquer pedido, offline, sem depender de arquivo no Storage.
   const gerarFichaPedido = async (file: Order) => {
-    const { buildOrderPdf, orderPdfFileName } = await import("../lib/orderPdf");
-    const numero = (file as any).order_number || String(file.id).slice(0, 8).toUpperCase();
-    const valor = Number(file.value) || 0;
-    // Pedido feito no app tem itens gravados: a ficha usa os itens reais.
-    // Só o importado de relatório (sem itens) cai no item único com o valor.
-    let itensReais: any[] = [];
-    try {
-      const { data } = await supabase.from("order_items").select("product_name, product_code, quantity, unit_value, discount_pct").eq("order_id", file.id);
-      itensReais = (data || []).map((i: any) => ({
-        product_name: i.product_name,
-        product_code: i.product_code,
-        quantity: Number(i.quantity) || 0,
-        unit_value: Number(i.unit_value) || 0,
-        discount_pct: Number(i.discount_pct) || 0,
-      }));
-    } catch { /* offline: cai no item único */ }
-    const blob = await buildOrderPdf({
-      orderNumber: numero,
-      date: file.created_at || new Date().toISOString(),
-      company: file.category || "Geral",
-      client: {
-        name: client?.name || "—",
-        cnpj: client?.cnpj,
-        address: client?.address,
-        phone: client?.phone,
-        email: client?.email,
-      },
-      items: itensReais.length ? itensReais : [{ product_name: `Pedido ${numero} (importado de relatório)`, quantity: 1, unit_value: valor } as any],
-      paymentTerms: (file as any).payment_terms,
-      notes: (file as any).notes || (itensReais.length ? null : "Ficha gerada a partir dos dados do pedido importado. Não há PDF original anexado a este pedido."),
-    });
-    return { bytes: new Uint8Array(await blob.arrayBuffer()), blob, nome: orderPdfFileName(numero) };
+    const { montarFichaPedido } = await import("../lib/fichaPedido");
+    return montarFichaPedido(file, client);
   };
 
   const handleOpenFicha = async (file: Order) => {
