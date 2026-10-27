@@ -44,7 +44,11 @@ const ehPdf = (storagePath: string) => /\.pdf$/i.test(storagePath);
 /** Já existe em cache local? Devolve a URI pronta pro WebView, ou null. */
 async function uriEmCache(path: string): Promise<string | null> {
   try {
-    await Filesystem.stat({ path, directory: CACHE_DIR });
+    const info = await Filesystem.stat({ path, directory: CACHE_DIR });
+    // Tem que ser ARQUIVO com conteúdo: com caminho vazio o stat da própria
+    // pasta file_cache "passava", e o app dizia "já está salvo" para um
+    // arquivo que não existia (e depois não conseguia abrir).
+    if (info.type === "directory" || info.size === 0) return null;
     const { uri } = await Filesystem.getUri({ path, directory: CACHE_DIR });
     return Capacitor.convertFileSrc(uri);
   } catch {
@@ -138,6 +142,7 @@ export async function getCachedFileUri(
     await baixarNaWeb(signedUrl, onProgress);
     return signedUrl;
   }
+  if (!storagePath?.trim()) throw new Error("Esse pedido não tem arquivo anexado.");
 
   const path = localFileName(storagePath);
 
@@ -156,7 +161,7 @@ export async function getCachedFileUri(
 
 /** Já está salvo no dispositivo? Devolve a URI local, ou null se ainda não. */
 export async function getCachedUriSePresente(storagePath: string): Promise<string | null> {
-  if (!Capacitor.isNativePlatform()) return null;
+  if (!Capacitor.isNativePlatform() || !storagePath?.trim()) return null;
   return uriEmCacheValido(localFileName(storagePath));
 }
 
@@ -275,5 +280,15 @@ export async function compartilharArquivoDoCache(storagePath: string, nome: stri
     await Share.share({ title: nome, files: [uri], dialogTitle: "Salvar ou enviar arquivo" });
   } catch {
     // Folha fechada sem escolher destino — o arquivo continua salvo no app.
+  }
+}
+
+/** Texto curto para diagnóstico: o que existe de fato no cache para esse caminho. */
+export async function descreverCache(storagePath: string): Promise<string> {
+  try {
+    const info = await Filesystem.stat({ path: localFileName(storagePath), directory: CACHE_DIR });
+    return `${info.type} ${info.size}B`;
+  } catch (e: any) {
+    return `ausente (${e?.message || e})`;
   }
 }

@@ -409,7 +409,7 @@ export function OrderDetailModal({ order, isOpen, onClose, onUpdated, commission
         </div>
       )}
 
-      <PdfViewerModal isOpen={!!pdfPreview} onClose={() => setPdfPreview(null)} url={pdfPreview?.url ?? null} fileName={pdfPreview?.name} />
+      <PdfViewerModal isOpen={!!pdfPreview} onClose={() => setPdfPreview(null)} url={pdfPreview?.url ?? null} fileName={pdfPreview?.name} storagePath={order.file_path || undefined} />
       <PdfViewerModal
         isOpen={!!generatedPdf}
         onClose={() => { generatedPdf?.dispose(); setGeneratedPdf(null); }}

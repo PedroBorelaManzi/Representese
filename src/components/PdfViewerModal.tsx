@@ -3,7 +3,7 @@ import { Capacitor } from "@capacitor/core";
 import { X, Loader2, AlertTriangle, Download, ZoomIn, ZoomOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { loadPdfjs } from "../lib/pdfjsLoader";
-import { lerBytesDeUrlLocal, lerBytesDoCache } from "../lib/fileCache";
+import { lerBytesDeUrlLocal, lerBytesDoCache, descreverCache } from "../lib/fileCache";
 import { useFecharComBotaoVoltar } from "../lib/backOverlays";
 import { useModalEsc } from "../hooks/useModalEsc";
 
@@ -96,6 +96,8 @@ export function PdfViewerModal({ isOpen, onClose, url, fileName, storagePath, on
               return new Uint8Array(await res.arrayBuffer());
             } catch (e: any) {
               falhas.push(`rede: ${e?.message || e}`);
+              if (storagePath && Capacitor.isNativePlatform()) falhas.push(`no cache: ${await descreverCache(storagePath)}`);
+              else falhas.push(`caminho: ${storagePath ? "ok" : "não informado"}`);
               throw new Error(falhas.join(" | "));
             }
           };
@@ -320,8 +322,8 @@ export function PdfViewerModal({ isOpen, onClose, url, fileName, storagePath, on
             ) : error ? (
               <div className="h-full flex flex-col items-center justify-center gap-3 text-center px-6">
                 <AlertTriangle className="w-8 h-8 text-amber-500" />
-                <p className="text-xs font-bold text-white/80">Não foi possível abrir este documento.</p>
-                {erro && <p className="text-[10px] text-white/50 break-all max-w-xs">{erro}</p>}
+                <p className="text-sm font-bold text-slate-700 dark:text-zinc-200">Não foi possível abrir este documento.</p>
+                {erro && <p className="text-[11px] font-medium text-slate-600 dark:text-zinc-300 break-all max-w-xs">{erro}</p>}
               </div>
             ) : pdf && pageSize && containerWidth > 0 ? (
               /* w-max + mx-auto em vez de items-center: com items-center, uma
