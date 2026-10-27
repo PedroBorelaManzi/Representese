@@ -25,6 +25,17 @@ const lerSessao = <T,>(key: string, fallback: T): T => {
   }
 };
 
+/** Transforma URLs do texto em links clicáveis (a Re responde em texto puro). */
+function comLinks(texto: string) {
+  return texto.split(/(https?:\/\/[^\s)]+)/g).map((parte, i) =>
+    /^https?:\/\//.test(parte) ? (
+      <a key={i} href={parte} target="_blank" rel="noopener noreferrer" className="underline font-bold break-all">{parte}</a>
+    ) : (
+      parte
+    )
+  );
+}
+
 /** Chat da Re: atendente de IA para quem está conhecendo o produto ou comprando. Pode ser minimizado. */
 export default function ReChatWidget() {
   const { pathname } = useLocation();
@@ -142,7 +153,7 @@ export default function ReChatWidget() {
                       : "bg-white dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 border border-slate-100 dark:border-zinc-700 rounded-bl-md"
                   )}
                 >
-                  {m.text}
+                  {comLinks(m.text)}
                 </div>
               </div>
             ))}
