@@ -37,6 +37,14 @@ type Stat = {
   created_at: string;
 };
 
+type CampanhaPlataforma = {
+  platform: 'google' | 'meta';
+  utm_campaign: string | null;
+  spend: number | null;
+  impressions: number | null;
+  clicks: number | null;
+};
+
 type Periodo = '7' | '30' | '90' | 'desde';
 type Origem = 'google' | 'meta' | 'todos';
 
@@ -181,6 +189,27 @@ export default function AdsFunnel() {
   });
   const ultimo = (o: 'google' | 'meta') => stats?.find((x) => x.source === o);
 
+  // Números por campanha (tabela ads_campaigns, a mesma da aba Instagram): soma por origem e,
+  // quando há filtro de campanha, só as campanhas com aquele utm_campaign.
+  const { data: campanhasPlat } = useQuery({
+    queryKey: ['ads_campaigns_funil'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('ads_campaigns').select('platform, utm_campaign, spend, impressions, clicks');
+      if (error) throw error;
+      return (data ?? []) as CampanhaPlataforma[];
+    },
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
+  const dasCampanhas = (o: 'google' | 'meta') =>
+    (campanhasPlat ?? []).filter((c) => c.platform === o && (!campanha || c.utm_campaign === campanha));
+  const gastoDe = (o: Origem): number => {
+    const origens: Array<'google' | 'meta'> = o === 'todos' ? ['google', 'meta'] : [o];
+    let total = 0;
+    for (const x of origens) for (const c of dasCampanhas(x)) total += Number(c.spend ?? 0);
+    return total;
+  };
+
   useEffect(() => {
     try {
       localStorage.setItem(MANUAL_KEY, JSON.stringify(manual));
@@ -219,6 +248,8 @@ export default function AdsFunnel() {
   const valorDe = (o: 'google' | 'meta', campo: 'impressoes' | 'cliques'): number => {
     const digitado = (manual[`${o}|${campanha}`] ?? { impressoes: '', cliques: '' })[campo];
     if (digitado !== '') return soNumero(digitado);
+    const linhas = dasCampanhas(o);
+    if (linhas.length) return linhas.reduce((t, c) => t + Number((campo === 'impressoes' ? c.impressions : c.clicks) ?? 0), 0);
     if (campanha) return 0;
     const u = ultimo(o);
     return u ? (campo === 'impressoes' ? u.impressions : u.clicks) : 0;
@@ -226,6 +257,7 @@ export default function AdsFunnel() {
   const impressoes = origem === 'todos' ? valorDe('google', 'impressoes') + valorDe('meta', 'impressoes') : valorDe(origem, 'impressoes');
   const cliques = origem === 'todos' ? valorDe('google', 'cliques') + valorDe('meta', 'cliques') : valorDe(origem, 'cliques');
   const ultimaLinha = origem === 'todos' ? null : ultimo(origem);
+  const gasto = gastoDe(origem);
 
   const salvarNoPainel = async () => {
     if (origem === 'todos' || campanha) return;
@@ -320,7 +352,7 @@ export default function AdsFunnel() {
           </label>
           {origem === 'todos' ? (
             <p className="sm:col-span-2 text-sm text-zinc-500 self-end pb-2">
-              Impressões e cliques de “Todas” são a soma do que você digitar em Google e em Instagram / Meta.
+              Impressões e cliques de “Todas” são a soma das campanhas do Google e do Instagram / Meta{campanha ? ' com a campanha escolhida' : ''}.{gasto > 0 ? ` Gasto: ${brl.format(gasto)}.` : ''}
             </p>
           ) : (
             <>
@@ -330,7 +362,7 @@ export default function AdsFunnel() {
                   inputMode="numeric"
                   value={lerManual(origem).impressoes}
                   onChange={(e) => setManual((m) => ({ ...m, [chaveManual(origem)]: { ...lerManual(origem), impressoes: e.target.value } }))}
-                  placeholder={ultimaLinha ? String(ultimaLinha.impressions) : 'ex.: 3804'}
+                  placeholder={String(valorDe(origem, 'impressoes') || 'ex.: 3804')}
                   className="mt-1 w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white"
                 />
               </label>
@@ -340,13 +372,18 @@ export default function AdsFunnel() {
                   inputMode="numeric"
                   value={lerManual(origem).cliques}
                   onChange={(e) => setManual((m) => ({ ...m, [chaveManual(origem)]: { ...lerManual(origem), cliques: e.target.value } }))}
-                  placeholder={ultimaLinha ? String(ultimaLinha.clicks) : 'ex.: 320'}
+                  placeholder={String(valorDe(origem, 'cliques') || 'ex.: 320')}
                   className="mt-1 w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white"
                 />
               </label>
             </>
           )}
         </div>
+        {origem !== 'todos' && gasto > 0 && (
+          <p className="text-xs text-zinc-500">
+            Gasto {info.plataforma}{campanha ? ` nesta campanha` : ''}: <strong>{brl.format(gasto)}</strong> · impressões e cliques vêm da tabela de campanhas (atualizada a partir do {origem === 'google' ? 'Google Ads' : 'Gerenciador da Meta'}).
+          </p>
+        )}
         {origem !== 'todos' && !campanha && (
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-zinc-500">
             {ultimaLinha ? (
