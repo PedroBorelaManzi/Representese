@@ -26,7 +26,9 @@ const lerSessao = <T,>(key: string, fallback: T): T => {
 };
 
 /** Transforma URLs do texto em links clicáveis (a Re responde em texto puro). */
-function comLinks(texto: string) {
+function comLinks(bruto: string) {
+  // Rede de segurança: tira markdown que a IA eventualmente escreva ([texto](url) vira a url; remove ** e *).
+  const texto = bruto.replace(/\[([^\]]*)\]\((https?:\/\/[^)\s]+)\)/g, "$2").replace(/\*\*?([^*\n]+)\*\*?/g, "$1");
   return texto.split(/(https?:\/\/[^\s)]+)/g).map((parte, i) =>
     /^https?:\/\//.test(parte) ? (
       <a key={i} href={parte} target="_blank" rel="noopener noreferrer" className="underline font-bold break-all">{parte}</a>
