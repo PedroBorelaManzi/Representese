@@ -3,6 +3,7 @@ import { Capacitor } from "@capacitor/core";
 import { X, Loader2, AlertTriangle, Download, ZoomIn, ZoomOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { loadPdfjs } from "../lib/pdfjsLoader";
+import { lerBytesDeUrlLocal } from "../lib/fileCache";
 import { useFecharComBotaoVoltar } from "../lib/backOverlays";
 import { useModalEsc } from "../hooks/useModalEsc";
 
@@ -74,9 +75,23 @@ export function PdfViewerModal({ isOpen, onClose, url, fileName, onDownload }: P
         // bytes aqui e entregamos prontos.
         const ehLocal = Capacitor.isNativePlatform() && !/^https?:\/\/(?!localhost)/i.test(url);
         const lerBytes = async () => {
-          const res = await fetch(url);
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const bytes = new Uint8Array(await res.arrayBuffer());
+          let bytes: Uint8Array;
+          if (ehLocal) {
+            // Direto pelo plugin de arquivos: o fetch do WebView falha no iOS
+            // ("TypeError: Load failed") para arquivo salvo no aparelho.
+            try {
+              bytes = await lerBytesDeUrlLocal(url);
+            } catch (e) {
+              console.warn("readFile falhou, tentando fetch:", e);
+              const res = await fetch(url);
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              bytes = new Uint8Array(await res.arrayBuffer());
+            }
+          } else {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            bytes = new Uint8Array(await res.arrayBuffer());
+          }
           if (bytes.length < 8) throw new Error(`arquivo vazio (${bytes.length} bytes)`);
           return bytes;
         };

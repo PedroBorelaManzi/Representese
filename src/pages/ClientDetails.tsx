@@ -44,7 +44,7 @@ import { useConfirm } from "../components/ui";
 import { useModalEsc } from "../hooks/useModalEsc";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 import { useClients } from "../hooks/useClients";
-import { getCachedUriSePresente, getCachedFileUri, baixarParaCacheEmSegundoPlano } from "../lib/fileCache";
+import { getCachedUriSePresente, getCachedFileUri, baixarParaCacheEmSegundoPlano, compartilharArquivoDoCache } from "../lib/fileCache";
 import { ajustarFaturamento } from "../lib/faturamento";
 import { saveFileToIndexedDB } from "../lib/storage";
 import { queuePendingFileUpload } from "../lib/pendingFileUploads";
@@ -312,6 +312,7 @@ export default function ClientDetails() {
     if (Capacitor.isNativePlatform()) {
       if (await getCachedUriSePresente(filePath)) {
         toast.success(`${fileName} já está salvo no app.`);
+        void compartilharArquivoDoCache(filePath, fileName);
         return;
       }
       const toastId = toast.loading(`Baixando ${fileName}...`);
@@ -321,6 +322,7 @@ export default function ClientDetails() {
         await getCachedFileUri(filePath, data.signedUrl);
         setCachedPaths((prev) => new Set(prev).add(filePath));
         toast.success(`${fileName} salvo no app — abre offline e sem baixar de novo.`, { id: toastId });
+        void compartilharArquivoDoCache(filePath, fileName);
       } catch (err) {
         toast.error("Erro ao baixar arquivo.", { id: toastId });
       }

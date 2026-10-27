@@ -34,6 +34,7 @@ import {
   evictCachedFile,
   getCachedUriSePresente,
   baixarParaCacheEmSegundoPlano,
+  compartilharArquivoDoCache,
 } from "../lib/fileCache";
 import { Capacitor } from "@capacitor/core";
 import { toast } from "sonner";
@@ -333,6 +334,7 @@ export default function Arquivos() {
     if (Capacitor.isNativePlatform()) {
       if (await getCachedUriSePresente(storagePath)) {
         toast.success(`${name} já está salvo no app.`);
+        void compartilharArquivoDoCache(storagePath, name);
         return;
       }
       setProgresso({ nome: name, percentual: 0 });
@@ -344,6 +346,7 @@ export default function Arquivos() {
         );
         setCachedNames((prev) => new Set(prev).add(name));
         toast.success(`${name} salvo no app — abre offline e sem baixar de novo.`);
+        void compartilharArquivoDoCache(storagePath, name);
       } catch (e) {
         console.error("Erro ao baixar arquivo:", e);
         toast.error("Erro ao baixar arquivo.");

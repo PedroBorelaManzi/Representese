@@ -1,5 +1,6 @@
 import { Capacitor } from "@capacitor/core";
 import { Filesystem, Directory } from "@capacitor/filesystem";
+import { Share } from "@capacitor/share";
 
 // Armazenamento privado do app (Directory.Data) — não exige nenhuma permissão
 // de armazenamento no Android e sobrevive entre sessões, então um arquivo já
@@ -207,5 +208,43 @@ export async function evictCachedFile(storagePath: string): Promise<void> {
     await Filesystem.deleteFile({ path: localFileName(storagePath), directory: CACHE_DIR });
   } catch {
     // Não estava em cache — sem problema.
+  }
+}
+
+/**
+ * Lê os bytes de um arquivo local direto pelo plugin de arquivos, sem passar
+ * pelo fetch do WebView. No iOS o fetch para a URL convertida
+ * (capacitor://localhost/_capacitor_file_/…) falha com "TypeError: Load failed",
+ * mesmo o arquivo existindo — por isso o visualizador de PDF lê por aqui.
+ * Aceita a URL já convertida (convertFileSrc) ou um file://.
+ */
+export async function lerBytesDeUrlLocal(url: string): Promise<Uint8Array> {
+  const marca = "/_capacitor_file_";
+  const i = url.indexOf(marca);
+  const caminho = i >= 0 ? "file://" + decodeURI(url.slice(i + marca.length)) : url;
+  const { data } = await Filesystem.readFile({ path: caminho });
+  if (typeof data !== "string") {
+    return new Uint8Array(await (data as Blob).arrayBuffer());
+  }
+  const bin = atob(data);
+  const bytes = new Uint8Array(bin.length);
+  for (let k = 0; k < bin.length; k++) bytes[k] = bin.charCodeAt(k);
+  return bytes;
+}
+
+/**
+ * Abre a folha de compartilhar do sistema com a cópia salva (Salvar em
+ * Arquivos, AirDrop, WhatsApp…). O cache fica na pasta privada do app, que o
+ * usuário não enxerga sozinho — "baixar" precisava dar um jeito de levar o
+ * arquivo para fora quando ele quiser.
+ */
+export async function compartilharArquivoDoCache(storagePath: string, nome: string): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return;
+  const path = localFileName(storagePath);
+  const { uri } = await Filesystem.getUri({ path, directory: CACHE_DIR });
+  try {
+    await Share.share({ title: nome, files: [uri], dialogTitle: "Salvar ou enviar arquivo" });
+  } catch {
+    // Folha fechada sem escolher destino — o arquivo continua salvo no app.
   }
 }
