@@ -34,6 +34,7 @@ export function PdfViewerModal({ isOpen, onClose, url, fileName, onDownload }: P
   const [pageSize, setPageSize] = useState<{ width: number; height: number } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [erro, setErro] = useState("");
   const [zoom, setZoom] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -59,6 +60,7 @@ export function PdfViewerModal({ isOpen, onClose, url, fileName, onDownload }: P
     let cancelled = false;
     setLoading(true);
     setError(false);
+    setErro("");
     setPdf(null);
     setNumPages(0);
     setZoom(1);
@@ -66,30 +68,40 @@ export function PdfViewerModal({ isOpen, onClose, url, fileName, onDownload }: P
 
     (async () => {
       try {
-        const pdfjs = await loadPdfjs();
         // Arquivo salvo no aparelho (capacitor://… / http://localhost/_capacitor_file_…):
         // o pdfjs lê por requisições parciais dentro do worker, e o WKWebView do
-        // iOS não atende isso para arquivo local — dava "Não foi possível abrir".
-        // Nesse caso lemos os bytes aqui e entregamos prontos. Se a URL de rede
-        // falhar do mesmo jeito, também tentamos pelos bytes como último recurso.
+        // iOS pode não atender isso para arquivo local. Nesse caso lemos os
+        // bytes aqui e entregamos prontos.
         const ehLocal = Capacitor.isNativePlatform() && !/^https?:\/\/(?!localhost)/i.test(url);
         const lerBytes = async () => {
           const res = await fetch(url);
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          return new Uint8Array(await res.arrayBuffer());
+          const bytes = new Uint8Array(await res.arrayBuffer());
+          if (bytes.length < 8) throw new Error(`arquivo vazio (${bytes.length} bytes)`);
+          return bytes;
         };
-        let doc;
-        if (ehLocal) {
-          doc = await pdfjs.getDocument({ data: await lerBytes() }).promise;
-        } else {
+        // Tentativas, da mais leve para a mais compatível. Só a última falha vira erro na tela.
+        const tentativas: Array<() => Promise<any>> = [];
+        const abrir = async (legacy: boolean, porBytes: boolean) => {
+          const pdfjs = await loadPdfjs(legacy);
+          return pdfjs.getDocument(porBytes ? { data: await lerBytes() } : { url }).promise;
+        };
+        if (!ehLocal) tentativas.push(() => abrir(false, false));
+        tentativas.push(() => abrir(false, true));
+        tentativas.push(() => abrir(true, true));
+        let doc: any;
+        let ultimoErro: any;
+        for (const tentar of tentativas) {
           try {
-            doc = await pdfjs.getDocument({ url }).promise;
-          } catch (primeiroErro) {
+            doc = await tentar();
+            break;
+          } catch (e) {
+            ultimoErro = e;
+            console.warn("Falha ao abrir PDF, tentando outro jeito:", e);
             if (cancelled) return;
-            console.warn("pdfjs por URL falhou, tentando pelos bytes:", primeiroErro);
-            doc = await pdfjs.getDocument({ data: await lerBytes() }).promise;
           }
         }
+        if (!doc) throw ultimoErro;
         if (cancelled) return;
         const firstPage = await doc.getPage(1);
         if (cancelled) return;
@@ -99,7 +111,10 @@ export function PdfViewerModal({ isOpen, onClose, url, fileName, onDownload }: P
         setNumPages(doc.numPages);
       } catch (err) {
         console.error("Erro ao abrir PDF:", err);
-        if (!cancelled) setError(true);
+        if (!cancelled) {
+          setErro(`${err?.name || "Erro"}: ${err?.message || err}`);
+          setError(true);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -283,6 +298,7 @@ export function PdfViewerModal({ isOpen, onClose, url, fileName, onDownload }: P
               <div className="h-full flex flex-col items-center justify-center gap-3 text-center px-6">
                 <AlertTriangle className="w-8 h-8 text-amber-500" />
                 <p className="text-xs font-bold text-white/80">Não foi possível abrir este documento.</p>
+                {erro && <p className="text-[10px] text-white/50 break-all max-w-xs">{erro}</p>}
               </div>
             ) : pdf && pageSize && containerWidth > 0 ? (
               /* w-max + mx-auto em vez de items-center: com items-center, uma
