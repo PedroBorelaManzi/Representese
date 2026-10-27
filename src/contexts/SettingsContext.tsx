@@ -45,6 +45,9 @@ interface Settings {
   commission_password_hash?: string;
   subscription_status: SubscriptionStatus;
   plan_id: string;
+  /** true quando o plano não pôde ser lido (falha de rede sem cópia salva): a UI mostra o padrão,
+   *  mas não deve bloquear telas por causa dele. Nunca é gravado no cache. */
+  plan_unverified?: boolean;
   /** 'asaas' (site/Android, padrão) ou 'ios_iap' (comprado via App Store) —
    *  decide se a UI de gerenciar/renovar assinatura manda pro site (Asaas
    *  não tem outro jeito) ou abre o gerenciamento nativo de assinaturas. */
@@ -269,12 +272,14 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
 
         let effectiveStatus: SubscriptionStatus = 'inactive';
         let planId = 'exclusivo';
+        let planUnverified = false;
         let subscriptionProvider: 'asaas' | 'ios_iap' | 'play_iap' = 'asaas';
 
         if (entError) {
           // Fallback to cache if network fails (Grace period)
           effectiveStatus = (cached?.subscription_status as SubscriptionStatus) || 'active';
           planId = cached?.plan_id || 'exclusivo';
+          planUnverified = !cached?.plan_id;
           subscriptionProvider = cached?.subscription_provider || 'asaas';
         } else if (entData) {
           effectiveStatus = entData.subscription_status as SubscriptionStatus;
@@ -329,8 +334,8 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           must_change_password: data.must_change_password ?? false,
         };
 
-        setSettings(freshSettings);
-        offlineCache.set(CacheKeys.USER_SETTINGS, freshSettings);
+        setSettings(planUnverified ? { ...freshSettings, plan_unverified: true } : freshSettings);
+        if (!planUnverified) offlineCache.set(CacheKeys.USER_SETTINGS, freshSettings);
       } else {
         if (!cached) setSettings(defaultSettings);
       }

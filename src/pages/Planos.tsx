@@ -35,8 +35,8 @@ const faqItems = [
     a: "Sim. Não há fidelidade nem multa de cancelamento. Você pode cancelar a qualquer momento pelo suporte, e o acesso continua até o fim do período já pago.",
   },
   {
-    q: "Como funciona o teste de 7 dias?",
-    a: "Você usa o sistema completo por 7 dias sem cobrança. A cobrança só acontece automaticamente após esse período, conforme o plano e ciclo (mensal ou anual) escolhidos no cadastro.",
+    q: "Como funciona a garantia de 7 dias?",
+    a: "A cobrança acontece na hora da assinatura, conforme o plano e o ciclo (mensal ou anual) escolhidos. Nos primeiros 7 dias você pode pedir o cancelamento e devolvemos 100% do valor, sem perguntas.",
   },
   {
     q: "Posso trocar de plano depois?",
@@ -55,7 +55,7 @@ const faqItems = [
 const trustItems = [
   { icon: ShieldCheck, title: "7 dias de garantia", desc: "Satisfação garantida ou seu dinheiro de volta." },
   { icon: RefreshCw, title: "Sem fidelidade", desc: "Cancele quando quiser, sem multa." },
-  { icon: CalendarClock, title: "Cobrança só após o teste", desc: "Após os 7 dias, a renovação é automática conforme o plano." },
+  { icon: CalendarClock, title: "Renovação automática", desc: "Renova no mesmo ciclo do plano até você cancelar." },
 ];
 
 /** 31/10/2026 23:59:59 em Brasília (mesmo prazo do cupom BLACK30). */
@@ -99,12 +99,12 @@ export default function Planos() {
   }, [iosApp]);
 
   // Comprado via App Store, quem cuida de reembolso é a própria Apple (não
-  // temos como devolver o valor de uma compra IAP), e não existe o teste de
-  // 7 dias sem cobrança que o Asaas oferece — por isso essas duas seções
+  // temos como devolver o valor de uma compra IAP), e a garantia de 7 dias
+  // com devolução direta é do site (Asaas) — por isso essas duas seções
   // trocam de texto no iOS, pra não prometer algo que o app não cumpre ali.
   const displayFaqItems = iosApp
     ? faqItems.map((item) =>
-        item.q === "Como funciona o teste de 7 dias?"
+        item.q === "Como funciona a garantia de 7 dias?"
           ? { q: "Tem período de teste no app?", a: `A compra pela ${store().name} é cobrada na hora, sem período de teste gratuito. ${store().refund}` }
           : item
       )

@@ -389,7 +389,7 @@ export default function Layout() {
                             isActive ? "text-emerald-700 dark:text-emerald-400" : "text-slate-400 group-hover:text-emerald-600"
                           )} />
                           <span className="text-[13px] uppercase tracking-tight">{item.label}</span>
-                          {planBloqueiaRota(settings.plan_id, item.path) && <Lock className="w-3.5 h-3.5 ml-auto text-slate-300 dark:text-zinc-600" aria-label="Disponível a partir do plano Profissional" />}
+                          {planBloqueiaRota(settings.plan_unverified ? undefined : settings.plan_id, item.path) && <Lock className="w-3.5 h-3.5 ml-auto text-slate-300 dark:text-zinc-600" aria-label="Disponível a partir do plano Profissional" />}
                         </Link>
                       );
                     })}

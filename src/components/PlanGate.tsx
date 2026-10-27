@@ -9,7 +9,7 @@ import { planBloqueiaRota } from "../lib/planAccess";
 export function PlanGate({ children }: { children: React.ReactElement }) {
   const { settings, loading } = useSettings();
   const { pathname } = useLocation();
-  if (loading || !planBloqueiaRota(settings.plan_id, pathname)) return children;
+  if (loading || !planBloqueiaRota(settings.plan_unverified ? undefined : settings.plan_id, pathname)) return children;
 
   return (
     <div className="max-w-md mx-auto py-16 px-4 text-center space-y-5" data-testid="plan-gate">

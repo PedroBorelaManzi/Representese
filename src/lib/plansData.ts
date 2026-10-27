@@ -19,7 +19,8 @@ export const plans = [
       { text: 'Mapa Territorial Básico', icon: MapIcon },
       { text: 'CRM Essencial', icon: Check },
       { text: 'Busca CNPJ Automática', icon: Zap },
-      { text: 'Suporte por E-mail', icon: Mail }
+      { text: 'E-mails, Comissões e Catálogo de Produtos', icon: Mail },
+      { text: 'Assistente IA (10 perguntas por dia)', icon: Sparkles }
     ],
     popular: false,
     color: 'from-slate-500 to-slate-600',
@@ -40,7 +41,9 @@ export const plans = [
       { text: 'CRM Essencial', icon: Check },
       { text: 'Busca CNPJ Automática', icon: Zap },
       { text: 'Dashboard de Faturamento', icon: BarChart3 },
-      { text: 'Exportação de Relatórios', icon: Check },
+      { text: 'Relatórios com exportação', icon: Check },
+      { text: 'Ranking de clientes e vendas', icon: Trophy },
+      { text: 'Análise de vendas por produto', icon: BarChart3 },
       { text: 'Suporte via WhatsApp', icon: Star }
     ],
     popular: true,
@@ -62,8 +65,8 @@ export const plans = [
       { text: 'CRM Essencial', icon: Check },
       { text: 'Busca CNPJ Automática', icon: Zap },
       { text: 'BI & Analytics Avançado', icon: BarChart3 },
-      { text: 'Exportação de Relatórios', icon: Check },
-      { text: 'Assistente IA para clientes', icon: Sparkles },
+      { text: 'Relatórios, Ranking e Análise de produtos', icon: Check },
+      { text: 'Assistente IA sem limite diário', icon: Sparkles },
       { text: 'Digitalização de Pedidos por IA', icon: Zap },
       { text: 'Integração com Inbox', icon: Mail },
       { text: 'Suporte via WhatsApp Prioritário', icon: Star }

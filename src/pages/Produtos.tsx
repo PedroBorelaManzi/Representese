@@ -68,7 +68,7 @@ export default function ProdutosPage() {
   const { user } = useAuth();
   const { settings, updateSettings } = useSettings();
   // Exclusivo vê o catálogo, mas a análise de vendas por produto fica borrada.
-  const analiseBloqueada = planBloqueiaRota(settings.plan_id, "/dashboard/produtos/analise");
+  const analiseBloqueada = planBloqueiaRota(settings.plan_unverified ? undefined : settings.plan_id, "/dashboard/produtos/analise");
 
   const [periodo, setPeriodo] = useState<PeriodoTipo>("mes");
   const [refDate, setRefDate] = useState(() => new Date());

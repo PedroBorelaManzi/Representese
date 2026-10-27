@@ -52,7 +52,9 @@ const planDetails = {
       "CRM Essencial",
       "Busca CNPJ Automática",
       "Dashboard de Faturamento",
-      "Exportação de Relatórios",
+      "Relatórios com exportação",
+      "Ranking de clientes e vendas",
+      "Análise de vendas por produto",
       "Suporte via WhatsApp"
     ]
   },
@@ -71,8 +73,8 @@ const planDetails = {
       "CRM Essencial",
       "Busca CNPJ Automática",
       "BI & Analytics Avançado",
-      "Exportação de Relatórios",
-      "Assistente IA para clientes",
+      "Relatórios, Ranking e Análise de produtos",
+      "Assistente IA sem limite diário",
       "Digitalização de Pedidos por IA",
       "Integração com Inbox",
       "Suporte via WhatsApp Prioritário"

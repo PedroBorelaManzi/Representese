@@ -185,7 +185,9 @@ export const SettingsSubscription = React.memo(function SettingsSubscription({ o
                   { text: 'CRM Essencial', icon: Check },
                   { text: 'Busca CNPJ Automática', icon: Zap },
                   { text: 'Dashboard de Faturamento', icon: BarChart3 },
-                  { text: 'Exportação de Relatórios', icon: Check },
+                  { text: 'Relatórios com exportação', icon: Check },
+                  { text: 'Ranking de clientes e vendas', icon: Check },
+                  { text: 'Análise de vendas por produto', icon: BarChart3 },
                   { text: 'Suporte via WhatsApp', icon: Star }
                 ].map((b, i) => (
                   <div key={i} className="flex items-center gap-3 text-slate-600 dark:text-zinc-300">
@@ -199,8 +201,8 @@ export const SettingsSubscription = React.memo(function SettingsSubscription({ o
                   { text: 'CRM Essencial', icon: Check },
                   { text: 'Busca CNPJ Automática', icon: Zap },
                   { text: 'BI & Analytics Avançado', icon: BarChart3 },
-                  { text: 'Exportação de Relatórios', icon: Check },
-                  { text: 'Assistente IA para clientes', icon: Sparkles },
+                  { text: 'Relatórios, Ranking e Análise de produtos', icon: Check },
+                  { text: 'Assistente IA sem limite diário', icon: Sparkles },
                   { text: 'Digitalização de Pedidos por IA', icon: Zap },
                   { text: 'Integração com Inbox', icon: Mail },
                   { text: 'Suporte via WhatsApp Prioritário', icon: Star }

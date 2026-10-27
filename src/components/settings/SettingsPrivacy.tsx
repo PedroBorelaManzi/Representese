@@ -192,7 +192,7 @@ export const SettingsPrivacy = React.memo(function SettingsPrivacy() {
             <div className="text-left">
               <p className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Análise de Uso</p>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
-                Métricas de navegação (PostHog) para melhorar o app
+                Mede quais telas são mais usadas, sem ler seus dados, para melhorar o app (PostHog)
               </p>
             </div>
           </div>
