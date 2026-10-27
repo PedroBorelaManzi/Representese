@@ -4,9 +4,9 @@ export const plans = [
   {
     id: 'exclusivo',
     name: 'Exclusivo',
-    price: '97',
-    annualPrice: '87',
-    originalPrice: '134',
+    price: '49.90',
+    annualPrice: '44.90',
+    originalPrice: '97',
     period: '/mês',
     description: 'Para quem está começando.',
     justification: 'Ideal para validar sua operação com baixo investimento e organização básica.',
@@ -29,9 +29,9 @@ export const plans = [
   {
     id: 'profissional',
     name: 'Profissional',
-    price: '147',
-    annualPrice: '132',
-    originalPrice: '210',
+    price: '79.90',
+    annualPrice: '71.90',
+    originalPrice: '147',
     period: '/mês',
     description: 'Ideal para equipes em crescimento.',
     justification: 'A automação de busca de CNPJ economiza cerca de 10 horas de trabalho manual por mês.',
@@ -53,9 +53,9 @@ export const plans = [
   {
     id: 'master',
     name: 'Master',
-    price: '197',
-    annualPrice: '177',
-    originalPrice: '303',
+    price: '99.90',
+    annualPrice: '89.90',
+    originalPrice: '197',
     period: '/mês',
     description: 'Para grandes volumes e IA.',
     justification: 'Potencializado por Inteligência Artificial para processar pedidos e analisar mercado em tempo real.',
@@ -76,3 +76,5 @@ export const plans = [
     icon: Crown
   }
 ];
+/** Preço em reais no formato brasileiro, sempre com centavos: '49.90' -> '49,90'. */
+export const fmtPreco = (v: string | number): string => Number(v).toFixed(2).replace('.', ',');

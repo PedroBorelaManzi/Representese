@@ -33,7 +33,7 @@ PAGES = [
   faq=[("O que é um sistema para representante comercial?","É um programa para organizar o trabalho de quem representa marcas: clientes, pedidos, visitas e comissões ficam em um só lugar, em vez de espalhados em planilhas e cadernos."),
        ("O sistema serve para quem representa mais de uma empresa?","Sim. Cada representada é separada, com seus pedidos, faturamento e comissão, e você enxerga tudo junto no painel."),
        ("Preciso instalar algum programa?","Não. Funciona no navegador e também em aplicativos para Android e iPhone."),
-       ("Quanto custa?","Os planos começam em R$ 97 por mês. Veja os detalhes na página de planos.")],
+       ("Quanto custa?","Os planos começam em R$ 49,90 por mês. Veja os detalhes na página de planos.")],
   related=["app-para-representante-comercial","controle-de-vendas-para-representante","controle-de-comissoes-representante-comercial"]),
 
  dict(slug="app-para-representante-comercial",
@@ -112,9 +112,9 @@ PAGES = [
       "Comissão e faturamento por empresa.",
       "E-mail integrado e assistente de IA."]]),
    ("Planos para cada momento", [
-     "Há três planos: Exclusivo, para quem representa uma marca (a partir de R$ 97 por mês), Profissional, para até 5 representadas, e Master, para quem representa muitas. Todos incluem as mesmas funções principais."])],
+     "Há três planos: Exclusivo, para quem representa uma marca (a partir de R$ 49,90 por mês), Profissional, para até 5 representadas, e Master, para quem representa muitas. Todos incluem as mesmas funções principais."])],
   faq=[("Qual o melhor software para representante comercial?","Depende da sua rotina. Para quem vende para várias marcas e precisa de clientes, pedidos, agenda e comissões juntos, um sistema feito para representantes costuma ser mais simples que um ERP."),
-       ("Quanto custa o software?","Os planos começam em R$ 97 por mês."),
+       ("Quanto custa o software?","Os planos começam em R$ 49,90 por mês."),
        ("Funciona no celular?","Sim, no navegador e nos aplicativos para Android e iPhone.")],
   related=["app-para-representante-comercial","sistema-para-representante-comercial","sistema-de-pedidos-para-representante"]),
 

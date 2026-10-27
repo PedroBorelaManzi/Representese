@@ -22,16 +22,16 @@ const normalizePlanId = (val: string): string => {
 };
 
 // ANNUAL aqui é o valor TOTAL da cobrança anual (bate com selectedPlan.prices.ANNUAL
-// em Checkout.tsx: 1044/1584/2124 = 12x o valor mensal). Antes desse conserto,
+// em Checkout.tsx: 538,80/862,80/1.078,80 = 12x o valor mensal equivalente de 10% de desconto). Antes desse conserto,
 // esta tabela tinha 87/132/177 — o preço mensal EQUIVALENTE, não o total — e como
 // esse backend recalcula o valor sozinho (nunca lê o finalPrice que o frontend
 // manda), toda cobrança anual estava saindo por 1/12 do valor combinado com o
-// cliente (ex.: R$87 cobrados no total em vez de R$1044 no plano Exclusivo).
+// cliente (ex.: o equivalente mensal cobrado no total em vez do total anual).
 const PLAN_PRICES = {
-  'exclusivo': { MONTHLY: 97, SEMIANNUAL: 77, ANNUAL: 1044 },
-  'profissional': { MONTHLY: 147, SEMIANNUAL: 117, ANNUAL: 1584 },
-  'master': { MONTHLY: 197, SEMIANNUAL: 157, ANNUAL: 2124 },
-  'default': { MONTHLY: 147, SEMIANNUAL: 117, ANNUAL: 1584 }
+  'exclusivo': { MONTHLY: 49.9, SEMIANNUAL: 39.9, ANNUAL: 538.8 },
+  'profissional': { MONTHLY: 79.9, SEMIANNUAL: 63.9, ANNUAL: 862.8 },
+  'master': { MONTHLY: 99.9, SEMIANNUAL: 79.9, ANNUAL: 1078.8 },
+  'default': { MONTHLY: 79.9, SEMIANNUAL: 63.9, ANNUAL: 862.8 }
 };
 
 // Mesma tabela de handle-asaas-webhook (periodDaysFromDescription) — aqui

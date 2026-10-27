@@ -6,11 +6,11 @@ describe('plansData', () => {
     expect(plans.map((p) => p.id)).toEqual(['exclusivo', 'profissional', 'master']);
   });
 
-  it('preços batem com a tabela oficial (97/147/197)', () => {
+  it('preços batem com a tabela oficial (49,90/79,90/99,90)', () => {
     const byId = Object.fromEntries(plans.map((p) => [p.id, p]));
-    expect(byId.exclusivo.price).toBe('97');
-    expect(byId.profissional.price).toBe('147');
-    expect(byId.master.price).toBe('197');
+    expect(byId.exclusivo.price).toBe('49.90');
+    expect(byId.profissional.price).toBe('79.90');
+    expect(byId.master.price).toBe('99.90');
   });
 
   it('preço anual é sempre menor que o mensal', () => {

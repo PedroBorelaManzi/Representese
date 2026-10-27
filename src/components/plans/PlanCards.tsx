@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, Check, Building2, Loader2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { plans } from '../../lib/plansData';
+import { plans, fmtPreco } from '../../lib/plansData';
 import type { IosPlanPrices } from '../../lib/iap';
 import { store } from '../../lib/iapPolicy';
 
@@ -110,7 +110,7 @@ export function PlanCards({ billingCycle, currentSubscriptionPlan, onSubscribe, 
               <>
                 <div className="mb-1 flex items-center gap-2">
                   <span className={cn("text-[15px] font-bold line-through", popular ? "text-slate-500" : "text-slate-400")}>
-                    R${plan.originalPrice}
+                    R${fmtPreco(plan.originalPrice)}
                   </span>
                   {discount > 0 && (
                     <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700 text-[10px] font-black">
@@ -123,13 +123,13 @@ export function PlanCards({ billingCycle, currentSubscriptionPlan, onSubscribe, 
                     <span className={cn("text-[15px] font-bold mb-2 mr-1", popular ? "text-slate-300" : "text-slate-500 dark:text-zinc-400")}>12x de</span>
                   )}
                   <span className={cn("text-2xl font-black mb-1", popular ? "text-white" : "text-slate-900 dark:text-zinc-100")}>R$</span>
-                  <span className={cn("text-5xl font-black tracking-tight", popular ? "text-white" : "text-slate-900 dark:text-zinc-100")}>{price}</span>
+                  <span className={cn("text-5xl font-black tracking-tight", popular ? "text-white" : "text-slate-900 dark:text-zinc-100")}>{fmtPreco(price)}</span>
                   {!annual && (
                     <span className={cn("text-[14px] font-bold mb-2", popular ? "text-slate-400" : "text-slate-500 dark:text-zinc-400")}>/mês</span>
                   )}
                 </div>
                 <p className={cn("text-[11px] font-medium mb-6 h-4", popular ? "text-slate-500" : "text-slate-400")}>
-                  {annual ? `sem juros no cartão · ou R$ ${Number(price) * 12} à vista` : "no plano mensal"}
+                  {annual ? `sem juros no cartão · ou R$ ${fmtPreco(Number(price) * 12)} à vista` : "no plano mensal"}
                 </p>
               </>
             )}

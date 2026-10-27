@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { ArrowRight, Building2, Check } from "lucide-react";
 import { Link } from "react-router-dom";
 import { cn } from "../../lib/utils";
-import { plans } from "../../lib/plansData";
+import { plans, fmtPreco } from "../../lib/plansData";
 import { FadeUp, Kicker } from "./primitives";
 
 export function PlanosSection() {
@@ -109,7 +109,7 @@ export function PlanosSection() {
 
                     <div className="mb-1 flex items-end gap-2">
                       <span className={cn("text-[15px] font-bold line-through", plan.popular ? "text-slate-500" : "text-slate-400")}>
-                        R${plan.originalPrice}
+                        R${fmtPreco(plan.originalPrice)}
                       </span>
                       {discount > 0 && (
                         <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700 text-[10px] font-black mb-1">
@@ -122,7 +122,7 @@ export function PlanosSection() {
                         <span className={cn("text-[15px] font-bold mb-2 mr-1", plan.popular ? "text-slate-300" : "text-slate-500")}>12x de</span>
                       )}
                       <span className={cn("text-2xl font-black mb-1", plan.popular ? "text-white" : "text-slate-900")}>R$</span>
-                      <span className={cn("text-5xl font-black tracking-tight", plan.popular ? "text-white" : "text-slate-900")}>{price}</span>
+                      <span className={cn("text-5xl font-black tracking-tight", plan.popular ? "text-white" : "text-slate-900")}>{fmtPreco(price)}</span>
                       {!annual && (
                         <span className={cn("text-[14px] font-bold mb-2", plan.popular ? "text-slate-400" : "text-slate-500")}>/mês</span>
                       )}

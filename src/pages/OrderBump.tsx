@@ -24,13 +24,14 @@ import { posthog } from "../lib/posthog";
 import { useAuth } from "../contexts/AuthContext";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
+import { fmtPreco } from "../lib/plansData";
 
 const planDetails = {
   exclusivo: {
     name: "Exclusivo",
-    price: 97,
-    annualPrice: 87,
-    originalPrice: 134,
+    price: 49.9,
+    annualPrice: 44.9,
+    originalPrice: 97,
     icon: Building2,
     color: "text-slate-500",
     bg: "bg-slate-50 dark:bg-zinc-800/50",
@@ -39,9 +40,9 @@ const planDetails = {
   },
   profissional: {
     name: "Profissional",
-    price: 147,
-    annualPrice: 132,
-    originalPrice: 210,
+    price: 79.9,
+    annualPrice: 71.9,
+    originalPrice: 147,
     icon: Gem,
     color: "text-emerald-500",
     bg: "bg-emerald-50 dark:bg-emerald-950/20",
@@ -60,9 +61,9 @@ const planDetails = {
   },
   master: {
     name: "Master",
-    price: 197,
-    annualPrice: 177,
-    originalPrice: 303,
+    price: 99.9,
+    annualPrice: 89.9,
+    originalPrice: 197,
     icon: Crown,
     color: "text-amber-500",
     bg: "bg-amber-50 dark:bg-amber-950/20",
@@ -200,7 +201,7 @@ export default function OrderBump() {
 
   // O upgrade cancela a assinatura atual e cria uma nova no valor cheio do
   // plano superior (sem proporcionalidade pelos dias já pagos no plano atual).
-  const discountAmount = activeCoupon ? Math.round((nextPrice * activeCoupon.discount) / 100) : 0;
+  const discountAmount = activeCoupon ? Math.round((nextPrice * activeCoupon.discount) / 100 * 100) / 100 : 0;
   const finalDiff = nextPrice - discountAmount;
   const cycleApi = billingCycle === 'Anual' ? 'ANNUAL' : 'MONTHLY';
   const per = billingCycle === 'Anual' ? '/ano' : '/mês';
@@ -343,7 +344,7 @@ export default function OrderBump() {
               </div>
             </div>
             <div className="text-right">
-              <p className="text-xs font-black text-emerald-600 dark:text-emerald-400">R$ {billingCycle === 'Anual' ? nextPlan.annualPrice : nextPlan.price}/mês</p>
+              <p className="text-xs font-black text-emerald-600 dark:text-emerald-400">R$ {fmtPreco(billingCycle === 'Anual' ? nextPlan.annualPrice : nextPlan.price)}/mês</p>
               <p className="text-[8px] font-bold text-slate-400 uppercase">Faturamento {localStorage.getItem('rm_billing_cycle') || 'Mensal'}</p>
             </div>
           </div>
@@ -404,7 +405,7 @@ export default function OrderBump() {
                   <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider border border-slate-100 dark:border-zinc-800 px-2 py-0.5 rounded-full">Plano Atual</span>
                 </div>
                 <h3 className="text-sm font-black text-slate-400 uppercase tracking-tight leading-none mb-1">{currentPlan.name}</h3>
-                <p className="text-lg font-black text-slate-500">R$ {billingCycle === 'Anual' ? currentPlan.annualPrice : currentPlan.price}<span className="text-[9px] font-bold">/mês</span></p>
+                <p className="text-lg font-black text-slate-500">R$ {fmtPreco(billingCycle === 'Anual' ? currentPlan.annualPrice : currentPlan.price)}<span className="text-[9px] font-bold">/mês</span></p>
               </div>
 
               {/* Next Plan Upsell Mini Box */}
@@ -418,10 +419,10 @@ export default function OrderBump() {
                 </div>
                 <h3 className="text-sm font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-tight leading-none mb-1">{nextPlan.name}</h3>
                 <p className="text-lg font-black text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
-                  <span>R$ {nextPlan.price}<span className="text-[9px] font-bold">/mï¿½s</span></span>
+                  <span>R$ {fmtPreco(nextPlan.price)}<span className="text-[9px] font-bold">/mês</span></span>
                   {nextPlan.originalPrice && (
                     <span className="px-3 py-1 bg-amber-500 text-white text-[10px] font-black uppercase rounded-lg tracking-widest shadow-sm shadow-amber-500/20">
-                      {nextTier === 'profissional' ? '30' : '35'}% DE DESCONTO LANÇAMENTO
+                      {Math.round((1 - nextPlan.price / nextPlan.originalPrice) * 100)}% DE DESCONTO BLACK FRIDAY
                     </span>
                   )}
                 </p>
@@ -470,7 +471,7 @@ export default function OrderBump() {
                     <p className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Cobrado agora:</p>
                     <div className="text-right">
                       <span className="text-xs font-black text-slate-400">R$</span>
-                      <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 tracking-tighter"> {diffMode ? brl(quote!.chargeNow) : finalDiff}</span>
+                      <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 tracking-tighter"> {diffMode ? brl(quote!.chargeNow) : brl(finalDiff)}</span>
                       {!diffMode && <span className="text-[10px] font-bold text-slate-400 uppercase">/mês</span>}
                     </div>
                   </div>
@@ -491,7 +492,7 @@ export default function OrderBump() {
                     <p className="text-[9px] text-amber-600 dark:text-amber-500 font-bold leading-relaxed">
                       {diffMode
                         ? `Agora você paga R$ ${brl(quote!.chargeNow)} (a diferença do plano ${currentPlan.name} para o ${nextPlan.name}). Nas próximas cobranças a assinatura segue no valor do plano ${nextPlan.name}: R$ ${brl(quote!.newValue)}${per}.`
-                        : `Você está contratando o plano ${nextPlan.name} por R$ ${nextPrice}/mês.`}
+                        : `Você está contratando o plano ${nextPlan.name} por R$ ${fmtPreco(nextPrice)}/mês.`}
                     </p>
                   </div>
                 </div>
@@ -594,7 +595,7 @@ export default function OrderBump() {
                   ) : (
                     <>
                       <ShieldCheck className="w-4 h-4" />
-                      <span>Confirmar e Pagar R$ {diffMode ? brl(quote!.chargeNow) : finalDiff}</span>
+                      <span>Confirmar e Pagar R$ {diffMode ? brl(quote!.chargeNow) : brl(finalDiff)}</span>
                     </>
                   )}
                 </button>
@@ -611,11 +612,11 @@ export default function OrderBump() {
                 <div className="space-y-4">
                   <div className="flex justify-between text-xs font-bold text-slate-500">
                     <span>Novo Plano ({nextPlan.name})</span>
-                    <span>R$ {billingCycle === 'Anual' ? nextPlan.annualPrice : nextPlan.price}/mês</span>
+                    <span>R$ {fmtPreco(billingCycle === 'Anual' ? nextPlan.annualPrice : nextPlan.price)}/mês</span>
                   </div>
                   <div className="flex justify-between text-xs font-bold text-slate-400">
                     <span>{diffMode ? `Plano atual (${currentPlan.name})` : `Plano atual cancelado (${currentPlan.name})`}</span>
-                    <span>{diffMode && quote!.currentValue != null ? `R$ ${brl(quote!.currentValue)}${per}` : `R$ ${billingCycle === 'Anual' ? currentPlan.annualPrice : currentPlan.price}/mês`}</span>
+                    <span>{diffMode && quote!.currentValue != null ? `R$ ${brl(quote!.currentValue)}${per}` : `R$ ${fmtPreco(billingCycle === 'Anual' ? currentPlan.annualPrice : currentPlan.price)}/mês`}</span>
                   </div>
 
                   {activeCoupon && (
@@ -624,7 +625,7 @@ export default function OrderBump() {
                         <Ticket className="w-3.5 h-3.5" />
                         <span>Cupom {activeCoupon.code}</span>
                       </div>
-                      <span>-R$ {discountAmount}/mês</span>
+                      <span>-R$ {brl(discountAmount)}/mês</span>
                     </div>
                   )}
 
@@ -635,7 +636,7 @@ export default function OrderBump() {
                     </div>
                     <div className="text-right">
                       <span className="text-xs font-black text-slate-400">R$</span>
-                      <span className="text-3xl font-black text-emerald-600 dark:text-emerald-400 tracking-tighter">{diffMode ? brl(quote!.chargeNow) : finalDiff}</span>
+                      <span className="text-3xl font-black text-emerald-600 dark:text-emerald-400 tracking-tighter">{diffMode ? brl(quote!.chargeNow) : brl(finalDiff)}</span>
                       {!diffMode && <span className="text-[10px] font-bold text-slate-400 uppercase">/mês</span>}
                     </div>
                   </div>

@@ -105,9 +105,9 @@ Migrations ficam em `supabase/migrations/`. RLS habilitado em todas as tabelas.
 
 | ID | Nome | Preço mensal | Limite empresas |
 |---|---|---|---|
-| `exclusivo` | Acesso Exclusivo | R$ 97 | 1 |
-| `profissional` | Acesso Profissional | R$ 147 | 5 |
-| `master` | Acesso Master | R$ 197 | Ilimitado |
+| `exclusivo` | Acesso Exclusivo | R$ 49,90 | 1 |
+| `profissional` | Acesso Profissional | R$ 79,90 | 5 |
+| `master` | Acesso Master | R$ 99,90 | Ilimitado |
 
 Cobrança no site/Android é via **Asaas** (`process-checkout` + webhook
 `handle-asaas-webhook`). No **iOS**, os mesmos 3 planos são vendidos por

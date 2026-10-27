@@ -52,10 +52,10 @@ const ASAAS_API_KEY = Deno.env.get('ASAAS_API_KEY');
 // pra saber quanto é o preço CHEIO do plano antes de aplicar o desconto de
 // indicação na assinatura recorrente da Asaas.
 const PLAN_PRICES: Record<string, Record<string, number>> = {
-  'exclusivo': { MONTHLY: 97, SEMIANNUAL: 77, ANNUAL: 1044 },
-  'profissional': { MONTHLY: 147, SEMIANNUAL: 117, ANNUAL: 1584 },
-  'master': { MONTHLY: 197, SEMIANNUAL: 157, ANNUAL: 2124 },
-  'default': { MONTHLY: 147, SEMIANNUAL: 117, ANNUAL: 1584 }
+  'exclusivo': { MONTHLY: 49.9, SEMIANNUAL: 39.9, ANNUAL: 538.8 },
+  'profissional': { MONTHLY: 79.9, SEMIANNUAL: 63.9, ANNUAL: 862.8 },
+  'master': { MONTHLY: 99.9, SEMIANNUAL: 79.9, ANNUAL: 1078.8 },
+  'default': { MONTHLY: 79.9, SEMIANNUAL: 63.9, ANNUAL: 862.8 }
 };
 
 // Programa de indicação — mantém o valor cobrado na assinatura RECORRENTE

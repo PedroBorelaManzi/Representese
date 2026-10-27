@@ -26,21 +26,21 @@ const plans = {
     name: 'Exclusivo',
     icon: Trophy,
     color: 'text-slate-400',
-    prices: { MONTHLY: 97, ANNUAL: 1044 }
+    prices: { MONTHLY: 49.9, ANNUAL: 538.8 }
   },
   profissional: {
     id: 'profissional',
     name: 'Profissional',
     icon: Gem,
     color: 'text-emerald-500',
-    prices: { MONTHLY: 147, ANNUAL: 1584 }
+    prices: { MONTHLY: 79.9, ANNUAL: 862.8 }
   },
   master: {
     id: 'master',
     name: 'Master',
     icon: Crown,
     color: 'text-amber-500',
-    prices: { MONTHLY: 197, ANNUAL: 2124 }
+    prices: { MONTHLY: 99.9, ANNUAL: 1078.8 }
   }
 };
 
@@ -68,7 +68,6 @@ const inputOk = "border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ri
 const inputErr = "border-red-400 bg-red-50/40 text-red-900 focus:ring-4 focus:ring-red-500/10";
 
 /** Cupom da campanha Black Friday (expira sozinho no servidor). */
-const CUPOM_BLACK_FRIDAY = 'BLACK30';
 
 export default function Checkout() {
   const { user } = useAuth();
@@ -104,12 +103,12 @@ export default function Checkout() {
   useEffect(() => {
     const refCode = searchParams.get('ref') || leadData?.ref;
     if (couponCode || appliedCoupon) return;
-    // Black Friday: quem chega pelo site (ou pelo link ?cupom=) já entra com o
-    // cupom aplicado. O servidor confere validade e prazo; depois de 31/10 o
-    // cupom expira sozinho e o tratamento silencioso abaixo apenas não aplica nada.
-    const code = refCode || searchParams.get('cupom') || CUPOM_BLACK_FRIDAY;
+    // A Black Friday agora é o próprio preço da tabela: nenhum cupom entra sozinho.
+    // Só aplica o que veio por indicação (?ref=) ou pelo link (?cupom=).
+    const code = refCode || searchParams.get('cupom');
+    if (!code) return;
     setCouponCode(code.toUpperCase());
-    handleApplyCoupon(code, !refCode && !searchParams.get("cupom"));
+    handleApplyCoupon(code, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -58,13 +58,10 @@ const trustItems = [
   { icon: CalendarClock, title: "Renovação automática", desc: "Renova no mesmo ciclo do plano até você cancelar." },
 ];
 
-/** 31/10/2026 23:59:59 em Brasília (mesmo prazo do cupom BLACK30). */
-const BLACK_FRIDAY_FIM = Date.UTC(2026, 10, 1, 2, 59, 59);
-
 export default function Planos() {
   usePageMeta(
     "Planos e Preços",
-    "Conheça os planos do Represente-Se! — de R$ 97/mês, sem fidelidade. Escolha o ideal para o número de empresas que você representa.",
+    "Conheça os planos do Represente-Se! — a partir de R$ 49,90/mês, sem fidelidade. Escolha o ideal para o número de empresas que você representa.",
     "/planos"
   );
   const [billingCycle, setBillingCycle] = useState<'MONTHLY' | 'ANNUAL'>('MONTHLY');
@@ -245,12 +242,12 @@ export default function Planos() {
 
       <div className="max-w-6xl mx-auto px-4 py-10 lg:px-8 lg:py-14">
 
-        {/* Black Friday: o cupom BLACK30 entra sozinho no checkout e o servidor o
-            expira em 31/10 (23:59, Brasília). Só no site: nas lojas o preço é o da loja. */}
-        {!isStoreApp() && Date.now() < BLACK_FRIDAY_FIM && (
+        {/* Black Friday: os preços da tabela já são os promocionais (sem cupom).
+            Só no site: nas lojas o preço é o da loja. */}
+        {!isStoreApp() && (
           <div data-testid="banner-black-friday" className="mb-8 rounded-2xl bg-slate-900 text-white px-5 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-center sm:text-left">
-            <p className="text-[14px] font-black tracking-tight">Black Friday: <span className="text-emerald-400">30% de desconto</span> em qualquer plano</p>
-            <p className="text-[12px] font-semibold text-slate-300">Cupom BLACK30 aplicado no checkout. Só até 31/10.</p>
+            <p className="text-[14px] font-black tracking-tight">Black Friday: planos <span className="text-emerald-400">a partir de R$ 49,90/mês</span></p>
+            <p className="text-[12px] font-semibold text-slate-300">Preço já com desconto, sem cupom. 7 dias de garantia.</p>
           </div>
         )}
 
