@@ -11,6 +11,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import { ConfirmProvider } from "./components/ui";
 import { Toaster } from "sonner";
 import { SpeedInsights } from "@vercel/speed-insights/react";
+import { Analytics } from "@vercel/analytics/react";
 import { lazyWithRetry } from "./lib/lazyWithRetry";
 import { useTrackPageview } from "./hooks/useTrackPageview";
 import { applyTrackingOptOutFromUrl } from "./lib/trackingOptOut";
@@ -195,6 +196,8 @@ export default function App() {
           </SettingsProvider>
         </SyncProvider>
         <SpeedInsights />
+        {/* Visitas sem cookies (mede o tráfego dos anúncios mesmo de quem não aceitou o banner) */}
+        <Analytics />
         <CookieBanner />
         <Suspense fallback={null}><ReChatWidget /></Suspense>
         <AiConsentDialog />
