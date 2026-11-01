@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { segmentLabel } from '../lib/segments';
 import { useSettings } from '../contexts/SettingsContext';
 import { Navigate } from 'react-router-dom';
-import { BarChart3, Clock, LayoutDashboard, MousePointerClick, Search, ChevronDown, ChevronUp, User, Users, LineChart, Download, Building2, Phone, UserCog, Settings as SettingsIcon, X, Trash2, Mail, Loader2, ShieldAlert, Map as MapIcon, Filter, Instagram } from 'lucide-react';
+import { BarChart3, Clock, LayoutDashboard, MousePointerClick, Search, ChevronDown, ChevronUp, User, Users, LineChart, Download, Building2, Phone, UserCog, Settings as SettingsIcon, X, Trash2, Mail, Loader2, ShieldAlert, Map as MapIcon, Filter, Instagram, FileText } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell
@@ -21,8 +21,9 @@ import { isHiddenAdminAccount } from '../lib/adminHiddenAccounts';
 const CoverageMap = lazy(() => import('../components/admin/CoverageMap'));
 const AdsFunnel = lazy(() => import('../components/admin/AdsFunnel'));
 const InstagramStats = lazy(() => import('../components/admin/InstagramStats'));
+const MonthlyReports = lazy(() => import('../components/admin/MonthlyReports'));
 
-const ABAS: { id: 'sistema' | 'landing' | 'leads' | 'usuarios' | 'ficha' | 'cobertura' | 'funil' | 'instagram'; label: string; Icon: React.ElementType; ativa: string }[] = [
+const ABAS: { id: 'sistema' | 'landing' | 'leads' | 'usuarios' | 'ficha' | 'cobertura' | 'funil' | 'instagram' | 'relatorios'; label: string; Icon: React.ElementType; ativa: string }[] = [
   { id: 'sistema', label: 'Sistema (Logados)', Icon: Users, ativa: 'bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:ring-emerald-500/30' },
   { id: 'landing', label: 'Landing Page', Icon: LineChart, ativa: 'bg-indigo-50 text-indigo-700 ring-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-400 dark:ring-indigo-500/30' },
   { id: 'leads', label: 'CRM & Leads', Icon: Building2, ativa: 'bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:ring-amber-500/30' },
@@ -31,6 +32,7 @@ const ABAS: { id: 'sistema' | 'landing' | 'leads' | 'usuarios' | 'ficha' | 'cobe
   { id: 'cobertura', label: 'Cobertura', Icon: MapIcon, ativa: 'bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:ring-rose-500/30' },
   { id: 'funil', label: 'Funil de anúncios', Icon: Filter, ativa: 'bg-teal-50 text-teal-700 ring-teal-200 dark:bg-teal-500/10 dark:text-teal-400 dark:ring-teal-500/30' },
   { id: 'instagram', label: 'Instagram', Icon: Instagram, ativa: 'bg-pink-50 text-pink-700 ring-pink-200 dark:bg-pink-500/10 dark:text-pink-400 dark:ring-pink-500/30' },
+  { id: 'relatorios', label: 'Relatórios', Icon: FileText, ativa: 'bg-slate-100 text-slate-800 ring-slate-300 dark:bg-zinc-700/40 dark:text-zinc-100 dark:ring-zinc-500/40' },
 ];
 
 const COLORS = [
@@ -90,7 +92,7 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
   const [deletingUser, setDeletingUser] = useState(false);
   const queryClient = useQueryClient();
   const confirm = useConfirm();
-  const [activeTab, setActiveTab] = useState<'sistema' | 'landing' | 'leads' | 'usuarios' | 'ficha' | 'cobertura' | 'funil' | 'instagram'>('sistema');
+  const [activeTab, setActiveTab] = useState<'sistema' | 'landing' | 'leads' | 'usuarios' | 'ficha' | 'cobertura' | 'funil' | 'instagram' | 'relatorios'>('sistema');
 
   // --- QUERY 1: Sistema (Usuários Logados) ---
   const { data, isLoading } = useQuery({
@@ -507,6 +509,11 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
       {activeTab === 'instagram' && (
         <Suspense fallback={<div className="py-20 text-center text-slate-400">Carregando Instagram…</div>}>
           <InstagramStats />
+        </Suspense>
+      )}
+      {activeTab === 'relatorios' && (
+        <Suspense fallback={<div className="py-20 text-center text-slate-400">Carregando relatórios…</div>}>
+          <MonthlyReports />
         </Suspense>
       )}
       {activeTab === 'funil' && (
