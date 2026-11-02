@@ -227,6 +227,16 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     etapa('Enviando alterações...', 1);
 
     try {
+      // 0. Clique manual em "Sincronizar" = tentar de novo o que desistiu de subir
+      // (dead-letter). Antes o aviso "não pôde ser enviada" ficava para sempre e o
+      // botão não fazia nada por esses itens.
+      const parados = syncQueue.getDeadLetter();
+      if (parados.length > 0) {
+        syncQueue.setQueue([...syncQueue.getQueue(), ...parados.map((o) => ({ ...o, attempts: 0 }))]);
+        syncQueue.clearDeadLetter();
+        window.dispatchEvent(new Event('sync-queue-updated'));
+      }
+
       // 1. Push PENDING offline mutations FIRST
       if (syncQueue.getPendingCount() > 0) {
         const { success, errors } = await syncQueue.processQueue();

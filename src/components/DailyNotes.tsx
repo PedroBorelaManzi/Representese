@@ -109,7 +109,10 @@ export default function DailyNotes({ selectedDate, className }: DailyNotesProps)
       const cacheKey = `rm_cache_daily_notes_${user.id}_${dateIso}`;
 
       if (!offlineCache.isOnline()) {
-         syncQueue.enqueue('daily_notes', 'UPSERT', { user_id: user.id, date: dateIso, content: currentRaw }, 'user_id,date');
+         // 4º parâmetro é o recordId; a coluna de conflito (matchColumn) é o 5º. Com 'user_id,date' no
+         // lugar errado o upsert caía em onConflict:'id' e batia na chave única (user_id,date) quando
+         // o dia já tinha anotação — a alteração virava "não pôde ser enviada".
+         syncQueue.enqueue('daily_notes', 'UPSERT', { user_id: user.id, date: dateIso, content: currentRaw }, undefined, 'user_id,date');
          offlineCache.set(cacheKey, currentRaw);
          setSaveStatus('saved');
          setLastSavedRaw(currentRaw);
