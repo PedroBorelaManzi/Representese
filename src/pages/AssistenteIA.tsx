@@ -258,7 +258,6 @@ SOBRE O SISTEMA REPRESENTE-SE (para tirar dúvidas de uso):
 - Clientes (CRM): carteira com ficha individual, histórico, anotações, status e alertas automáticos de inatividade.
 - Mapa: mostra os clientes no mapa para planejar rotas e visitas por região.
 - Agenda: compromissos e visitas da semana, com integração ao Google Calendar.
-- E-mails: caixa de entrada integrada ao Gmail, vinculada aos clientes.
 - Empresas e Pedidos: empresas representadas e lançamento de pedidos — a IA ajuda a digitalizar pedidos a partir de foto ou PDF.
 - Faturamento: gráfico mensal de faturamento por empresa representada, com teto configurável.
 - Assistente IA (você): responde sobre a carteira, sobre o sistema e sobre qualquer assunto.

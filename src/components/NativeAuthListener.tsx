@@ -12,14 +12,9 @@ export default function NativeAuthListener() {
 
   useEffect(() => {
     const cleanup = initNativeGoogleAuthListener({
-      onSuccess: (purpose) => {
-        if (purpose === "calendar") {
-          toast.success("Google Agenda sincronizado com o Ecossistema Representese.");
-          navigate("/dashboard/agenda");
-        } else {
-          toast.success("Gmail sincronizado com o Ecossistema Representese.");
-          navigate("/dashboard/email");
-        }
+      onSuccess: () => {
+        toast.success("Google Agenda sincronizado com o Ecossistema Representese.");
+        navigate("/dashboard/agenda");
       },
       onError: (_purpose, message) => {
         toast.error(message);

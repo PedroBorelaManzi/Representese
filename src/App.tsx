@@ -55,8 +55,6 @@ const EmpresasPage = lazyWithRetry(() => import("./pages/Empresas"));
 const EntregasPage = lazyWithRetry(() => import("./pages/Entregas"));
 const ProdutosPage = lazyWithRetry(() => import("./pages/Produtos"));
 const AgendaPage = lazyWithRetry(() => import("./pages/Agenda"));
-const EmailClient = lazyWithRetry(() => import("./pages/EmailClient"));
-const EmailCallback = lazyWithRetry(() => import("./pages/EmailCallback"));
 const PedidosPage = lazyWithRetry(() => import("./pages/Pedidos"));
 const AssistenteIA = lazyWithRetry(() => import("./pages/AssistenteIA"));
 const ComissoesPage = lazyWithRetry(() => import("./pages/Comissoes"));
@@ -163,7 +161,6 @@ export default function App() {
                       <Route path="entregas" element={<EntregasPage />} />
                       <Route path="produtos" element={<ProdutosPage />} />
                       <Route path="agenda" element={<AgendaPage />} />
-                      <Route path="email" element={<EmailClient />} />
                       <Route path="pedidos" element={<PedidosPage />} />
                       <Route path="comissoes" element={<ComissoesPage />} />
                       <Route path="ranking" element={<PlanGate><RankingPage /></PlanGate>} />
@@ -179,7 +176,6 @@ export default function App() {
 
                   {/* Google OAuth Callback */}
                   <Route path="/auth/callback/google" element={<GoogleCallback />} />
-                  <Route path="/auth/callback/email" element={<EmailCallback />} />
                   
                   {/* Public Legal Routes */}
                   <Route path="/privacy" element={<PrivacyPolicy />} />

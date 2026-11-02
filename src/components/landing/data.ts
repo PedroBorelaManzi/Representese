@@ -60,7 +60,6 @@ export const integrations = [
   { icon: Package,       label: "Pedidos com Foto" },
   { icon: FileText,      label: "Relatório em PDF" },
   { icon: Percent,       label: "Comissões Automáticas" },
-  { icon: Mail,          label: "Gmail Integrado" },
   { icon: ClipboardList, label: "Ciclo de Compra" },
   { icon: Building2,     label: "Busca por CNPJ" },
   { icon: BarChart3,     label: "BI & Analytics" },
@@ -112,7 +111,7 @@ export const bentoFeatures = [
   {
     icon: Brain,
     title: "Menos tempo digitando, mais tempo vendendo",
-    desc: "A IA gera o resumo de cada cliente, categoriza e-mails e avisa quem precisa de atenção — antes do concorrente chegar.",
+    desc: "A IA gera o resumo de cada cliente, e avisa quem precisa de atenção — antes do concorrente chegar.",
     span: "lg:col-span-2 lg:row-span-2",
     dark: true,
   },
@@ -141,9 +140,9 @@ export const bentoFeatures = [
     span: "lg:col-span-2",
   },
   {
-    icon: Mail,
-    title: "Cada e-mail no cliente certo",
-    desc: "Gmail integrado e organizado por representada — chega de caçar conversa.",
+    icon: Calendar,
+    title: "Sua agenda no Google Agenda",
+    desc: "Visitas e compromissos sincronizados com o Google Agenda — sem digitar duas vezes.",
     span: "lg:col-span-2",
   },
 ];

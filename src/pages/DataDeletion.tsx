@@ -47,7 +47,7 @@ export default function DataDeletion() {
                 <li>Dados de login (e-mail, senha) e da assinatura;</li>
                 <li>Clientes cadastrados (nome, CNPJ, endereço, telefone, e-mail, localização no mapa);</li>
                 <li>Pedidos, comissões e histórico de faturamento;</li>
-                <li>Compromissos da agenda e conexões com Google Agenda/Gmail, se conectadas;</li>
+                <li>Compromissos da agenda e conexão com o Google Agenda, se conectada;</li>
                 <li>Arquivos enviados (catálogos, planilhas, comprovantes) e histórico de conversas com a IA.</li>
               </ul>
               <p>Alguns registros financeiros podem ser mantidos por período adicional quando a lei exigir (ex.: obrigações fiscais), sempre informado na resposta ao pedido.</p>

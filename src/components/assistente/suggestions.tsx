@@ -34,7 +34,7 @@ const themes: SuggestionTheme[] = [
       "Como lanço um pedido tirando foto da nota?",
       "Como funciona o alerta de inatividade dos clientes?",
       "Qual a diferença entre os planos?",
-      "Como conecto meu Gmail e a Google Agenda?",
+      "Como conecto a Google Agenda?",
       "O app funciona sem internet?",
     ],
     moreItems: [

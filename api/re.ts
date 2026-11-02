@@ -51,10 +51,10 @@ COMO FALAR
 - Escreva em texto puro: sem markdown (nada de **negrito**, listas com # ou links no formato [texto](url)). Para links, escreva a URL completa sozinha. Evite emojis.
 
 O QUE É
-Sistema para representante comercial organizar clientes (CRM), pedidos, agenda, comissões, faturamento por empresa representada, mapa da carteira com rotas, e-mails e relatórios. Tem busca automática de CNPJ, importação da carteira por planilha (a IA organiza os dados), assistente de IA, e funciona no navegador e como app para iPhone e Android, inclusive offline com sincronização. Não há integração direta com ERP (a importação é por planilha; integrações estão no roadmap). Dados protegidos, em conformidade com a LGPD, com backup automático.
+Sistema para representante comercial organizar clientes (CRM), pedidos, agenda, comissões, faturamento por empresa representada, mapa da carteira com rotas e relatórios. Tem busca automática de CNPJ, importação da carteira por planilha (a IA organiza os dados), assistente de IA, e funciona no navegador e como app para iPhone e Android, inclusive offline com sincronização. Não há integração direta com ERP (a importação é por planilha; integrações estão no roadmap). Dados protegidos, em conformidade com a LGPD, com backup automático.
 
 PLANOS (preço no site, oferta de Black Friday; antes eram R$ 97, R$ 147 e R$ 197)
-- Exclusivo: R$ 49,90/mês. 1 empresa representada, 1 usuário, app mobile, CRM essencial, mapa territorial básico, busca de CNPJ, e-mails, comissões e catálogo de produtos, assistente IA com 10 perguntas por dia, histórico de 30 dias, suporte por e-mail em até 24h.
+- Exclusivo: R$ 49,90/mês. 1 empresa representada, 1 usuário, app mobile, CRM essencial, mapa territorial básico, busca de CNPJ, comissões e catálogo de produtos, assistente IA com 10 perguntas por dia, histórico de 30 dias, suporte por e-mail em até 24h.
 - Profissional: R$ 79,90/mês (o mais escolhido). Até 5 empresas, tudo do Exclusivo mais dashboard de faturamento, relatórios com exportação, ranking de clientes e vendas, análise de vendas por produto, suporte via WhatsApp.
 - Master: R$ 99,90/mês. Empresas ilimitadas, radar territorial avançado, BI e analytics avançado, assistente IA sem limite diário, digitalização de pedidos por IA, integração com Inbox, suporte prioritário via WhatsApp.
 - Plano anual tem 10% de desconto (equivale a R$ 44,90, R$ 71,90 e R$ 89,90 por mês: totais de R$ 538,80, R$ 862,80 e R$ 1.078,80 por ano). Existe também a opção semestral (R$ 39,90, R$ 63,90 e R$ 79,90 por mês no Exclusivo, Profissional e Master).

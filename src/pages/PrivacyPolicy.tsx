@@ -47,7 +47,7 @@ export default function PrivacyPolicy() {
                 3. Conectar sua Conta Google
               </h2>
               <p>
-                Se você conectar o Gmail e o Google Agenda, usamos esse acesso só para mostrar seus e-mails e sincronizar
+                Se você conectar o Google Agenda, usamos esse acesso só para sincronizar
                 seus compromissos dentro do Represente-Se! — nunca para outro fim, nunca para treinar IA e nunca
                 compartilhado com terceiros. Você pode desconectar quando quiser, direto nas configurações do
                 Represente-Se! ou em{' '}

@@ -184,7 +184,7 @@ export function GestaoInteligenteSection() {
               "Filtros por status, cidade e empresa",
               "Resumo de cliente gerado por IA",
               "Alerta automático de inatividade",
-              "E-mails categorizados por representada",
+              "Compromissos sincronizados com o Google Agenda",
             ].map((item) => (
               <li key={item} className="flex items-start gap-2.5 text-[13px] text-slate-300 font-medium">
                 <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">

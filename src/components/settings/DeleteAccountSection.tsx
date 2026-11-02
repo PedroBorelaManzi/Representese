@@ -159,7 +159,7 @@ function DeleteAccountModal({
           <ul className="list-disc pl-5 space-y-1">
             <li>login, dados da conta e da assinatura;</li>
             <li>clientes, pedidos, comissões e histórico de faturamento;</li>
-            <li>compromissos da agenda e conexões com Google/Gmail;</li>
+            <li>compromissos da agenda e conexão com o Google Agenda;</li>
             <li>arquivos enviados e conversas com a IA.</li>
           </ul>
           <p className="text-red-600 dark:text-red-400">

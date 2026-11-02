@@ -46,7 +46,7 @@ export default function TermsOfService() {
                 <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center text-purple-600"><AlertCircle className="w-4 h-4" /></div>
                 3. Integrações de Terceiros
               </h2>
-              <p>O Representese integra-se com serviços de terceiros, como o Google Gmail. O uso dessas integrações está sujeito aos termos e políticas desses provedores. Você reconhece que o Representese não controla esses serviços externos.</p>
+              <p>O Representese integra-se com serviços de terceiros, como o Google Agenda. O uso dessas integrações está sujeito aos termos e políticas desses provedores. Você reconhece que o Representese não controla esses serviços externos.</p>
             </section>
 
             <section className="space-y-4">

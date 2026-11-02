@@ -234,12 +234,6 @@ export default function Layout() {
         { icon: Trophy, label: 'Ranking', path: '/dashboard/ranking' },
       ],
     },
-    {
-      title: 'Comunicação',
-      items: [
-        { icon: Mail, label: 'E-mails', path: '/dashboard/email' },
-      ],
-    },
     ...((isSupportAdmin || settings.is_admin)
       ? [{
           title: 'Admin',
@@ -361,16 +355,8 @@ export default function Layout() {
                   <div className="space-y-1">
                     {group.items.map((item) => {
                       const isActive = location.pathname === item.path;
-                      const isEmailItem = item.label === 'E-mails';
-
-                      const handleItemClick = (e: React.MouseEvent) => {
-                        if (isEmailItem && Capacitor.isNativePlatform()) {
-                          e.preventDefault();
-                          setSidebarOpen(false);
-                          window.open("mailto:", "_system");
-                        } else {
-                          setSidebarOpen(false);
-                        }
+                      const handleItemClick = () => {
+                        setSidebarOpen(false);
                       };
 
                       return (

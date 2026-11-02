@@ -19,7 +19,7 @@ export const plans = [
       { text: 'Mapa Territorial Básico', icon: MapIcon },
       { text: 'CRM Essencial', icon: Check },
       { text: 'Busca CNPJ Automática', icon: Zap },
-      { text: 'E-mails, Comissões e Catálogo de Produtos', icon: Mail },
+      { text: 'Comissões e Catálogo de Produtos', icon: Check },
       { text: 'Assistente IA (10 perguntas por dia)', icon: Sparkles }
     ],
     popular: false,

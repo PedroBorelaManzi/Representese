@@ -10,7 +10,7 @@ import { generateCodeChallenge, generateCodeVerifier } from './pkce';
 // matching native OAuth Client ID in the Google Cloud Console.
 export const NATIVE_GOOGLE_REDIRECT_URI = 'com.representese.app:/oauth2redirect';
 
-export type GoogleAuthPurpose = 'calendar' | 'email';
+export type GoogleAuthPurpose = 'calendar';
 
 interface PendingGoogleAuth {
   purpose: GoogleAuthPurpose;
@@ -116,40 +116,14 @@ export function initNativeGoogleAuthListener(handlers: NativeGoogleAuthHandlers)
         Capacitor.getPlatform()
       );
 
-      if (pending.purpose === 'calendar') {
-        const { error } = await supabase.from('user_google_tokens').upsert({
-          user_id: user.id,
-          access_token: tokens.access_token,
-          refresh_token: tokens.refresh_token,
-          expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'user_id' });
-        if (error) throw error;
-      } else {
-        let emailAddress = 'Conectado';
-        try {
-          const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-            headers: { Authorization: `Bearer ${tokens.access_token}` },
-          });
-          if (res.ok) {
-            const info = await res.json();
-            emailAddress = info.email || emailAddress;
-          }
-        } catch (e) {
-          console.error('Erro ao buscar email do Google:', e);
-        }
-
-        const { error } = await supabase.from('user_email_tokens').upsert({
-          user_id: user.id,
-          provider: 'google',
-          email_address: emailAddress,
-          access_token: tokens.access_token,
-          refresh_token: tokens.refresh_token,
-          expires_at: new Date(Date.now() + (tokens.expires_in || 3600) * 1000).toISOString(),
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'user_id, email_address' });
-        if (error) throw error;
-      }
+      const { error } = await supabase.from('user_google_tokens').upsert({
+        user_id: user.id,
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+        expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id' });
+      if (error) throw error;
 
       handlers.onSuccess(pending.purpose);
     } catch (err: any) {
