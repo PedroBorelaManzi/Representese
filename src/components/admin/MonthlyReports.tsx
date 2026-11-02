@@ -19,6 +19,7 @@ type Custo = {
   category: string;
   cycle: 'monthly' | 'annual' | 'biennial' | 'one_time' | 'free';
   amount_brl: number | null;
+  amount_usd: number | null;
   started_on: string | null;
   ends_on: string | null;
   status: 'confirmado' | 'estimado' | 'a_confirmar';
@@ -51,12 +52,21 @@ const STATUS: Record<Custo['status'], { label: string; cls: string }> = {
   a_confirmar: { label: 'A confirmar', cls: 'bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:ring-rose-500/30' },
 };
 
+/** Cotação de reserva, usada só se a busca da cotação do dia falhar (câmbio do recibo do ElevenLabs). */
+const DOLAR_RESERVA = 5.56;
+
+/** Valor do item em reais: itens em dólar usam a cotação do dia. */
+function emReais(c: Custo, dolar: number): number | null {
+  return c.amount_usd != null ? c.amount_usd * dolar : c.amount_brl;
+}
+
 /** Quanto o item pesa por mês (rateio). Única e grátis não entram no custo mensal recorrente. */
-function porMes(c: Custo): number {
-  if (c.kind !== 'custo' || c.amount_brl == null) return 0;
-  if (c.cycle === 'monthly') return c.amount_brl;
-  if (c.cycle === 'annual') return c.amount_brl / 12;
-  if (c.cycle === 'biennial') return c.amount_brl / 24;
+function porMes(c: Custo, dolar: number): number {
+  const v = emReais(c, dolar);
+  if (c.kind !== 'custo' || v == null) return 0;
+  if (c.cycle === 'monthly') return v;
+  if (c.cycle === 'annual') return v / 12;
+  if (c.cycle === 'biennial') return v / 24;
   return 0;
 }
 
@@ -95,10 +105,28 @@ export default function MonthlyReports() {
   const [data, setData] = useState('');
   const qc = useQueryClient();
 
-  const { data: linhas, isLoading, error } = useQuery({
-    queryKey: ['admin_monthly_report'],
+  // Cotação do dia (dólar comercial, AwesomeAPI). Se falhar, usa a de reserva e avisa na tela.
+  const { data: cot, isFetched: cotBuscada } = useQuery({
+    queryKey: ['usd_brl'],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('admin_monthly_report');
+      const r = await fetch('https://economia.awesomeapi.com.br/last/USD-BRL');
+      if (!r.ok) throw new Error('cotação indisponível');
+      const j = await r.json();
+      const bid = Number(j?.USDBRL?.bid);
+      if (!(bid > 0)) throw new Error('cotação inválida');
+      return { rate: bid, at: String(j.USDBRL.create_date ?? '') };
+    },
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+    refetchOnMount: 'always',
+  });
+  const dolar = cot?.rate ?? DOLAR_RESERVA;
+
+  const { data: linhas, isLoading, error } = useQuery({
+    queryKey: ['admin_monthly_report_v2', dolar],
+    enabled: cotBuscada,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('admin_monthly_report_v2', { p_usd_rate: dolar });
       if (error) throw error;
       return ((data ?? []) as Linha[]).map((l) => ({
         ...l,
@@ -115,7 +143,11 @@ export default function MonthlyReports() {
     queryFn: async () => {
       const { data, error } = await supabase.from('finance_costs').select('*').order('created_at', { ascending: true });
       if (error) throw error;
-      return ((data ?? []) as Custo[]).map((c) => ({ ...c, amount_brl: c.amount_brl == null ? null : Number(c.amount_brl) }));
+      return ((data ?? []) as Custo[]).map((c) => ({
+        ...c,
+        amount_brl: c.amount_brl == null ? null : Number(c.amount_brl),
+        amount_usd: c.amount_usd == null ? null : Number(c.amount_usd),
+      }));
     },
     staleTime: 0,
   });
@@ -143,7 +175,7 @@ export default function MonthlyReports() {
       toast.success('Valor salvo');
       setEditando(null);
       qc.invalidateQueries({ queryKey: ['finance_costs'] });
-      qc.invalidateQueries({ queryKey: ['admin_monthly_report'] });
+      qc.invalidateQueries({ queryKey: ['admin_monthly_report_v2'] });
     },
     onError: (e: any) => toast.error(e?.message || 'Não foi possível salvar'),
   });
@@ -152,7 +184,7 @@ export default function MonthlyReports() {
   const mes = mesSel ?? (meses.length ? meses[meses.length - 1].month : null);
   const atual = meses.find((l) => l.month === mes) ?? null;
   const pendentes = (custos ?? []).filter((c) => c.status === 'a_confirmar');
-  const totalMensal = (custos ?? []).reduce((s, c) => s + porMes(c), 0);
+  const totalMensal = (custos ?? []).reduce((s, c) => s + porMes(c, dolar), 0);
 
   const doMes = useMemo(
     () =>
@@ -177,7 +209,7 @@ export default function MonthlyReports() {
     { id: 'custos', label: 'Assinaturas e custos' },
   ];
 
-  if (isLoading) return <div className="py-20 text-center text-slate-400">Carregando relatórios…</div>;
+  if (!cotBuscada || isLoading) return <div className="py-20 text-center text-slate-400">Carregando relatórios…</div>;
   if (error) return <div className="py-20 text-center text-rose-600">Não foi possível carregar os relatórios.</div>;
 
   return (
@@ -199,6 +231,14 @@ export default function MonthlyReports() {
             {s.label}
           </button>
         ))}
+      </div>
+
+      <div className="text-xs text-slate-500">
+        {cot ? (
+          <>Dólar hoje: <b>{brl(cot.rate)}</b>{cot.at ? ` (cotação de ${cot.at.slice(8, 10)}/${cot.at.slice(5, 7)} às ${cot.at.slice(11, 16)})` : ''}. Itens em dólar usam essa cotação toda vez que a aba abre.</>
+        ) : (
+          <span className="text-amber-700">Não foi possível buscar a cotação do dia; usando {brl(DOLAR_RESERVA)} por dólar.</span>
+        )}
       </div>
 
       {pendentes.length > 0 && (
@@ -335,7 +375,7 @@ export default function MonthlyReports() {
       {sub === 'custos' && (
         <div className="space-y-4">
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-            <Resumo titulo="Custo fixo por mês" valor={brl(totalMensal)} nota="Soma dos itens com valor (anuais ÷ 12, bienais ÷ 24)" />
+            <Resumo titulo="Custo fixo por mês" valor={brl(totalMensal)} nota="Soma dos itens com valor (anuais ÷ 12, de 2 anos ÷ 24; dólar na cotação de hoje)" />
             <Resumo titulo="Sem valor" valor={String(pendentes.length)} destaque={pendentes.length ? 'ruim' : 'bom'} nota="Entram nos totais quando preenchidos" />
           </div>
           <div className={cn(card, 'overflow-x-auto')}>
@@ -355,8 +395,15 @@ export default function MonthlyReports() {
                         {c.note && <p className="text-xs text-slate-500 mt-0.5 max-w-xl">{c.note}</p>}
                       </td>
                       <td className={td}>{CICLO[c.cycle]}</td>
-                      <td className={cn(td, 'text-right whitespace-nowrap')}>{c.cycle === 'free' ? 'R$ 0,00' : brl(c.amount_brl)}</td>
-                      <td className={cn(td, 'text-right whitespace-nowrap')}>{c.amount_brl == null ? '—' : brl(porMes(c))}</td>
+                      <td className={cn(td, 'text-right whitespace-nowrap')}>
+                        {c.cycle === 'free' ? 'R$ 0,00' : c.amount_usd != null ? (
+                          <>
+                            <span>{`US$ ${c.amount_usd.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}</span>
+                            <span className="block text-xs text-slate-500">≈ {brl(c.amount_usd * dolar)}</span>
+                          </>
+                        ) : brl(c.amount_brl)}
+                      </td>
+                      <td className={cn(td, 'text-right whitespace-nowrap')}>{emReais(c, dolar) == null ? '—' : brl(porMes(c, dolar))}</td>
                       <td className={cn(td, 'whitespace-nowrap')}>{dia(c.started_on)}</td>
                       <td className={td}>
                         <span className={cn('inline-block rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset', STATUS[c.status].cls)}>{STATUS[c.status].label}</span>
