@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { timingSafeEqual } from "https://deno.land/std@0.168.0/crypto/timing_safe_equal.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { registerPendingReferral, recomputeReferrerOf } from './referral.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -130,6 +131,19 @@ serve(async (req) => {
       await supabase.from('iap_webhook_events').delete().eq('event_id', event.id)
       console.error('Erro ao gravar user_entitlements:', entErr)
       return new Response(JSON.stringify({ error: entErr.message }), { status: 500 })
+    }
+
+    // Programa de indicação: o indicado assinou/renovou/expirou pelo app. Na 1ª compra
+    // confirma o código digitado no cadastro; em qualquer evento recalcula o desconto de
+    // quem indicou. Nunca pode derrubar o webhook (o acesso já foi gravado acima): erro só vai pro log.
+    try {
+      const deps = { supabase, asaasApiKey: Deno.env.get('ASAAS_API_KEY') };
+      if (eventType === 'INITIAL_PURCHASE') {
+        await registerPendingReferral(supabase, userId, provider === 'play_iap' ? 'android' : 'ios');
+      }
+      await recomputeReferrerOf(deps, userId);
+    } catch (e) {
+      console.error('Erro no programa de indicação:', e);
     }
 
     return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 })

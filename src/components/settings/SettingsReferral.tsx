@@ -103,6 +103,12 @@ export const SettingsReferral = React.memo(function SettingsReferral() {
           e você ganha <strong>10% de desconto recorrente</strong> enquanto ele continuar assinante, acumulando até{' '}
           <strong>20% (2 indicados)</strong>.
         </p>
+        {iosApp && (
+          <p className="mt-3 text-[11px] font-medium text-slate-500 dark:text-zinc-400 leading-relaxed">
+            Quem assina pelo aplicativo da loja não recebe o desconto da primeira fatura (a loja não permite),
+            mas a indicação conta do mesmo jeito pra você. O desconto na primeira fatura vale para quem assina pelo site.
+          </p>
+        )}
       </div>
 
       {!isPayingSubscriber ? (

@@ -15,6 +15,7 @@ import { getAttribution } from "../lib/attribution";
 import { trackLeadConversion } from "../lib/googleAds";
 import { metaLead } from "../lib/metaPixel";
 import { isStoreApp } from "../lib/iapPolicy";
+import { normalizeReferralCode } from "../lib/referralCode";
 import { checkPassword, PASSWORD_MIN_LENGTH } from "../lib/passwordPolicy";
 
 function PasswordRequirement({ label, met }: { label: string; met: boolean }) {
@@ -47,7 +48,7 @@ export default function Register() {
   const [searchParams] = useSearchParams();
   // Link de indicação (?ref=CODIGO, ver SettingsReferral.tsx) — carrega até
   // o Checkout pra aplicar o cupom sozinho.
-  const refCode = searchParams.get("ref")?.trim().toUpperCase() || undefined;
+  const refCode = normalizeReferralCode(searchParams.get("ref"));
   const { user } = useAuth();
 
   // Se já estiver logado (cliente com conta ativa), pula direto pros planos.
@@ -78,7 +79,7 @@ export default function Register() {
     if (!isFormValid) return;
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
@@ -93,6 +94,14 @@ export default function Register() {
       if (error) {
         const m = error.message.toLowerCase();
         throw new Error(m.includes("already") || m.includes("duplicate") ? "E-mail já cadastrado. Faça login." : error.message);
+      }
+      // Chegou por um link de indicação (?ref=): no app não existe checkout pra aplicar
+      // cupom, então o código fica pendente até o webhook da loja confirmar a 1ª compra
+      // (ver handle-revenuecat-webhook). Sem campo na tela de propósito: a Apple já
+      // reprovou este formulário por campos extras. Falha aqui nunca bloqueia o cadastro.
+      if (refCode && data?.user && data.session) {
+        const { error: refErr } = await supabase.from("pending_referral_codes").insert({ user_id: data.user.id, code: refCode });
+        if (refErr) console.warn("Código de indicação não gravado:", refErr.message);
       }
       toast.success("Conta criada! Agora escolha o seu plano.");
       navigate("/planos");

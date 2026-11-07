@@ -7,12 +7,14 @@ import { plans } from './plansData';
 // Já aconteceu de o webhook ficar com 97/147/197 depois da Black Friday: o sync do
 // desconto de indicação recalcularia a assinatura de quem entrou a 49,90 com base em 97.
 // Este teste falha se qualquer cópia divergir das outras ou da tabela do site.
-const FUNCTIONS = ['process-checkout', 'regularize-subscription', 'handle-asaas-webhook'];
+const FUNCTIONS = ['process-checkout', 'regularize-subscription', 'handle-asaas-webhook', 'handle-revenuecat-webhook'];
+// Arquivo que guarda a tabela em cada função (a do RevenueCat vive no módulo de indicação).
+const FILE: Record<string, string> = { 'handle-revenuecat-webhook': 'referral.ts' };
 
 type Table = Record<string, Record<string, number>>;
 
 function readPlanPrices(fn: string): Table {
-  const src = readFileSync(resolve(__dirname, `../../supabase/functions/${fn}/index.ts`), 'utf8');
+  const src = readFileSync(resolve(__dirname, `../../supabase/functions/${fn}/${FILE[fn] ?? 'index.ts'}`), 'utf8');
   const m = src.match(/const PLAN_PRICES[^=]*=\s*(\{[\s\S]*?\n\s*\})\s*;?/);
   if (!m) throw new Error(`PLAN_PRICES não encontrada em ${fn}`);
   // Literal de objeto simples (chaves entre aspas, valores numéricos) — sem código a executar.
@@ -33,6 +35,7 @@ describe('tabela de preços das Edge Functions', () => {
   it('as 3 funções usam exatamente os mesmos preços', () => {
     expect(tables['regularize-subscription']).toEqual(tables['process-checkout']);
     expect(tables['handle-asaas-webhook']).toEqual(tables['process-checkout']);
+    expect(tables['handle-revenuecat-webhook']).toEqual(tables['process-checkout']);
   });
 
   it('o mensal e o anual batem com a tabela de planos do site', () => {
