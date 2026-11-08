@@ -110,3 +110,25 @@ export async function recomputeReferrerOf(deps: ReferralDeps, referredUserId: st
   await syncAsaasSubscriptionValue(deps, referrerId);
   return referrerId;
 }
+
+/**
+ * Oferta promocional de indicação (iOS) → percentual. Os identificadores são os do App
+ * Store Connect: `referral_10`/`referral_20` (Exclusivo Mensal) e
+ * `referral_<10|20>_<plano>_<ciclo>` (demais). Qualquer outro código devolve null.
+ */
+export function referralPctFromOfferCode(code: unknown): 10 | 20 | null {
+  const m = /^referral_(10|20)(?:_|$)/.exec(String(code ?? ''));
+  return m ? (Number(m[1]) as 10 | 20) : null;
+}
+
+/**
+ * O indicador resgatou o desconto na App Store: grava quanto já está refletido na cobrança
+ * dele (referral_discount_applied_pct), igual ao que syncAsaasSubscriptionValue faz no Asaas.
+ * Devolve o percentual gravado, ou null se o evento não veio de uma oferta de indicação.
+ */
+export async function markReferralOfferRedeemed(supabase: any, userId: string, offerCode: unknown): Promise<number | null> {
+  const pct = referralPctFromOfferCode(offerCode);
+  if (!pct) return null;
+  await supabase.from('user_settings').update({ referral_discount_applied_pct: pct }).eq('user_id', userId);
+  return pct;
+}

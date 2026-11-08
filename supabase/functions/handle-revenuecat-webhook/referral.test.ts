@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { registerPendingReferral, recomputeReferrerOf, syncAsaasSubscriptionValue } from './referral';
+import { registerPendingReferral, recomputeReferrerOf, syncAsaasSubscriptionValue, referralPctFromOfferCode, markReferralOfferRedeemed } from './referral';
 
 type Rows = Record<string, any>[];
 
@@ -164,5 +164,36 @@ describe('syncAsaasSubscriptionValue', () => {
     await expect(syncAsaasSubscriptionValue({ supabase: db, asaasApiKey: 'k', fetchFn }, REFERRER)).resolves.toBeUndefined();
     expect(db.t.user_settings[0].referral_discount_applied_pct).toBe(0);
     err.mockRestore();
+  });
+});
+
+describe('referralPctFromOfferCode', () => {
+  it('reconhece os 12 identificadores do App Store Connect', () => {
+    expect(referralPctFromOfferCode('referral_10')).toBe(10);
+    expect(referralPctFromOfferCode('referral_20')).toBe(20);
+    expect(referralPctFromOfferCode('referral_10_exclusivo_annual')).toBe(10);
+    expect(referralPctFromOfferCode('referral_20_master_monthly')).toBe(20);
+  });
+
+  it('ignora qualquer outro código (cupom, offer code comum, vazio)', () => {
+    expect(referralPctFromOfferCode('BLACK20')).toBeNull();
+    expect(referralPctFromOfferCode('referral_15')).toBeNull();
+    expect(referralPctFromOfferCode('referral_100')).toBeNull();
+    expect(referralPctFromOfferCode(undefined)).toBeNull();
+    expect(referralPctFromOfferCode('')).toBeNull();
+  });
+});
+
+describe('markReferralOfferRedeemed', () => {
+  it('grava o percentual resgatado em user_settings', async () => {
+    const db = fakeDb({ user_settings: [{ user_id: REFERRER, referral_discount_pct: 20, referral_discount_applied_pct: 0 }] });
+    expect(await markReferralOfferRedeemed(db, REFERRER, 'referral_20_profissional_annual')).toBe(20);
+    expect(db.t.user_settings[0].referral_discount_applied_pct).toBe(20);
+  });
+
+  it('evento sem oferta de indicação não mexe em nada', async () => {
+    const db = fakeDb({ user_settings: [{ user_id: REFERRER, referral_discount_applied_pct: 10 }] });
+    expect(await markReferralOfferRedeemed(db, REFERRER, undefined)).toBeNull();
+    expect(db.t.user_settings[0].referral_discount_applied_pct).toBe(10);
   });
 });

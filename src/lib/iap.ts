@@ -1,7 +1,8 @@
 import { Purchases } from '@revenuecat/purchases-capacitor';
 import type { PurchasesPackage } from '@revenuecat/purchases-capacitor';
 import { Browser } from '@capacitor/browser';
-import { isAndroidApp, isStoreApp, store } from './iapPolicy';
+import { isAndroidApp, isIOSApp, isStoreApp, store } from './iapPolicy';
+import { referralOfferCode, referralTier } from './referralOffer';
 import { IOS_OFFERING_IDS, IosOfferingId, REVENUECAT_IOS_API_KEY, REVENUECAT_ANDROID_API_KEY, isIosOfferingId } from './iosPlansData';
 
 let configured = false;
@@ -152,6 +153,35 @@ export async function purchasePlan(planId: string, period: 'MONTHLY' | 'ANNUAL')
       /PURCHASE_CANCELLED|purchase was cancelled/i.test(`${err?.code ?? ''} ${err?.message ?? ''}`);
     if (cancelou) return { success: false, userCancelled: true };
     return { success: false, userCancelled: false, message: describeIapError(err) || 'Erro ao processar a compra.' };
+  }
+}
+
+// Resgata o desconto de indicação (Oferta Promocional da Apple) na assinatura
+// do próprio usuário. A Apple assina a oferta via RevenueCat (chave In-App
+// Purchase) e mostra a folha de confirmação; o desconto chega pelo webhook,
+// que anota o `offer_code` em user_settings.referral_discount_applied_pct.
+export async function redeemReferralDiscount(planId: string, period: 'MONTHLY' | 'ANNUAL', pct: number): Promise<PurchaseOutcome> {
+  try {
+    if (!isIOSApp()) return { success: false, userCancelled: false, message: 'O resgate pelo app está disponível só no iOS.' };
+    const tier = referralTier(pct);
+    if (!tier) return { success: false, userCancelled: false, message: 'Você ainda não tem desconto de indicação para resgatar.' };
+    const aPackage = await getPackage(planId, period);
+    if (!aPackage) return { success: false, userCancelled: false, message: 'Seu plano não está disponível na App Store agora. Tente novamente em instantes.' };
+    const code = referralOfferCode(planId, period, tier);
+    const discount = aPackage.product.discounts?.find((d) => d.identifier === code);
+    if (!discount) return { success: false, userCancelled: false, message: 'Esse desconto ainda não está disponível para o seu plano. Tente novamente mais tarde.' };
+    const promo = await Purchases.getPromotionalOffer({ product: aPackage.product, discount });
+    if (!promo) return { success: false, userCancelled: false, message: 'A App Store não liberou esse desconto para a sua conta agora.' };
+    await Purchases.purchaseDiscountedPackage({ aPackage, discount: promo });
+    return { success: true, userCancelled: false };
+  } catch (err: any) {
+    const cancelou =
+      err?.userCancelled === true ||
+      err?.userInfo?.userCancelled === true ||
+      String(err?.code) === '1' ||
+      /PURCHASE_CANCELLED|purchase was cancelled/i.test(`${err?.code ?? ''} ${err?.message ?? ''}`);
+    if (cancelou) return { success: false, userCancelled: true };
+    return { success: false, userCancelled: false, message: describeIapError(err) || 'Erro ao resgatar o desconto.' };
   }
 }
 

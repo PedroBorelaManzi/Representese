@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { timingSafeEqual } from "https://deno.land/std@0.168.0/crypto/timing_safe_equal.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { registerPendingReferral, recomputeReferrerOf } from './referral.ts'
+import { registerPendingReferral, recomputeReferrerOf, markReferralOfferRedeemed } from './referral.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -142,6 +142,8 @@ serve(async (req) => {
         await registerPendingReferral(supabase, userId, provider === 'play_iap' ? 'android' : 'ios');
       }
       await recomputeReferrerOf(deps, userId);
+      // Resgate do desconto de indicação na App Store (Oferta Promocional): o evento traz o offer_code.
+      await markReferralOfferRedeemed(supabase, userId, event.offer_code);
     } catch (e) {
       console.error('Erro no programa de indicação:', e);
     }

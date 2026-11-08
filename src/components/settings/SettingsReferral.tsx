@@ -4,7 +4,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
-import { isStoreApp } from '../../lib/iapPolicy';
+import { isIOSApp } from '../../lib/iapPolicy';
+import { redeemReferralDiscount } from '../../lib/iap';
 
 interface ReferralRow {
   referred_user_id: string;
@@ -26,7 +27,8 @@ export const SettingsReferral = React.memo(function SettingsReferral() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [referrals, setReferrals] = useState<ReferralRow[]>([]);
-  const iosApp = isStoreApp();
+  const iosApp = isIOSApp();
+  const [redeeming, setRedeeming] = useState(false);
 
   const isPayingSubscriber = settings.subscription_status === 'active' || settings.subscription_status === 'past_due';
 
@@ -76,7 +78,19 @@ export const SettingsReferral = React.memo(function SettingsReferral() {
 
   const pct = settings.referral_discount_pct || 0;
   const appliedPct = settings.referral_discount_applied_pct || 0;
-  const hasUnclaimedIosDiscount = iosApp && pct > appliedPct;
+  const hasUnclaimedIosDiscount = iosApp && settings.subscription_provider === 'ios_iap' && pct > appliedPct;
+
+  const handleRedeem = async () => {
+    setRedeeming(true);
+    try {
+      const cycle = settings.billing_cycle === 'ANNUAL' ? 'ANNUAL' : 'MONTHLY';
+      const outcome = await redeemReferralDiscount(settings.plan_id, cycle, pct);
+      if (outcome.success) toast.success('Desconto resgatado! Ele aparece na sua próxima cobrança.');
+      else if (!outcome.userCancelled) toast.error(outcome.message || 'Não foi possível resgatar o desconto.');
+    } finally {
+      setRedeeming(false);
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -163,11 +177,18 @@ export const SettingsReferral = React.memo(function SettingsReferral() {
           </div>
 
           {hasUnclaimedIosDiscount && (
-            <div className="p-5 rounded-3xl border border-amber-200 dark:border-amber-900/30 bg-amber-50 dark:bg-amber-950/20">
+            <div className="p-5 rounded-3xl border border-amber-200 dark:border-amber-900/30 bg-amber-50 dark:bg-amber-950/20 space-y-3">
               <p className="text-xs font-bold text-amber-700 dark:text-amber-400 leading-relaxed">
-                Você já tem {pct}% de desconto conquistado! No iOS o resgate ainda não está disponível por aqui —
-                em breve você vai poder aplicar isso direto no app.
+                Você conquistou {pct}% de desconto na sua assinatura! Na App Store o desconto precisa ser aceito por você — toque abaixo pra aplicar.
               </p>
+              <button
+                onClick={handleRedeem}
+                disabled={redeeming}
+                className="w-full py-4 rounded-[20px] bg-amber-500 hover:bg-amber-600 text-white font-black uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-3 active:scale-98 transition-all disabled:opacity-60"
+              >
+                {redeeming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Gift className="w-4 h-4" />}
+                Resgatar {pct}% de desconto
+              </button>
             </div>
           )}
 
