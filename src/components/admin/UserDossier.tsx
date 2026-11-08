@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Search, User as UserIcon, CreditCard, Cookie, Activity, Database,
-  Bot, ShieldAlert, BarChart3, ExternalLink, RefreshCw, MapPin, Navigation,
+  Bot, ShieldAlert, BarChart3, ExternalLink, RefreshCw, MapPin, Navigation, Route, Smartphone, Megaphone,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { cn } from '../../lib/utils';
@@ -66,6 +66,64 @@ type Overview = {
   st_last_error_at: string | null;
   st_last_error_title: string | null;
   st_top_issues: { title: string; count: number; permalink?: string; culprit?: string }[] | null;
+  // Colunas adicionadas em 08/11/2026 (migration capture_lead_on_signup).
+  nome: string | null;
+  empresa: string | null;
+  email_confirmado: boolean | null;
+  ultimo_login: string | null;
+  origem_cadastro: 'app' | 'site' | null;
+  plataforma: string | null;
+  sistema_operacional: string | null;
+  navegador: string | null;
+  provedor_pagamento: string | null;
+  iap_app_user_id: string | null;
+  iap_original_transaction_id: string | null;
+  iap_store: string | null;
+  iap_product_id: string | null;
+  iap_price: number | null;
+  iap_currency: string | null;
+  iap_country: string | null;
+  iap_period_type: string | null;
+  iap_environment: string | null;
+  iap_purchased_at: string | null;
+  iap_renewal_number: number | null;
+  iap_offer_code: string | null;
+  iap_cancel_reason: string | null;
+  iap_last_event_type: string | null;
+  iap_last_event_at: string | null;
+  viu_planos_em: string | null;
+  viu_checkout_em: string | null;
+  funil_etapa: string | null;
+  lead_marketing_consent: boolean | null;
+  atribuicao: Record<string, string> | null;
+  segmentos: string | null;
+  indicado_por: string | null;
+  indicacoes_feitas: number;
+  desconto_indicacao: number | null;
+};
+
+const ETAPAS = ['assinante', 'teste grátis', 'pagamento com problema', 'começou o pagamento', 'escolhendo o plano', 'só cadastro', 'cancelou ou expirou'] as const;
+const ETAPA_COR: Record<string, string> = {
+  'assinante': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400',
+  'teste grátis': 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400',
+  'pagamento com problema': 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400',
+  'começou o pagamento': 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400',
+  'escolhendo o plano': 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-400',
+  'só cadastro': 'bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-400',
+  'cancelou ou expirou': 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400',
+};
+const STATUS_PT: Record<string, string> = {
+  active: 'ativa', trialing: 'em teste grátis', past_due: 'pagamento com problema',
+  canceled: 'cancelada', cancelled: 'cancelada', expired: 'expirada', inactive: 'sem assinatura ativa',
+};
+const PROVEDOR_PT: Record<string, string> = {
+  asaas: 'Site / Asaas', ios_iap: 'App Store (Apple)', play_iap: 'Google Play',
+};
+const LOJA_PT: Record<string, string> = { APP_STORE: 'App Store (Apple)', PLAY_STORE: 'Google Play', MAC_APP_STORE: 'Mac App Store', STRIPE: 'Stripe' };
+const PLATAFORMA_PT: Record<string, string> = { ios: 'iPhone / iPad (app)', android: 'Android (app)', web: 'Navegador' };
+const brl = (v: number | null, moeda: string | null) => {
+  if (v == null) return null;
+  try { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: moeda || 'BRL' }).format(v); } catch { return String(v); }
 };
 
 const fmtData = (s: string | null | undefined) =>
@@ -117,6 +175,7 @@ function Card({
 
 export default function UserDossier() {
   const [busca, setBusca] = useState('');
+  const [etapa, setEtapa] = useState('');
   const [selId, setSelId] = useState<string | null>(null);
 
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
@@ -130,16 +189,20 @@ export default function UserDossier() {
   });
 
   const lista = useMemo(() => {
-    const arr = data || [];
+    const arr = (data || []).filter((u) => !etapa || u.funil_etapa === etapa);
     const q = busca.trim().toLowerCase();
     if (!q) return arr;
     return arr.filter(
       (u) =>
         (u.email || '').toLowerCase().includes(q) ||
+        (u.nome || '').toLowerCase().includes(q) ||
+        (u.empresa || '').toLowerCase().includes(q) ||
         (u.plano || '').toLowerCase().includes(q) ||
+        (u.funil_etapa || '').toLowerCase().includes(q) ||
+        (u.plataforma || '').toLowerCase().includes(q) ||
         (u.ultima_localizacao || '').toLowerCase().includes(q),
     );
-  }, [data, busca]);
+  }, [data, busca, etapa]);
 
   const sel = useMemo(
     () => (data || []).find((u) => u.user_id === selId) || null,
@@ -166,10 +229,21 @@ export default function UserDossier() {
           <input
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
-            placeholder="Buscar por e-mail, plano, cidade…"
+            placeholder="Buscar por nome, e-mail, plano, cidade…"
             className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-sm outline-none focus:ring-2 focus:ring-emerald-500/20"
           />
         </div>
+        <select
+          value={etapa}
+          onChange={(e) => setEtapa(e.target.value)}
+          aria-label="Filtrar por etapa do funil"
+          className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-sm outline-none focus:ring-2 focus:ring-emerald-500/20"
+        >
+          <option value="">Todas as etapas</option>
+          {ETAPAS.map((e) => (
+            <option key={e} value={e}>{e}</option>
+          ))}
+        </select>
         <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
           {lista.length} {lista.length === 1 ? 'usuário' : 'usuários'}
         </p>
@@ -187,10 +261,10 @@ export default function UserDossier() {
             >
               <p className="text-sm font-bold text-slate-800 dark:text-zinc-100 truncate flex items-center gap-1.5">
                 {u.is_admin && <ShieldAlert className="w-3.5 h-3.5 text-amber-500 shrink-0" />}
-                {u.email || 'sem e-mail'}
+                {u.nome || u.email || 'sem e-mail'}
               </p>
               <p className="text-[11px] text-slate-400 truncate">
-                {u.plano || 'sem plano'} · {u.ultimo_acesso ? desde(u.ultimo_acesso) : 'nunca acessou'}
+                {u.nome ? `${u.email} · ` : ''}{u.funil_etapa || 'sem etapa'} · {u.ultimo_acesso ? desde(u.ultimo_acesso) : 'nunca acessou'}
               </p>
             </button>
           ))}
@@ -206,8 +280,15 @@ export default function UserDossier() {
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-black text-slate-900 dark:text-white">{sel.email}</h2>
-              <p className="text-xs text-slate-400 font-mono">{sel.user_id}</p>
+              <h2 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2 flex-wrap">
+                {sel.nome || sel.email}
+                {sel.funil_etapa && (
+                  <span className={cn('px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider', ETAPA_COR[sel.funil_etapa] || ETAPA_COR['só cadastro'])}>
+                    {sel.funil_etapa}
+                  </span>
+                )}
+              </h2>
+              <p className="text-xs text-slate-400">{sel.nome ? `${sel.email} · ` : ''}<span className="font-mono">{sel.user_id}</span></p>
             </div>
             <button
               onClick={() => refetch()}
@@ -220,23 +301,106 @@ export default function UserDossier() {
 
           <div className="grid lg:grid-cols-2 gap-4">
             <Card icon={UserIcon} titulo="Identidade & Contato" cor="bg-blue-100 dark:bg-blue-900/30 text-blue-600">
-              <Linha label="E-mail">{sel.email}</Linha>
-              <Linha label="Telefone">{sel.phone}</Linha>
+              <Linha label="Nome">{sel.nome}</Linha>
+              <Linha label="Empresa">{sel.empresa}</Linha>
+              <Linha label="E-mail">
+                {sel.email}
+                {sel.email_confirmado != null && (
+                  <span className={cn('ml-2 text-[11px]', sel.email_confirmado ? 'text-emerald-600' : 'text-amber-600')}>
+                    {sel.email_confirmado ? 'confirmado' : 'não confirmado'}
+                  </span>
+                )}
+              </Linha>
+              <Linha label="WhatsApp">{sel.phone || (sel.origem_cadastro === 'app' ? 'não informado (opcional no app)' : null)}</Linha>
               <Linha label="Conta criada">{fmtDia(sel.created_at)} <span className="text-slate-400">({desde(sel.created_at)})</span></Linha>
-              <Linha label="Onboarding">{sel.onboarding_ok ? 'concluído' : 'pendente'}</Linha>
-              <Linha label="Cidade (clima)">{[sel.cidade, sel.estado].filter(Boolean).join(', ')}</Linha>
+              <Linha label="Cadastrou pelo">
+                {sel.origem_cadastro === 'app' ? 'Aplicativo' : sel.origem_cadastro === 'site' ? 'Site' : null}
+              </Linha>
+              <Linha label="Usa o sistema por">
+                {sel.plataforma
+                  ? `${PLATAFORMA_PT[sel.plataforma] || sel.plataforma}${sel.sistema_operacional ? ` · ${sel.sistema_operacional}` : ''}${sel.navegador && sel.plataforma === 'web' ? ` · ${sel.navegador}` : ''}`
+                  : null}
+              </Linha>
+              <Linha label="Último login">{sel.ultimo_login ? <>{fmtData(sel.ultimo_login)} <span className="text-slate-400">({desde(sel.ultimo_login)})</span></> : null}</Linha>
+              <Linha label="Onboarding">{sel.onboarding_ok ? 'concluído' : 'pendente (ainda não configurou as empresas)'}</Linha>
+              <Linha label="Cidade">
+                {(() => {
+                  const clima = [sel.cidade, sel.estado].filter(Boolean).join(', ');
+                  const cobranca = [sel.billing_cidade, sel.billing_estado].filter(Boolean).join(', ');
+                  if (clima) return clima;
+                  if (cobranca) return `${cobranca} (endereço de cobrança)`;
+                  if (sel.ultima_localizacao) return `${sel.ultima_localizacao} (pelo acesso)`;
+                  return null;
+                })()}
+              </Linha>
+              <Linha label="Mercado de atuação">{sel.segmentos}</Linha>
               <Linha label="Perfil">{sel.is_admin ? 'Administrador' : 'Usuário'}</Linha>
             </Card>
 
+            <Card icon={Route} titulo="Funil de venda" cor="bg-sky-100 dark:bg-sky-900/30 text-sky-600">
+              <Linha label="Etapa agora">
+                {sel.funil_etapa && (
+                  <span className={cn('px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider', ETAPA_COR[sel.funil_etapa] || ETAPA_COR['só cadastro'])}>
+                    {sel.funil_etapa}
+                  </span>
+                )}
+              </Linha>
+              <Linha label="Cadastro concluído">{fmtData(sel.created_at)}</Linha>
+              <Linha label="Viu a tela de planos">{sel.viu_planos_em ? fmtData(sel.viu_planos_em) : 'ainda não'}</Linha>
+              <Linha label="Abriu o pagamento">{sel.viu_checkout_em ? fmtData(sel.viu_checkout_em) : sel.asaas_id || sel.iap_original_transaction_id ? 'sim' : 'ainda não'}</Linha>
+              <Linha label="Indicado por">{sel.indicado_por || 'ninguém'}</Linha>
+              <Linha label="Indicações feitas">{sel.indicacoes_feitas ? `${sel.indicacoes_feitas} (desconto de ${sel.desconto_indicacao ?? 0}%)` : 'nenhuma'}</Linha>
+            </Card>
+
             <Card icon={CreditCard} titulo="Plano & Assinatura" cor="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600">
-              <Linha label="Plano">{sel.plano || sel.plan_id}</Linha>
-              <Linha label="Status">{sel.assinatura_status}</Linha>
-              <Linha label="Ciclo">{sel.ciclo}</Linha>
-              <Linha label="Período até">{fmtDia(sel.periodo_fim)}</Linha>
-              <Linha label="Trial até">{fmtDia(sel.trial_fim)}</Linha>
-              <Linha label="Cancela no fim?">{sel.cancela_no_fim ? 'sim' : 'não'}</Linha>
-              <Linha label="Endereço cobrança">{[sel.billing_cidade, sel.billing_estado, sel.billing_cep].filter(Boolean).join(' · ')}</Linha>
-              <Linha label="ID Asaas">{sel.asaas_id && <span className="font-mono text-xs">{sel.asaas_id}</span>}</Linha>
+              {(() => {
+                const semPlano = !sel.plan_id || sel.plan_id === 'none';
+                const temPagamento = !!(sel.asaas_id || sel.iap_original_transaction_id);
+                return (
+                  <>
+                    <Linha label="Plano">{semPlano ? 'nenhum ainda' : sel.plano || sel.plan_id}</Linha>
+                    <Linha label="Situação">{STATUS_PT[sel.assinatura_status || ''] || sel.assinatura_status}</Linha>
+                    <Linha label="Ciclo">{semPlano ? null : sel.ciclo === 'ANNUAL' ? 'Anual' : sel.ciclo === 'SEMIANNUAL' ? 'Semestral' : sel.ciclo === 'MONTHLY' ? 'Mensal' : sel.ciclo}</Linha>
+                    <Linha label="Paga por">{temPagamento || !semPlano ? PROVEDOR_PT[sel.provedor_pagamento || ''] || sel.provedor_pagamento : 'ainda não pagou'}</Linha>
+                    <Linha label="Período até">{sel.periodo_fim ? fmtDia(sel.periodo_fim) : null}</Linha>
+                    <Linha label="Trial até">{sel.trial_fim ? fmtDia(sel.trial_fim) : null}</Linha>
+                    <Linha label="Cancela no fim?">{semPlano ? null : sel.cancela_no_fim ? 'sim' : 'não'}</Linha>
+                    <Linha label="Endereço cobrança">{[sel.billing_cidade, sel.billing_estado, sel.billing_cep].filter(Boolean).join(' · ') || (semPlano ? 'preenchido no pagamento' : null)}</Linha>
+                    <Linha label="ID Asaas">{sel.asaas_id && <span className="font-mono text-xs">{sel.asaas_id}</span>}</Linha>
+                  </>
+                );
+              })()}
+            </Card>
+
+            <Card icon={Smartphone} titulo="Loja (App Store / Google Play · RevenueCat)" cor="bg-violet-100 dark:bg-violet-900/30 text-violet-600">
+              {sel.iap_store || sel.iap_original_transaction_id || sel.iap_last_event_type ? (
+                <>
+                  <Linha label="Loja">{sel.iap_store ? LOJA_PT[sel.iap_store] || sel.iap_store : PROVEDOR_PT[sel.provedor_pagamento || ''] || null}</Linha>
+                  <Linha label="Produto">{sel.iap_product_id && <span className="font-mono text-xs">{sel.iap_product_id}</span>}</Linha>
+                  <Linha label="Valor pago">{brl(sel.iap_price, sel.iap_currency)}</Linha>
+                  <Linha label="País da loja">{sel.iap_country}</Linha>
+                  <Linha label="Ambiente">
+                    {sel.iap_environment && (
+                      <span className={sel.iap_environment === 'SANDBOX' ? 'text-amber-600' : 'text-emerald-600'}>
+                        {sel.iap_environment === 'SANDBOX' ? 'teste (sandbox, não é dinheiro real)' : 'produção'}
+                      </span>
+                    )}
+                  </Linha>
+                  <Linha label="Tipo de período">{sel.iap_period_type}</Linha>
+                  <Linha label="Compra em">{sel.iap_purchased_at ? fmtData(sel.iap_purchased_at) : null}</Linha>
+                  <Linha label="Renovação nº">{sel.iap_renewal_number}</Linha>
+                  <Linha label="Oferta usada">{sel.iap_offer_code && <span className="font-mono text-xs">{sel.iap_offer_code}</span>}</Linha>
+                  <Linha label="Motivo do cancelamento">{sel.iap_cancel_reason}</Linha>
+                  <Linha label="Último evento">{sel.iap_last_event_type ? <>{sel.iap_last_event_type} <span className="text-slate-400">({fmtData(sel.iap_last_event_at)})</span></> : null}</Linha>
+                  <Linha label="ID no RevenueCat">{sel.iap_app_user_id && <span className="font-mono text-xs">{sel.iap_app_user_id}</span>}</Linha>
+                  <Linha label="Transação original">{sel.iap_original_transaction_id && <span className="font-mono text-xs">{sel.iap_original_transaction_id}</span>}</Linha>
+                </>
+              ) : (
+                <p className="text-sm text-slate-400 py-2">
+                  Sem compra pela loja. Quando esta pessoa assinar pelo aplicativo, os dados (valor pago, país, renovações,
+                  ambiente de teste ou produção) chegam sozinhos pelo RevenueCat.
+                </p>
+              )}
             </Card>
 
             <Card icon={Cookie} titulo="Consentimento (LGPD)" cor="bg-amber-100 dark:bg-amber-900/30 text-amber-600">
@@ -253,9 +417,35 @@ export default function UserDossier() {
                 </>
               ) : (
                 <p className="text-sm text-slate-400 py-2">
-                  Sem registro ligado a esta conta ainda (a decisão anônima do navegador é ligada no próximo login).
+                  {sel.origem_cadastro === 'app'
+                    ? 'Cadastro pelo aplicativo: o app não usa cookies, então não existe decisão de cookies para registrar.'
+                    : 'Sem registro ligado a esta conta ainda (a decisão anônima do navegador é ligada no próximo login).'}
                 </p>
               )}
+            </Card>
+
+            <Card icon={Megaphone} titulo="Origem de marketing" cor="bg-pink-100 dark:bg-pink-900/30 text-pink-600">
+              {sel.atribuicao && Object.keys(sel.atribuicao).length > 0 ? (
+                <>
+                  <Linha label="Origem">{sel.atribuicao.utm_source}</Linha>
+                  <Linha label="Meio">{sel.atribuicao.utm_medium}</Linha>
+                  <Linha label="Campanha">{sel.atribuicao.utm_campaign}</Linha>
+                  <Linha label="Anúncio">{sel.atribuicao.utm_content}</Linha>
+                  <Linha label="Termo">{sel.atribuicao.utm_term}</Linha>
+                  <Linha label="Clique Google (gclid)">{sel.atribuicao.gclid && <span className="font-mono text-xs">{sel.atribuicao.gclid.slice(0, 18)}…</span>}</Linha>
+                  <Linha label="Clique Meta (fbclid)">{sel.atribuicao.fbclid && <span className="font-mono text-xs">{sel.atribuicao.fbclid.slice(0, 18)}…</span>}</Linha>
+                  <Linha label="Veio de">{sel.atribuicao.ref_host}</Linha>
+                  <Linha label="Página de entrada">{sel.atribuicao.landing}</Linha>
+                  <Linha label="Capturado em">{sel.atribuicao.captured_at ? fmtData(sel.atribuicao.captured_at) : null}</Linha>
+                </>
+              ) : (
+                <p className="text-sm text-slate-400 py-2">
+                  {sel.origem_cadastro === 'app'
+                    ? 'Cadastro feito dentro do aplicativo: não passa por anúncio nem link com UTM, então não há origem de campanha.'
+                    : 'Sem UTM registrada: a pessoa chegou direto, por busca orgânica ou antes de a captura de campanha existir.'}
+                </p>
+              )}
+              <Linha label="Aceitou receber novidades">{sel.lead_marketing_consent == null ? null : sel.lead_marketing_consent ? 'sim' : 'não'}</Linha>
             </Card>
 
             <Card icon={Activity} titulo="Atividade" cor="bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600">

@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { timingSafeEqual } from "https://deno.land/std@0.168.0/crypto/timing_safe_equal.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { registerPendingReferral, recomputeReferrerOf, markReferralOfferRedeemed } from './referral.ts'
+import { revenueCatFields } from './iapFields.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -97,6 +98,8 @@ serve(async (req) => {
     if (event.original_transaction_id) {
       updateData.iap_original_transaction_id = String(event.original_transaction_id);
     }
+    // Loja, produto, preço pago, país, sandbox/produção, renovação: aparecem na Ficha Completa do admin.
+    Object.assign(updateData, revenueCatFields(event));
 
     if (ACTIVE_EVENTS.has(eventType)) {
       updateData.subscription_status = 'active';

@@ -27,6 +27,7 @@ import NetworkAssignModal from '../components/NetworkAssignModal';
 import { useAssignNetwork } from '../hooks/useAssignNetwork';
 import { existingNetworks } from '../lib/redes';
 import { clientGroupKey } from '../lib/clientAlerts';
+import { CLIENT_SEARCH_FIELDS, matchesClientSearch, type ClientSearchField } from '../lib/clientSearch';
 
 /** Iniciais para o avatar da lista. `name.substring(0,2)` transformava
  *  "5 Irmãos Matieli" em "5", "57.571.186 Isabel Aparecida" em "57" e
@@ -54,6 +55,8 @@ export default function CRMPage() {
   const [companyFilter, setCompanyFilter] = useState('');
   const { data: clients = [], isLoading: loading, isFetching: loadingAlerts, dismissAlert } = useClients();
   const [searchTerm, setSearchTerm] = useState('');
+  // Campo em que a busca procura: um de cada vez (nome, cidade ou CNPJ), nunca os três juntos.
+  const [searchField, setSearchField] = useState<ClientSearchField>('nome');
   // Visão "Redes" e seleção em lote (definir rede de vários CDs de uma vez)
   const [view, setView] = useState<'clientes' | 'redes'>('clientes');
   const [selecting, setSelecting] = useState(false);
@@ -118,7 +121,7 @@ export default function CRMPage() {
 
   useEffect(() => {
     setDisplayLimit(40);
-  }, [debouncedSearchTerm, activeTab, companyFilter]);
+  }, [debouncedSearchTerm, searchField, activeTab, companyFilter]);
 
   // Some sozinho se trocar de aba e a representada escolhida não tiver
   // mais alerta ali — evita ficar com um filtro "preso" mostrando lista vazia.
@@ -136,14 +139,8 @@ export default function CRMPage() {
   }, [clients]);
 
   const filteredClients = useMemo(() => {
-    const lowerSearch = debouncedSearchTerm.toLowerCase();
     const result = (clients || []).filter(c => {
-      const searchMatch = !debouncedSearchTerm ||
-        (c.name || "").toLowerCase().includes(lowerSearch) ||
-        (c.cnpj || "").includes(debouncedSearchTerm) ||
-        (c.city || "").toLowerCase().includes(lowerSearch);
-
-      if (!searchMatch) return false;
+      if (!matchesClientSearch(c, debouncedSearchTerm, searchField)) return false;
 
       if (activeTab === 'Todos' && !companyFilter) return true;
       return c.alerts?.some((a: Alert) =>
@@ -153,7 +150,7 @@ export default function CRMPage() {
     });
 
     return result.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-  }, [clients, debouncedSearchTerm, activeTab, companyFilter]);
+  }, [clients, debouncedSearchTerm, searchField, activeTab, companyFilter]);
 
   const displayClients = useMemo(() => {
     return filteredClients.slice(0, displayLimit);
@@ -428,16 +425,37 @@ export default function CRMPage() {
         subtitle={`${clients.length} na carteira`}
         actions={
           <>
-            <div className="relative flex-1 sm:flex-none">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar por nome, CNPJ ou cidade..."
-                aria-label="Buscar cliente"
-                className="pl-10 pr-4 py-2.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl text-xs w-full sm:w-72 outline-none focus:ring-2 focus:ring-emerald-500 font-bold"
-              />
+            <div className="flex flex-col gap-1.5 flex-1 sm:flex-none">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  inputMode={searchField === 'cnpj' ? 'numeric' : 'text'}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder={CLIENT_SEARCH_FIELDS.find((f) => f.id === searchField)?.placeholder}
+                  aria-label={`Buscar cliente por ${searchField}`}
+                  className="pl-10 pr-4 py-2.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl text-xs w-full sm:w-72 outline-none focus:ring-2 focus:ring-emerald-500 font-bold"
+                />
+              </div>
+              <div role="group" aria-label="Buscar em" className="flex gap-1 p-0.5 bg-slate-100 dark:bg-zinc-800 rounded-xl self-start">
+                {CLIENT_SEARCH_FIELDS.map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => setSearchField(f.id)}
+                    aria-pressed={searchField === f.id}
+                    className={cn(
+                      'px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors',
+                      searchField === f.id
+                        ? 'bg-white dark:bg-zinc-900 text-emerald-600 shadow-sm'
+                        : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200'
+                    )}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
             </div>
             <input type="file" ref={fileInputRef} onChange={handleImportFile} className="hidden" accept=".pdf,.xlsx,.xls,.txt,image/*" />
             <button

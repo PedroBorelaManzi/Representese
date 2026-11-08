@@ -292,12 +292,19 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
   const { data: userMgmtData, isLoading: isLoadingUserMgmt } = useQuery({
     queryKey: ['admin_user_management'],
     queryFn: async () => {
-      const [{ data: profiles, error: profilesError }, { data: entitlements, error: entError }] = await Promise.all([
+      const [{ data: profiles, error: profilesError }, { data: entitlements, error: entError }, { data: overview }] = await Promise.all([
         supabase.from('user_settings').select('user_id, email, created_at, is_admin'),
         supabase.from('user_entitlements').select('user_id, subscription_status, plan_id, current_period_end, billing_cycle'),
+        // Nome, etapa do funil e origem vêm da mesma função da Ficha Completa. Se ela falhar a tabela
+        // continua funcionando, só sem essas três colunas.
+        supabase.rpc('admin_user_overview'),
       ]);
       if (profilesError) throw profilesError;
       if (entError) throw entError;
+      const overviewByUser = new Map(
+        ((overview || []) as { user_id: string; nome: string | null; funil_etapa: string | null; origem_cadastro: string | null; plataforma: string | null }[])
+          .map((o) => [o.user_id, o]),
+      );
 
       // "Último acesso" e "acessos/dia" vêm de user_events (page_view), não de
       // auth.users.last_sign_in_at — esse campo não é alcançável pelo SDK do
@@ -346,8 +353,13 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
         .filter((p) => !p.is_admin && !isHiddenAdminAccount(p.email))
         .map((p) => {
           const ent = entByUser.get(p.user_id);
+          const ov = overviewByUser.get(p.user_id);
           return {
             userId: p.user_id,
+            nome: ov?.nome || null,
+            etapa: ov?.funil_etapa || null,
+            origem: ov?.origem_cadastro || null,
+            plataforma: ov?.plataforma || null,
             email: p.email || 'Sem e-mail',
             createdAt: p.created_at,
             subscriptionStatus: ent?.subscription_status || 'inactive',
@@ -847,9 +859,10 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
               <div>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Contatos capturados (antes dos planos)</h3>
                 <p className="text-sm text-slate-500 dark:text-zinc-400">
-                  Quem preencheu nome/e-mail/telefone no formulário de /register — nunca cria conta nova nem duplica nada
-                  (reenviar o mesmo e-mail só atualiza esta linha). Ainda não é necessariamente cliente — isso só é
-                  confirmado na tabela "Contas criadas no sistema" abaixo.
+                  Todo mundo que deixou contato: quem preencheu nome/e-mail/telefone no formulário de /register no site e,
+                  automaticamente, quem criou conta pelo aplicativo (Android ou iOS). Reenviar o mesmo e-mail só atualiza
+                  a linha, nunca duplica. Ainda não é necessariamente cliente — quem avançou além do cadastro aparece em
+                  "Gerenciar Usuários", com a etapa do funil.
                 </p>
               </div>
               <button
@@ -1004,15 +1017,19 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
             <div className="p-6 border-b border-slate-200 dark:border-zinc-800">
               <h3 className="text-lg font-bold text-slate-900 dark:text-white">Gerenciar Usuários</h3>
               <p className="text-sm text-slate-500 dark:text-zinc-400">
-                Status da assinatura, uso do sistema (últimos 30 dias) e vencimento de cada conta. "Acessos/dia" é a
-                média de aberturas do sistema por dia nos últimos 30 dias.
+                Todo mundo que concluiu o cadastro, pelo site, Android ou iOS: quem ficou escolhendo o plano, quem começou
+                o pagamento e quem já assina. "Etapa" mostra onde cada pessoa parou; "Acessos/dia" é a média de aberturas
+                do sistema por dia nos últimos 30 dias.
               </p>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm whitespace-nowrap">
                 <thead className="bg-slate-50 dark:bg-zinc-800/50 text-slate-500 dark:text-zinc-400 font-medium">
                   <tr>
+                    <th className="px-6 py-4">Nome</th>
                     <th className="px-6 py-4">E-mail</th>
+                    <th className="px-6 py-4">Etapa</th>
+                    <th className="px-6 py-4">Origem</th>
                     <th className="px-6 py-4">Status</th>
                     <th className="px-6 py-4">Plano</th>
                     <th className="px-6 py-4">Ciclo</th>
@@ -1051,7 +1068,12 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
 
                     return (
                       <tr key={u.userId} className="hover:bg-slate-50 dark:hover:bg-zinc-800/30 transition-colors">
-                        <td className="px-6 py-4 text-slate-900 dark:text-white font-medium">{u.email}</td>
+                        <td className="px-6 py-4 text-slate-900 dark:text-white font-medium">{u.nome || '—'}</td>
+                        <td className="px-6 py-4 text-slate-600 dark:text-zinc-300">{u.email}</td>
+                        <td className="px-6 py-4 text-slate-600 dark:text-zinc-300">{u.etapa || '—'}</td>
+                        <td className="px-6 py-4 text-slate-600 dark:text-zinc-300">
+                          {u.origem ? `${u.origem === 'app' ? 'App' : 'Site'}${u.plataforma ? ` · ${u.plataforma}` : ''}` : '—'}
+                        </td>
                         <td className="px-6 py-4">
                           <span className={cn(
                             "px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider",
@@ -1096,7 +1118,7 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
                   })}
                   {userMgmtData?.length === 0 && (
                     <tr>
-                      <td colSpan={9} className="px-6 py-12 text-center text-slate-500 dark:text-zinc-400">
+                      <td colSpan={12} className="px-6 py-12 text-center text-slate-500 dark:text-zinc-400">
                         Nenhum usuário encontrado.
                       </td>
                     </tr>
