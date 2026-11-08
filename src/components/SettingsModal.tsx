@@ -33,6 +33,8 @@ import { useFocusTrap } from '../hooks/useFocusTrap';
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  // Aba que abre primeiro (ex.: 'referral' vindo do aviso de indicação); padrão: perfil.
+  initialTab?: string;
 }
 
 const menuItems = [
@@ -47,8 +49,13 @@ const menuItems = [
   { id: 'team', label: 'Equipe', icon: Users, color: 'text-cyan-500' }
 ];
 
-export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
-  const [activeTab, setActiveTab] = useState('profile');
+export default function SettingsModal({ isOpen, onClose, initialTab = 'profile' }: SettingsModalProps) {
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  // Cada vez que o modal abre, começa na aba pedida (o componente fica montado entre aberturas).
+  useEffect(() => {
+    if (isOpen) setActiveTab(initialTab);
+  }, [isOpen, initialTab]);
   const { signOut } = useAuth();
   const { settings } = useSettings();
   const [tempAvatar, setTempAvatar] = useState<string | null>(null);

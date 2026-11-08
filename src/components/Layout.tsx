@@ -30,6 +30,7 @@ import {
   Lock
 } from 'lucide-react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
+import { ReferralNudge } from './ReferralNudge';
 import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
 import { planBloqueiaRota } from '../lib/planAccess';
@@ -107,6 +108,7 @@ export default function Layout() {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState('profile');
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
   const [avatarError, setAvatarError] = useState(false);
   const [mobileAvatarError, setMobileAvatarError] = useState(false);
@@ -396,6 +398,7 @@ export default function Layout() {
                 <div className='space-y-1'>
                   <button
                     onClick={() => {
+                      setSettingsInitialTab('profile');
                       setIsSettingsModalOpen(true);
                       setSidebarOpen(false);
                       setDesktopSidebarOpen(false);
@@ -530,7 +533,7 @@ export default function Layout() {
         </aside>
 
         <React.Suspense fallback={null}>
-          <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} />
+          <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} initialTab={settingsInitialTab} />
         </React.Suspense>
 
         {/* Só aparece no primeiro login: guiado por has_completed_onboarding + categorias vazias */}
@@ -543,6 +546,7 @@ export default function Layout() {
         </React.Suspense>
 
         <UpdateNudge />
+        <ReferralNudge onOpen={() => { setSettingsInitialTab('referral'); setIsSettingsModalOpen(true); }} />
 
         <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
           <header className="lg:hidden bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between px-6 flex-shrink-0"
