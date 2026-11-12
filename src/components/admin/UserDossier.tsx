@@ -244,9 +244,20 @@ export default function UserDossier() {
             <option key={e} value={e}>{e}</option>
           ))}
         </select>
-        <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
-          {lista.length} {lista.length === 1 ? 'usuário' : 'usuários'}
-        </p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+            {lista.length} {lista.length === 1 ? 'usuário' : 'usuários'}
+          </p>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            data-testid="ficha-recarregar"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-800 dark:hover:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-800/50 disabled:opacity-50"
+          >
+            <RefreshCw className={cn('w-3.5 h-3.5', isFetching && 'animate-spin')} /> Recarregar
+          </button>
+        </div>
         <div className="space-y-1 md:max-h-[70vh] md:overflow-y-auto pr-1">
           {lista.map((u) => (
             <button

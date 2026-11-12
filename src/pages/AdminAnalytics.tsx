@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { segmentLabel } from '../lib/segments';
 import { useSettings } from '../contexts/SettingsContext';
 import { Navigate } from 'react-router-dom';
-import { BarChart3, Clock, LayoutDashboard, MousePointerClick, Search, ChevronDown, ChevronUp, User, Users, LineChart, Download, Building2, Phone, UserCog, Settings as SettingsIcon, X, Trash2, Mail, Loader2, ShieldAlert, Map as MapIcon, Filter, Instagram, FileText } from 'lucide-react';
+import { RefreshCw, BarChart3, Clock, LayoutDashboard, MousePointerClick, Search, ChevronDown, ChevronUp, User, Users, LineChart, Download, Building2, Phone, UserCog, Settings as SettingsIcon, X, Trash2, Mail, Loader2, ShieldAlert, Map as MapIcon, Filter, Instagram, FileText } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell
@@ -305,7 +305,7 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
   });
 
   // --- QUERY 5: Gerenciar Usuários (status, uso e vencimento da assinatura) ---
-  const { data: userMgmtData, isLoading: isLoadingUserMgmt } = useQuery({
+  const { data: userMgmtData, isLoading: isLoadingUserMgmt, refetch: refetchUserMgmt, isFetching: isFetchingUserMgmt } = useQuery({
     queryKey: ['admin_user_management'],
     queryFn: async () => {
       const [{ data: profiles, error: profilesError }, { data: entitlements, error: entError }, { data: overview }] = await Promise.all([
@@ -1088,7 +1088,18 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
         ) : (
           <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl overflow-hidden shadow-sm">
             <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-zinc-800">
-              <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">Gerenciar Usuários</h3>
+              <div className="flex items-start justify-between gap-3">
+                <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">Gerenciar Usuários</h3>
+                <button
+                  type="button"
+                  onClick={() => refetchUserMgmt()}
+                  disabled={isFetchingUserMgmt}
+                  data-testid="usuarios-recarregar"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-800 dark:hover:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-800/50 disabled:opacity-50 shrink-0"
+                >
+                  <RefreshCw className={cn('w-3.5 h-3.5', isFetchingUserMgmt && 'animate-spin')} /> Recarregar
+                </button>
+              </div>
               <p className="text-sm text-slate-500 dark:text-zinc-400">
                 Todo mundo que concluiu o cadastro, pelo site, Android ou iOS: quem ficou escolhendo o plano, quem começou
                 o pagamento e quem já assina. "Etapa" mostra onde cada pessoa parou; "Acessos/dia" é a média de aberturas
