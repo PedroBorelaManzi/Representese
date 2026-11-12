@@ -17,6 +17,8 @@ test('Onboarding pergunta o mercado de atuação antes das empresas e salva a re
     const session = { access_token: 'x', refresh_token: 'y', expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, token_type: 'bearer', user: { id: 'u1', email: 'a@b.com', aud: 'authenticated', role: 'authenticated', user_metadata: {}, app_metadata: {} } };
     Object.keys(localStorage).forEach((k) => k.startsWith('sb-') && localStorage.removeItem(k));
     localStorage.setItem('sb-wdtftftwdqtihupbtlxk-auth-token', JSON.stringify(session));
+    // sem isso o aviso de cookies (LGPD) fica por cima do botão "Próximo passo"
+    localStorage.setItem('rm_cookie_consent', JSON.stringify({ v: 2, ts: new Date().toISOString(), categorias: { preferencias: true, analiticos: true } }));
   });
   await page.route('**/rest/v1/user_entitlements*', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ subscription_status: 'active', plan_id: 'profissional' }) }));
   await page.route('**/auth/v1/user*', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'u1', email: 'a@b.com', aud: 'authenticated', user_metadata: {} }) }));

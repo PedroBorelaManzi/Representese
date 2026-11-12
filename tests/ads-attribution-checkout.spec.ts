@@ -8,6 +8,11 @@ test('Checkout vindo do anúncio B leva campanha, anúncio e telefone até o cad
   const anon: any[] = [];
   const signups: any[] = [];
 
+  // consentimento já dado: o aviso de cookies (LGPD) não cobre os botões do checkout
+  await page.addInitScript(() => {
+    localStorage.setItem('rm_cookie_consent', JSON.stringify({ v: 2, ts: new Date().toISOString(), categorias: { preferencias: true, analiticos: true } }));
+  });
+
   await page.route('**/rest/v1/ads_anon_visits*', async (route) => {
     anon.push(JSON.parse(route.request().postData() || '[]')[0]);
     await route.fulfill({ status: 201, body: '' });
