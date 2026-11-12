@@ -239,6 +239,10 @@ export default function Planos() {
   const isPayingCustomer = settings.subscription_status === 'active' || settings.subscription_status === 'trialing';
   const currentPlanId = user && isPayingCustomer ? settings.plan_id : undefined;
   const isProfissional = currentPlanId === 'profissional';
+  // Diferença real Profissional -> Master no ciclo escolhido (nunca texto fixo:
+  // os preços mudaram na Black Friday e o "R$ 50" ficou errado).
+  const precoMensal = (p: typeof plans[0]) => Number(billingCycle === 'ANNUAL' ? p.annualPrice : p.price);
+  const diferencaUpgradeMaster = (precoMensal(plans[2]) - precoMensal(plans[1])).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 transition-colors duration-300 font-sans">
@@ -295,7 +299,9 @@ export default function Planos() {
               <div className="space-y-1">
                 <h4 className="text-sm font-black text-amber-700 dark:text-amber-400">Suba para o Master</h4>
                 <p className="text-[13px] font-medium text-slate-600 dark:text-zinc-400 leading-relaxed">
-                  Por apenas <span className="text-amber-600 dark:text-amber-400 font-bold">R$ 50 a mais por mês</span>, tenha empresas ilimitadas, IA avançada, BI Analytics e suporte prioritário.
+                  {iosApp
+                    ? 'Tenha empresas ilimitadas, IA avançada, BI Analytics e suporte prioritário com o plano Master.'
+                    : <>Por apenas <span className="text-amber-600 dark:text-amber-400 font-bold">R$ {diferencaUpgradeMaster} a mais por mês</span>, tenha empresas ilimitadas, IA avançada, BI Analytics e suporte prioritário.</>}
                 </p>
               </div>
             </div>

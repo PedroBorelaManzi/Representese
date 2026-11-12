@@ -215,7 +215,12 @@ export default function Checkout() {
   const couponDiscount = appliedCoupon ? (baseValue * appliedCoupon.discount) / 100 : 0;
   const priceAfterCoupon = baseValue - couponDiscount;
   const pixDiscount = paymentMethod === 'PIX' ? (priceAfterCoupon * 5) / 100 : 0;
-  const finalPrice = priceAfterCoupon - pixDiscount;
+  // O Asaas não cobra menos que R$ 5,00 e o servidor (process-checkout) aplica o
+  // mesmo piso: a tela tem que mostrar o que de fato vai pro cartão/Pix.
+  const MIN_CHARGE = 5;
+  const priceBeforeMin = priceAfterCoupon - pixDiscount;
+  const minApplied = priceBeforeMin < MIN_CHARGE;
+  const finalPrice = Math.max(priceBeforeMin, MIN_CHARGE);
 
   const handleApplyCoupon = async (codeOverride?: string, silent = false) => {
     const codeUpper = (codeOverride ?? couponCode).trim().toUpperCase();
@@ -937,6 +942,12 @@ export default function Checkout() {
                     <div className="flex justify-between text-emerald-400">
                       <span>Desconto Pix (5%)</span>
                       <span>- R$ {priceFmt(pixDiscount)}</span>
+                    </div>
+                  )}
+                  {minApplied && (
+                    <div className="flex justify-between text-amber-300">
+                      <span>Ajuste ao valor mínimo de cobrança</span>
+                      <span>R$ {priceFmt(MIN_CHARGE)}</span>
                     </div>
                   )}
                   <div className="flex justify-between text-base font-black text-white pt-2.5 border-t border-white/10">
