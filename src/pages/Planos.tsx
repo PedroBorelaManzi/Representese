@@ -28,6 +28,8 @@ import { supabase } from "../lib/supabase";
 import { loadLeadData } from "../lib/leadStorage";
 import { FunnelPoll } from "../components/FunnelPoll";
 import { loadIosPlanPrices, purchasePlan, restorePurchases, openManageSubscriptions, redeemOfferCode, IosPlanPrices } from "../lib/iap";
+import { resolveAppleCoupon } from "../lib/appleCoupon";
+import { Browser } from "@capacitor/browser";
 
 const faqItems = [
   {
@@ -70,6 +72,8 @@ export default function Planos() {
   const { settings, refetchSettings } = useSettings();
   const navigate = useNavigate();
   const iosApp = isStoreApp();
+  const [cupomAberto, setCupomAberto] = useState(false);
+  const [cupomTexto, setCupomTexto] = useState("");
   const [iosPrices, setIosPrices] = useState<IosPlanPrices>({});
   const [iosLoadError, setIosLoadError] = useState<string | null>(null);
   const [iosLoading, setIosLoading] = useState(false);
@@ -173,6 +177,31 @@ export default function Planos() {
     }
     setConfirmPlan(null);
     toast.success('Se o código foi aceito, liberamos seu acesso em instantes.');
+    await aguardarAcessoIos(planId);
+  };
+
+  // Cupom único (BEMVINDO30 / BEMVINDO70): a Apple não aceita um código só pra
+  // todos os planos, então aqui a gente escolhe o código do plano/ciclo e abre
+  // o resgate da App Store já preenchido (ver lib/appleCoupon.ts).
+  const resgatarCupom = async () => {
+    if (!confirmPlan) return;
+    const r = resolveAppleCoupon(cupomTexto, confirmPlan.id, billingCycle);
+    if (r.ok !== true) {
+      toast.error((r as { message: string }).message);
+      return;
+    }
+    const alvo = r as { code: string; url: string };
+    try {
+      await Browser.open({ url: alvo.url });
+    } catch {
+      toast.error('Não foi possível abrir o resgate na App Store.');
+      return;
+    }
+    const planId = confirmPlan.id;
+    setConfirmPlan(null);
+    setCupomAberto(false);
+    setCupomTexto("");
+    toast.success('Se o cupom foi aceito, liberamos seu acesso em instantes.');
     await aguardarAcessoIos(planId);
   };
 
@@ -494,7 +523,7 @@ export default function Planos() {
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="fixed inset-0 z-[80] bg-black/50 flex items-end sm:items-center justify-center"
               data-testid="ios-confirmar-plano"
-              onClick={() => setConfirmPlan(null)}
+              onClick={() => { setConfirmPlan(null); setCupomAberto(false); setCupomTexto(""); }}
             >
               <motion.div
                 initial={{ y: 40 }} animate={{ y: 0 }} exit={{ y: 40 }}
@@ -537,13 +566,42 @@ export default function Planos() {
                 >
                   Assinar com {store().provider}
                 </button>
-                <button
-                  onClick={resgatarCodigo}
-                  data-testid="ios-tenho-codigo"
-                  className="w-full mt-3 py-3.5 rounded-2xl border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 font-bold text-sm flex items-center justify-center gap-2"
-                >
-                  <Ticket className="w-4 h-4" /> Tenho um código
-                </button>
+                {!cupomAberto ? (
+                  <button
+                    onClick={() => setCupomAberto(true)}
+                    data-testid="ios-tenho-codigo"
+                    className="w-full mt-3 py-3.5 rounded-2xl border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 font-bold text-sm flex items-center justify-center gap-2"
+                  >
+                    <Ticket className="w-4 h-4" /> Tenho um cupom
+                  </button>
+                ) : (
+                  <div className="mt-3 space-y-2" data-testid="ios-cupom">
+                    <input
+                      value={cupomTexto}
+                      onChange={(e) => setCupomTexto(e.target.value)}
+                      placeholder="Digite o cupom"
+                      autoCapitalize="characters"
+                      autoCorrect="off"
+                      spellCheck={false}
+                      data-testid="ios-cupom-input"
+                      className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 font-bold text-sm uppercase tracking-wider"
+                    />
+                    <button
+                      onClick={resgatarCupom}
+                      disabled={!cupomTexto.trim()}
+                      data-testid="ios-cupom-aplicar"
+                      className="w-full py-3.5 rounded-2xl bg-slate-900 dark:bg-zinc-800 text-white font-black text-sm disabled:opacity-50"
+                    >
+                      Aplicar cupom
+                    </button>
+                    <button
+                      onClick={resgatarCodigo}
+                      className="w-full text-[12px] font-bold text-slate-500 dark:text-zinc-400 underline py-1"
+                    >
+                      Tenho um código da Apple
+                    </button>
+                  </div>
+                )}
                 <p className="text-[11px] text-slate-400 text-center mt-3 leading-relaxed">
                   O pagamento é feito com {store().payment}. A assinatura renova sozinha e pode ser cancelada quando quiser em {store().manage}.
                 </p>
