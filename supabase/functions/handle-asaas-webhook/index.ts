@@ -337,70 +337,89 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: entErr.message }), { status: 500 })
     }
 
-    // 1ª cobrança confirmada: grava a conversão do Google Ads (idempotente por usuário).
-    if (newStatus === 'active') {
-      await registerAdsConversion(supabase, userId, payment, updateData.plan_id, updateData.billing_cycle)
-    }
+    // Tudo daqui pra baixo (conversão do Ads/Meta, indicação, cupom, ajuste da
+    // assinatura) NÃO precisa estar pronto pra o Asaas receber o "ok" — o que
+    // libera o acesso (user_entitlements) já foi gravado acima. Antes isso rodava
+    // em fila antes de responder (~20s) e estourava o tempo do Asaas (408 "Read
+    // timed out" + penalização do webhook). Agora responde 200 logo e termina o
+    // resto em segundo plano; qualquer erro vai só pro log (cada etapa já tinha
+    // seu try/catch ou era idempotente).
+    const posProcessamento = async () => {
+      try {
+      // 1ª cobrança confirmada: grava a conversão do Google Ads (idempotente por usuário).
+      if (newStatus === 'active') {
+        await registerAdsConversion(supabase, userId, payment, updateData.plan_id, updateData.billing_cycle)
+      }
 
-    // Programa de indicação: se este usuário foi indicado por alguém, toda
-    // mudança de status dele (voltou a pagar, ficou past_due, cancelou...)
-    // pode mudar quantos indicados ATIVOS o indicador tem — recalcula e já
-    // ajusta a cobrança recorrente do indicador (site/Android; iOS só
-    // atualiza o número, o resgate lá é manual).
-    const { data: myReferral } = await supabase
-      .from('referrals').select('referrer_user_id').eq('referred_user_id', userId).maybeSingle();
-    if (myReferral?.referrer_user_id) {
-      await recomputeAndSyncReferrer(supabase, myReferral.referrer_user_id);
-    }
+      // Programa de indicação: se este usuário foi indicado por alguém, toda
+      // mudança de status dele (voltou a pagar, ficou past_due, cancelou...)
+      // pode mudar quantos indicados ATIVOS o indicador tem — recalcula e já
+      // ajusta a cobrança recorrente do indicador (site/Android; iOS só
+      // atualiza o número, o resgate lá é manual).
+      const { data: myReferral } = await supabase
+        .from('referrals').select('referrer_user_id').eq('referred_user_id', userId).maybeSingle();
+      if (myReferral?.referrer_user_id) {
+        await recomputeAndSyncReferrer(supabase, myReferral.referrer_user_id);
+      }
 
-    // Pagamento aprovado: confirma o resgate de cupom pendente deste usuário
-    // (o incremento de times_redeemed só acontece aqui, uma única vez).
-    if (newStatus === 'active') {
-      const { data: pendings } = await supabase.from('coupon_redemptions')
-        .select('code, platform').eq('user_id', userId).eq('status', 'pending');
-      for (const p of pendings || []) {
-        const { data: updated } = await supabase.from('coupon_redemptions')
-          .update({ status: 'confirmed' })
-          .eq('user_id', userId).eq('code', p.code).eq('status', 'pending')
-          .select('code');
-        if (updated && updated.length > 0) {
-          await supabase.rpc('increment_coupon', { c_code: p.code }).then(() => {}, () => {});
+      // Pagamento aprovado: confirma o resgate de cupom pendente deste usuário
+      // (o incremento de times_redeemed só acontece aqui, uma única vez).
+      if (newStatus === 'active') {
+        const { data: pendings } = await supabase.from('coupon_redemptions')
+          .select('code, platform').eq('user_id', userId).eq('status', 'pending');
+        for (const p of pendings || []) {
+          const { data: updated } = await supabase.from('coupon_redemptions')
+            .update({ status: 'confirmed' })
+            .eq('user_id', userId).eq('code', p.code).eq('status', 'pending')
+            .select('code');
+          if (updated && updated.length > 0) {
+            await supabase.rpc('increment_coupon', { c_code: p.code }).then(() => {}, () => {});
 
-          // Cupom de indicação confirmado agora, na 1ª fatura paga: registra
-          // quem indicou quem (única vez — `referrals.referred_user_id` é
-          // unique) e recalcula o desconto de quem indicou. O desconto do
-          // PRÓPRIO indicado (10% que acabou de valer nesta fatura) só vale
-          // uma vez — não mexe em nada aqui: o valor cheio volta sozinho na
-          // próxima cobrança porque `referral_discount_pct` dele (se não for
-          // indicador de mais ninguém) é 0, e o sync abaixo já convergiu a
-          // cobrança recorrente pra esse valor.
-          const { data: dbCoupon } = await supabase
-            .from('coupons').select('referrer_user_id, discount_percent').eq('code', p.code).maybeSingle();
-          if (dbCoupon?.referrer_user_id && dbCoupon.referrer_user_id !== userId) {
-            await supabase.from('referrals').upsert({
-              referrer_user_id: dbCoupon.referrer_user_id,
-              referred_user_id: userId,
-              code: p.code,
-              platform: p.platform || 'web',
-            }, { onConflict: 'referred_user_id', ignoreDuplicates: true });
-            // syncAsaasSubscriptionValue só age quando applied ≠ pct — sem
-            // registrar aqui que a assinatura JÁ está com o desconto de 1ª
-            // fatura aplicado (process-checkout usou o mecanismo genérico de
-            // cupom pra criar a assinatura, não esta tabela), o sync logo
-            // abaixo veria 0 === 0 e nunca devolveria o valor cheio.
-            await supabase.from('user_settings')
-              .update({ referral_discount_applied_pct: dbCoupon.discount_percent })
-              .eq('user_id', userId);
-            await recomputeAndSyncReferrer(supabase, dbCoupon.referrer_user_id);
+            // Cupom de indicação confirmado agora, na 1ª fatura paga: registra
+            // quem indicou quem (única vez — `referrals.referred_user_id` é
+            // unique) e recalcula o desconto de quem indicou. O desconto do
+            // PRÓPRIO indicado (10% que acabou de valer nesta fatura) só vale
+            // uma vez — não mexe em nada aqui: o valor cheio volta sozinho na
+            // próxima cobrança porque `referral_discount_pct` dele (se não for
+            // indicador de mais ninguém) é 0, e o sync abaixo já convergiu a
+            // cobrança recorrente pra esse valor.
+            const { data: dbCoupon } = await supabase
+              .from('coupons').select('referrer_user_id, discount_percent').eq('code', p.code).maybeSingle();
+            if (dbCoupon?.referrer_user_id && dbCoupon.referrer_user_id !== userId) {
+              await supabase.from('referrals').upsert({
+                referrer_user_id: dbCoupon.referrer_user_id,
+                referred_user_id: userId,
+                code: p.code,
+                platform: p.platform || 'web',
+              }, { onConflict: 'referred_user_id', ignoreDuplicates: true });
+              // syncAsaasSubscriptionValue só age quando applied ≠ pct — sem
+              // registrar aqui que a assinatura JÁ está com o desconto de 1ª
+              // fatura aplicado (process-checkout usou o mecanismo genérico de
+              // cupom pra criar a assinatura, não esta tabela), o sync logo
+              // abaixo veria 0 === 0 e nunca devolveria o valor cheio.
+              await supabase.from('user_settings')
+                .update({ referral_discount_applied_pct: dbCoupon.discount_percent })
+                .eq('user_id', userId);
+              await recomputeAndSyncReferrer(supabase, dbCoupon.referrer_user_id);
+            }
           }
         }
+        // Convém rodar depois do bloco acima: se este pagamento confirmou um
+        // cupom de indicação, isso é a 1ª fatura dele — a assinatura recorrente
+        // ainda está com o valor computado com 10% off (process-checkout
+        // aplicou na criação). Sincroniza de volta pro valor que este usuário
+        // tem direito daqui pra frente (0%, salvo ele também ser indicador).
+        await syncAsaasSubscriptionValue(supabase, userId);
       }
-      // Convém rodar depois do bloco acima: se este pagamento confirmou um
-      // cupom de indicação, isso é a 1ª fatura dele — a assinatura recorrente
-      // ainda está com o valor computado com 10% off (process-checkout
-      // aplicou na criação). Sincroniza de volta pro valor que este usuário
-      // tem direito daqui pra frente (0%, salvo ele também ser indicador).
-      await syncAsaasSubscriptionValue(supabase, userId);
+      } catch (e) {
+        console.error('Erro no pós-processamento do webhook do Asaas:', e)
+      }
+    }
+    const runtime = (globalThis as any).EdgeRuntime
+    if (runtime && typeof runtime.waitUntil === 'function') {
+      runtime.waitUntil(posProcessamento())
+    } else {
+      await posProcessamento()
     }
 
     return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 })
