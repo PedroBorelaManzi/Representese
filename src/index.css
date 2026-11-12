@@ -4,7 +4,10 @@
    navegadores cachearam a resposta vazia. Como o conteúdo do CSS não mudou, o
    hash do arquivo seria o mesmo e o cache ruim persistiria. Esta regra (inócua)
    entra no output e força um hash novo. Pode remover num commit futuro. */
-:root { --rm-css-build: "20260829-b"; }
+:root { --rm-css-build: "20260829-b"; --safe-top: env(safe-area-inset-top, 0px); }
+/* App iOS: o env() às vezes vem 0 no WebView e a seta/título ficam por cima do
+   relógio. Piso de 3.25rem (mesmo usado nos toasts) só no app instalado. */
+html.ios-app { --safe-top: max(env(safe-area-inset-top, 0px), 3.25rem); }
 
 @theme {
   --color-zinc-850: #1f1f23;

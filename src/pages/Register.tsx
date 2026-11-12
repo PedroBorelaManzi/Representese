@@ -162,8 +162,8 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 flex flex-col items-center justify-center px-4 pb-8 [padding-top:max(1rem,env(safe-area-inset-top))] selection:bg-emerald-100 selection:text-emerald-900 font-sans">
-      <Link to="/" className="absolute left-6 [top:max(1.5rem,calc(env(safe-area-inset-top)+0.75rem))] flex items-center gap-2 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors text-sm font-semibold group z-10">
+    <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 flex flex-col items-center justify-center px-4 pb-8 [padding-top:max(1rem,var(--safe-top))] selection:bg-emerald-100 selection:text-emerald-900 font-sans">
+      <Link to="/" className="absolute left-6 [top:calc(var(--safe-top)+0.75rem)] flex items-center gap-2 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors text-sm font-semibold group z-10">
         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
         Voltar para a página inicial
       </Link>
@@ -393,7 +393,7 @@ export default function Register() {
       {/* Atalho discreto pra ver os planos sem criar conta. */}
       <Link
         to="/planos"
-        className="absolute right-6 [top:max(1.5rem,calc(env(safe-area-inset-top)+0.75rem))] z-10 text-[11px] text-slate-400/60 dark:text-zinc-600 hover:text-slate-600 dark:hover:text-zinc-300 transition-colors"
+        className="absolute right-6 [top:calc(var(--safe-top)+0.75rem)] z-10 text-[11px] text-slate-400/60 dark:text-zinc-600 hover:text-slate-600 dark:hover:text-zinc-300 transition-colors"
       >
         pular para ver os planos
       </Link>

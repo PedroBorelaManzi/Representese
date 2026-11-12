@@ -276,11 +276,11 @@ export default function Login() {
           em vez de ficar preso no centro com o botão "Entrar" atrás do teclado.
           O `padding-top` respeita a safe area pra a logo/seta não colarem na
           status bar. */}
-      <div className="w-full md:w-[45%] bg-white px-6 py-12 sm:px-10 md:px-8 lg:p-24 flex flex-col relative z-10 shadow-2xl overflow-y-auto [padding-top:max(3rem,env(safe-area-inset-top))]">
+      <div className="w-full md:w-[45%] bg-white px-6 py-12 sm:px-10 md:px-8 lg:p-24 flex flex-col relative z-10 shadow-2xl overflow-y-auto [padding-top:max(3rem,var(--safe-top))]">
         {/* No app nativo a landing redireciona de volta pro login, então a seta
             de "voltar" não leva a lugar nenhum — só aparece no site. */}
         {!Capacitor.isNativePlatform() && (
-          <Link to="/landing" className="absolute left-6 md:left-8 [top:max(1.5rem,env(safe-area-inset-top))] flex items-center justify-center p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-900 border border-slate-100/50 transition-all group z-50 hover:scale-105 active:scale-95 shadow-sm" title="Voltar para a página inicial"><ArrowLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" /></Link>
+          <Link to="/landing" className="absolute left-6 md:left-8 [top:max(1.5rem,var(--safe-top))] flex items-center justify-center p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-900 border border-slate-100/50 transition-all group z-50 hover:scale-105 active:scale-95 shadow-sm" title="Voltar para a página inicial"><ArrowLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" /></Link>
         )}
         <div className="max-w-md mx-auto w-full space-y-10 sm:space-y-12 my-auto">
           <div className="flex justify-center">

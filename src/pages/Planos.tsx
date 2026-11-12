@@ -215,7 +215,7 @@ export default function Planos() {
     <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 transition-colors duration-300 font-sans">
       {/* Sem este cabeçalho a página não tinha nenhuma saída: zero links. No app
           instalado (display: standalone) o usuário ficava preso na tela de preços. */}
-      <header className="sticky top-0 z-50 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-slate-200 dark:border-zinc-800 px-5 py-4">
+      <header className="sticky top-0 z-50 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-slate-200 dark:border-zinc-800 px-5 pb-4 [padding-top:calc(var(--safe-top)+1rem)]">
         <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <button
