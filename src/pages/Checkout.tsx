@@ -88,8 +88,9 @@ export default function Checkout() {
   const [showPassword, setShowPassword] = useState(false);
 
   const [aceitouTermos, setAceitouTermos] = useState(false);
-  // Cookies de análise: caixa SEPARADA e opcional (LGPD: o consentimento não pode
-  // ser condição pra contratar). Só aparece se a pessoa ainda não decidiu no banner.
+  // Cookies de análise: caixa separada dos termos, OBRIGATÓRIA pra continuar (decisão
+  // do dono do produto). Só aparece se a pessoa ainda não decidiu no banner — quem já
+  // aceitou ou recusou lá não é perguntado de novo.
   const [aceitouCookies, setAceitouCookies] = useState(false);
   const [mostrarCookies] = useState(() => precisaDecidir());
   const [pixData, setPixData] = useState<{ qrcode: string; payload: string } | null>(null);
@@ -191,8 +192,9 @@ export default function Checkout() {
   if (!isAddressValid) step1Pendencias.push('CEP e número do endereço');
   if (!user && !isPasswordValid) step1Pendencias.push('senha dentro das regras');
   if (!aceitouTermos) step1Pendencias.push('aceite dos Termos');
+  if (mostrarCookies && !aceitouCookies) step1Pendencias.push('aceite dos cookies');
 
-  const isStep1Valid = formData.name && formData.email && formData.cpfCnpj && docValid && docNameMatch && formData.phone && phoneValid && isAddressValid && (user ? true : isPasswordValid) && aceitouTermos;
+  const isStep1Valid = formData.name && formData.email && formData.cpfCnpj && docValid && docNameMatch && formData.phone && phoneValid && isAddressValid && (user ? true : isPasswordValid) && aceitouTermos && (!mostrarCookies || aceitouCookies);
 
   const handleCepChange = async (rawCep: string) => {
     const formatted = formatCep(rawCep);
@@ -789,7 +791,7 @@ export default function Checkout() {
                       />
                       <span className="text-[13px] text-slate-600 leading-snug">
                         Aceito os cookies de análise e preferências, que nos ajudam a melhorar o Represente-Se!{" "}
-                        <span className="text-slate-400">(opcional; você pode mudar isso depois)</span>.{" "}
+                        <span className="text-slate-400">(você pode mudar isso depois)</span>.{" "}
                         <a href="/cookies" target="_blank" rel="noopener noreferrer" className="font-bold text-emerald-600 hover:underline">
                           Política de Cookies
                         </a>

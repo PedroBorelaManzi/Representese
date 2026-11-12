@@ -19,7 +19,17 @@ test.describe('Checkout passo 1', () => {
     if (!(await termos.isChecked())) await termos.check();
   });
 
+  test('cookies: sem marcar a caixa de cookies o botão fica travado e a tela explica', async ({ page }) => {
+    await page.getByPlaceholder('000.000.000-00').fill('52998224725');
+    await expect(page.getByTestId('checkout-aceite-cookies')).toBeVisible();
+    await expect(page.getByTestId('step1-pendencias')).toContainText('aceite dos cookies');
+    await expect(page.getByRole('button', { name: /continuar para pagamento/i })).toBeDisabled();
+    await page.getByTestId('checkout-aceite-cookies').check();
+    await expect(page.getByRole('button', { name: /continuar para pagamento/i })).toBeEnabled();
+  });
+
   test('CPF inválido: botão travado e a tela explica', async ({ page }) => {
+    await page.getByTestId('checkout-aceite-cookies').check();
     await page.getByPlaceholder('000.000.000-00').fill('15997305499');
     await expect(page.getByText('CPF inválido. Confira os números.')).toBeVisible();
     await expect(page.getByTestId('step1-pendencias')).toContainText('CPF válido');
@@ -27,6 +37,7 @@ test.describe('Checkout passo 1', () => {
   });
 
   test('CPF válido e nome com "sa"/"me": botão libera', async ({ page }) => {
+    await page.getByTestId('checkout-aceite-cookies').check();
     await page.getByPlaceholder('000.000.000-00').fill('52998224725');
     await expect(page.getByRole('button', { name: /continuar para pagamento/i })).toBeEnabled();
   });
