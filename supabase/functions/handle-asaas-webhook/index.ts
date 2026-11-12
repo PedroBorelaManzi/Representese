@@ -330,6 +330,16 @@ serve(async (req) => {
       ...updateData
     }, { onConflict: 'user_id' })
     if (entErr) {
+      // Usuário que não existe mais (conta apagada, cobrança de teste antiga) ou
+      // externalReference que não é um id válido: reenviar nunca vai resolver, e
+      // responder 500 faz o Asaas repetir toda hora, aplicar penalização e, depois
+      // de 15 falhas, PAUSAR A FILA INTEIRA (travando os pagamentos de todo mundo).
+      // Responde 200 "ignorado" e mantém o id do evento registrado (reenvio vira
+      // "duplicate" rápido).
+      if (entErr.code === '23503' || entErr.code === '22P02') {
+        console.warn('Webhook ignorado: usuário inexistente ou id inválido', { event, userId, code: entErr.code })
+        return new Response(JSON.stringify({ success: true, ignored: 'usuario_inexistente' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 })
+      }
       // Libera o id do evento pra o reenvio do Asaas ser processado de novo —
       // senão o evento ficaria "já processado" sem o acesso ter sido liberado.
       if (body.id) await supabase.from('asaas_webhook_events').delete().eq('event_id', body.id)
