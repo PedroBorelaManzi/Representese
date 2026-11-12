@@ -14,6 +14,7 @@ import { Logo } from '../components/Logo';
 import { toast } from "sonner";
 import { supabase } from "../lib/supabase";
 import { posthog } from "../lib/posthog";
+import { precisaDecidir, setConsent } from "../lib/cookieConsent";
 import { useAuth } from "../contexts/AuthContext";
 import { loadLeadData, clearLeadData } from "../lib/leadStorage";
 import { getAttribution } from '../lib/attribution';
@@ -87,6 +88,10 @@ export default function Checkout() {
   const [showPassword, setShowPassword] = useState(false);
 
   const [aceitouTermos, setAceitouTermos] = useState(false);
+  // Cookies de análise: caixa SEPARADA e opcional (LGPD: o consentimento não pode
+  // ser condição pra contratar). Só aparece se a pessoa ainda não decidiu no banner.
+  const [aceitouCookies, setAceitouCookies] = useState(false);
+  const [mostrarCookies] = useState(() => precisaDecidir());
   const [pixData, setPixData] = useState<{ qrcode: string; payload: string } | null>(null);
   const [pixCopiado, setPixCopiado] = useState(false);
   const [couponCode, setCouponCode] = useState("");
@@ -266,6 +271,7 @@ export default function Checkout() {
 
   const handleNextStep = async () => {
     if (!isStep1Valid) return;
+    if (mostrarCookies && aceitouCookies) setConsent({ preferencias: true, analiticos: true }, 'custom');
     setIsCheckingUniqueness(true);
     try {
       const { data, error } = await supabase.functions.invoke('process-checkout', {
@@ -771,6 +777,25 @@ export default function Checkout() {
                       , incluindo a renovação automática da assinatura.
                     </span>
                   </label>
+
+                  {mostrarCookies && (
+                    <label className="flex items-start gap-3 px-1 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={aceitouCookies}
+                        onChange={(e) => setAceitouCookies(e.target.checked)}
+                        data-testid="checkout-aceite-cookies"
+                        className="mt-0.5 w-4 h-4 rounded border-slate-300 cursor-pointer"
+                      />
+                      <span className="text-[13px] text-slate-600 leading-snug">
+                        Aceito os cookies de análise e preferências, que nos ajudam a melhorar o Represente-Se!{" "}
+                        <span className="text-slate-400">(opcional; você pode mudar isso depois)</span>.{" "}
+                        <a href="/cookies" target="_blank" rel="noopener noreferrer" className="font-bold text-emerald-600 hover:underline">
+                          Política de Cookies
+                        </a>
+                      </span>
+                    </label>
+                  )}
 
                   <button
                     type="button" disabled={isCheckingUniqueness || !isStep1Valid}
