@@ -39,3 +39,17 @@ describe('passwordPolicy', () => {
     expect(list[0].label).toContain(String(PASSWORD_MIN_LENGTH));
   });
 });
+
+import { isWeakPasswordError, MSG_SENHA_VAZADA } from './passwordPolicy';
+describe('senha vazada (HaveIBeenPwned)', () => {
+  it('reconhece o erro do Supabase por code e por mensagem', () => {
+    expect(isWeakPasswordError({ code: 'weak_password' })).toBe(true);
+    expect(isWeakPasswordError({ message: 'Password is known to be weak and easy to guess, please choose a different one.' })).toBe(true);
+    expect(isWeakPasswordError({ message: 'Password has been pwned' })).toBe(true);
+  });
+  it('não confunde com outros erros', () => {
+    expect(isWeakPasswordError({ message: 'User already registered' })).toBe(false);
+    expect(isWeakPasswordError(null)).toBe(false);
+    expect(MSG_SENHA_VAZADA).toContain('vazamentos');
+  });
+});

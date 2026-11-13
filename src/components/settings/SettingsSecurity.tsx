@@ -6,7 +6,7 @@ import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { cn } from '../../lib/utils';
-import { isPasswordValid, passwordRequirementList } from '../../lib/passwordPolicy';
+import { isPasswordValid, passwordRequirementList, isWeakPasswordError, MSG_SENHA_VAZADA } from '../../lib/passwordPolicy';
 
 export const SettingsSecurity = React.memo(function SettingsSecurity() {
   const { user } = useAuth();
@@ -222,7 +222,7 @@ export const SettingsSecurity = React.memo(function SettingsSecurity() {
                     setIsSavingPassword(false);
 
                     if (error) {
-                      toast.error("Erro ao alterar senha: " + error.message);
+                      toast.error(isWeakPasswordError(error) ? MSG_SENHA_VAZADA : "Erro ao alterar senha: " + error.message);
                     } else {
                       setCurrentPassword('');
                       toast.success("Senha alterada com sucesso!");

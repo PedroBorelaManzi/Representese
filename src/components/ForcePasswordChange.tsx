@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 import { Logo } from './Logo';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
-import { isPasswordValid, passwordRequirementList } from '../lib/passwordPolicy';
+import { isPasswordValid, passwordRequirementList, isWeakPasswordError, MSG_SENHA_VAZADA } from '../lib/passwordPolicy';
 
 /**
  * Tela cheia, intransponível, que aparece antes de qualquer outra coisa
@@ -39,7 +39,7 @@ export function ForcePasswordChange({ children }: { children: React.ReactNode })
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) {
-        toast.error('Erro ao definir senha: ' + error.message);
+        toast.error(isWeakPasswordError(error) ? MSG_SENHA_VAZADA : 'Erro ao definir senha: ' + error.message);
         return;
       }
       await updateSettings({ must_change_password: false });

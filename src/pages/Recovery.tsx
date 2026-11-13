@@ -16,7 +16,7 @@ import { supabase } from "../lib/supabase";
 import { toast } from "sonner";
 import { Logo } from '../components/Logo';
 import { cn } from '../lib/utils';
-import { isPasswordValid, passwordRequirementList } from '../lib/passwordPolicy';
+import { isPasswordValid, passwordRequirementList, isWeakPasswordError, MSG_SENHA_VAZADA } from '../lib/passwordPolicy';
 
 export default function Recovery() {
   const [searchParams] = useSearchParams();
@@ -81,7 +81,7 @@ export default function Recovery() {
     setIsLoading(true);
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) throw error;
+      if (error) throw isWeakPasswordError(error) ? new Error(MSG_SENHA_VAZADA) : error;
 
       toast.success("Senha atualizada com sucesso! Faça login com sua nova senha.");
       navigate("/login");

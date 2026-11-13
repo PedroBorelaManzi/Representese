@@ -16,7 +16,7 @@ import { trackLeadConversion } from "../lib/googleAds";
 import { metaLead } from "../lib/metaPixel";
 import { isStoreApp } from "../lib/iapPolicy";
 import { normalizeReferralCode } from "../lib/referralCode";
-import { checkPassword, PASSWORD_MIN_LENGTH } from "../lib/passwordPolicy";
+import { checkPassword, PASSWORD_MIN_LENGTH, isWeakPasswordError, MSG_SENHA_VAZADA } from "../lib/passwordPolicy";
 
 function PasswordRequirement({ label, met }: { label: string; met: boolean }) {
   return (
@@ -92,6 +92,7 @@ export default function Register() {
         },
       });
       if (error) {
+        if (isWeakPasswordError(error)) throw new Error(MSG_SENHA_VAZADA);
         const m = error.message.toLowerCase();
         throw new Error(m.includes("already") || m.includes("duplicate") ? "E-mail já cadastrado. Faça login." : error.message);
       }

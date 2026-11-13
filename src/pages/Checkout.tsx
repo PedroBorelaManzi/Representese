@@ -50,7 +50,7 @@ import {
   formatCpfCnpj, formatPhone, formatCardNumber, formatExpiry, formatCcv, formatCep,
   passwordStrength,
 } from '../lib/validators';
-import { checkPassword, PASSWORD_MIN_LENGTH } from '../lib/passwordPolicy';
+import { checkPassword, PASSWORD_MIN_LENGTH, isWeakPasswordError, MSG_SENHA_VAZADA } from '../lib/passwordPolicy';
 
 function Requirement({ label, met }: { label: string; met: boolean }) {
   return (
@@ -338,6 +338,11 @@ export default function Checkout() {
         });
 
         if (authError) {
+          if (isWeakPasswordError(authError)) {
+            setStep(1);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            throw new Error(MSG_SENHA_VAZADA);
+          }
           const m = authError.message.toLowerCase();
           // O trigger do banco (billing_identities) bloqueia CPF/WhatsApp duplicado já no signUp.
           if (m.includes('database error') || m.includes('saving new user') || m.includes('duplicate') || m.includes('unique')) {
