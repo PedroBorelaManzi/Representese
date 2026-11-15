@@ -124,6 +124,20 @@ function Resumo({ titulo, valor, destaque, nota }: { titulo: string; valor: stri
 export default function MonthlyReports() {
   const [sub, setSub] = useState<'fechamento' | 'historico' | 'custos'>('fechamento');
   const [mesSel, setMesSel] = useState<string | null>(null);
+  // Parte do lucro que o Pedro quer reinvestir (só uma conveniência de leitura; fica salva neste navegador).
+  const [pctInvest, setPctInvest] = useState<number>(() => {
+    try {
+      const v = Number(localStorage.getItem('rs_relatorio_pct_invest'));
+      return Number.isFinite(v) && v >= 0 && v <= 100 && localStorage.getItem('rs_relatorio_pct_invest') !== null ? v : 30;
+    } catch {
+      return 30;
+    }
+  });
+  const mudarPct = (v: number) => {
+    const n = Math.min(100, Math.max(0, Number.isFinite(v) ? v : 0));
+    setPctInvest(n);
+    try { localStorage.setItem('rs_relatorio_pct_invest', String(n)); } catch { /* sem armazenamento: só não lembra */ }
+  };
   const [editando, setEditando] = useState<string | null>(null);
   const [valor, setValor] = useState('');
   const [data, setData] = useState('');
@@ -395,11 +409,11 @@ export default function MonthlyReports() {
                     <p className="text-xs font-bold uppercase tracking-wide text-rose-700 dark:text-rose-400">Saída · o que gastamos</p>
                     <p className="text-3xl font-black text-rose-600 mt-1">{brl(saida)}</p>
                     <p className="text-xs text-slate-500 mb-3">Anúncios mais assinaturas e custos fixos do mês</p>
-                    <Linha2 nome="Anúncios: Meta (Instagram)" valor={brl(atual.ads_meta)} />
-                    <Linha2 nome="Anúncios: Google" valor={brl(atual.ads_google)} />
-                    {itens.map(({ c, v }) => (
-                      <Linha2 key={c.id} nome={c.name} valor={brl(v)} sub={c.cycle === 'annual' ? 'anual, rateado por mês' : c.cycle === 'biennial' ? 'a cada 2 anos, rateado por mês' : c.cycle === 'one_time' ? 'cobrança única' : undefined} />
-                    ))}
+                    <Linha2 nome="Anúncios e impulsionamento" valor={brl(atual.ads_meta + atual.ads_google)} sub={`Meta ${brl(atual.ads_meta)} · Google ${brl(atual.ads_google)}`} />
+                    <Linha2 nome="Custos fixos" valor={brl(fixos)} sub={`${itens.length} itens (assinaturas, domínios, lojas e infraestrutura)`} />
+                    <button type="button" onClick={() => setSub('custos')} className="mt-1 text-xs font-semibold text-emerald-700 underline">
+                      Ver quais são os custos fixos
+                    </button>
                     <Linha2 nome="Total de saída" valor={brl(saida)} forte />
                   </div>
                 </div>
@@ -415,6 +429,37 @@ export default function MonthlyReports() {
                     Leads convertidos (pagaram): {atual.leads_converted} de {atual.leads}
                     {atual.leads_converted > 0 ? ` · custo por lead convertido ${brl(saida / atual.leads_converted)}` : ''}
                   </p>
+                </div>
+
+                <div className={cn(card, 'p-5 border-t-4 border-t-sky-500')}>
+                  <p className="text-xs font-bold uppercase tracking-wide text-sky-700 dark:text-sky-400">Investimentos · uso do lucro</p>
+                  {resultado > 0 ? (
+                    <div className="mt-2 flex flex-wrap items-end gap-x-8 gap-y-3">
+                      <label className="text-xs font-semibold text-slate-600 dark:text-zinc-300">
+                        Reinvestir quanto do lucro (%)
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={pctInvest}
+                          onChange={(e) => mudarPct(Number(e.target.value))}
+                          className="mt-1 block w-24 rounded-lg border border-slate-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-3 py-2 text-sm"
+                        />
+                      </label>
+                      <div>
+                        <p className="text-xs text-slate-500">Para investir ({pctInvest}% do lucro)</p>
+                        <p className="text-2xl font-black text-sky-700 dark:text-sky-400">{brl((resultado * pctInvest) / 100)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">Fica no caixa</p>
+                        <p className="text-2xl font-black text-slate-900 dark:text-white">{brl(resultado - (resultado * pctInvest) / 100)}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-sm text-slate-600 dark:text-zinc-300">
+                      Sem lucro neste mês, então não há o que investir. Quando o mês fechar com lucro, aqui aparece quanto reinvestir (anúncios, ferramentas ou novas ideias) e quanto fica no caixa.
+                    </p>
+                  )}
                 </div>
               </div>
             );
