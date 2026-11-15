@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import { cn } from '../../lib/utils';
@@ -197,7 +197,19 @@ export default function MonthlyReports() {
     [campanhas, mes],
   );
 
-  const grafico = meses.map((l) => ({ mes: mesCurto(l.month), Meta: l.ads_meta, Google: l.ads_google, 'Custos fixos': l.fixed_costs }));
+  const grafico = meses.map((l) => ({
+    mes: mesCurto(l.month),
+    Meta: l.ads_meta,
+    Google: l.ads_google,
+    'Custos fixos': l.fixed_costs,
+    'Receita (entrada)': l.revenue,
+    Resultado: Math.round((l.revenue - l.ads_meta - l.ads_google - l.fixed_costs) * 100) / 100,
+  }));
+  // Entrada mensal recorrente hoje: lançamentos de receita mensais ainda ativos.
+  const hojeIso = new Date().toISOString().slice(0, 10);
+  const receitaMensalHoje = (custos ?? [])
+    .filter((c) => c.kind === 'receita' && c.cycle === 'monthly' && c.amount_brl != null && (!c.ends_on || c.ends_on >= hojeIso))
+    .reduce((s, c) => s + (c.amount_brl ?? 0), 0);
   const tot = meses.reduce(
     (t, l) => ({ leads: t.leads + l.leads, meta: t.meta + l.ads_meta, google: t.google + l.ads_google, fixo: t.fixo + l.fixed_costs, rec: t.rec + l.revenue }),
     { leads: 0, meta: 0, google: 0, fixo: 0, rec: 0 },
@@ -268,15 +280,16 @@ export default function MonthlyReports() {
             const total = ads + atual.fixed_costs;
             const resultado = atual.revenue - total;
             return (
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <Resumo titulo="Anúncios" valor={brl(ads)} nota={`Meta ${brl(atual.ads_meta)} · Google ${brl(atual.ads_google)}`} />
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                <Resumo titulo="Receita de assinaturas (entrada)" valor={brl(atual.revenue)} destaque={atual.revenue > 0 ? 'bom' : undefined} nota="Quanto entrou de assinaturas no mês" />
+                <Resumo titulo="Anúncios (saída)" valor={brl(ads)} nota={`Meta ${brl(atual.ads_meta)} · Google ${brl(atual.ads_google)}`} />
+                <Resumo titulo="Assinaturas e custos fixos (saída)" valor={brl(atual.fixed_costs)} nota="Anuais rateadas por mês" />
                 <Resumo titulo="Leads" valor={String(atual.leads)} nota={atual.leads ? `${brl(total / atual.leads)} de custo por lead` : 'Nenhum lead no mês'} />
-                <Resumo titulo="Assinaturas e custos fixos" valor={brl(atual.fixed_costs)} nota="Anuais rateadas por mês" />
                 <Resumo
-                  titulo="Resultado"
+                  titulo={resultado < 0 ? 'Resultado: prejuízo' : 'Resultado: lucro'}
                   valor={brl(resultado)}
                   destaque={resultado < 0 ? 'ruim' : 'bom'}
-                  nota={`Receita ${brl(atual.revenue)} − custos ${brl(total)}`}
+                  nota={`Entrada ${brl(atual.revenue)} − saída ${brl(total)}`}
                 />
               </div>
             );
@@ -310,19 +323,21 @@ export default function MonthlyReports() {
       {sub === 'historico' && (
         <div className="space-y-6">
           <div className={cn(card, 'p-4')}>
-            <p className="font-bold text-slate-900 dark:text-white mb-3">Gastos por mês</p>
-            <div className="h-64">
+            <p className="font-bold text-slate-900 dark:text-white mb-3">Entradas, saídas e resultado por mês</p>
+            <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={grafico}>
+                <ComposedChart data={grafico}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
                   <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `R$ ${v}`} />
                   <Tooltip formatter={(v: number) => brl(v)} />
                   <Legend />
+                  <Bar dataKey="Receita (entrada)" fill="#0ea5e9" />
                   <Bar dataKey="Meta" stackId="a" fill="#6366f1" />
                   <Bar dataKey="Google" stackId="a" fill="#f59e0b" />
                   <Bar dataKey="Custos fixos" stackId="a" fill="#10b981" />
-                </BarChart>
+                  <Line type="monotone" dataKey="Resultado" stroke="#e11d48" strokeWidth={2} dot />
+                </ComposedChart>
               </ResponsiveContainer>
             </div>
           </div>
@@ -332,12 +347,14 @@ export default function MonthlyReports() {
                 <tr className="border-b border-slate-200 dark:border-zinc-700">
                   <th className={th}>Mês</th><th className={cn(th, 'text-right')}>Leads</th><th className={cn(th, 'text-right')}>Contas criadas</th>
                   <th className={cn(th, 'text-right')}>Meta</th><th className={cn(th, 'text-right')}>Google</th><th className={cn(th, 'text-right')}>Custos fixos</th>
-                  <th className={cn(th, 'text-right')}>Total</th><th className={cn(th, 'text-right')}>Custo por lead</th><th className={cn(th, 'text-right')}>Receita</th>
+                  <th className={cn(th, 'text-right')}>Total saída</th><th className={cn(th, 'text-right')}>Custo por lead</th>
+                  <th className={cn(th, 'text-right')}>Receita (entrada)</th><th className={cn(th, 'text-right')}>Resultado (lucro/prejuízo)</th>
                 </tr>
               </thead>
               <tbody>
                 {[...meses].reverse().map((l) => {
                   const total = l.ads_meta + l.ads_google + l.fixed_costs;
+                  const resultado = l.revenue - total;
                   return (
                     <tr key={l.month} className="border-b border-slate-100 dark:border-zinc-800">
                       <td className={td}>{mesLabel(l.month)}</td>
@@ -348,7 +365,8 @@ export default function MonthlyReports() {
                       <td className={cn(td, 'text-right')}>{brl(l.fixed_costs)}</td>
                       <td className={cn(td, 'text-right font-semibold')}>{brl(total)}</td>
                       <td className={cn(td, 'text-right')}>{l.leads ? brl(total / l.leads) : '—'}</td>
-                      <td className={cn(td, 'text-right')}>{brl(l.revenue)}</td>
+                      <td className={cn(td, 'text-right text-sky-700 dark:text-sky-400')}>{brl(l.revenue)}</td>
+                      <td className={cn(td, 'text-right font-bold', resultado < 0 ? 'text-rose-600' : 'text-emerald-600')}>{brl(resultado)}</td>
                     </tr>
                   );
                 })}
@@ -361,21 +379,39 @@ export default function MonthlyReports() {
                   <td className={cn(td, 'text-right')}>{brl(tot.fixo)}</td>
                   <td className={cn(td, 'text-right')}>{brl(tot.meta + tot.google + tot.fixo)}</td>
                   <td className={cn(td, 'text-right')}>{tot.leads ? brl((tot.meta + tot.google + tot.fixo) / tot.leads) : '—'}</td>
-                  <td className={cn(td, 'text-right')}>{brl(tot.rec)}</td>
+                  <td className={cn(td, 'text-right text-sky-700 dark:text-sky-400')}>{brl(tot.rec)}</td>
+                  <td className={cn(td, 'text-right', tot.rec - (tot.meta + tot.google + tot.fixo) < 0 ? 'text-rose-600' : 'text-emerald-600')}>{brl(tot.rec - (tot.meta + tot.google + tot.fixo))}</td>
                 </tr>
+                {(() => {
+                  const resFinal = tot.rec - (tot.meta + tot.google + tot.fixo);
+                  return (
+                    <tr className={cn('font-bold', resFinal < 0 ? 'bg-rose-50 dark:bg-rose-500/10' : 'bg-emerald-50 dark:bg-emerald-500/10')}>
+                      <td className={td} colSpan={9}>
+                        Resultado final (todos os meses): entrada {brl(tot.rec)} − saída {brl(tot.meta + tot.google + tot.fixo)}
+                      </td>
+                      <td className={cn(td, 'text-right text-lg', resFinal < 0 ? 'text-rose-600' : 'text-emerald-600')}>
+                        {resFinal < 0 ? 'Prejuízo ' : 'Lucro '}{brl(Math.abs(resFinal))}
+                      </td>
+                    </tr>
+                  );
+                })()}
               </tbody>
             </table>
           </div>
           <p className="text-xs text-slate-500">
-            "Contas criadas" inclui contas internas (a sua, de revisão da Apple e do Google). Não há receita de clientes externos registrada.
+            Resultado = receita de assinaturas (entrada) − anúncios − custos fixos (saída). O mês corrente ainda está em andamento.
+            "Contas criadas" inclui contas internas (a sua, de revisão da Apple e do Google). A receita lançada hoje é a assinatura de teste da família (R$ 5,00/mês);
+            não há cliente externo pagando ainda. Receita nova entra na aba "Assinaturas e custos" (lançamentos do tipo receita).
           </p>
         </div>
       )}
 
       {sub === 'custos' && (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <Resumo titulo="Entrada mensal (assinaturas)" valor={brl(receitaMensalHoje)} destaque={receitaMensalHoje > 0 ? 'bom' : undefined} nota="Receitas mensais lançadas e ainda ativas" />
             <Resumo titulo="Custo fixo por mês" valor={brl(totalMensal)} nota="Soma dos itens com valor (anuais ÷ 12, de 2 anos ÷ 24; dólar na cotação de hoje)" />
+            <Resumo titulo="Falta para empatar" valor={brl(Math.max(totalMensal - receitaMensalHoje, 0))} destaque={totalMensal - receitaMensalHoje > 0 ? 'ruim' : 'bom'} nota="Custo fixo − entrada mensal, sem contar anúncios" />
             <Resumo titulo="Sem valor" valor={String(pendentes.length)} destaque={pendentes.length ? 'ruim' : 'bom'} nota="Entram nos totais quando preenchidos" />
           </div>
           <div className={cn(card, 'overflow-x-auto')}>
@@ -391,7 +427,10 @@ export default function MonthlyReports() {
                   <React.Fragment key={c.id}>
                     <tr className="border-t border-slate-100 dark:border-zinc-800">
                       <td className={td}>
-                        <p className="font-semibold text-slate-900 dark:text-white">{c.name}</p>
+                        <p className="font-semibold text-slate-900 dark:text-white">
+                          {c.kind === 'receita' && <span className="mr-2 inline-block rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-bold uppercase text-sky-700 ring-1 ring-inset ring-sky-200 dark:bg-sky-500/10 dark:text-sky-400 dark:ring-sky-500/30">Receita</span>}
+                          {c.name}
+                        </p>
                         {c.note && <p className="text-xs text-slate-500 mt-0.5 max-w-xl">{c.note}</p>}
                       </td>
                       <td className={td}>{CICLO[c.cycle]}</td>
