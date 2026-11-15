@@ -185,7 +185,7 @@ export default function MonthlyReports() {
   const { data: pagamentos } = useQuery({
     queryKey: ['subscription_payments'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('subscription_payments').select('*').order('paid_at', { ascending: false });
+      const { data, error } = await supabase.from('subscription_payments').select('*').eq('is_test', false).order('paid_at', { ascending: false });
       if (error) throw error;
       return ((data ?? []) as Pagamento[]).map((x) => ({ ...x, gross_brl: Number(x.gross_brl), fee_brl: Number(x.fee_brl), net_brl: Number(x.net_brl) }));
     },
@@ -331,7 +331,7 @@ export default function MonthlyReports() {
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   <Resumo titulo="Receita bruta (entrada)" valor={brl(atual.rev_gross)} destaque={atual.rev_gross > 0 ? 'bom' : undefined} nota="Quanto os clientes pagaram no mês" />
                   <Resumo titulo="Taxas e comissões" valor={brl(atual.rev_fees)} nota="Asaas + Apple (30%) + Google Play (15%)" />
-                  <Resumo titulo="Receita líquida" valor={brl(atual.rev_net)} destaque={atual.rev_net > 0 ? 'bom' : undefined} nota={`Clientes reais: ${brl(atual.rev_real_net)} líquidos`} />
+                  <Resumo titulo="Receita líquida" valor={brl(atual.rev_net)} destaque={atual.rev_net > 0 ? 'bom' : undefined} nota={`${atual.payers} cliente(s) pagante(s) no mês`} />
                   <Resumo
                     titulo={resultado < 0 ? 'Resultado: prejuízo' : 'Resultado: lucro'}
                     valor={brl(resultado)}
@@ -375,7 +375,7 @@ export default function MonthlyReports() {
                 {(pagamentos ?? []).filter((x) => x.paid_at.slice(0, 7) === (mes ?? '').slice(0, 7)).map((x) => (
                   <p key={x.id}>
                     {dia(x.paid_at)} · {CANAL[x.provider]} · {x.customer_name ?? 'Sem nome'} · {x.plan_id ?? 'plano ?'} · {brl(x.gross_brl)} (líquido {brl(x.net_brl)})
-                    {x.is_test && <span className="ml-1 rounded bg-amber-50 px-1.5 py-0.5 font-semibold text-amber-700">teste/família</span>}
+                    
                   </p>
                 ))}
               </div>
@@ -402,7 +402,7 @@ export default function MonthlyReports() {
           </div>
           <p className="text-xs text-slate-500">
             Os leads vêm do formulário do site (tabela leads). O gasto de cada campanha é dividido igualmente pelos dias do período; campanhas
-            com datas estimadas ou sem atualização recente podem estar fora do valor real. Receita só entra quando lançada em finance_costs.
+            com datas estimadas ou sem atualização recente podem estar fora do valor real. A receita vem dos pagamentos reais (Asaas, App Store e Google Play); contas de teste ficam de fora.
           </p>
         </div>
       )}
@@ -501,7 +501,7 @@ export default function MonthlyReports() {
             Resultado = receita líquida (assinaturas pagas, já sem taxas) − anúncios − custos fixos. O mês corrente ainda está em andamento.
             A receita vem sozinha do Asaas (atualiza todo dia) e das compras da App Store e do Google Play. Taxas: Asaas conforme cada cobrança,
             Apple 30% (15% quando o Small Business Program valer) e Google Play 15% em assinaturas. "Leads convertidos" são os leads que pagaram
-            (o resto é lead frio). Pagamentos marcados "teste/família" entram na receita, mas não contam como cliente real nem como lead convertido.
+            (o resto é lead frio). Contas de teste (a sua, da família e de revisão da Apple) são ignoradas na receita e nos leads convertidos.
           </p>
         </div>
       )}

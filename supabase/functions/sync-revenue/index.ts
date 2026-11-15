@@ -9,7 +9,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
    - Incremental: só busca cobranças criadas nos últimos ~45 dias antes do último pagamento já gravado
      (pega as que mudaram de CONFIRMED para RECEIVED). Com {"full": true} ou tabela vazia, busca tudo.
    - Idempotente: upsert por (provider, external_id).
-   - is_test: valor abaixo de R$ 20 (planos reais custam a partir de R$ 49,90) ou conta de administrador. */
+   - is_test (fica fora da receita): valor abaixo de R$ 20 (planos reais custam a partir de R$ 49,90), administrador,
+     e-mail em revenue_test_emails ou do domínio representese.com. */
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')
@@ -86,6 +87,8 @@ serve(async (req) => {
     for (const u of usersPage?.users ?? []) if (u.email) byEmail.set(u.email.toLowerCase(), u.id)
     const { data: admins } = await admin.from('user_settings').select('user_id').eq('is_admin', true)
     const adminIds = new Set((admins ?? []).map((a: { user_id: string }) => a.user_id))
+    const { data: testes } = await admin.from('revenue_test_emails').select('email')
+    const testEmails = new Set((testes ?? []).map((t: { email: string }) => t.email.toLowerCase()))
 
     const customers = new Map<string, { email: string | null; name: string | null }>()
     const rows: Record<string, unknown>[] = []
@@ -117,7 +120,7 @@ serve(async (req) => {
             net_brl: net,
             fee_pct: gross > 0 ? Math.round((fee / gross) * 10000) / 100 : null,
             paid_at: paid,
-            is_test: gross < 20 || (userId ? adminIds.has(userId) : false),
+            is_test: gross < 20 || (userId ? adminIds.has(userId) : false) || (c.email ? testEmails.has(c.email) || c.email.endsWith('@representese.com') : false),
             note: `${p.billingType} · ${p.status} · ${(p.description || '').slice(0, 80)}`,
           })
         }
