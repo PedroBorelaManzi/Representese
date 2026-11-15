@@ -70,7 +70,8 @@ function layout(body: string, unsubUrl: string, preheader = ''): string {
           <hr style="border:0;border-top:1px solid #e2e8f0;margin:0 0 16px 0;" />
           <p style="font-size:11px;color:#94a3b8;line-height:1.7;margin:0;">
             Você recebeu este e-mail porque deixou seus dados ou criou uma conta no Represente-Se!.
-            Pode responder esta mensagem: a gente lê.<br/>
+            Responda esta mensagem, mesmo que seja só um "oi": a gente lê e te ajuda.
+            Se este e-mail caiu no spam ou em Promoções, marque como "Não é spam" para continuar recebendo.<br/>
             <a href="${unsubUrl}" style="color:#94a3b8;">Parar de receber estes e-mails</a>
           </p>
         </td></tr>
@@ -215,7 +216,25 @@ function template(step: string, firstName: string, unsubUrl: string): { subject:
   }
 }
 
+// Versão em texto simples do e-mail (multipart). Quem manda só HTML pontua pior nos filtros de spam.
+function htmlToText(html: string): string {
+  return html
+    .replace(/<div style="display:none[^>]*>[\s\S]*?<\/div>/i, '')
+    .replace(/<img[^>]*>/gi, '')
+    .replace(/<a [^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi, (_m, href, label) => {
+      const l = String(label).replace(/<[^>]+>/g, '').trim()
+      return l && l !== href ? `${l}: ${href}` : String(href)
+    })
+    .replace(/<\/(p|tr|table|div|h\d)>/gi, '\n\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;|&zwnj;/g, ' ')
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
+    .replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim()
+}
+
 async function send(payload: Record<string, unknown>) {
+  if (typeof payload.html === 'string' && !payload.text) payload = { ...payload, text: htmlToText(payload.html) }
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${RESEND_API_KEY}` },
