@@ -80,6 +80,20 @@ function porMes(c: Custo, dolar: number): number {
   return 0;
 }
 
+/** Quanto o item custa dentro de um mês específico (mesmo critério do relatório: anuais ÷ 12, de 2 anos ÷ 24, única só no mês da cobrança). */
+function custoNoMes(c: Custo, mes: string, dolar: number): number {
+  const v = emReais(c, dolar);
+  if (c.kind !== 'custo' || v == null || !c.started_on) return 0;
+  const [y, m] = mes.slice(0, 7).split('-').map(Number);
+  const [y0, m0] = c.started_on.slice(0, 7).split('-').map(Number);
+  const diff = (y - y0) * 12 + (m - m0);
+  if (c.cycle === 'monthly') return diff >= 0 && (!c.ends_on || c.ends_on.slice(0, 7) >= mes.slice(0, 7)) ? v : 0;
+  if (c.cycle === 'annual') return diff >= 0 && diff < 12 ? v / 12 : 0;
+  if (c.cycle === 'biennial') return diff >= 0 && diff < 24 ? v / 24 : 0;
+  if (c.cycle === 'one_time') return diff === 0 ? v : 0;
+  return 0;
+}
+
 /** Parte do gasto da campanha que cai no mês (divisão igual pelos dias do período). */
 function gastoNoMes(c: Campanha, mes: string): number {
   if (!c.spend || !c.period_from || !c.period_to) return 0;
@@ -323,64 +337,88 @@ export default function MonthlyReports() {
           </div>
 
           {(() => {
-            const ads = atual.ads_meta + atual.ads_google;
-            const total = ads + atual.fixed_costs;
-            const resultado = atual.revenue - total;
-            return (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <Resumo titulo="Receita bruta (entrada)" valor={brl(atual.rev_gross)} destaque={atual.rev_gross > 0 ? 'bom' : undefined} nota="Quanto os clientes pagaram no mês" />
-                  <Resumo titulo="Taxas e comissões" valor={brl(atual.rev_fees)} nota="Asaas + Apple (30%) + Google Play (15%)" />
-                  <Resumo titulo="Receita líquida" valor={brl(atual.rev_net)} destaque={atual.rev_net > 0 ? 'bom' : undefined} nota={`${atual.payers} cliente(s) pagante(s) no mês`} />
-                  <Resumo
-                    titulo={resultado < 0 ? 'Resultado: prejuízo' : 'Resultado: lucro'}
-                    valor={brl(resultado)}
-                    destaque={resultado < 0 ? 'ruim' : 'bom'}
-                    nota={`Líquida ${brl(atual.revenue)} − saída ${brl(total)}`}
-                  />
+            const mesKey = (mes ?? '').slice(0, 7);
+            const doMesPag = (pagamentos ?? []).filter((x) => x.paid_at.slice(0, 7) === mesKey);
+            const canais = (['asaas', 'apple', 'google'] as const).map((canal) => {
+              const lista = doMesPag.filter((x) => x.provider === canal);
+              const g = lista.reduce((t, x) => t + x.gross_brl, 0);
+              const f = lista.reduce((t, x) => t + x.fee_brl, 0);
+              return { canal, n: lista.length, g, f, liq: g - f };
+            });
+            const bruta = canais.reduce((t, c) => t + c.g, 0);
+            const taxas = canais.reduce((t, c) => t + c.f, 0);
+            const entrada = bruta - taxas;
+            const itens = (custos ?? [])
+              .map((c) => ({ c, v: custoNoMes(c, mes ?? '', dolar) }))
+              .filter((x) => x.v > 0.004)
+              .sort((a, b) => b.v - a.v);
+            const fixos = itens.reduce((t, x) => t + x.v, 0);
+            const saida = atual.ads_meta + atual.ads_google + fixos;
+            const resultado = entrada - saida;
+            const Linha2 = ({ nome, valor, sub, forte }: { nome: string; valor: string; sub?: string; forte?: boolean }) => (
+              <div className="flex items-start justify-between gap-3 py-2 border-b border-slate-100 dark:border-zinc-800 last:border-0">
+                <div className="min-w-0">
+                  <p className={cn('text-sm', forte ? 'font-bold text-slate-900 dark:text-white' : 'text-slate-700 dark:text-zinc-300')}>{nome}</p>
+                  {sub && <p className="text-xs text-slate-500">{sub}</p>}
                 </div>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <Resumo titulo="Anúncios (saída)" valor={brl(ads)} nota={`Meta ${brl(atual.ads_meta)} · Google ${brl(atual.ads_google)}`} />
-                  <Resumo titulo="Assinaturas e custos fixos (saída)" valor={brl(atual.fixed_costs)} nota="Anuais rateadas por mês" />
-                  <Resumo titulo="Leads convertidos (pagaram)" valor={`${atual.leads_converted} de ${atual.leads}`} destaque={atual.leads_converted > 0 ? 'bom' : undefined} nota="Só conta quem pagou; o resto é lead frio" />
-                  <Resumo titulo="Custo por lead convertido" valor={atual.leads_converted ? brl(total / atual.leads_converted) : '—'} nota={atual.leads_converted ? 'Saída total ÷ convertidos' : 'Nenhum lead pagou neste mês'} />
+                <p className={cn('text-sm whitespace-nowrap', forte ? 'font-bold text-slate-900 dark:text-white' : 'text-slate-700 dark:text-zinc-300')}>{valor}</p>
+              </div>
+            );
+            return (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className={cn(card, 'p-5 border-t-4 border-t-emerald-500')}>
+                    <p className="text-xs font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">Entrada · o que entrou</p>
+                    <p className="text-3xl font-black text-emerald-600 mt-1">{brl(entrada)}</p>
+                    <p className="text-xs text-slate-500 mb-3">Receita das assinaturas já sem as taxas do Asaas e as comissões da Apple e do Google</p>
+                    {canais.map((c) => (
+                      <Linha2
+                        key={c.canal}
+                        nome={CANAL[c.canal]}
+                        valor={brl(c.liq)}
+                        sub={c.n > 0 ? `${c.n} pagamento(s): ${brl(c.g)} − ${brl(c.f)} de ${c.canal === 'apple' ? 'comissão (30%)' : c.canal === 'google' ? 'comissão (15%)' : 'taxa'}` : 'Nenhum pagamento no mês'}
+                      />
+                    ))}
+                    <Linha2 nome="Total pago pelos clientes (bruto)" valor={brl(bruta)} />
+                    <Linha2 nome="(−) Taxas e comissões" valor={brl(taxas)} />
+                    <Linha2 nome="Total de entrada" valor={brl(entrada)} forte />
+                    {doMesPag.length > 0 && (
+                      <div className="mt-3 text-xs text-slate-500 space-y-1">
+                        {doMesPag.map((x) => (
+                          <p key={x.id}>{dia(x.paid_at)} · {x.customer_name ?? 'Sem nome'} · plano {x.plan_id ?? '?'} · {brl(x.gross_brl)}</p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className={cn(card, 'p-5 border-t-4 border-t-rose-500')}>
+                    <p className="text-xs font-bold uppercase tracking-wide text-rose-700 dark:text-rose-400">Saída · o que gastamos</p>
+                    <p className="text-3xl font-black text-rose-600 mt-1">{brl(saida)}</p>
+                    <p className="text-xs text-slate-500 mb-3">Anúncios mais assinaturas e custos fixos do mês</p>
+                    <Linha2 nome="Anúncios: Meta (Instagram)" valor={brl(atual.ads_meta)} />
+                    <Linha2 nome="Anúncios: Google" valor={brl(atual.ads_google)} />
+                    {itens.map(({ c, v }) => (
+                      <Linha2 key={c.id} nome={c.name} valor={brl(v)} sub={c.cycle === 'annual' ? 'anual, rateado por mês' : c.cycle === 'biennial' ? 'a cada 2 anos, rateado por mês' : c.cycle === 'one_time' ? 'cobrança única' : undefined} />
+                    ))}
+                    <Linha2 nome="Total de saída" valor={brl(saida)} forte />
+                  </div>
+                </div>
+
+                <div className={cn('rounded-2xl p-5 text-center border-2', resultado < 0 ? 'border-rose-300 bg-rose-50 dark:bg-rose-500/10 dark:border-rose-500/40' : 'border-emerald-300 bg-emerald-50 dark:bg-emerald-500/10 dark:border-emerald-500/40')}>
+                  <p className="text-sm text-slate-600 dark:text-zinc-300">
+                    Entrada <b>{brl(entrada)}</b> − Saída <b>{brl(saida)}</b> =
+                  </p>
+                  <p className={cn('mt-1 text-4xl font-black', resultado < 0 ? 'text-rose-600' : 'text-emerald-600')}>
+                    {resultado < 0 ? 'Prejuízo de ' : 'Lucro de '}{brl(Math.abs(resultado))}
+                  </p>
+                  <p className="mt-2 text-xs text-slate-500">
+                    Leads convertidos (pagaram): {atual.leads_converted} de {atual.leads}
+                    {atual.leads_converted > 0 ? ` · custo por lead convertido ${brl(saida / atual.leads_converted)}` : ''}
+                  </p>
                 </div>
               </div>
             );
           })()}
-
-          <div className={cn(card, 'overflow-x-auto')}>
-            <div className="px-4 pt-4 font-bold text-slate-900 dark:text-white">Receita de assinaturas por canal no mês</div>
-            <table className="w-full text-left text-sm mt-2">
-              <thead><tr className="border-b border-slate-200 dark:border-zinc-700"><th className={th}>Canal</th><th className={cn(th, 'text-right')}>Pagamentos</th><th className={cn(th, 'text-right')}>Bruto</th><th className={cn(th, 'text-right')}>Taxa / comissão</th><th className={cn(th, 'text-right')}>Líquido</th></tr></thead>
-              <tbody>
-                {(['asaas', 'apple', 'google'] as const).map((canal) => {
-                  const doCanal = (pagamentos ?? []).filter((x) => x.provider === canal && x.paid_at.slice(0, 7) === (mes ?? '').slice(0, 7));
-                  const g = doCanal.reduce((t, x) => t + x.gross_brl, 0);
-                  const f = doCanal.reduce((t, x) => t + x.fee_brl, 0);
-                  return (
-                    <tr key={canal} className="border-b border-slate-100 dark:border-zinc-800">
-                      <td className={td}>{CANAL[canal]}</td>
-                      <td className={cn(td, 'text-right')}>{doCanal.length}</td>
-                      <td className={cn(td, 'text-right')}>{brl(g)}</td>
-                      <td className={cn(td, 'text-right')}>{brl(f)}{g > 0 ? ` (${((f / g) * 100).toFixed(1).replace('.', ',')}%)` : ''}</td>
-                      <td className={cn(td, 'text-right font-semibold')}>{brl(g - f)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            {(pagamentos ?? []).filter((x) => x.paid_at.slice(0, 7) === (mes ?? '').slice(0, 7)).length > 0 && (
-              <div className="px-4 pb-4 text-xs text-slate-500 space-y-1">
-                {(pagamentos ?? []).filter((x) => x.paid_at.slice(0, 7) === (mes ?? '').slice(0, 7)).map((x) => (
-                  <p key={x.id}>
-                    {dia(x.paid_at)} · {CANAL[x.provider]} · {x.customer_name ?? 'Sem nome'} · {x.plan_id ?? 'plano ?'} · {brl(x.gross_brl)} (líquido {brl(x.net_brl)})
-                    
-                  </p>
-                ))}
-              </div>
-            )}
-          </div>
 
           <div className={cn(card, 'overflow-x-auto')}>
             <div className="px-4 pt-4 font-bold text-slate-900 dark:text-white">Campanhas no mês</div>
