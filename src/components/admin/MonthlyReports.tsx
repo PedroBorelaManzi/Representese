@@ -390,7 +390,7 @@ export default function MonthlyReports() {
                         key={c.canal}
                         nome={CANAL[c.canal]}
                         valor={brl(c.liq)}
-                        sub={c.n > 0 ? `${c.n} pagamento(s): ${brl(c.g)} − ${brl(c.f)} de ${c.canal === 'apple' ? 'comissão (30%)' : c.canal === 'google' ? 'comissão (15%)' : 'taxa'}` : 'Nenhum pagamento no mês'}
+                        sub={c.n > 0 ? `${c.n} pagamento(s): ${brl(c.g)} − ${brl(c.f)} de ${c.canal === 'asaas' ? 'taxa' : 'comissão'} (${c.g > 0 ? ((c.f / c.g) * 100).toFixed(0) : 0}%)` : 'Nenhum pagamento no mês'}
                       />
                     ))}
                     <Linha2 nome="Total pago pelos clientes (bruto)" valor={brl(bruta)} />
@@ -583,7 +583,7 @@ export default function MonthlyReports() {
           <p className="text-xs text-slate-500">
             Resultado = receita líquida (assinaturas pagas, já sem taxas) − anúncios − custos fixos. O mês corrente ainda está em andamento.
             A receita vem sozinha do Asaas (atualiza todo dia) e das compras da App Store e do Google Play. Taxas: Asaas conforme cada cobrança,
-            Apple 30% (15% quando o Small Business Program valer) e Google Play 15% em assinaturas. "Leads convertidos" são os leads que pagaram
+            Apple 30% até 12/11/2026 e 15% depois (Small Business Program aprovado em 13/11/2026) e Google Play 15% em assinaturas. "Leads convertidos" são os leads que pagaram
             (o resto é lead frio). Contas de teste (a sua, da família e de revisão da Apple) são ignoradas na receita e nos leads convertidos.
           </p>
         </div>
