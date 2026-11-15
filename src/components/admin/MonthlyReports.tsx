@@ -166,6 +166,22 @@ export default function MonthlyReports() {
     },
     staleTime: 0,
   });
+  // Ao abrir a aba, puxa do Asaas o que for novo (incremental). Apple e Google Play já entram sozinhos pelas compras do app.
+  const sync = useQuery({
+    queryKey: ['sync_revenue'],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke('sync-revenue', { body: {} });
+      if (error) throw error;
+      qc.invalidateQueries({ queryKey: ['admin_monthly_report_v3'] });
+      qc.invalidateQueries({ queryKey: ['subscription_payments'] });
+      return { at: new Date(), novos: Number((data as { asaas_payments?: number } | null)?.asaas_payments ?? 0) };
+    },
+    staleTime: 0,
+    gcTime: 0,
+    retry: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: false,
+  });
   const { data: pagamentos } = useQuery({
     queryKey: ['subscription_payments'],
     queryFn: async () => {
@@ -272,6 +288,16 @@ export default function MonthlyReports() {
         ) : (
           <span className="text-amber-700">Não foi possível buscar a cotação do dia; usando {brl(DOLAR_RESERVA)} por dólar.</span>
         )}
+      </div>
+
+      <div className="text-xs text-slate-500" aria-live="polite">
+        {sync.isFetching
+          ? 'Atualizando as receitas do Asaas…'
+          : sync.isError
+            ? <span className="text-amber-700">Não foi possível atualizar o Asaas agora; mostrando o que já estava salvo. App Store e Google Play entram sozinhos a cada compra.</span>
+            : sync.data
+              ? `Receitas atualizadas às ${sync.data.at.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} (Asaas puxado agora; App Store e Google Play entram sozinhos a cada compra).`
+              : null}
       </div>
 
       {pendentes.length > 0 && (

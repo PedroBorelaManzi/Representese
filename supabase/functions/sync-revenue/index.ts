@@ -2,16 +2,28 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { timingSafeEqual } from "https://deno.land/std@0.168.0/crypto/timing_safe_equal.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-/* Puxa do Asaas todas as cobranças pagas (RECEIVED/CONFIRMED) e grava em subscription_payments
-   com taxa (valor − netValue) e líquido. Apple e Google entram pelo handle-revenuecat-webhook.
-   - Chamada pelo pg_cron (diário) ou à mão, com o x-internal-token (internal_config.cron_token).
+/* Puxa do Asaas as cobranças pagas (RECEIVED/CONFIRMED) e grava em subscription_payments
+   com taxa (valor − netValue) e líquido. Apple e Google entram em tempo real pelo
+   handle-revenuecat-webhook (trigger log_iap_payment).
+   - Chamada de duas formas: pg_cron diário (x-internal-token) ou pelo admin ao abrir a aba Relatórios (JWT de admin).
+   - Incremental: só busca cobranças criadas nos últimos ~45 dias antes do último pagamento já gravado
+     (pega as que mudaram de CONFIRMED para RECEIVED). Com {"full": true} ou tabela vazia, busca tudo.
    - Idempotente: upsert por (provider, external_id).
    - is_test: valor abaixo de R$ 20 (planos reais custam a partir de R$ 49,90) ou conta de administrador. */
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
+const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 const ASAAS_API_KEY = Deno.env.get('ASAAS_API_KEY')
 const ASAAS_API_URL = 'https://www.asaas.com/api/v3'
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-internal-token',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
 const enc = new TextEncoder()
 const equals = (a: string, b: string) => {
@@ -34,16 +46,41 @@ const planFrom = (d: string): string | null => {
 }
 
 serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   const admin = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!)
-  const { data: cfg } = await admin.from('internal_config').select('value').eq('key', 'cron_token').single()
-  const secret = cfg?.value as string | undefined
-  const token = req.headers.get('x-internal-token')
-  if (!secret || !token || !equals(token, secret)) {
-    return new Response(JSON.stringify({ success: false, message: 'Não autorizado.' }), { status: 401 })
+
+  // Autorização: token interno (cron) OU usuário administrador logado (aba Relatórios).
+  let autorizado = false
+  const internal = req.headers.get('x-internal-token')
+  if (internal) {
+    const { data: cfg } = await admin.from('internal_config').select('value').eq('key', 'cron_token').single()
+    const secret = cfg?.value as string | undefined
+    autorizado = !!secret && equals(internal, secret)
+  } else {
+    const authHeader = req.headers.get('Authorization')
+    if (authHeader) {
+      const { data: { user } } = await createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!, { global: { headers: { Authorization: authHeader } } }).auth.getUser()
+      if (user) {
+        const { data: s } = await admin.from('user_settings').select('is_admin').eq('user_id', user.id).maybeSingle()
+        autorizado = s?.is_admin === true
+      }
+    }
   }
-  if (!ASAAS_API_KEY) return new Response(JSON.stringify({ success: false, message: 'ASAAS_API_KEY ausente.' }), { status: 500 })
+  if (!autorizado) return json({ success: false, message: 'Não autorizado.' }, 401)
+  if (!ASAAS_API_KEY) return json({ success: false, message: 'ASAAS_API_KEY ausente.' }, 500)
 
   try {
+    const body = await req.json().catch(() => ({})) as { full?: boolean }
+
+    // Janela incremental: a partir de 45 dias antes do último pagamento do Asaas já gravado.
+    let desde: string | null = null
+    if (!body.full) {
+      const { data: ult } = await admin.from('subscription_payments').select('paid_at').eq('provider', 'asaas').order('paid_at', { ascending: false }).limit(1)
+      if (ult?.[0]?.paid_at) {
+        desde = new Date(new Date(ult[0].paid_at + 'T12:00:00Z').getTime() - 45 * 86400000).toISOString().slice(0, 10)
+      }
+    }
+
     const { data: usersPage } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
     const byEmail = new Map<string, string>()
     for (const u of usersPage?.users ?? []) if (u.email) byEmail.set(u.email.toLowerCase(), u.id)
@@ -54,7 +91,8 @@ serve(async (req) => {
     const rows: Record<string, unknown>[] = []
     for (const status of ['RECEIVED', 'CONFIRMED']) {
       for (let offset = 0; offset < 2000; offset += 100) {
-        const page = await asaas(`/payments?status=${status}&limit=100&offset=${offset}`)
+        const filtro = desde ? `&dateCreated[ge]=${desde}` : ''
+        const page = await asaas(`/payments?status=${status}&limit=100&offset=${offset}${filtro}`)
         for (const p of page.data ?? []) {
           if (!customers.has(p.customer)) {
             const c = await asaas(`/customers/${p.customer}`).catch(() => null)
@@ -90,9 +128,9 @@ serve(async (req) => {
       const { error } = await admin.from('subscription_payments').upsert(rows, { onConflict: 'provider,external_id' })
       if (error) throw error
     }
-    return new Response(JSON.stringify({ success: true, asaas_payments: rows.length }), { headers: { 'Content-Type': 'application/json' } })
+    return json({ success: true, asaas_payments: rows.length, incremental: !!desde })
   } catch (e) {
     console.error('sync-revenue', e)
-    return new Response(JSON.stringify({ success: false, message: String((e as Error).message || e) }), { status: 500 })
+    return json({ success: false, message: String((e as Error).message || e) }, 500)
   }
 })
