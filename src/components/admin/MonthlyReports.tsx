@@ -345,10 +345,12 @@ export default function MonthlyReports() {
             <table className="w-full text-left text-sm whitespace-nowrap">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-zinc-700">
-                  <th className={th}>Mês</th><th className={cn(th, 'text-right')}>Leads</th><th className={cn(th, 'text-right')}>Contas criadas</th>
+                  <th className={th}>Mês</th>
+                  <th className={cn(th, 'text-right')}>Receita (entrada)</th><th className={cn(th, 'text-right')}>Total saída</th>
+                  <th className={cn(th, 'text-right')}>Resultado (lucro/prejuízo)</th>
+                  <th className={cn(th, 'text-right')}>Leads</th><th className={cn(th, 'text-right')}>Contas criadas</th>
                   <th className={cn(th, 'text-right')}>Meta</th><th className={cn(th, 'text-right')}>Google</th><th className={cn(th, 'text-right')}>Custos fixos</th>
-                  <th className={cn(th, 'text-right')}>Total saída</th><th className={cn(th, 'text-right')}>Custo por lead</th>
-                  <th className={cn(th, 'text-right')}>Receita (entrada)</th><th className={cn(th, 'text-right')}>Resultado (lucro/prejuízo)</th>
+                  <th className={cn(th, 'text-right')}>Custo por lead</th>
                 </tr>
               </thead>
               <tbody>
@@ -358,41 +360,42 @@ export default function MonthlyReports() {
                   return (
                     <tr key={l.month} className="border-b border-slate-100 dark:border-zinc-800">
                       <td className={td}>{mesLabel(l.month)}</td>
+                      <td className={cn(td, 'text-right text-sky-700 dark:text-sky-400')}>{brl(l.revenue)}</td>
+                      <td className={cn(td, 'text-right font-semibold')}>{brl(total)}</td>
+                      <td className={cn(td, 'text-right font-bold', resultado < 0 ? 'text-rose-600' : 'text-emerald-600')}>{brl(resultado)}</td>
                       <td className={cn(td, 'text-right')}>{l.leads}</td>
                       <td className={cn(td, 'text-right')}>{l.accounts}</td>
                       <td className={cn(td, 'text-right')}>{brl(l.ads_meta)}</td>
                       <td className={cn(td, 'text-right')}>{brl(l.ads_google)}</td>
                       <td className={cn(td, 'text-right')}>{brl(l.fixed_costs)}</td>
-                      <td className={cn(td, 'text-right font-semibold')}>{brl(total)}</td>
                       <td className={cn(td, 'text-right')}>{l.leads ? brl(total / l.leads) : '—'}</td>
-                      <td className={cn(td, 'text-right text-sky-700 dark:text-sky-400')}>{brl(l.revenue)}</td>
-                      <td className={cn(td, 'text-right font-bold', resultado < 0 ? 'text-rose-600' : 'text-emerald-600')}>{brl(resultado)}</td>
                     </tr>
                   );
                 })}
-                <tr className="bg-slate-50 dark:bg-zinc-800/60 font-bold">
-                  <td className={td}>Total</td>
-                  <td className={cn(td, 'text-right')}>{tot.leads}</td>
-                  <td className={cn(td, 'text-right')}>{meses.reduce((s, l) => s + l.accounts, 0)}</td>
-                  <td className={cn(td, 'text-right')}>{brl(tot.meta)}</td>
-                  <td className={cn(td, 'text-right')}>{brl(tot.google)}</td>
-                  <td className={cn(td, 'text-right')}>{brl(tot.fixo)}</td>
-                  <td className={cn(td, 'text-right')}>{brl(tot.meta + tot.google + tot.fixo)}</td>
-                  <td className={cn(td, 'text-right')}>{tot.leads ? brl((tot.meta + tot.google + tot.fixo) / tot.leads) : '—'}</td>
-                  <td className={cn(td, 'text-right text-sky-700 dark:text-sky-400')}>{brl(tot.rec)}</td>
-                  <td className={cn(td, 'text-right', tot.rec - (tot.meta + tot.google + tot.fixo) < 0 ? 'text-rose-600' : 'text-emerald-600')}>{brl(tot.rec - (tot.meta + tot.google + tot.fixo))}</td>
-                </tr>
                 {(() => {
-                  const resFinal = tot.rec - (tot.meta + tot.google + tot.fixo);
+                  const saidaTotal = tot.meta + tot.google + tot.fixo;
+                  const resFinal = tot.rec - saidaTotal;
                   return (
-                    <tr className={cn('font-bold', resFinal < 0 ? 'bg-rose-50 dark:bg-rose-500/10' : 'bg-emerald-50 dark:bg-emerald-500/10')}>
-                      <td className={td} colSpan={9}>
-                        Resultado final (todos os meses): entrada {brl(tot.rec)} − saída {brl(tot.meta + tot.google + tot.fixo)}
-                      </td>
-                      <td className={cn(td, 'text-right text-lg', resFinal < 0 ? 'text-rose-600' : 'text-emerald-600')}>
-                        {resFinal < 0 ? 'Prejuízo ' : 'Lucro '}{brl(Math.abs(resFinal))}
-                      </td>
-                    </tr>
+                    <>
+                      <tr className="bg-slate-50 dark:bg-zinc-800/60 font-bold">
+                        <td className={td}>Total</td>
+                        <td className={cn(td, 'text-right text-sky-700 dark:text-sky-400')}>{brl(tot.rec)}</td>
+                        <td className={cn(td, 'text-right')}>{brl(saidaTotal)}</td>
+                        <td className={cn(td, 'text-right', resFinal < 0 ? 'text-rose-600' : 'text-emerald-600')}>{brl(resFinal)}</td>
+                        <td className={cn(td, 'text-right')}>{tot.leads}</td>
+                        <td className={cn(td, 'text-right')}>{meses.reduce((s, l) => s + l.accounts, 0)}</td>
+                        <td className={cn(td, 'text-right')}>{brl(tot.meta)}</td>
+                        <td className={cn(td, 'text-right')}>{brl(tot.google)}</td>
+                        <td className={cn(td, 'text-right')}>{brl(tot.fixo)}</td>
+                        <td className={cn(td, 'text-right')}>{tot.leads ? brl(saidaTotal / tot.leads) : '—'}</td>
+                      </tr>
+                      <tr className={cn('font-bold', resFinal < 0 ? 'bg-rose-50 dark:bg-rose-500/10' : 'bg-emerald-50 dark:bg-emerald-500/10')}>
+                        <td className={td} colSpan={3}>Resultado final: entrada {brl(tot.rec)} − saída {brl(saidaTotal)}</td>
+                        <td className={cn(td, 'text-right text-lg', resFinal < 0 ? 'text-rose-600' : 'text-emerald-600')} colSpan={7}>
+                          {resFinal < 0 ? 'Prejuízo de ' : 'Lucro de '}{brl(Math.abs(resFinal))}
+                        </td>
+                      </tr>
+                    </>
                   );
                 })()}
               </tbody>
