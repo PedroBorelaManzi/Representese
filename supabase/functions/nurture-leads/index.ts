@@ -104,6 +104,29 @@ function template(step: string, firstName: string, unsubUrl: string): { subject:
   const oi = nome ? `${nome}, ` : ''
   const L = (body: string, pre: string) => layout(body, unsubUrl, pre)
 
+  // bf3: e-mail único de Black Friday, SEM citar valores (pedido do Pedro, 15/11).
+  if (/^bf3_(conta|lead)$/.test(step)) {
+    const conta = step.endsWith('_conta')
+    const link = conta ? `${SITE}/login` : `${SITE}/planos`
+    const abertura = conta
+      ? `${oi ? nome + ', sua' : 'Sua'} conta no Represente-Se! está pronta, mas ainda sem plano.`
+      : `${oi ? nome + ', você' : 'Você'} deixou seus dados no Represente-Se!, mas ainda não começou.`
+    return {
+      subject: `${oi ? nome + ', a' : 'A'} Black Friday do Represente-Se! chegou 🔥`,
+      html: L(
+        p('<strong>A Black Friday chegou para quem vive de representação.</strong>') +
+        p(abertura) +
+        p('Baixamos o preço dos planos neste período. Antes de o ano acabar, vale organizar clientes, pedidos e visitas num lugar só e entrar em 2027 sem perder venda por esquecimento.') +
+        p('Com o Represente-Se! você:') +
+        BF_LINES +
+        p('<strong>7 dias de garantia:</strong> se não gostar, devolvemos tudo o que você pagou. Sem fidelidade.') +
+        button(link, 'Ver a condição de Black Friday') +
+        p('Quer ver o sistema funcionando antes de decidir? Responde este e-mail ou chama no <a href="' + WHATSAPP + '" style="color:#059669;font-weight:700;">WhatsApp</a>. Eu mesmo atendo.') +
+        p('Pedro,<br/>fundador do Represente-Se!'),
+        'A condição de Black Friday está no ar. Veja como começar.'),
+    }
+  }
+
   // Black Friday: e-mail a quem ainda não assinou (conta sem plano ou só contato). Preços novos, sem cupom e sem prazo inventado.
   if (/^(bf1|bf48|bflast)_(conta|lead)$/.test(step)) {
     const ultimo = step.startsWith('bflast')
@@ -287,7 +310,7 @@ serve(async (req) => {
   // Lembretes automáticos de 30/10 (bf48) e 31/10 (bflast) CANCELADOS a pedido do Pedro (26/10): os preços novos não têm data de término.
   // Só sai blast manual ({"blast":"bf1"|"bf2"}).
   const autoStep: 'bf48' | 'bflast' | null = null
-  const blastStep = body.blast === 'bf1' || body.blast === 'bf2' ? body.blast : autoStep
+  const blastStep = body.blast === 'bf1' || body.blast === 'bf2' || body.blast === 'bf3' ? body.blast : autoStep
   if (blastStep) {
     const { data: logsB } = await admin.from('email_nurture_log').select('email, step').eq('step', blastStep)
     const doneB = new Set((logsB || []).map((l: { email: string }) => l.email))
@@ -312,7 +335,7 @@ serve(async (req) => {
       else await admin.from('email_nurture_log').delete().eq('email', a.email).eq('step', blastStep)
       await new Promise((r) => setTimeout(r, 600)) // respeita o limite de 2 envios/s do Resend
     }
-    if (body.blast === 'bf1' || body.blast === 'bf2') {
+    if (body.blast === 'bf1' || body.blast === 'bf2' || body.blast === 'bf3') {
       return new Response(JSON.stringify({ success: true, blast: blastStep, enviados }), { headers: { 'Content-Type': 'application/json' } })
     }
   }
