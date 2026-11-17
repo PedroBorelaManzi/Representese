@@ -48,14 +48,14 @@ test.describe('Planos: toggle e checkout', () => {
   });
 
   test('Planos: toggle Mensal/Anual troca os preços', async ({ page }) => {
-    // padrão é mensal (79,90 no Profissional)
-    await expect(page.getByText(/79[,.]90/).first()).toBeVisible({ timeout: 15000 });
-
-    await page.locator('button', { hasText: 'Anual' }).click();
-    await expect(page.getByText(/71[,.]90/).first()).toBeVisible();
+    // padrão é anual (71,90 por mês no Profissional)
+    await expect(page.getByText(/71[,.]90/).first()).toBeVisible({ timeout: 15000 });
 
     await page.locator('button', { hasText: 'Mensal' }).click();
     await expect(page.getByText(/79[,.]90/).first()).toBeVisible();
+
+    await page.locator('button', { hasText: 'Anual' }).click();
+    await expect(page.getByText(/71[,.]90/).first()).toBeVisible();
   });
 
   test('CTA do plano sem cadastro leva ao /register com plano e período na URL', async ({ page }) => {

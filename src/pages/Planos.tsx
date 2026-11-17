@@ -66,7 +66,7 @@ export default function Planos() {
     "Conheça os planos do Represente-Se! — a partir de R$ 49,90/mês, sem fidelidade. Escolha o ideal para o número de empresas que você representa.",
     "/planos"
   );
-  const [billingCycle, setBillingCycle] = useState<'MONTHLY' | 'ANNUAL'>('MONTHLY');
+  const [billingCycle, setBillingCycle] = useState<'MONTHLY' | 'ANNUAL'>('ANNUAL');
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const { user, signOut } = useAuth();
   const { settings, refetchSettings } = useSettings();
