@@ -264,7 +264,7 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
   });
 
   // --- QUERY 3: Leads & Assinantes (CRM) ---
-  const { data: leadsData, isLoading: isLoadingLeads } = useQuery({
+  const { data: leadsData, isLoading: isLoadingLeads, refetch: refetchLeads, isFetching: isFetchingLeads } = useQuery({
     queryKey: ['admin_leads_crm'],
     queryFn: async () => {
       // user_settings.subscription_status é coluna legada (default 'active' desde
@@ -289,7 +289,7 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
   });
 
   // --- QUERY 4: Contatos capturados no formulário simples de /register (nome/e-mail/telefone) ---
-  const { data: rawLeadsData, isLoading: isLoadingRawLeads } = useQuery({
+  const { data: rawLeadsData, isLoading: isLoadingRawLeads, refetch: refetchRawLeads, isFetching: isFetchingRawLeads } = useQuery({
     queryKey: ['admin_raw_leads'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -880,6 +880,17 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
 
       {activeTab === 'leads' && (
         <div className="space-y-6">
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => { refetchRawLeads(); refetchLeads(); }}
+            disabled={isFetchingRawLeads || isFetchingLeads}
+            data-testid="leads-recarregar"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-800 dark:hover:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-800/50 disabled:opacity-50 shrink-0"
+          >
+            <RefreshCw className={cn('w-3.5 h-3.5', (isFetchingRawLeads || isFetchingLeads) && 'animate-spin')} /> Recarregar
+          </button>
+        </div>
         {isLoadingRawLeads ? (
           <div className="h-48 bg-zinc-100 dark:bg-zinc-800 rounded-2xl animate-pulse"></div>
         ) : (
