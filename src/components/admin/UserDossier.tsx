@@ -185,7 +185,8 @@ export default function UserDossier() {
       if (error) throw error;
       return ((data || []) as Overview[]).filter((u) => !isHiddenAdminAccount(u.email));
     },
-    staleTime: 60_000,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   const lista = useMemo(() => {

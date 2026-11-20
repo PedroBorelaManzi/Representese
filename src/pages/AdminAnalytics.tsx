@@ -318,7 +318,7 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
       if (profilesError) throw profilesError;
       if (entError) throw entError;
       const overviewByUser = new Map(
-        ((overview || []) as { user_id: string; nome: string | null; funil_etapa: string | null; origem_cadastro: string | null; plataforma: string | null }[])
+        ((overview || []) as { user_id: string; ultimo_acesso: string | null; nome: string | null; funil_etapa: string | null; origem_cadastro: string | null; plataforma: string | null }[])
           .map((o) => [o.user_id, o]),
       );
 
@@ -383,7 +383,9 @@ function AdminAnalyticsContent({ settings }: { settings: any }) {
             billingCycle: ent?.billing_cycle || null,
             currentPeriodEnd: ent?.current_period_end || null,
             avgAccessesPerDay: (accessCountByUser.get(p.user_id) || 0) / 30,
-            lastAccess: lastAccessByUser.get(p.user_id) || null,
+            // Mesma regra da Ficha Completa: o mais recente entre o último evento
+            // registrado (RPC) e o último page_view da janela.
+            lastAccess: [ov?.ultimo_acesso, lastAccessByUser.get(p.user_id)].filter(Boolean).sort().pop() || null,
             lastLocation: lastLocationByUser.get(p.user_id) || null,
           };
         })

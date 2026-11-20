@@ -57,8 +57,11 @@ const persistOptions = {
   persister: indexedDBPersister,
   maxAge: CACHE_MAX_AGE_MS, // apps: 5 anos ("música baixada"); navegador: 7 dias
   dehydrateOptions: {
-    shouldDehydrateQuery: (query: { state: { status: string } }) => {
-      // Cache everything successfully fetched to enable full offline support in IndexedDB
+    shouldDehydrateQuery: (query: { queryKey: readonly unknown[]; state: { status: string } }) => {
+      // Cache everything successfully fetched to enable full offline support in IndexedDB.
+      // Exceção: telas do admin (queryKey 'admin_*') mostram dado ao vivo; guardar
+      // no aparelho fazia a Ficha Completa exibir "último acesso" velho.
+      if (typeof query.queryKey[0] === 'string' && query.queryKey[0].startsWith('admin_')) return false;
       return query.state.status === 'success';
     }
   }
